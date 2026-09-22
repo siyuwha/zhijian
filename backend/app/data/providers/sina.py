@@ -1,0 +1,219 @@
+import asyncio
+import logging
+from typing import List, Optional
+import httpx
+from .base import BaseProvider
+from ..capabilities import (
+    DataQuality,
+    DataResult,
+    IndexQuoteCapability,
+    NewsCapability,
+    OvernightCapability,
+    StockQuoteCapability,
+    ExternalRiskCapability,
+)
+
+logger = logging.getLogger(__name__)
+
+class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, OvernightCapability, NewsCapability, ExternalRiskCapability):
+    """
+    新浪财经数据适配器
+    遵守 G1 避坑规则：
+    1. 必须携带 Referer header: https://finance.sina.com.cn
+    2. 批量请求每次最多10只，间隔 sleep(0.3) 避免被封
+    3. 响应编码采用 GBK 解码
+    4. 铁律：实时数据消费必须 price > 0
+    """
+
+    HEADERS = {
+        "Referer": "https://finance.sina.com.cn",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    def __init__(self):
+        super().__init__(name="sina")
+
+    async def is_available(self) -> bool:
+        return True
+
+    async def get_index_quotes(self, codes: List[str]) -> DataResult:
+        """
+        获取指数行情 (如 s_sh000001, s_sz399001, s_sz399006, s_sh000688)
+        """
+        try:
+            # 确保代码以 s_ 为前缀（简版行情）
+            formatted_codes = [c if c.startswith("s_") else f"s_{c}" for c in codes]
+            url = f"https://hq.sinajs.cn/list={','.join(formatted_codes)}"
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, headers=self.HEADERS)
+                content = resp.content.decode("gbk", errors="ignore")
+
+            quotes = []
+            for line in content.strip().split("\n"):
+                if not line or "=" not in line:
+                    continue
+                var_name, val = line.split("=", 1)
+                code = var_name.split("_")[-1].replace('"', '')
+                val_str = val.strip().strip('";')
+                if not val_str:
+                    continue
+                parts = val_str.split(",")
+                if len(parts) >= 6:
+                    # 指数名, 现价, 涨跌额, 涨跌幅, 成交量(手), 成交额(万元)
+                    name = parts[0]
+                    price = float(parts[1]) if parts[1] else 0.0
+                    change = float(parts[2]) if parts[2] else 0.0
+                    pct_change = float(parts[3]) if parts[3] else 0.0
+                    amount = float(parts[5]) if parts[5] else 0.0 # 万元
+
+                    if price > 0:
+                        quotes.append({
+                            "code": code,
+                            "name": name,
+                            "price": price,
+                            "change": change,
+                            "pct_change": pct_change,
+                            "amount_wan": amount,
+                        })
+
+            return DataResult(
+                data=quotes,
+                quality=DataQuality.FULL if len(quotes) == len(codes) else DataQuality.PARTIAL,
+                provider=self.name
+            )
+        except Exception as e:
+            logger.error(f"Sina get_index_quotes failed: {e}")
+            return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
+    async def get_stock_quotes(self, codes: List[str]) -> DataResult:
+        """分批获取个股行情（每批10只，间隔0.3s）"""
+        results = []
+        chunk_size = 10
+        chunks = [codes[i:i + chunk_size] for i in range(0, len(codes), chunk_size)]
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                for idx, chunk in enumerate(chunks):
+                    if idx > 0:
+                        await asyncio.sleep(0.3)
+
+                    url = f"https://hq.sinajs.cn/list={','.join(chunk)}"
+                    resp = await client.get(url, headers=self.HEADERS)
+                    content = resp.content.decode("gbk", errors="ignore")
+
+                    for line in content.strip().split("\n"):
+                        if not line or '="' in line and line.endswith('";'):
+                            var_name, val = line.split("=", 1)
+                            code = var_name.split("_")[-1].replace('"', '')
+                            val_str = val.strip().strip('";')
+                            parts = val_str.split(",")
+                            if len(parts) >= 32:
+                                price = float(parts[3])
+                                if price > 0:
+                                    results.append({
+                                        "code": code,
+                                        "name": parts[0],
+                                        "open": float(parts[1]),
+                                        "prev_close": float(parts[2]),
+                                        "price": price,
+                                        "high": float(parts[4]),
+                                        "low": float(parts[5]),
+                                        "volume": float(parts[8]),
+                                        "amount": float(parts[9]),
+                                    })
+
+            return DataResult(
+                data=results,
+                quality=DataQuality.FULL if len(results) == len(codes) else DataQuality.PARTIAL,
+                provider=self.name
+            )
+        except Exception as e:
+            logger.error(f"Sina get_stock_quotes failed: {e}")
+            return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
+    async def get_overnight_data(self) -> DataResult:
+        """获取美股/亚太/外盘商品隔夜数据"""
+        try:
+            # 纳斯达克, 道琼斯, 标普500, 富时A50, 恒生
+            overnight_codes = ["gb_ixic", "gb_dji", "gb_inx", "hf_CHA50CFD", "int_hangseng"]
+            url = f"https://hq.sinajs.cn/list={','.join(overnight_codes)}"
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, headers=self.HEADERS)
+                content = resp.content.decode("gbk", errors="ignore")
+
+            items = []
+            for line in content.strip().split("\n"):
+                if not line or "=" not in line:
+                    continue
+                var_name, val = line.split("=", 1)
+                code = var_name.split("_")[-1].replace('"', '')
+                val_str = val.strip().strip('";')
+                parts = val_str.split(",")
+                if len(parts) >= 2:
+                    items.append({
+                        "code": code,
+                        "name": parts[0],
+                        "raw_parts": parts[:5]
+                    })
+
+            return DataResult(data=items, quality=DataQuality.FULL, provider=self.name)
+        except Exception as e:
+            logger.error(f"Sina get_overnight_data failed: {e}")
+            return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
+    async def get_latest_news(self, count: int = 15) -> DataResult:
+        """新浪财经新闻 feed 备用方案"""
+        try:
+            # 简版财经要闻
+            url = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2509&k=&num=15&page=1"
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, headers=self.HEADERS)
+                data = resp.json()
+
+            items = []
+            for entry in data.get("result", {}).get("data", [])[:count]:
+                items.append({
+                    "title": entry.get("title"),
+                    "brief": entry.get("intro"),
+                    "publish_time": entry.get("ctime"),
+                    "source": "sina"
+                })
+
+            return DataResult(data=items, quality=DataQuality.FULL, provider=self.name)
+        except Exception as e:
+            logger.error(f"Sina get_latest_news failed: {e}")
+            return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
+    async def get_external_risk(self) -> DataResult:
+        """获取 A50 变动及标准化多空指标 (若不可靠则返回 PARTIAL/UNAVAILABLE，严禁臆测字段)"""
+        try:
+            url = "https://hq.sinajs.cn/list=hf_CHA50CFD"
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, headers=self.HEADERS)
+                content = resp.content.decode("gbk", errors="ignore")
+
+            a50_pct = 0.0
+            if "=" in content:
+                _, val = content.split("=", 1)
+                val_str = val.strip().strip('";')
+                parts = val_str.split(",")
+                if len(parts) >= 8 and parts[0]:
+                    price = float(parts[0]) if parts[0] else 0.0
+                    prev = float(parts[7]) if parts[7] else 0.0
+                    if price > 0 and prev > 0:
+                        a50_pct = round((price - prev) / prev * 100, 2)
+
+            return DataResult(
+                data={
+                    "a50_pct_change": a50_pct,
+                    "a50_long_short_indicator": None  # G4-B: 不可得时允许为 None，质量标记为 PARTIAL，严禁臆测字段
+                },
+                quality=DataQuality.PARTIAL,
+                provider=self.name
+            )
+        except Exception as e:
+            logger.error(f"Sina get_external_risk failed: {e}")
+            return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+

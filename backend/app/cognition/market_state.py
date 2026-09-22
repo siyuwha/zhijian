@@ -1,0 +1,294 @@
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from .interfaces import (
+    CognitionInput,
+    CognitionLayerInterface,
+    IndicatorValue,
+    MarketState,
+    SubDimensionState,
+)
+from .config import (
+    MarketStateV1Config,
+    MetricConfig,
+    MetricQualityRule,
+    SubDimensionConfig,
+    get_default_market_state_v1_config,
+)
+from ..data.capabilities import DataQuality
+
+logger = logging.getLogger(__name__)
+
+class MarketStateComputer(CognitionLayerInterface):
+    """
+    分层市场状态计算引擎 (M1.4 V1 核心实现)
+    严格执行 G4-B 裁决：
+    1. 分层架构：Raw Data -> D1~D6 子维度评估 -> Market State Snapshot；
+    2. 关键维度与关键指标由配置定义，不硬编码死锁；
+    3. 炸板率在 D3 引用 D2，不重复计算；
+    4. 严格质量防伪：关键缺失时 composite_score = None，绝不填补默认值；
+    5. 部分缺失时在子维度内及全局执行权重动态重归一化。
+    """
+
+    def __init__(self, config: Optional[MarketStateV1Config] = None):
+        self.config = config or get_default_market_state_v1_config()
+
+    def update_config(self, new_config: MarketStateV1Config):
+        """动态更新配置（热配置）"""
+        self.config = new_config
+
+    async def compute_market_state(self, input_data: CognitionInput) -> MarketState:
+        raw_market = input_data.market_data
+        missing_metrics_global: List[str] = []
+
+        sub_dimension_states: Dict[str, SubDimensionState] = {}
+        extracted_metric_values: Dict[str, Any] = self._extract_raw_metrics(raw_market)
+
+        # 1. 逐个子维度计算 (Level 1 -> Level 2)
+        for dim_cfg in self.config.dimensions:
+            if not dim_cfg.enabled:
+                continue
+
+            dim_state, missing = self._evaluate_sub_dimension(dim_cfg, extracted_metric_values, sub_dimension_states)
+            sub_dimension_states[dim_cfg.dimension_id] = dim_state
+            missing_metrics_global.extend(missing)
+
+        # 2. 全局数据质量判定与综合分计算 (Level 2 -> Level 3)
+        global_quality, composite_score, global_label = self._synthesize_global_state(sub_dimension_states)
+
+        return MarketState(
+            timestamp=datetime.now(),
+            composite_score=composite_score,
+            state_label=global_label,
+            data_quality=global_quality,
+            dimensions=sub_dimension_states,
+            missing_metrics=missing_metrics_global,
+            config_snapshot_version=self.config.version
+        )
+
+    def _extract_raw_metrics(self, raw: dict) -> Dict[str, Any]:
+        """从上游原始数据包中平铺提取指标原生值"""
+        metrics: Dict[str, Any] = {}
+
+        # D1 & D6: 指数行情与两市成交额
+        indices = raw.get("indices", [])
+        total_amount = 0.0
+        sh_pct = None
+        for idx in indices:
+            code = idx.get("code", "")
+            pct = idx.get("pct_change")
+            amount = idx.get("amount_wan", 0.0) / 10000.0  # 亿元
+            total_amount += amount
+
+            if "sh000001" in code or "000001" in code:
+                metrics["sh_pct_change"] = pct
+                sh_pct = pct
+            elif "sz399001" in code or "399001" in code:
+                metrics["sz_pct_change"] = pct
+            elif "sz399006" in code or "399006" in code:
+                metrics["cyb_pct_change"] = pct
+            elif "sh000688" in code or "000688" in code:
+                metrics["kc50_pct_change"] = pct
+
+        if total_amount > 0:
+            metrics["total_amount"] = round(total_amount, 2)
+            prev_amount = raw.get("prev_total_amount")
+            if prev_amount and prev_amount > 0:
+                metrics["amount_change_ratio"] = round((total_amount - prev_amount) / prev_amount, 4)
+
+        # D2 & D3: 涨跌停、连板及广度数据
+        limit_up = raw.get("limit_up", {})
+        if limit_up:
+            metrics["limit_up_count"] = limit_up.get("total_count")
+            metrics["limit_down_count"] = limit_up.get("limit_down_count", 0)
+            metrics["max_board_height"] = limit_up.get("max_height")
+            if metrics["limit_up_count"] is not None and metrics["limit_down_count"] is not None:
+                metrics["limit_diff"] = metrics["limit_up_count"] - metrics["limit_down_count"]
+
+            if "broken_limit_ratio" in limit_up:
+                metrics["broken_limit_ratio"] = limit_up.get("broken_limit_ratio")
+            prev_limit_up = raw.get("prev_limit_up_count")
+            continued_count = limit_up.get("continued_count", 0)
+            if prev_limit_up and prev_limit_up > 0:
+                metrics["promotion_rate"] = round(continued_count / prev_limit_up, 4)
+
+        breadth = raw.get("breadth", {})
+        if breadth:
+            metrics["up_count"] = breadth.get("up_count")
+            metrics["down_count"] = breadth.get("down_count")
+            if metrics["up_count"] is not None and metrics["down_count"] is not None:
+                down = max(1, metrics["down_count"])
+                metrics["up_down_ratio"] = round(metrics["up_count"] / down, 3)
+
+        # D4: 微盘股及风格
+        micro = raw.get("micro_cap", {})
+        if micro:
+            micro_pct = micro.get("pct_change")
+            metrics["micro_cap_pct_change"] = micro_pct
+            if micro_pct is not None and sh_pct is not None:
+                metrics["micro_vs_macro_ratio"] = round(micro_pct - sh_pct, 2)
+
+        # D5: 外部风险与A50
+        ext = raw.get("external_risk", {})
+        if ext:
+            metrics["a50_pct_change"] = ext.get("a50_pct_change")
+            metrics["a50_long_short_indicator"] = ext.get("a50_long_short_indicator")
+
+        return metrics
+
+    def _evaluate_sub_dimension(
+        self,
+        dim_cfg: SubDimensionConfig,
+        metrics_pool: Dict[str, Any],
+        calculated_dims: Dict[str, SubDimensionState]
+    ) -> tuple[SubDimensionState, List[str]]:
+        """计算单个子维度的状态、质量与得分"""
+        missing_in_dim: List[str] = []
+        indicators_detail: List[IndicatorValue] = []
+        valid_metrics_map: Dict[str, Any] = {}
+
+        has_critical_missing = False
+        has_important_missing = False
+
+        total_valid_weight = 0.0
+        weighted_score_sum = 0.0
+
+        for m_cfg in dim_cfg.metrics:
+            # 处理跨维度引用 (例如 D3 引用 D2 的炸板率)
+            if m_cfg.capability_ref == "ref_d2":
+                raw_val = metrics_pool.get("broken_limit_ratio")
+            else:
+                raw_val = metrics_pool.get(m_cfg.name)
+
+            if raw_val is None:
+                missing_in_dim.append(m_cfg.name)
+                if m_cfg.quality_rule == MetricQualityRule.CRITICAL:
+                    has_critical_missing = True
+                elif m_cfg.quality_rule == MetricQualityRule.IMPORTANT:
+                    has_important_missing = True
+                continue
+
+            # 归一化计算单指标得分 (0-100)
+            score = self._normalize_metric(raw_val, m_cfg)
+            contribution = score * m_cfg.weight_in_dimension
+
+            valid_metrics_map[m_cfg.name] = raw_val
+            total_valid_weight += m_cfg.weight_in_dimension
+            weighted_score_sum += contribution
+
+            indicators_detail.append(
+                IndicatorValue(
+                    name=m_cfg.name,
+                    value=raw_val,
+                    score=score,
+                    weight=m_cfg.weight_in_dimension,
+                    contribution=contribution,
+                    raw_data={"display_name": m_cfg.display_name}
+                )
+            )
+
+        # 维度数据质量判定
+        if has_critical_missing or total_valid_weight == 0.0:
+            dim_quality = DataQuality.INVALID
+            dim_score = None
+            state_label = "INVALID"
+        elif has_important_missing:
+            dim_quality = DataQuality.PARTIAL
+            # 权重动态重归一化 (Renormalization)
+            dim_score = round(weighted_score_sum / total_valid_weight, 2)
+            state_label = self._classify_score(dim_score)
+        else:
+            dim_quality = DataQuality.FULL
+            dim_score = round(weighted_score_sum / total_valid_weight, 2)
+            state_label = self._classify_score(dim_score)
+
+        return SubDimensionState(
+            dimension_id=dim_cfg.dimension_id,
+            name=dim_cfg.name,
+            score=dim_score,
+            quality=dim_quality,
+            state_label=state_label,
+            metrics=valid_metrics_map,
+            indicators_detail=indicators_detail
+        ), missing_in_dim
+
+    def _synthesize_global_state(
+        self,
+        sub_dims: Dict[str, SubDimensionState]
+    ) -> tuple[DataQuality, Optional[float], str]:
+        """综合全局状态与数据质量判定"""
+        has_critical_dim_invalid = False
+        has_partial_or_optional_invalid = False
+
+        total_valid_dim_weight = 0.0
+        dim_weighted_sum = 0.0
+
+        for dim_cfg in self.config.dimensions:
+            if not dim_cfg.enabled:
+                continue
+
+            state = sub_dims.get(dim_cfg.dimension_id)
+            if not state:
+                continue
+
+            if state.quality == DataQuality.INVALID:
+                if dim_cfg.is_critical_dimension:
+                    has_critical_dim_invalid = True
+                else:
+                    has_partial_or_optional_invalid = True
+            elif state.quality == DataQuality.PARTIAL:
+                has_partial_or_optional_invalid = True
+                if state.score is not None:
+                    total_valid_dim_weight += dim_cfg.dimension_weight
+                    dim_weighted_sum += state.score * dim_cfg.dimension_weight
+            elif state.quality == DataQuality.FULL:
+                if state.score is not None:
+                    total_valid_dim_weight += dim_cfg.dimension_weight
+                    dim_weighted_sum += state.score * dim_cfg.dimension_weight
+
+        # 铁律：关键维度缺失 -> INVALID，强制 composite_score = None
+        if has_critical_dim_invalid:
+            return DataQuality.INVALID, None, "UNAVAILABLE_DUE_TO_DATA_QUALITY"
+
+        if total_valid_dim_weight == 0.0:
+            return DataQuality.INVALID, None, "UNAVAILABLE_DUE_TO_DATA_QUALITY"
+
+        # 部分缺失但关键完备 -> PARTIAL，重归一化计算
+        composite_score = round(dim_weighted_sum / total_valid_dim_weight, 2)
+        global_quality = DataQuality.PARTIAL if has_partial_or_optional_invalid else DataQuality.FULL
+        global_label = self._classify_score(composite_score)
+
+        return global_quality, composite_score, global_label
+
+    def _normalize_metric(self, value: float, config: MetricConfig) -> float:
+        """根据指标配置的阈值进行 0~100 归一化映射"""
+        th = config.thresholds
+        low = th.get("low", 0.0)
+        high = th.get("high", 100.0)
+
+        if high == low:
+            return 50.0
+
+        if config.normalization_method == "inverse":
+            norm = (high - value) / (high - low)
+        else:
+            norm = (value - low) / (high - low)
+
+        clamped = max(0.0, min(1.0, norm))
+        return round(clamped * 100.0, 2)
+
+    def _classify_score(self, score: float) -> str:
+        """状态分级标签"""
+        rules = self.config.state_classification_rules
+        if score <= rules.get("freezing", 25.0):
+            return "冰点周期"
+        elif score <= rules.get("weak", 45.0):
+            return "偏弱震荡"
+        elif score <= rules.get("neutral", 55.0):
+            return "平衡市"
+        elif score <= rules.get("strong", 75.0):
+            return "偏强主升"
+        else:
+            return "亢奋过热"
+
+market_state_computer = MarketStateComputer()
