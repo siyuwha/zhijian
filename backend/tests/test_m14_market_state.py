@@ -55,9 +55,13 @@ async def run_m14_unit_tests():
     assert "D1" in res1.dimensions
     assert "D2" in res1.dimensions
     assert "D3" in res1.dimensions
-    # 验证 D3 正确复用了 D2 的炸板率
-    assert res1.dimensions["D3"].metrics.get("ref_broken_limit_ratio") == 0.18
-    print("  [OK] 用例 1 通过：各子维度正常打分与引用")
+    # 验证 1A.2 架构铁律：D3 杜绝标量塌缩（score为None），且具备独立双子域
+    assert res1.dimensions["D3"].score is None, "铁律：D3不得进行标量塌缩，score必须为None"
+    assert "speculative_structure" in res1.dimensions["D3"].sub_domains
+    assert "tail_extremes" in res1.dimensions["D3"].sub_domains
+    assert res1.dimensions["D3"].sub_domains["tail_extremes"]["metrics"]["broken_limit_ratio"]["raw"] == 0.18
+    assert res1.dimensions["D3"].metrics.get("broken_limit_ratio") == 0.18
+    print("  [OK] 用例 1 通过：各子维度正常打分与双子域结构符合预期")
 
     # -------------------------------------------------------------
     # 测试用例 2: 关键维度缺失 (例如 D1 市场整体全部指数缺失) -> INVALID 铁律测试
