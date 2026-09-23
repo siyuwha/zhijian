@@ -43,13 +43,38 @@ class DailyReviewService:
         ext_res = await self.data_service.get_external_risk()
         ext_data = ext_res.data or {}
 
-        # 6. 组织多维度原始快照数据
+        # 6. 采集高位股/连板承接表现 (D3)
+        high_tier_res = await self.data_service.get_high_tier_performance()
+        high_tier_data = high_tier_res.data or {}
+
+        # 7. 查找前一交易日复盘记录（提取昨日成交额与昨日涨停数，用于环比量能与连板晋级率）
+        prev_stmt = select(DailyReview).where(DailyReview.date < today).order_by(DailyReview.date.desc()).limit(1)
+        prev_review = (await self.session.execute(prev_stmt)).scalars().first()
+        prev_total_amount = None
+        prev_limit_up_count = None
+        if prev_review and prev_review.market_overview:
+            try:
+                prev_indices = json.loads(prev_review.market_overview)
+                prev_total_amount = sum(float(idx.get("amount_wan", 0)) for idx in prev_indices) / 10000.0
+            except Exception:
+                pass
+        if prev_review and prev_review.limit_up_analysis:
+            try:
+                prev_lu = json.loads(prev_review.limit_up_analysis)
+                prev_limit_up_count = prev_lu.get("total_count")
+            except Exception:
+                pass
+
+        # 8. 组织多维度原始快照数据
         raw_market_snapshot = {
             "indices": index_data,
             "limit_up": limit_up_summary,
             "breadth": breadth_data,
             "micro_cap": micro_data,
             "external_risk": ext_data,
+            "high_tier": high_tier_data,
+            "prev_total_amount": prev_total_amount,
+            "prev_limit_up_count": prev_limit_up_count,
         }
 
         # 7. 调用 Cognition Layer 接口计算结构化分层 Market State (M1.4 V1)

@@ -26,6 +26,9 @@ def init_providers():
     # 微盘股与风格偏好 (抽象隔离)
     registry.register("micro_cap", "eastmoney", east, is_primary=True)
 
+    # 高位股与连板生态承接表现
+    registry.register("high_tier_performance", "eastmoney", east, is_primary=True)
+
     # 外部风险与A50
     registry.register("external_risk", "sina", sina, is_primary=True)
 

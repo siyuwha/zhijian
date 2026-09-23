@@ -100,22 +100,31 @@ class MarketStateComputer(CognitionLayerInterface):
         limit_up = raw.get("limit_up", {})
         if limit_up:
             metrics["limit_up_count"] = limit_up.get("total_count")
-            metrics["limit_down_count"] = limit_up.get("limit_down_count", 0)
+            metrics["limit_down_count"] = limit_up.get("limit_down_count")
             metrics["max_board_height"] = limit_up.get("max_height")
             if metrics["limit_up_count"] is not None and metrics["limit_down_count"] is not None:
                 metrics["limit_diff"] = metrics["limit_up_count"] - metrics["limit_down_count"]
 
-            if "broken_limit_ratio" in limit_up:
+            if "broken_limit_ratio" in limit_up and limit_up.get("broken_limit_ratio") is not None:
                 metrics["broken_limit_ratio"] = limit_up.get("broken_limit_ratio")
             prev_limit_up = raw.get("prev_limit_up_count")
             continued_count = limit_up.get("continued_count", 0)
             if prev_limit_up and prev_limit_up > 0:
                 metrics["promotion_rate"] = round(continued_count / prev_limit_up, 4)
 
+        # D3: 高位股/连板生态承接表现
+        high_tier = raw.get("high_tier")
+        if isinstance(high_tier, dict):
+            metrics["high_tier_performance"] = high_tier.get("pct_change")
+        elif isinstance(high_tier, (int, float)):
+            metrics["high_tier_performance"] = float(high_tier)
+
         breadth = raw.get("breadth", {})
         if breadth:
             metrics["up_count"] = breadth.get("up_count")
             metrics["down_count"] = breadth.get("down_count")
+            if "flat_count" in breadth:
+                metrics["flat_count"] = breadth.get("flat_count")
             if metrics["up_count"] is not None and metrics["down_count"] is not None:
                 down = max(1, metrics["down_count"])
                 metrics["up_down_ratio"] = round(metrics["up_count"] / down, 3)
@@ -128,7 +137,7 @@ class MarketStateComputer(CognitionLayerInterface):
             if micro_pct is not None and sh_pct is not None:
                 metrics["micro_vs_macro_ratio"] = round(micro_pct - sh_pct, 2)
 
-        # D5: 外部风险与A50
+        # D5: 外部环境与A50
         ext = raw.get("external_risk", {})
         if ext:
             metrics["a50_pct_change"] = ext.get("a50_pct_change")
@@ -142,65 +151,158 @@ class MarketStateComputer(CognitionLayerInterface):
         metrics_pool: Dict[str, Any],
         calculated_dims: Dict[str, SubDimensionState]
     ) -> tuple[SubDimensionState, List[str]]:
-        """计算单个子维度的状态、质量与得分"""
+        """计算单个子维度的状态、质量与得分 (支持多子域独立并行计算)"""
         missing_in_dim: List[str] = []
         indicators_detail: List[IndicatorValue] = []
         valid_metrics_map: Dict[str, Any] = {}
 
-        has_critical_missing = False
-        has_important_missing = False
+        # 检查是否包含子域划分 (如 D3 的 speculative_structure 与 tail_extremes)
+        has_sub_domains = any(m.sub_domain is not None for m in dim_cfg.metrics)
+        sub_domains_result: Optional[Dict[str, Any]] = None
 
-        total_valid_weight = 0.0
-        weighted_score_sum = 0.0
+        if has_sub_domains:
+            # 按 sub_domain 分组独立计算
+            sub_domains_result = {}
+            sub_domain_groups: Dict[str, List[MetricConfig]] = {}
+            for m_cfg in dim_cfg.metrics:
+                s_id = m_cfg.sub_domain or "default"
+                if s_id not in sub_domain_groups:
+                    sub_domain_groups[s_id] = []
+                sub_domain_groups[s_id].append(m_cfg)
 
-        for m_cfg in dim_cfg.metrics:
-            # 处理跨维度引用 (例如 D3 引用 D2 的炸板率)
-            if m_cfg.capability_ref == "ref_d2":
-                raw_val = metrics_pool.get("broken_limit_ratio")
+            overall_critical_missing = False
+            overall_important_missing = False
+            total_valid_weight = 0.0
+            weighted_score_sum = 0.0
+
+            for s_id, s_metrics in sub_domain_groups.items():
+                s_critical_missing = False
+                s_important_missing = False
+                s_total_weight = 0.0
+                s_weighted_sum = 0.0
+                s_metrics_map: Dict[str, Any] = {}
+
+                for m_cfg in s_metrics:
+                    raw_val = metrics_pool.get(m_cfg.name)
+                    if raw_val is None and m_cfg.capability_ref == "ref_d2":
+                        raw_val = metrics_pool.get("broken_limit_ratio")
+
+                    if raw_val is None:
+                        missing_in_dim.append(m_cfg.name)
+                        if m_cfg.quality_rule == MetricQualityRule.CRITICAL:
+                            s_critical_missing = True
+                            overall_critical_missing = True
+                        elif m_cfg.quality_rule == MetricQualityRule.IMPORTANT:
+                            s_important_missing = True
+                            overall_important_missing = True
+                        continue
+
+                    score = self._normalize_metric(raw_val, m_cfg)
+                    contribution = score * m_cfg.weight_in_dimension
+
+                    valid_metrics_map[m_cfg.name] = raw_val
+                    s_metrics_map[m_cfg.name] = {"raw": raw_val, "score": score, "weight": m_cfg.weight_in_dimension}
+                    s_total_weight += m_cfg.weight_in_dimension
+                    s_weighted_sum += contribution
+
+                    total_valid_weight += m_cfg.weight_in_dimension
+                    weighted_score_sum += contribution
+
+                    indicators_detail.append(
+                        IndicatorValue(
+                            name=m_cfg.name,
+                            value=raw_val,
+                            score=score,
+                            weight=m_cfg.weight_in_dimension,
+                            contribution=contribution,
+                            raw_data={"display_name": m_cfg.display_name, "sub_domain": s_id}
+                        )
+                    )
+
+                # 子域内部质量与得分计算
+                if s_critical_missing or s_total_weight == 0.0:
+                    s_quality = DataQuality.INVALID
+                    s_score = None
+                elif s_important_missing:
+                    s_quality = DataQuality.PARTIAL
+                    s_score = round(s_weighted_sum / s_total_weight, 2)
+                else:
+                    s_quality = DataQuality.FULL
+                    s_score = round(s_weighted_sum / s_total_weight, 2)
+
+                s_name = "投机高标结构事实" if s_id == "speculative_structure" else ("尾部极端博弈事实" if s_id == "tail_extremes" else s_id)
+                sub_domains_result[s_id] = {
+                    "subdomain_id": s_id,
+                    "name": s_name,
+                    "score": s_score,
+                    "quality": s_quality.value,
+                    "metrics": s_metrics_map
+                }
+
+            # 维度整体质量判定
+            if overall_critical_missing or total_valid_weight == 0.0:
+                dim_quality = DataQuality.INVALID
+                dim_score = None
+                state_label = "INVALID"
+            elif overall_important_missing:
+                dim_quality = DataQuality.PARTIAL
+                dim_score = round(weighted_score_sum / total_valid_weight, 2)
+                state_label = self._classify_score(dim_score)
             else:
-                raw_val = metrics_pool.get(m_cfg.name)
+                dim_quality = DataQuality.FULL
+                dim_score = round(weighted_score_sum / total_valid_weight, 2)
+                state_label = self._classify_score(dim_score)
 
-            if raw_val is None:
-                missing_in_dim.append(m_cfg.name)
-                if m_cfg.quality_rule == MetricQualityRule.CRITICAL:
-                    has_critical_missing = True
-                elif m_cfg.quality_rule == MetricQualityRule.IMPORTANT:
-                    has_important_missing = True
-                continue
-
-            # 归一化计算单指标得分 (0-100)
-            score = self._normalize_metric(raw_val, m_cfg)
-            contribution = score * m_cfg.weight_in_dimension
-
-            valid_metrics_map[m_cfg.name] = raw_val
-            total_valid_weight += m_cfg.weight_in_dimension
-            weighted_score_sum += contribution
-
-            indicators_detail.append(
-                IndicatorValue(
-                    name=m_cfg.name,
-                    value=raw_val,
-                    score=score,
-                    weight=m_cfg.weight_in_dimension,
-                    contribution=contribution,
-                    raw_data={"display_name": m_cfg.display_name}
-                )
-            )
-
-        # 维度数据质量判定
-        if has_critical_missing or total_valid_weight == 0.0:
-            dim_quality = DataQuality.INVALID
-            dim_score = None
-            state_label = "INVALID"
-        elif has_important_missing:
-            dim_quality = DataQuality.PARTIAL
-            # 权重动态重归一化 (Renormalization)
-            dim_score = round(weighted_score_sum / total_valid_weight, 2)
-            state_label = self._classify_score(dim_score)
         else:
-            dim_quality = DataQuality.FULL
-            dim_score = round(weighted_score_sum / total_valid_weight, 2)
-            state_label = self._classify_score(dim_score)
+            # 常规单层子维度 (D1, D2, D4, D5, D6)
+            has_critical_missing = False
+            has_important_missing = False
+            total_valid_weight = 0.0
+            weighted_score_sum = 0.0
+
+            for m_cfg in dim_cfg.metrics:
+                raw_val = metrics_pool.get(m_cfg.name)
+                if raw_val is None and m_cfg.capability_ref == "ref_d2":
+                    raw_val = metrics_pool.get("broken_limit_ratio")
+
+                if raw_val is None:
+                    missing_in_dim.append(m_cfg.name)
+                    if m_cfg.quality_rule == MetricQualityRule.CRITICAL:
+                        has_critical_missing = True
+                    elif m_cfg.quality_rule == MetricQualityRule.IMPORTANT:
+                        has_important_missing = True
+                    continue
+
+                score = self._normalize_metric(raw_val, m_cfg)
+                contribution = score * m_cfg.weight_in_dimension
+
+                valid_metrics_map[m_cfg.name] = raw_val
+                total_valid_weight += m_cfg.weight_in_dimension
+                weighted_score_sum += contribution
+
+                indicators_detail.append(
+                    IndicatorValue(
+                        name=m_cfg.name,
+                        value=raw_val,
+                        score=score,
+                        weight=m_cfg.weight_in_dimension,
+                        contribution=contribution,
+                        raw_data={"display_name": m_cfg.display_name}
+                    )
+                )
+
+            if has_critical_missing or total_valid_weight == 0.0:
+                dim_quality = DataQuality.INVALID
+                dim_score = None
+                state_label = "INVALID"
+            elif has_important_missing:
+                dim_quality = DataQuality.PARTIAL
+                dim_score = round(weighted_score_sum / total_valid_weight, 2)
+                state_label = self._classify_score(dim_score)
+            else:
+                dim_quality = DataQuality.FULL
+                dim_score = round(weighted_score_sum / total_valid_weight, 2)
+                state_label = self._classify_score(dim_score)
 
         return SubDimensionState(
             dimension_id=dim_cfg.dimension_id,
@@ -208,6 +310,9 @@ class MarketStateComputer(CognitionLayerInterface):
             score=dim_score,
             quality=dim_quality,
             state_label=state_label,
+            metric_polarity=dim_cfg.metric_polarity,
+            semantics_desc=dim_cfg.semantics_desc,
+            sub_domains=sub_domains_result,
             metrics=valid_metrics_map,
             indicators_detail=indicators_detail
         ), missing_in_dim

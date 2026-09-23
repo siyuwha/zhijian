@@ -45,7 +45,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
             formatted_codes = [c if c.startswith("s_") else f"s_{c}" for c in codes]
             url = f"https://hq.sinajs.cn/list={','.join(formatted_codes)}"
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
                 content = resp.content.decode("gbk", errors="ignore")
 
@@ -93,7 +93,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
         chunks = [codes[i:i + chunk_size] for i in range(0, len(codes), chunk_size)]
 
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 for idx, chunk in enumerate(chunks):
                     if idx > 0:
                         await asyncio.sleep(0.3)
@@ -139,7 +139,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
             overnight_codes = ["gb_ixic", "gb_dji", "gb_inx", "hf_CHA50CFD", "int_hangseng"]
             url = f"https://hq.sinajs.cn/list={','.join(overnight_codes)}"
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
                 content = resp.content.decode("gbk", errors="ignore")
 
@@ -168,7 +168,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
         try:
             # 简版财经要闻
             url = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2509&k=&num=15&page=1"
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
                 data = resp.json()
 
@@ -190,11 +190,11 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
         """获取 A50 变动及标准化多空指标 (若不可靠则返回 PARTIAL/UNAVAILABLE，严禁臆测字段)"""
         try:
             url = "https://hq.sinajs.cn/list=hf_CHA50CFD"
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
                 content = resp.content.decode("gbk", errors="ignore")
 
-            a50_pct = 0.0
+            a50_pct = None
             if "=" in content:
                 _, val = content.split("=", 1)
                 val_str = val.strip().strip('";')
@@ -205,12 +205,14 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                     if price > 0 and prev > 0:
                         a50_pct = round((price - prev) / prev * 100, 2)
 
+            quality = DataQuality.PARTIAL if a50_pct is not None else DataQuality.UNAVAILABLE
+
             return DataResult(
                 data={
                     "a50_pct_change": a50_pct,
-                    "a50_long_short_indicator": None  # G4-B: 不可得时允许为 None，质量标记为 PARTIAL，严禁臆测字段
+                    "a50_long_short_indicator": None  # G4-B: 不可得时允许为 None，严禁臆测字段
                 },
-                quality=DataQuality.PARTIAL,
+                quality=quality,
                 provider=self.name
             )
         except Exception as e:
