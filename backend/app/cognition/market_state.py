@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 class MarketStateComputer(CognitionLayerInterface):
     """
-    分层市场状态计算引擎 (M1.4 V1 核心实现)
-    严格执行 G4-B 裁决：
+    分层市场状态计算引擎 (M1.4 V1.1 核心实现)
+    严格执行 G5-Phase 1A.2 终审裁决与红队审计规范：
     1. 分层架构：Raw Data -> D1~D6 子维度评估 -> Market State Snapshot；
-    2. 关键维度与关键指标由配置定义，不硬编码死锁；
-    3. 炸板率在 D3 引用 D2，不重复计算；
-    4. 严格质量防伪：关键缺失时 composite_score = None，绝不填补默认值；
-    5. 部分缺失时在子维度内及全局执行权重动态重归一化。
+    2. D2 纯广度彻底解耦，不含涨跌停与炸板率等极端尾部事实；
+    3. D3 独立正交输出 Sub-A (投机高标) 与 Sub-B (尾部极端)，彻底杜绝标量塌缩；
+    4. 严格质量防伪：不可得时留白，关键缺失时 composite_score = None，绝不填补默认值；
+    5. 六大维度挂载物理语义极性元数据 (metric_polarity)，严禁作为买卖交易信号。
     """
 
     def __init__(self, config: Optional[MarketStateV1Config] = None):
@@ -108,8 +108,8 @@ class MarketStateComputer(CognitionLayerInterface):
             if "broken_limit_ratio" in limit_up and limit_up.get("broken_limit_ratio") is not None:
                 metrics["broken_limit_ratio"] = limit_up.get("broken_limit_ratio")
             prev_limit_up = raw.get("prev_limit_up_count")
-            continued_count = limit_up.get("continued_count", 0)
-            if prev_limit_up and prev_limit_up > 0:
+            continued_count = limit_up.get("continued_count")
+            if prev_limit_up and prev_limit_up > 0 and continued_count is not None:
                 metrics["promotion_rate"] = round(continued_count / prev_limit_up, 4)
 
         # D3: 高位股/连板生态承接表现
@@ -184,8 +184,6 @@ class MarketStateComputer(CognitionLayerInterface):
 
                 for m_cfg in s_metrics:
                     raw_val = metrics_pool.get(m_cfg.name)
-                    if raw_val is None and m_cfg.capability_ref == "ref_d2":
-                        raw_val = metrics_pool.get("broken_limit_ratio")
 
                     if raw_val is None:
                         missing_in_dim.append(m_cfg.name)
@@ -239,19 +237,21 @@ class MarketStateComputer(CognitionLayerInterface):
                     "metrics": s_metrics_map
                 }
 
-            # 维度整体质量判定
+            # 维度整体质量判定与抗标量塌缩铁律
+            # 核心铁律：D3 核心事实由 sub_domains 正交承载，核心 dim_score 强制为 None！
+            # 严禁将两子域 50/50 融合为单一核心分，彻底杜绝维度内标量塌缩与反向污染全局综合分
+            dim_score = None
+            reference_score = round(weighted_score_sum / total_valid_weight, 2) if total_valid_weight > 0 else None
+
             if overall_critical_missing or total_valid_weight == 0.0:
                 dim_quality = DataQuality.INVALID
-                dim_score = None
                 state_label = "INVALID"
             elif overall_important_missing:
                 dim_quality = DataQuality.PARTIAL
-                dim_score = round(weighted_score_sum / total_valid_weight, 2)
-                state_label = self._classify_score(dim_score)
+                state_label = "部分缺失 (双子域独立)"
             else:
                 dim_quality = DataQuality.FULL
-                dim_score = round(weighted_score_sum / total_valid_weight, 2)
-                state_label = self._classify_score(dim_score)
+                state_label = "正交双子域 (无标量塌缩)"
 
         else:
             # 常规单层子维度 (D1, D2, D4, D5, D6)
@@ -259,11 +259,10 @@ class MarketStateComputer(CognitionLayerInterface):
             has_important_missing = False
             total_valid_weight = 0.0
             weighted_score_sum = 0.0
+            reference_score = None
 
             for m_cfg in dim_cfg.metrics:
                 raw_val = metrics_pool.get(m_cfg.name)
-                if raw_val is None and m_cfg.capability_ref == "ref_d2":
-                    raw_val = metrics_pool.get("broken_limit_ratio")
 
                 if raw_val is None:
                     missing_in_dim.append(m_cfg.name)
@@ -308,6 +307,7 @@ class MarketStateComputer(CognitionLayerInterface):
             dimension_id=dim_cfg.dimension_id,
             name=dim_cfg.name,
             score=dim_score,
+            reference_score=reference_score,
             quality=dim_quality,
             state_label=state_label,
             metric_polarity=dim_cfg.metric_polarity,
@@ -383,17 +383,17 @@ class MarketStateComputer(CognitionLayerInterface):
         return round(clamped * 100.0, 2)
 
     def _classify_score(self, score: float) -> str:
-        """状态分级标签"""
+        """状态分级标签 (客观物理刻度描述，严禁带有交易多空或周期主观定论)"""
         rules = self.config.state_classification_rules
         if score <= rules.get("freezing", 25.0):
-            return "冰点周期"
+            return "极弱收缩"
         elif score <= rules.get("weak", 45.0):
-            return "偏弱震荡"
+            return "偏弱整理"
         elif score <= rules.get("neutral", 55.0):
-            return "平衡市"
+            return "平稳中性"
         elif score <= rules.get("strong", 75.0):
-            return "偏强主升"
+            return "偏强扩散"
         else:
-            return "亢奋过热"
+            return "极度亢奋"
 
 market_state_computer = MarketStateComputer()

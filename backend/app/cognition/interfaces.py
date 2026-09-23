@@ -17,7 +17,8 @@ class SubDimensionState(BaseModel):
     """子维度状态快照 (D1~D6)"""
     dimension_id: str = Field(description="D1, D2, D3, D4, D5, D6")
     name: str = Field(description="子维度名称")
-    score: Optional[float] = Field(default=None, description="子维度分值(0-100)，若 INVALID 则为 null")
+    score: Optional[float] = Field(default=None, description="子维度核心标量分值(0-100)。注：多子域维度(如D3)核心输出为sub_domains，其score必须为None以杜绝标量塌缩")
+    reference_score: Optional[float] = Field(default=None, description="仅供历史诊断与对照的参考分(reference_only)，严禁作为下游决策依据")
     quality: DataQuality = Field(default=DataQuality.FULL, description="维度数据质量")
     state_label: Optional[str] = Field(default=None, description="维度状态标签")
     metric_polarity: Optional[str] = Field(default=None, description="物理语义极性元数据(仅描述测量属性，严禁作为买卖信号)")

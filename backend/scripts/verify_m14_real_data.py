@@ -139,8 +139,10 @@ async def run_verification():
         sub_b = d3_state.sub_domains.get("tail_extremes")
         assert sub_a is not None and sub_b is not None, "严重错误：D3 双子域不完整！"
         print(f"  * D3 双子域独立输出: Sub-A(投机高标)={sub_a.get('score')}, Sub-B(尾部极端)={sub_b.get('score')}")
+        assert d3_state.score is None, f"严重违背铁律：D3 核心 score 必须为 None 以杜绝标量塌缩，实测={d3_state.score}"
+        assert d3_state.reference_score is not None, "D3 必须提供 reference_score 仅供参考诊断"
         assert d3_state.metric_polarity == "HEAT_EXTREMITY", "D3 语义极性错误"
-        print("    --> [通过] D3 成功实现双子域独立正交输出，彻底封堵标量塌缩。")
+        print("    --> [通过] D3 成功实现双子域独立正交输出，核心 score 严格为 None，彻底封堵标量塌缩。")
 
         # 4.3 D5 与 D6 语义极性断言
         assert market_state.dimensions["D5"].name == "外部环境", "D5 名称未更正为外部环境"
