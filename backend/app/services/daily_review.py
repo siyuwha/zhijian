@@ -169,7 +169,7 @@ class DailyReviewService:
                 "date": r.date,
                 "state_label": state_label or "未定义",
                 "composite_score": composite_score,
-                "data_quality": r.data_quality or "full",
+                "data_quality": r.data_quality or "unknown",
                 "generated_at": r.generated_at.isoformat() if r.generated_at else None
             })
 

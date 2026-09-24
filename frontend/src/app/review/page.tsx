@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { DailyReviewSummaryItem } from '@/types/report';
-import { RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, Activity } from 'lucide-react';
+import { RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, Activity, HelpCircle } from 'lucide-react';
 
 export default function ReviewPage() {
   const [reviews, setReviews] = useState<DailyReviewSummaryItem[]>([]);
@@ -63,9 +63,9 @@ export default function ReviewPage() {
     }
   };
 
-  // 数据质量标签颜色与图标映射
-  const renderQualityBadge = (quality: string) => {
-    const q = quality.toLowerCase();
+  // 数据质量标签颜色与图标映射（严格判空与未知质量处理）
+  const renderQualityBadge = (quality?: string | null) => {
+    const q = (quality || 'unknown').toLowerCase();
     if (q === 'full') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800">
@@ -80,11 +80,18 @@ export default function ReviewPage() {
           部分降级 (Partial)
         </span>
       );
-    } else {
+    } else if (q === 'invalid') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-950/80 text-rose-400 border border-rose-800">
           <AlertCircle className="w-3.5 h-3.5" />
           数据无效 (Invalid)
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-850 text-slate-400 border border-slate-700">
+          <HelpCircle className="w-3.5 h-3.5" />
+          质量未知 ({quality || 'Unknown'})
         </span>
       );
     }

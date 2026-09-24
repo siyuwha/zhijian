@@ -32,7 +32,8 @@ export interface SubDimensionState {
   semantics_desc: string;
   metrics: Record<string, any>;
   sub_domains?: Record<string, SubDomainState> | null;
-  indicators: IndicatorValue[];
+  indicators?: IndicatorValue[];
+  indicators_detail?: IndicatorValue[];
 }
 
 export interface MarketStateVector {

@@ -20,7 +20,8 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  Scale
+  Scale,
+  HelpCircle
 } from 'lucide-react';
 
 export default function ReviewDetailPage({ params }: { params: Promise<{ date: string }> }) {
@@ -64,9 +65,9 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
     }
   };
 
-  // 数据质量徽标
-  const renderQualityBadge = (quality?: string) => {
-    const q = (quality || 'full').toLowerCase();
+  // 数据质量徽标（防御性空安全与未知状态中性处理）
+  const renderQualityBadge = (quality?: string | null) => {
+    const q = (quality || 'unknown').toLowerCase();
     if (q === 'full') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800">
@@ -81,11 +82,18 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
           部分降级 (Partial)
         </span>
       );
-    } else {
+    } else if (q === 'invalid') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-950/80 text-rose-400 border border-rose-800">
           <AlertCircle className="w-3.5 h-3.5" />
           数据无效 (Invalid)
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+          <HelpCircle className="w-3.5 h-3.5" />
+          质量未知 ({quality || 'Unknown'})
         </span>
       );
     }
@@ -163,7 +171,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
       </div>
 
       {/* 铁律质量警示条 */}
-      {data.data_quality.toLowerCase() === 'invalid' && (
+      {data.data_quality?.toLowerCase() === 'invalid' && (
         <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-sm flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-rose-400" />
           <div className="space-y-1">
@@ -180,7 +188,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
         </div>
       )}
 
-      {data.data_quality.toLowerCase() === 'partial' && (
+      {data.data_quality?.toLowerCase() === 'partial' && (
         <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/80 text-amber-300 text-xs flex items-center gap-2.5">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
           <span>
@@ -264,15 +272,17 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {(data.market_overview || []).map((idx: any, i: number) => {
-            const pct = parseFloat(idx.pct_change || idx.changePercent || 0);
-            const isUp = pct > 0;
-            const isDown = pct < 0;
+            const rawPct = idx.pct_change ?? idx.changePercent;
+            const hasPct = rawPct !== null && rawPct !== undefined && rawPct !== '';
+            const pct = hasPct ? parseFloat(rawPct) : null;
+            const isUp = pct !== null && pct > 0;
+            const isDown = pct !== null && pct < 0;
             return (
               <Card key={i} className="bg-slate-900/90 border-slate-800">
                 <CardContent className="p-4 space-y-2">
                   <div className="text-xs text-slate-400 font-medium">{idx.name}</div>
                   <div className="text-lg font-mono font-bold text-white">
-                    {idx.price ? Number(idx.price).toFixed(2) : '--'}
+                    {idx.price !== null && idx.price !== undefined ? Number(idx.price).toFixed(2) : '--'}
                   </div>
                   <div
                     className={`flex items-center gap-1 text-xs font-semibold ${
@@ -280,9 +290,9 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                     }`}
                   >
                     {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : isDown ? <TrendingDown className="w-3.5 h-3.5" /> : null}
-                    <span>{pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`}</span>
+                    <span>{pct !== null ? (pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`) : '--'}</span>
                   </div>
-                  {idx.amount_wan && (
+                  {idx.amount_wan !== null && idx.amount_wan !== undefined && (
                     <div className="text-[11px] text-slate-500 font-mono">
                       成交: {(Number(idx.amount_wan) / 10000).toFixed(0)} 亿元
                     </div>
@@ -324,7 +334,12 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                 全市场涨停 {d3?.sub_domains?.tail_extremes?.metrics?.limit_up_count?.raw ?? d3?.metrics?.limit_up_count ?? '--'} 家，
                 跌停 {d3?.sub_domains?.tail_extremes?.metrics?.limit_down_count?.raw ?? d3?.metrics?.limit_down_count ?? '--'} 家，
                 涨跌停净差为 {d3?.sub_domains?.tail_extremes?.metrics?.limit_diff?.raw ?? d3?.metrics?.limit_diff ?? '--'} 家，
-                真实炸板率为 {d3?.sub_domains?.tail_extremes?.metrics?.broken_limit_ratio?.raw ? (Number(d3.sub_domains.tail_extremes.metrics.broken_limit_ratio.raw) * 100).toFixed(1) + '%' : '--'}。
+                真实炸板率为 {
+                  d3?.sub_domains?.tail_extremes?.metrics?.broken_limit_ratio?.raw !== null &&
+                  d3?.sub_domains?.tail_extremes?.metrics?.broken_limit_ratio?.raw !== undefined
+                    ? (Number(d3.sub_domains.tail_extremes.metrics.broken_limit_ratio.raw) * 100).toFixed(1) + '%'
+                    : '--'
+                }。
               </p>
             </div>
 
