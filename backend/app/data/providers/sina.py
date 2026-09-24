@@ -62,19 +62,20 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                 if len(parts) >= 6:
                     # 指数名, 现价, 涨跌额, 涨跌幅, 成交量(手), 成交额(万元)
                     name = parts[0]
-                    price = float(parts[1]) if parts[1] else 0.0
-                    change = float(parts[2]) if parts[2] else 0.0
-                    pct_change = float(parts[3]) if parts[3] else 0.0
-                    amount = float(parts[5]) if parts[5] else 0.0 # 万元
+                    price = float(parts[1]) if len(parts) > 1 and parts[1] != "" else None
+                    change = float(parts[2]) if len(parts) > 2 and parts[2] != "" else None
+                    pct_change = float(parts[3]) if len(parts) > 3 and parts[3] != "" else None
+                    amount = float(parts[5]) if len(parts) > 5 and parts[5] != "" else None # 万元
 
-                    if price > 0:
+                    if price is not None and price > 0:
                         quotes.append({
                             "code": code,
+                            "symbol": code,
                             "name": name,
-                            "price": price,
-                            "change": change,
-                            "pct_change": pct_change,
-                            "amount_wan": amount,
+                            "price": round(price, 2),
+                            "change": round(change, 2) if change is not None else None,
+                            "pct_change": round(pct_change, 2) if pct_change is not None else None,
+                            "amount_wan": round(amount, 2) if amount is not None else None,
                         })
 
             return DataResult(
@@ -109,18 +110,47 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                             val_str = val.strip().strip('";')
                             parts = val_str.split(",")
                             if len(parts) >= 32:
-                                price = float(parts[3])
-                                if price > 0:
+                                name = parts[0]
+                                open_price = float(parts[1]) if parts[1] else None
+                                prev_close = float(parts[2]) if parts[2] else None
+                                price = float(parts[3]) if parts[3] else None
+                                high = float(parts[4]) if parts[4] else None
+                                low = float(parts[5]) if parts[5] else None
+                                volume = float(parts[8]) if parts[8] else None
+                                amount = float(parts[9]) if parts[9] else None
+                                trade_date = parts[30] if len(parts) > 30 and parts[30] else None
+                                trade_time = parts[31] if len(parts) > 31 and parts[31] else None
+
+                                open_pct = None
+                                if open_price is not None and prev_close is not None and prev_close > 0:
+                                    open_pct = round((open_price - prev_close) / prev_close * 100, 2)
+
+                                is_one_word_up = False
+                                is_one_word_down = False
+                                if open_price is not None and high is not None and low is not None and open_pct is not None:
+                                    threshold = 19.8 if (code.startswith("30") or code.startswith("68")) else 9.8
+                                    if open_price == high == low and open_pct >= threshold:
+                                        is_one_word_up = True
+                                    elif open_price == high == low and open_pct <= -threshold:
+                                        is_one_word_down = True
+
+                                if price is not None and price > 0:
                                     results.append({
                                         "code": code,
-                                        "name": parts[0],
-                                        "open": float(parts[1]),
-                                        "prev_close": float(parts[2]),
+                                        "symbol": code,
+                                        "name": name,
+                                        "open": open_price,
+                                        "prev_close": prev_close,
                                         "price": price,
-                                        "high": float(parts[4]),
-                                        "low": float(parts[5]),
-                                        "volume": float(parts[8]),
-                                        "amount": float(parts[9]),
+                                        "high": high,
+                                        "low": low,
+                                        "volume": volume,
+                                        "amount": amount,
+                                        "open_pct": open_pct,
+                                        "is_one_word_up": is_one_word_up,
+                                        "is_one_word_down": is_one_word_down,
+                                        "date": trade_date,
+                                        "time": trade_time,
                                     })
 
             return DataResult(

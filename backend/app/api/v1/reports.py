@@ -133,3 +133,69 @@ async def generate_premarket_briefing(date: Optional[str] = None, db: AsyncSessi
         "date": briefing.date
     }
 
+@router.get("/auction")
+async def list_auction_reports(
+    limit: int = 30,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    service = AuctionService(db)
+    items, total = await service.get_auction_reports(limit=limit, offset=offset)
+    return {
+        "code": 200,
+        "data": {
+            "items": items,
+            "total": total
+        }
+    }
+
+@router.get("/auction/{date}")
+async def get_auction_report(date: str, db: AsyncSession = Depends(get_db)):
+    service = AuctionService(db)
+    report = await service.get_auction_report_by_date(date)
+    if not report:
+        raise HTTPException(status_code=404, detail="Auction report not found for this date")
+
+    index_open_data = json.loads(report.index_open_data) if report.index_open_data else {}
+    high_open_stats = json.loads(report.high_open_stats) if report.high_open_stats else {}
+
+    emotion_judgment = {}
+    if report.emotion_judgment:
+        try:
+            ej = json.loads(report.emotion_judgment)
+            emotion_judgment = ej if isinstance(ej, dict) else {
+                "label": str(ej),
+                "narrative": str(ej),
+                "disclaimer": "客观观察维度提示，非买卖建议"
+            }
+        except Exception:
+            emotion_judgment = {
+                "label": str(report.emotion_judgment),
+                "narrative": str(report.emotion_judgment),
+                "disclaimer": "客观观察维度提示，非买卖建议"
+            }
+
+    return {
+        "code": 200,
+        "data": {
+            "id": report.id,
+            "date": report.date,
+            "index_open_data": index_open_data,
+            "one_word_count": report.one_word_count or 0,
+            "high_open_stats": high_open_stats,
+            "emotion_judgment": emotion_judgment,
+            "generated_at": report.generated_at.isoformat() if report.generated_at else None
+        }
+    }
+
+@router.post("/auction/generate")
+async def generate_auction_report(date: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+    service = AuctionService(db)
+    report = await service.generate_auction_report(date)
+    return {
+        "code": 200,
+        "message": "Auction report generated successfully",
+        "date": report.date
+    }
+
+

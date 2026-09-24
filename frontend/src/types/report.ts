@@ -140,7 +140,69 @@ export interface PremarketBriefingSummaryItem {
 
 export type PremarketBriefing = PremarketBriefingDetail;
 
-export interface AuctionReport {
-  date: string;
-  status: string;
+export interface IndexOpenItem {
+  code: string;
+  name: string;
+  price: number | null;
+  change: number | null;
+  pct_change: number | null;
+  amount_wan: number | null;
 }
+
+export interface IndexOpenOverview {
+  indices: IndexOpenItem[];
+  total_bidding_amount_yi: number | null;
+  yesterday_total_amount_yi: number | null;
+  bidding_volume_ratio: number | null;
+}
+
+export interface HighTierAuctionStock {
+  symbol: string;
+  name: string;
+  board_height?: number | null;
+  open_pct: number | null;
+  is_one_word?: boolean;
+  tag?: string;
+}
+
+export interface AuctionHighOpenStats {
+  one_word_up_count: number;
+  one_word_down_count: number;
+  tested_count: number;
+  high_open_count: number;
+  low_open_count: number;
+  high_open_ratio: number | null;
+  avg_premium_pct: number | null;
+  max_board_info?: HighTierAuctionStock | null;
+  extreme_stocks?: HighTierAuctionStock[];
+}
+
+export interface AuctionEmotionJudgment {
+  label: string;
+  narrative: string;
+  disclaimer: string;
+}
+
+export interface AuctionReportDetail {
+  id?: number;
+  date: string;
+  index_open_data: IndexOpenOverview;
+  one_word_count: number;
+  high_open_stats: AuctionHighOpenStats;
+  emotion_judgment: AuctionEmotionJudgment;
+  generated_at?: string | null;
+}
+
+export interface AuctionReportSummaryItem {
+  id: number;
+  date: string;
+  emotion_label: string;
+  bidding_amount_yi: number | null;
+  bidding_ratio: number | null;
+  one_word_up_count: number;
+  one_word_down_count: number;
+  generated_at: string | null;
+}
+
+export type AuctionReport = AuctionReportDetail;
+

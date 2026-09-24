@@ -3,7 +3,9 @@ import {
   DailyReviewSummaryItem, 
   DailyReviewDetail, 
   PremarketBriefingDetail,
-  PremarketBriefingSummaryItem 
+  PremarketBriefingSummaryItem,
+  AuctionReportDetail,
+  AuctionReportSummaryItem
 } from '@/types/report';
 import { IndexData } from '@/types/market';
 
@@ -59,6 +61,14 @@ export const api = {
     fetchAPI<PremarketBriefingDetail>(`/reports/premarket/${date}`),
   generatePremarketBriefing: (date?: string) => 
     fetchAPI<any>(`/reports/premarket/generate${date ? `?date=${date}` : ''}`, { method: 'POST' }),
+  getAuctionReports: (limit?: number, offset?: number) =>
+    fetchAPI<{ items: AuctionReportSummaryItem[]; total: number }>(
+      `/reports/auction?limit=${limit ?? 30}&offset=${offset ?? 0}`
+    ),
+  getAuctionReport: (date: string) => 
+    fetchAPI<AuctionReportDetail>(`/reports/auction/${date}`),
+  generateAuctionReport: (date?: string) => 
+    fetchAPI<any>(`/reports/auction/generate${date ? `?date=${date}` : ''}`, { method: 'POST' }),
   getMarketState: (date: string) => 
     fetchAPI<any>(`/cognition/market-state/${date}`),
 };

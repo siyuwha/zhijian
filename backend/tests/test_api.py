@@ -97,7 +97,45 @@ async def test_backend_core_flows():
             assert "非买卖建议" in focus_item["disclaimer"]
             assert focus_item["dimension"] in ["竞价量能", "高标溢价", "尾部极端", "外盘扰动"]
 
+        # 11. Generate Auction Report (M3)
+        r_auc = await client.post("/api/v1/reports/auction/generate")
+        assert r_auc.status_code == 200
+        auc_gen_data = r_auc.json()
+        assert auc_gen_data["code"] == 200
+        auc_date = auc_gen_data["date"]
+
+        # 12. List Auction Reports (M3 list endpoint)
+        r_auc_list = await client.get("/api/v1/reports/auction")
+        assert r_auc_list.status_code == 200
+        auc_list_data = r_auc_list.json()
+        assert auc_list_data["code"] == 200
+        assert "items" in auc_list_data["data"]
+        assert auc_list_data["data"]["total"] >= 1
+        first_auc = auc_list_data["data"]["items"][0]
+        assert "emotion_label" in first_auc
+
+        # 13. Get Auction Report Detail (M3 detail endpoint)
+        r_auc_detail = await client.get(f"/api/v1/reports/auction/{auc_date}")
+        assert r_auc_detail.status_code == 200
+        auc_detail_data = r_auc_detail.json()
+        assert auc_detail_data["code"] == 200
+        auc_data = auc_detail_data["data"]
+        assert "index_open_data" in auc_data
+        assert "indices" in auc_data["index_open_data"]
+        assert "one_word_count" in auc_data
+        assert "high_open_stats" in auc_data
+        assert "emotion_judgment" in auc_data
+        assert "label" in auc_data["emotion_judgment"]
+        assert "disclaimer" in auc_data["emotion_judgment"]
+        assert "非买卖建议" in auc_data["emotion_judgment"]["disclaimer"]
+
+        # 14. M3 铁律断言：绝无主观买卖指令，量能分母严谨
+        narrative = auc_data["emotion_judgment"].get("narrative", "")
+        for forbidden in ["建议买入", "强烈推荐", "打板买入", "挂单清仓", "开盘做多"]:
+            assert forbidden not in narrative
+
 if __name__ == "__main__":
     asyncio.run(test_backend_core_flows())
     print("All backend tests passed!")
+
 
