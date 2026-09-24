@@ -7,7 +7,25 @@ from ...services.daily_review import DailyReviewService
 from ...services.premarket import PremarketService
 from ...services.auction import AuctionService
 
+from ...models.cognition import CognitionMarketState
+
 router = APIRouter(prefix="/reports", tags=["Reports"])
+
+@router.get("/daily-review")
+async def list_daily_reviews(
+    limit: int = 30,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    service = DailyReviewService(db)
+    items, total = await service.get_reviews(limit=limit, offset=offset)
+    return {
+        "code": 200,
+        "data": {
+            "items": items,
+            "total": total
+        }
+    }
 
 @router.get("/daily-review/{date}")
 async def get_daily_review(date: str, db: AsyncSession = Depends(get_db)):
@@ -15,14 +33,35 @@ async def get_daily_review(date: str, db: AsyncSession = Depends(get_db)):
     review = await service.get_review_by_date(date)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found for this date")
+
+    market_overview = json.loads(review.market_overview) if review.market_overview else []
+    limit_up_analysis = json.loads(review.limit_up_analysis) if review.limit_up_analysis else {}
+    report_content = json.loads(review.report_content) if review.report_content else {}
+
+    # 提取结构化 market_state（优先从 report_content 获取，兜底从 CognitionMarketState 表查）
+    market_state = report_content.get("market_state")
+    if not market_state and review.market_state_id:
+        cog_record = await db.get(CognitionMarketState, review.market_state_id)
+        if cog_record:
+            market_state = {
+                "composite_score": cog_record.composite_score,
+                "state_label": cog_record.state_label,
+                "data_quality": cog_record.data_quality,
+                "dimensions": json.loads(cog_record.indicators) if cog_record.indicators else {},
+                "missing_metrics": []
+            }
+
     return {
         "code": 200,
         "data": {
+            "id": review.id,
             "date": review.date,
-            "market_overview": json.loads(review.market_overview) if review.market_overview else [],
-            "limit_up_analysis": json.loads(review.limit_up_analysis) if review.limit_up_analysis else {},
-            "report_content": json.loads(review.report_content) if review.report_content else {},
-            "data_quality": review.data_quality
+            "market_overview": market_overview,
+            "limit_up_analysis": limit_up_analysis,
+            "market_state": market_state,
+            "report_content": report_content,
+            "data_quality": review.data_quality,
+            "generated_at": review.generated_at.isoformat() if review.generated_at else None
         }
     }
 

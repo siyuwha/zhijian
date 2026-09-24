@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..data.service import DataService
 from ..cognition.market_state import market_state_computer
@@ -142,3 +142,35 @@ class DailyReviewService:
     async def get_review_by_date(self, date_str: str) -> Optional[DailyReview]:
         stmt = select(DailyReview).where(DailyReview.date == date_str)
         return (await self.session.execute(stmt)).scalars().first()
+
+    async def get_reviews(self, limit: int = 30, offset: int = 0):
+        """获取历史复盘列表（分页与概览元数据）"""
+        count_stmt = select(func.count(DailyReview.id))
+        total = (await self.session.execute(count_stmt)).scalar_one()
+
+        stmt = select(DailyReview).order_by(DailyReview.date.desc()).offset(offset).limit(limit)
+        records = (await self.session.execute(stmt)).scalars().all()
+
+        items = []
+        for r in records:
+            state_label = None
+            composite_score = None
+            if r.report_content:
+                try:
+                    c = json.loads(r.report_content)
+                    ms = c.get("market_state", {})
+                    state_label = ms.get("state_label")
+                    composite_score = ms.get("composite_score")
+                except Exception:
+                    pass
+
+            items.append({
+                "id": r.id,
+                "date": r.date,
+                "state_label": state_label or "未定义",
+                "composite_score": composite_score,
+                "data_quality": r.data_quality or "full",
+                "generated_at": r.generated_at.isoformat() if r.generated_at else None
+            })
+
+        return items, total

@@ -26,6 +26,33 @@ async def test_backend_core_flows():
         # 4. Generate Review (M1)
         r_rev = await client.post("/api/v1/reports/daily-review/generate")
         assert r_rev.status_code == 200
+        gen_data = r_rev.json()
+        assert gen_data["code"] == 200
+        rev_date = gen_data["date"]
+
+        # 5. List Reviews (M1 list endpoint)
+        r_list = await client.get("/api/v1/reports/daily-review")
+        assert r_list.status_code == 200
+        list_data = r_list.json()
+        assert list_data["code"] == 200
+        assert "items" in list_data["data"]
+        assert list_data["data"]["total"] >= 1
+
+        # 6. Get Daily Review Detail (M1 detail endpoint)
+        r_detail = await client.get(f"/api/v1/reports/daily-review/{rev_date}")
+        assert r_detail.status_code == 200
+        detail_data = r_detail.json()
+        assert detail_data["code"] == 200
+        assert "market_state" in detail_data["data"]
+        assert detail_data["data"]["market_state"] is not None
+        assert "dimensions" in detail_data["data"]["market_state"]
+        # 验证 1A.2 状态向量：D3 双子域与 score 为 None
+        d3_data = detail_data["data"]["market_state"]["dimensions"].get("D3")
+        assert d3_data is not None
+        assert d3_data.get("score") is None
+        assert "sub_domains" in d3_data
+        assert "speculative_structure" in d3_data["sub_domains"]
+        assert "tail_extremes" in d3_data["sub_domains"]
 
 if __name__ == "__main__":
     asyncio.run(test_backend_core_flows())

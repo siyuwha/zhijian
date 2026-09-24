@@ -1,5 +1,5 @@
 import { ApiResponse } from '@/types/common';
-import { DailyReview, PremarketBriefing } from '@/types/report';
+import { DailyReviewSummaryItem, DailyReviewDetail, PremarketBriefing } from '@/types/report';
 import { IndexData } from '@/types/market';
 
 const BACKEND_HOST = 'http://localhost:8000';
@@ -38,8 +38,12 @@ export const api = {
     fetchAPI<IndexData[]>(`/market/indices${codes ? `?codes=${codes}` : ''}`),
   getLimitUpPool: (date?: string) => 
     fetchAPI<any>(`/market/limit-up${date ? `?date=${date}` : ''}`),
+  getDailyReviews: (limit?: number, offset?: number) =>
+    fetchAPI<{ items: DailyReviewSummaryItem[]; total: number }>(
+      `/reports/daily-review?limit=${limit ?? 30}&offset=${offset ?? 0}`
+    ),
   getDailyReview: (date: string) => 
-    fetchAPI<DailyReview>(`/reports/daily-review/${date}`),
+    fetchAPI<DailyReviewDetail>(`/reports/daily-review/${date}`),
   generateDailyReview: (date?: string) => 
     fetchAPI<any>(`/reports/daily-review/generate${date ? `?date=${date}` : ''}`, { method: 'POST' }),
   getPremarketBriefing: (date: string) => 
