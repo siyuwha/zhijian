@@ -75,20 +75,51 @@ async def generate_daily_review(date: Optional[str] = None, db: AsyncSession = D
         "date": review.date
     }
 
+@router.get("/premarket")
+async def list_premarket_briefings(
+    limit: int = 30,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    service = PremarketService(db)
+    items, total = await service.get_briefings(limit=limit, offset=offset)
+    return {
+        "code": 200,
+        "data": {
+            "items": items,
+            "total": total
+        }
+    }
+
 @router.get("/premarket/{date}")
 async def get_premarket_briefing(date: str, db: AsyncSession = Depends(get_db)):
     service = PremarketService(db)
     briefing = await service.get_briefing_by_date(date)
     if not briefing:
         raise HTTPException(status_code=404, detail="Briefing not found for this date")
+
+    overnight_summary = json.loads(briefing.overnight_summary) if briefing.overnight_summary else []
+    news_digest = json.loads(briefing.news_digest) if briefing.news_digest else []
+    
+    yesterday_review_summary = None
+    if briefing.yesterday_review_summary:
+        try:
+            yesterday_review_summary = json.loads(briefing.yesterday_review_summary)
+        except Exception:
+            yesterday_review_summary = briefing.yesterday_review_summary
+
+    today_focus = json.loads(briefing.today_focus) if briefing.today_focus else []
+
     return {
         "code": 200,
         "data": {
+            "id": briefing.id,
             "date": briefing.date,
-            "overnight_summary": json.loads(briefing.overnight_summary) if briefing.overnight_summary else [],
-            "news_digest": json.loads(briefing.news_digest) if briefing.news_digest else [],
-            "yesterday_review_summary": briefing.yesterday_review_summary,
-            "today_focus": json.loads(briefing.today_focus) if briefing.today_focus else []
+            "overnight_summary": overnight_summary,
+            "news_digest": news_digest,
+            "yesterday_review_summary": yesterday_review_summary,
+            "today_focus": today_focus,
+            "generated_at": briefing.generated_at.isoformat() if briefing.generated_at else None
         }
     }
 
@@ -101,3 +132,4 @@ async def generate_premarket_briefing(date: Optional[str] = None, db: AsyncSessi
         "message": "Briefing generated successfully",
         "date": briefing.date
     }
+

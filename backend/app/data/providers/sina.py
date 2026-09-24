@@ -27,7 +27,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
 
     HEADERS = {
         "Referer": "https://finance.sina.com.cn",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
 
     def __init__(self):
@@ -148,17 +148,65 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                 if not line or "=" not in line:
                     continue
                 var_name, val = line.split("=", 1)
-                code = var_name.split("_")[-1].replace('"', '')
                 val_str = val.strip().strip('";')
+                if not val_str:
+                    continue
                 parts = val_str.split(",")
-                if len(parts) >= 2:
-                    items.append({
-                        "code": code,
-                        "name": parts[0],
-                        "raw_parts": parts[:5]
-                    })
+                if len(parts) < 2:
+                    continue
 
-            return DataResult(data=items, quality=DataQuality.FULL, provider=self.name)
+                code = var_name.split("_")[-1].replace('"', '')
+                name = parts[0]
+                price = None
+                pct_change = None
+                change_val = None
+                time_str = None
+
+                # 美股指数 (gb_ixic, gb_dji, gb_inx)
+                if "gb_" in var_name:
+                    try:
+                        price = round(float(parts[1]), 2)
+                        pct_change = round(float(parts[2]), 2)
+                        time_str = parts[3] if len(parts) > 3 else None
+                        change_val = round(float(parts[4]), 2) if len(parts) > 4 else None
+                    except (ValueError, IndexError):
+                        pass
+
+                # 外盘期货 (hf_CHA50CFD 等)
+                elif "hf_" in var_name:
+                    try:
+                        price = round(float(parts[0]), 2)
+                        pre_close = float(parts[7]) if len(parts) > 7 and parts[7] else None
+                        if price is not None and pre_close and pre_close > 0:
+                            change_val = round(price - pre_close, 2)
+                            pct_change = round((change_val / pre_close) * 100, 2)
+                        time_str = f"{parts[12]} {parts[6]}" if len(parts) > 12 else None
+                        name = "富时中国A50期货"
+                    except (ValueError, IndexError):
+                        pass
+
+                # 亚太指数 (int_hangseng 等)
+                elif "int_" in var_name:
+                    try:
+                        price = round(float(parts[1]), 2) if len(parts) > 1 else None
+                        change_val = round(float(parts[2]), 2) if len(parts) > 2 else None
+                        pct_change = round(float(parts[3]), 2) if len(parts) > 3 else None
+                        time_str = parts[4] if len(parts) > 4 else None
+                    except (ValueError, IndexError):
+                        pass
+
+                items.append({
+                    "code": code,
+                    "symbol": code,
+                    "name": name,
+                    "price": price,
+                    "pct_change": pct_change,
+                    "change_pct": pct_change,
+                    "change_val": change_val,
+                    "time": time_str
+                })
+
+            return DataResult(data=items, quality=DataQuality.FULL if items else DataQuality.PARTIAL, provider=self.name)
         except Exception as e:
             logger.error(f"Sina get_overnight_data failed: {e}")
             return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))

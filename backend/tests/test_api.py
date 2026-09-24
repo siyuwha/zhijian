@@ -54,6 +54,50 @@ async def test_backend_core_flows():
         assert "speculative_structure" in d3_data["sub_domains"]
         assert "tail_extremes" in d3_data["sub_domains"]
 
+        # 7. Generate Premarket Briefing (M2)
+        r_pre = await client.post("/api/v1/reports/premarket/generate")
+        assert r_pre.status_code == 200
+        pre_gen_data = r_pre.json()
+        assert pre_gen_data["code"] == 200
+        pre_date = pre_gen_data["date"]
+
+        # 8. List Premarket Briefings (M2 list endpoint)
+        r_pre_list = await client.get("/api/v1/reports/premarket")
+        assert r_pre_list.status_code == 200
+        pre_list_data = r_pre_list.json()
+        assert pre_list_data["code"] == 200
+        assert "items" in pre_list_data["data"]
+        assert pre_list_data["data"]["total"] >= 1
+        first_item = pre_list_data["data"]["items"][0]
+        assert "yesterday_state_label" in first_item
+
+        # 9. Get Premarket Briefing Detail (M2 detail endpoint)
+        r_pre_detail = await client.get(f"/api/v1/reports/premarket/{pre_date}")
+        assert r_pre_detail.status_code == 200
+        pre_detail_data = r_pre_detail.json()
+        assert pre_detail_data["code"] == 200
+        data = pre_detail_data["data"]
+        assert "overnight_summary" in data
+        assert isinstance(data["overnight_summary"], list)
+        assert "news_digest" in data
+        assert isinstance(data["news_digest"], list)
+        assert "yesterday_review_summary" in data
+        assert "today_focus" in data
+        assert len(data["today_focus"]) == 4
+
+        # 10. M2 铁律断言：D3 score 坚决为 None，推演维度客观免责
+        if data["yesterday_review_summary"] and "dimensions" in data["yesterday_review_summary"]:
+            yd_d3 = data["yesterday_review_summary"]["dimensions"].get("D3")
+            if yd_d3:
+                assert yd_d3.get("score") is None
+                assert "sub_domains" in yd_d3
+
+        for focus_item in data["today_focus"]:
+            assert "disclaimer" in focus_item
+            assert "非买卖建议" in focus_item["disclaimer"]
+            assert focus_item["dimension"] in ["竞价量能", "高标溢价", "尾部极端", "外盘扰动"]
+
 if __name__ == "__main__":
     asyncio.run(test_backend_core_flows())
     print("All backend tests passed!")
+

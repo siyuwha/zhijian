@@ -64,13 +64,81 @@ export interface DailyReviewDetail {
   generated_at: string | null;
 }
 
-export interface PremarketBriefing {
-  date: string;
-  overnightMarkets?: string;
-  newsDigest?: string;
-  yesterdayReview?: string;
-  todayFocus?: string;
+export interface OvernightIndexItem {
+  code: string;
+  symbol: string;
+  name: string;
+  price: number | null;
+  pct_change: number | null;
+  change_pct?: number | null;
+  change_val?: number | null;
+  time?: string | null;
 }
+
+export interface NewsDigestItem {
+  title: string;
+  brief?: string;
+  content?: string;
+  publish_time?: string;
+  time?: string;
+  source?: string;
+  url?: string;
+}
+
+export interface YesterdayReviewSnapshot {
+  date: string | null;
+  state_label: string;
+  data_quality?: string;
+  composite_score?: number | null;
+  total_amount?: number | null;
+  breadth?: {
+    up_count?: number | null;
+    down_count?: number | null;
+    up_down_ratio?: number | null;
+  };
+  sub_a_structure?: {
+    max_board_height?: number | null;
+    promotion_rate?: number | null;
+    score?: number | null;
+  };
+  sub_b_extremes?: {
+    limit_up_count?: number | null;
+    limit_down_count?: number | null;
+    limit_diff?: number | null;
+    broken_limit_ratio?: number | null;
+    score?: number | null;
+  };
+  dimensions?: Record<string, SubDimensionState>;
+  narrative?: string;
+}
+
+export interface TodayFocusItem {
+  dimension: string;
+  title: string;
+  observation_point: string;
+  analysis: string;
+  disclaimer: string;
+}
+
+export interface PremarketBriefingDetail {
+  id?: number;
+  date: string;
+  overnight_summary: OvernightIndexItem[];
+  news_digest: NewsDigestItem[];
+  yesterday_review_summary: YesterdayReviewSnapshot | null;
+  today_focus: TodayFocusItem[];
+  generated_at?: string | null;
+}
+
+export interface PremarketBriefingSummaryItem {
+  id: number;
+  date: string;
+  overnight_summary: OvernightIndexItem[];
+  yesterday_state_label: string;
+  generated_at: string | null;
+}
+
+export type PremarketBriefing = PremarketBriefingDetail;
 
 export interface AuctionReport {
   date: string;
