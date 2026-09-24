@@ -1,6 +1,6 @@
-# G5-Phase 2：M4 盘中动态监控与异动感知系统技术设计单 (v1.0)
+# G5-Phase 2：M4 盘中动态监控与异动感知系统技术设计单 (v1.1)
 
-> **设计单编号**：DESIGN-G5-PHASE-2-M4-01 (v1.0)  
+> **设计单编号**：DESIGN-G5-PHASE-2-M4-01 (v1.1 终审修订版)  
 > **编制日期**：2026-09-24  
 > **编制机构**：Antigravity 主开发团队  
 > **上位依据**：  
@@ -8,7 +8,16 @@
 > 2. [《开发文档/12-G5-Phase-1A.3封口与边界冻结决议.md》](file:///d:/项目库/AI认知复盘交易系统/开发文档/12-G5-Phase-1A.3封口与边界冻结决议.md)（M1 边界冻结决议）  
 > 3. [《开发文档/14-G5-Phase-1B封口与边界冻结决议.md》](file:///d:/项目库/AI认知复盘交易系统/开发文档/14-G5-Phase-1B封口与边界冻结决议.md)（M2 边界冻结决议）  
 > 4. [《开发文档/16-G5-Phase-1C封口与边界冻结决议.md》](file:///d:/项目库/AI认知复盘交易系统/开发文档/16-G5-Phase-1C封口与边界冻结决议.md)（M3 边界冻结决议）  
-> 5. **最高董事会（用户）核心批示**：“启动 G5-Phase 2 M4 技术设计单编制；当前只授权 Step 1 设计，不授权代码实施；严格守住 5 条核心边界”。
+> 5. **最高董事会（用户）核心批示**：“落实 M4-v1.1 唯一必修清单（7+1 铁律项），生成 v1.1 设计单后正式签署 Step 2 代码实施令”。
+
+---
+
+## 修订记录 (Revision History)
+
+| 版本 | 修订日期 | 修订人 | 修订性质 | 核心修订内容摘要 |
+| :--- | :--- | :--- | :--- | :--- |
+| **v1.0** | 2026-09-24 | 主开发团队 | 初始编制 | 确立 M4 系统定位、时序状态机、四元组异动数学定义、反报警器三层过滤漏斗及轻量双层解耦架构。 |
+| **v1.1** | 2026-09-24 | 主开发团队 | 董事会审定 | **全量落实董事会“7+1 铁律必修清单”**：<br/>1. 统一契约与 None 零填充防伪（Schema 统计字段及 TS 接口统一为可空类型）；<br/>2. 明确量能投影 $W(T)$ 累积函数与 09:30~09:45 强制 None 冷启动；<br/>3. 补齐数学指标冷启动（09:30~10:00 流动性脉冲比率 $R_{vol}$ 统一输出 None 并标记 `BASELINE_NOT_READY`）；<br/>4. 规范事件触发语义为边沿跃迁触发（Edge Trigger），持续封板不重复插入；<br/>5. 简化系统性共振为透明布尔规则（指数同向 $\ge 0.15\%$ 或板块同向标的数 $\ge 2$）；<br/>6. 锁定白名单边界与排除项（行业前3取当日涨幅榜前3、中军限定市值 $\ge 1000$ 亿且成交 Top 20、显式排除 ST/\*ST/停牌/退市标的）；<br/>7. 补充午休跨段窗口（13:00~13:05 跨段取 11:25~11:30）与轮询防封指数退避 + SQLite 异步批处理写入。 |
 
 ---
 
@@ -18,10 +27,11 @@
 - [三、时间序列作为核心设计对象（时序工程体系）](#三时间序列作为核心设计对象时序工程体系)
 - [四、“异动”的严格数学定义与计算模型](#四异动的严格数学定义与计算模型)
 - [五、反报警器哲学：记录 vs 提醒 vs 呈现三层过滤漏斗](#五反报警器哲学记录-vs-提醒-vs-呈现三层过滤漏斗)
-- [六、数据模型与持久化方案设计（建议 Schema）](#六数据模型与持久化方案设计建议-schema)
+- [六、数据模型与持久化方案设计（落实契约与 None 防伪）](#六数据模型与持久化方案设计落实契约与-none-防伪)
 - [七、API 接口契约与前端作战看板设计](#七api-接口契约与前端作战看板设计)
-- [八、四权分立质量闸门与红队攻防验收规划](#八四权分立质量闸门与红队攻防验收规划)
-- [九、实施阶段规划与工序安排](#九实施阶段规划与工序安排)
+- [八、数据采集防封与高并发持久化兜底（新增机制）](#八数据采集防封与高并发持久化兜底新增机制)
+- [九、四权分立质量闸门与红队攻防验收规划](#九四权分立质量闸门与红队攻防验收规划)
+- [十、实施阶段规划与工序安排](#十实施阶段规划与工序安排)
 
 ---
 
@@ -79,7 +89,7 @@ flowchart TD
 
     subgraph M4_STAGE ["M4 盘中动态监控系统 (09:30～15:00) - 本设计单"]
         M4_INIT["09:30 继承 M3 开盘事实作为起点基线 t0<br/>继承 M1 连板高标与 M2 关注方向作为监控核心池"]
-        M4_ENGINE["盘中时序引擎 (30s采样 / 1min快照 / 多尺度窗口)"]
+        M4_ENGINE["盘中时序引擎 (30s采样 / 1min切片 / 多尺度窗口)"]
         M4_FILTER["异动数学感知 + 认知降噪三层过滤漏斗"]
         M4_EVENTS["盘中显著事件流水 (Event Stream)"]
         M4_UI["盘中实时全景作战看板 (Monitor Dashboard)"]
@@ -100,7 +110,7 @@ flowchart TD
 
 ### 2.2 前序契约只读消费规范
 1. **消费 M1 状态向量**：
-   - 提取昨日两市全天总成交金额（`D6.metrics.total_amount`），作为盘中“分时累计量能投影对比（Volume Projection Baseline）”的分母参考基准；
+   - 提取昨日两市全天总成交金额（`D6.metrics.total_amount`），作为盘中“分时累计量能投影对比（Volume Projection Baseline）”的对比基准；
    - 提取昨日连板池股票列表（`limit_up_analysis.pool`），将昨日连板股、最高空间板自动载入 M4 的**「重点监测核心池（Watchlist）」**；
 2. **消费 M2 观察假设**：
    - 仅将 M2 的 4 维观察维度作为盘中宏观视角的只读上下文展示，不参与任何算法打分；
@@ -128,15 +138,17 @@ stateDiagram-v2
     PRE_MARKET_WAIT --> AUCTION_LOCKED: 09:25 提取 M3 竞价基准
     AUCTION_LOCKED --> MORNING_ACTIVE: 09:30:00 晨盘连续竞价开启 (高频轮询)
     MORNING_ACTIVE --> NOON_SUSPENDED: 11:30:00 晨盘收盘 (时钟休眠/冻结计算)
-    NOON_SUSPENDED --> AFTERNOON_ACTIVE: 13:00:00 午盘连续竞价恢复 (恢复轮询)
+    NOON_SUSPENDED --> AFTERNOON_ACTIVE: 13:00:00 午盘连续竞价恢复 (恢复轮询与跨段拼接)
     AFTERNOON_ACTIVE --> CLOSING_FREEZE: 15:00:00 收盘锁盘 (计算全天汇总/落盘归档)
     CLOSING_FREEZE --> M1_HANDOVER: 15:05:00 日内事件流归档交付 M1
 ```
 
 - **午间休市（11:30:00 ～ 13:00:00）处理规范**：
   - 调度器进入 `NOON_SUSPENDED` 状态，停止一切网络数据采集；
-  - 冻结所有滑动窗口与时间差计算，**严禁**将 11:30~13:00 计入时间流速，杜绝产生虚假的“90分钟零换手”或“长周期缩量”错误；
-  - 13:00:00 唤醒时，以 11:30:00 的最后切片作为前置点无缝对接，时间轴在逻辑上直接跳跃。
+  - 冻结所有滑动窗口与时间差计算，**严禁**将 11:30~13:00 计入时间流速，杜绝产生虚假的“90分钟零换手”或“长周期缩量”错误。
+- **午休跨段窗口向前拼接规范（【v1.1 必修项 7】）**：
+  - 针对 13:00~13:05 启动的 5 分钟滑动窗口，其向前查找样本点时，**直接跨过 11:30~13:00 的休市空白，无缝回溯取 11:25~11:30 的晨盘收盘前切片**；
+  - 在计算时间差 $\Delta t$ 时，**午间休市的有效交易时间差严格计为 0 分钟**，使得 13:02 相较于 11:28 的物理有效交易时间跨度准确计算为 4 分钟，消除时间轴断裂或虚假断流。
 - **盘后锁盘（15:00:00）处理规范**：
   - 15:00:00 后不再接收盘中异动计算，完成全天日内快照序列化与最终校验，进入只读归档状态。
 
@@ -152,7 +164,7 @@ stateDiagram-v2
 2. **多尺度滑动窗口体系（Multi-Scale Windows）**：
    - **微观脉冲窗口（Micro Window，$\Delta t = 1\text{min}$ / $3\text{min}$）**：用于捕捉瞬间放量抢筹、闪崩跳水与秒级炸板；
    - **短周期观察窗口（Short Window，$\Delta t = 5\text{min}$ / $15\text{min}$）**：用于计算分时动量斜率、多空力量推移；
-   - **日内累积窗口（Cumulative Window，从 $09:30$ 至当前时刻 $T$）**：用于计算累计成交金额、量能投影比例与日内 VWAP（成交量加权平均价）。
+   - **日内累积窗口（Cumulative Window，从 $09:30$ 至当前时刻 $T$）**：用于计算累计成交金额与量能投影。
 
 ### 3.3 时间戳一致性与双轨校准规范
 1. **时间戳定义与统一格式**：
@@ -201,169 +213,152 @@ stateDiagram-v2
 
 ## 四、“异动”的严格数学定义与计算模型
 
-依据董事会第二条刚性边界（**“明确‘异动’的数学定义，不能把涨跌得多等同于异动，必须明确基准、窗口、阈值和数据质量”**），本节确立一套严密的量化形式化规范。
+依据董事会第二条刚性边界，异动形式化为四元组：
+$$\text{Anomaly} = \langle \mathcal{E}, \mathcal{B}, \Delta t, \Theta \rangle$$
 
 ### 4.1 传统误区与异动的严格定义
 - **传统错误认知**：把“涨幅达到 +7%”或“跌幅达到 -5%”当作盘中异动。
   * 反例：某股开盘即涨 7%，随后全天在 7% 附近窄幅横盘波动 0.1%，它在盘中是极度平静的，没有任何“动量突变”；若系统在盘中不断报“该股大涨 7%”，纯属无意义的交易噪声。
-- **异动的核心科学定义**：
-  > **异动（Anomaly / Kinetic Event）是指：标的在确定的微观观测窗口 $\Delta t$ 内，其状态变量（价格变动速度、成交量能爆发比率、盘口拓扑结构）相较于动态基准（Baseline）的偏离程度，在统计学或动力学上超越了预设显著性阈值 $\theta$，或者触发了市场状态相变边界的确定性物理事件。**
-
-每一种异动必须严格由 **四元组 (Entity, Baseline, Window, Threshold)** 唯一定义：
-$$\text{Anomaly} = \langle \mathcal{E}, \mathcal{B}, \Delta t, \Theta \rangle$$
+- **科学定义**：异动是指标的在确定的微观观测窗口 $\Delta t$ 内，其状态变量相较于动态基准的偏离程度超越显著性阈值，或触发市场拓扑相变。
 
 ---
 
 ### 4.2 动量突变模型（Velocity Anomaly / Price Spike）
-用于捕捉盘中短时间内价格快速拉升或脉冲跳水。
-
 1. **观测窗口与基准定义**：
-   - 观测窗口：$\Delta t = 3\text{分钟}$（微观速动）或 $\Delta t = 5\text{分钟}$（波段速动）；
+   - 观测窗口：$\Delta t = 3\text{分钟}$（微观速动）；
    - 动态基准：当前时刻 $T$ 的价格相对于 $T - \Delta t$ 时刻价格的变化率：
-     $$v_{\Delta t}(T) = \frac{P(T) - P(T - \Delta t)}{P(T - \Delta t)} \times 100\%$$
+     $$v_{3\text{min}}(T) = \frac{P(T) - P(T - 3\text{min})}{P(T - 3\text{min})} \times 100\%$$
 2. **显著性阈值 $\Theta_v$**：
-   - **主板标的（10% 涨跌幅限制）**：
-     * 急速拉升：$v_{3\text{min}} \ge +3.0\%$ 且 窗口内成交额 $A_{3\text{min}} \ge 2000\text{万元}$；
-     * 急速跳水：$v_{3\text{min}} \le -3.0\%$ 且 窗口内成交额 $A_{3\text{min}} \ge 2000\text{万元}$；
-   - **创业板 / 科创板标的（20% 涨跌幅限制）**：
-     * 急速拉升：$v_{3\text{min}} \ge +5.0\%$ 且 $A_{3\text{min}} \ge 3000\text{万元}$；
-     * 急速跳水：$v_{3\text{min}} \le -5.0\%$ 且 $A_{3\text{min}} \ge 3000\text{万元}$；
-   - **宽基指数（上证/深证/创业板指）**：
-     * 指数脉冲：$|v_{5\text{min}}| \ge 0.50\%$（对应大盘 5 分钟急拉或跳水，具备系统性影响力）。
-3. **数据质量与伪异动过滤**：
-   - 必须满足**成交量确认原则**：若价格变动仅由一手或几十手小单撮合造成（$A_{\Delta t} < 500\text{万元}$），判定为“流动性枯竭杂波”，直接丢弃，不计为异动。
+   - **主板标的（10% 限制）**：$|v_{3\text{min}}| \ge 3.0\%$ 且 窗口内成交额 $A_{3\text{min}} \ge 2000\text{万元}$；
+   - **双创标的（20% 限制）**：$|v_{3\text{min}}| \ge 5.0\%$ 且 窗口内成交额 $A_{3\text{min}} \ge 3000\text{万元}$；
+   - **宽基指数**：$|v_{5\text{min}}| \ge 0.50\%$。
+3. **数据质量过滤**：成交额 $< 500\text{万元}$ 的脉冲判定为流动性枯竭杂波，直接剔除。
 
 ---
 
-### 4.3 流动性脉冲模型（Liquidity Pulse / Volume Surge）
-用于捕捉资金突然集中进出导致的成交量异常放大。
-
+### 4.3 流动性脉冲模型与冷启动保护（【v1.1 必修项 3】）
 1. **观测窗口与动态基准定义**：
    - 观测窗口：$\Delta t = 5\text{分钟}$；
-   - 动态基准 $\bar{A}_{baseline}(T)$：
-     * 优先采用：该标的在过去 $K$ 个 5 分钟窗口的移动平均成交额（$K = 6$，即过去 30 分钟平均值）：
-       $$\bar{A}_{30\text{min}}(T) = \frac{1}{6} \sum_{i=1}^{6} A_{5\text{min}}(T - i \times 5\text{min})$$
+   - 动态基准 $\bar{A}_{30\text{min}}(T)$（过去 30 分钟均值）：
+     $$\bar{A}_{30\text{min}}(T) = \frac{1}{6} \sum_{i=1}^{6} A_{5\text{min}}(T - i \times 5\text{min})$$
 2. **量能爆发比率（Volume Surge Ratio, $R_{vol}$）**：
    $$R_{vol}(T) = \frac{A_{5\text{min}}(T)}{\bar{A}_{30\text{min}}(T)}$$
-3. **显著性判定条件**：
-   - $R_{vol}(T) \ge 3.0$（即当前 5 分钟成交额放大至过去半小时均值的 3 倍以上）；
-   - 且绝对成交金额 $A_{5\text{min}}(T) \ge 3000\text{万元}$（中大盘股）或 $\ge 1500\text{万元}$（高弹性小盘股）；
-   - 输出标签：【放量脉冲】（若 $P(T) > P(T-5\text{min})$）或【放量下杀】（若 $P(T) < P(T-5\text{min})$）。
+3. **开盘 30 分钟冷启动保护规则（Cold-Start Grace Period）**：
+   - **时段限制**：**在 09:30:00 ～ 10:00:00 期间**，由于系统开盘尚不足 30 分钟，缺少完整的过去半小时滚动样本点；
+   - **计算规则**：该时段内 $R_{vol}(T)$ **统一强制输出为 `None`**；
+   - **状态标识**：内部计算状态显式置为 `BASELINE_NOT_READY`，彻底杜绝开盘前几分钟因分母极小造成的虚假爆量告警；
+   - **10:00 恢复计算**：自 10:00:00 起，基准窗口样本满额（6个5分钟切片），正式开启 $R_{vol}$ 判定（$R_{vol} \ge 3.0$ 且 $A_{5\text{min}} \ge 3000\text{万元}$ 触发）。
 
 ---
 
-### 4.4 市场结构相变点模型（Structural Topological Transitions）
-盘中最具物理确定性与博弈意义的离散相变事件：
+### 4.4 市场结构相变点与“边沿跃迁触发”（【v1.1 必修项 4】）
+盘中最具物理确定性的离散事件，**严格规范为 Edge Trigger（边沿跃迁触发）语义**：
 
-1. **封死涨停事件（Limit-Up Lock Event）**：
-   - 判定条件：$P(T) = P_{limit\_up}$，且卖一委托档位为 0（$Ask_1 = 0$），且买一封单金额 $\text{BidOrderValue}_1 \ge 1000\text{万元}$；
-   - 记录属性：标的代码、时间戳、封单金额、换手率、是否为首板/连板。
-2. **涨停炸板事件（Limit-Up Break Event）**：
-   - 判定条件：$T-1$ 时刻标的处于涨停状态（$P(T-1) = P_{limit\_up}$ 且 $Ask_1 = 0$），$T$ 时刻最新价脱离涨停价（$P(T) < P_{limit\_up}$）；
-   - 记录属性：炸板时间戳、回落幅度、炸板瞬间成交量、承接状态。
-3. **最高空间板更迭事件（Space Leader Shift Event）**：
-   - 判定条件：昨日最高连板标的发生炸板，或今日有新的更高板标的完成晋级封死，导致市场全市场实际最高连板数发生动态变化；
-   - 记录属性：新最高板代码、连板高度、原最高板当前状态。
-4. **跌停撬板与核按钮事件（Limit-Down Unlock / Plunge Event）**：
-   - 跌停撬板：$P(T-1) = P_{limit\_down}$，$T$ 时刻打开跌停板并伴随成交量激增；
-   - 核按钮下杀：标的在 5 分钟内从平盘或红盘直线下砸至跌停板。
+```text
+前一切片状态 S(t-1) --------(离散跃迁)--------> 当前切片状态 S(t)
+    [NORMAL]                  ---->                 [SEALED]  ==> 触发 1 次：LIMIT_UP_LOCK 事件
+    [SEALED]                  ---->                 [SEALED]  ==> 状态持续，0 触发，不插入记录！
+    [SEALED]                  ---->                 [BROKEN]  ==> 触发 1 次：LIMIT_UP_BREAK 事件
+```
+
+1. **封死涨停事件（LIMIT_UP_LOCK）**：
+   - **边沿触发条件**：$S(t-1) \neq \text{SEALED}$ 且 $S(t) = \text{SEALED}$（即 $P(T) = P_{limit\_up}$，$Ask_1 = 0$，且买一封单金额 $\ge 1000\text{万元}$）；
+   - **持续期防刷屏**：若标的维持封死状态（$S(t-1) = \text{SEALED}$ 且 $S(t) = \text{SEALED}$），后续所有采样周期**绝对不再重复插入任何事件记录**，防止事件表爆炸。
+2. **涨停炸板事件（LIMIT_UP_BREAK）**：
+   - **边沿触发条件**：$S(t-1) = \text{SEALED}$ 且 $S(t) \neq \text{SEALED}$（即价格脱离涨停价）；
+   - 记录炸板瞬间时间戳、回落幅度与成交量。
+3. **最高空间板更迭事件（LEADER_SHIFT）**：
+   - **边沿触发条件**：全市场实际最高板高度或最高板代码发生变化瞬间触发一次。
+4. **跌停撬板与核按钮下杀（LIMIT_DOWN_UNLOCK / PLUNGE）**：
+   - 撬板：从跌停封死状态到脱离跌停跃迁瞬间触发；
+   - 核按钮：5 分钟内自红盘下砸跌停瞬间触发。
 
 ---
 
-### 4.5 市场广度与宏观剪刀差脉冲（Breadth & Divergence Pulse）
-用于测量全市场多空情绪的宏观共振：
-1. **涨跌家数比率斜率（Breadth Momentum）**：
-   - 统计当前全市场上涨家数 $N_{up}(T)$ 与下跌家数 $N_{down}(T)$；
-   - 在 15 分钟窗口内：$\Delta N_{up} = N_{up}(T) - N_{up}(T - 15\text{min})$；
-   - 若 $|\Delta N_{up}| \ge 800\text{家}$，判定为全市场级别的宏观情绪共振脉冲（【全市场普涨拉升】或【全市场快速跳水】）。
-2. **黄白线剪刀差异动（Divergence Pulse）**：
-   - 上证指数白线（权重走势 $I_{white}$）与黄线（全市场等权走势 $I_{yellow}$）的差值：
-     $$\text{Spread}_{diff}(T) = I_{yellow}(T) - I_{white}(T)$$
-   - 若 $|\text{Spread}_{diff}(T)| \ge 1.5\%$，标记为【八二分化极值】（中小盘暴涨权重走弱，或权重护盘中小盘惨跌）。
+### 4.5 两市量能投影 $W(T)$ 数学模型与冷启动（【v1.1 必修项 2】）
+日内全天成交量投影严禁使用简单的“当前成交 $\times (240 / t)$”线性外推（因为 A 股成交极不均匀，早盘集中而午后清淡）：
+
+1. **日内成交累积分布函数 $W(T)$ 定义**：
+   $$W(T) = \int_{09:30}^{T} w(t) dt, \quad T \in [09:30, 15:00], \quad W(15:00) = 1.0$$
+   基于 A 股全市场历史大数据统计的典型分时成交累积基准权重曲线：
+   - 09:30:00：$W = 0.00$
+   - 09:45:00：$W \approx 0.15$
+   - 10:00:00：$W \approx 0.25$
+   - 10:30:00：$W \approx 0.38$
+   - 11:30:00：$W \approx 0.55$（早盘累计成交约占全天 55%）
+   - 13:00:00：$W \approx 0.55$（午休冻结）
+   - 14:00:00：$W \approx 0.78$
+   - 14:30:00：$W \approx 0.88$
+   - 15:00:00：$W = 1.00$
+2. **投影计算公式**：
+   $$\text{volume\_proj\_yi}(T) = \frac{\text{CumAmount}(T)}{W(T)}$$
+3. **冷启动与噪声屏蔽规则**：
+   - **强制 None 窗口**：**在 09:30:00 ～ 09:45:00（开盘前 15 分钟）期间**，由于 $W(T) \le 0.15$，开盘集合竞价集中释放与瞬间冲击会导致分母极小且方差极大，投影极易失真。因此该时段内 `volume_proj_yi` **强制输出为 `None`**；
+   - 自 09:45:01 起输出正式投影估算值；
+4. **前端显式标签**：
+   - 前端展示量能投影值时，必须显式附加 **`ESTIMATED` 估算标签**（例如：“18,530 亿元 (ESTIMATED)”），绝不伪装为确定性成交事实。
 
 ---
 
 ## 五、反报警器哲学：记录 vs 提醒 vs 呈现三层过滤漏斗
 
-依据董事会第五条核心边界（**“不要一开始就设计报警器！先回答什么变化值得记录，再回答什么变化值得提醒，最后才考虑提醒如何呈现，防止告警泛滥与噪声”**），M4 确立三层递进漏斗设计。
+依据董事会第五条核心边界，确立严格的三层过滤漏斗：
 
-```mermaid
-flowchart TD
-    subgraph L1 ["Level 1：什么变化值得被系统记录？ (事实沉淀层)"]
-        L1_DESC["• 全量相变点：所有炸板、上板、撬板、核按钮<br/>• 所有符合数学定义的动量突变与量能脉冲<br/>• 宽基指数 5 分钟微观快照<br/>• 目标：默默写入时序事件库，为复盘提供全息证据链，0 打扰人类！"]
-    end
+### 5.1 第一层：什么变化值得被系统记录？（事实沉淀层）
+- **核心原则**：宽进严出，全息忠实，零打扰；
+- **记录内容**：
+  * 所有 Edge Trigger 边沿跃迁的涨跌停、炸板、撬板事件；
+  * 满足数学定义的动量突变与量能脉冲；
+  * 5 分钟采样的大盘指数宏观切片；
+- **动作**：静默写入持久化事件库，为复盘提供全息因果链，**0 弹窗、0 声音、0 打扰人类**。
 
-    subgraph L2 ["Level 2：什么变化值得被提醒？ (认知过滤层)"]
-        L2_DESC["• 辨识度门槛：仅限最高板/高标梯队/千亿中军/领涨板块前排，杂毛一律过滤！<br/>• 结构性共振：单点杂音不提醒，必须伴随板块或指数联动<br/>• 15 分钟冷却期防刷屏：同一标的 15 分钟内最多提醒 1 次，拒绝临界反复跳动"]
-    end
+### 5.2 第二层：什么变化值得提醒？（认知过滤层）
+- **核心原则**：严格限权，去粗取精，剔除杂毛。必须同时穿透以下三重网筛：
 
-    subgraph L3 ["Level 3：提醒通过什么方式呈现？ (低侵入视觉层)"]
-        L3_DESC["• 绝无弹窗拦截，绝无刺耳报警声<br/>• 作战看板内呼吸脉冲微徽章 + 时序事件流水折叠呈现<br/>• 颜色分级：深红(结构恶性破坏)/橙黄(转折共振)/灰色(常规事实流水)<br/>• 随时支持一键全静音与多维度过滤"]
-    end
+#### 筛子 1：锁定白名单边界与排除项（【v1.1 必修项 6】）
+只有处于以下白名单池内的标的，才有资格进入 Level 2 提醒候选：
+1. **最高空间板梯队**：全市场实际最高连板标的及其直接竞争标的；
+2. **高标连板池**：继承自 M1 的连板池且当前连板数 $\ge 2$ 的标的；
+3. **日内领涨行业前 3 龙头**：**严格限定为“当日实时涨幅榜排名前 3 的申万/同花顺二级行业”中涨幅第一的领涨标的**；
+4. **核心容量中军**：**严格限定为“A 股总市值 $\ge 1000$ 亿元 且 当日日内成交金额排名前 20”的大市值中军标的**；
+- 🚫 **显式排除清单（Exclusion List）**：
+  * **全面显式排除 ST / \*ST 标的**；
+  * **全面排除已停牌标的与退市整理期标的**；
+  * 普通边缘首板杂毛、冷门微盘股，一律留在 Level 1 记录，严禁进入 Level 2 提醒！
 
-    L1 -->|显著性门槛 + 核心池筛选| L2
-    L2 -->|冷周期去重 + 分级渲染| L3
-```
+#### 筛子 2：简化系统性共振的透明布尔规则（【v1.1 必修项 5】）
+拒绝模糊黑盒与多层加权评分，采用确定性的布尔条件：
+$$\text{Resonance} = \text{IndexCoMove} \lor \text{SectorCoMove}$$
+- **`IndexCoMove`（指数同向联动）**：
+  * 标的异动方向与大盘指数（主板看上证，双创看创业板指）过去 5 分钟波动方向一致，且指数波动幅值 $|v_{5\text{min}}| \ge 0.15\%$；
+- **`SectorCoMove`（板块同向异动）**：
+  * 标的所属申万/同花顺二级行业板块在过去 15 分钟内，同向异动标的数 $\ge 2$ 家；
+- **判定结果**：满足以上任意一条即判定为“具备系统性共振”；若两条均不满足，判定为孤立个股杂音，直接丢弃，不予提醒。
 
-### 5.1 第一层：什么变化值得被系统记录？（事实沉淀层 / Passive Event Log）
-- **核心原则**：**宽进严出，全息忠实，零打扰**。
-- **记录范围**：
-  1. 所有标的在盘中发生的上板、炸板、撬板瞬间；
-  2. 所有符合第 4 节数学定义的 $\Delta t$ 动量突变与量能爆发；
-  3. 宽基指数每个 5 分钟区间的关键拐点；
-  4. 行业板块在 15 分钟内前 3 只涨停标的的接力时序。
-- **存储机制**：直接作为不可篡改的时序事件（`EventLog`）写入持久化存储，不触发任何界面推送，专供盘后 M1 系统复盘时追溯日内因果。
+#### 筛子 3：15 分钟冷却期防刷屏机制
+- 同一标的同方向异动，**15 分钟内绝对只提醒 1 次**，彻底消除涨跌停临界点震荡造成的告警泛滥。
 
-### 5.2 第二层：什么变化值得提醒？（显著性认知过滤层 / Cognitive Filtering）
-- **核心原则**：**严格限权，去粗取精，剔除杂毛**。
-- **三大过滤铁律**：
-  1. **标的辨识度门槛（High Recognition Filter）**：
-     * 仅当事件发生在以下三类标的上时，方有资格进入待提醒队列：
-       - ① **全市场最高空间连板股及其竞争标的**；
-       - ② **昨日连板池股票及当前连板 $\ge 2$ 的高标样本**；
-       - ③ **日内领涨前 3 行业板块的龙头标的，或成交额 Top 20 的市场容量中军**；
-     * 普通无辨识度的首板杂毛、边缘个股异动，**一律留在 Level 1 记录，严禁进入 Level 2 提醒**！
-  2. **系统性共振要求（Systemic Resonance Filter）**：
-     * 单只个股无由来的秒拉或秒砸，若没有所属行业板块或指数的量价共振，视为个股资金博弈杂音，降低提醒级别或予以忽略；
-  3. **15 分钟冷周期防刷屏机制（Cooldown / Debounce）**：
-     * 同一只标的在相同方向的异动，**15 分钟内绝对只提醒 1 次**；
-     * 坚决消除在涨跌停临界点（如 9.9% 反复震荡开合）造成的“1分钟内连续触发10次告警”的灾难性噪声。
-
-### 5.3 第三层：提醒通过什么方式呈现？（低侵入视觉层 / Non-intrusive Visual Presentation）
-- **核心原则**：**静水流深，低侵入，零干扰**。
-- **呈现规范**：
-  1. 🚫 **绝不使用模态弹窗（No Modal Dialogs）**：绝不阻断用户的当前浏览与分析视角；
-  2. 🚫 **绝不使用声音警报（No Audio Alarms）**：保持分析环境的冷静与理智；
-  3. ✅ **作战看板“呼吸脉冲徽章（Subtle Pulse Badges）”**：
-     - 在标的代码或看板卡片旁，以柔和的色彩呼吸点展示异动；
-  4. ✅ **三级视觉分色体系**：
-     - 🔴 **高危结构破坏（Critical Structural Event）**：深红底色微标（如最高空间板炸板跳水、指数断崖跳水）；
-     - 🟡 **结构性转折共振（Structural Transition）**：橙黄底色微标（如容量中军放量拉升、新高标上位晋级）；
-     - ⚪ **客观事实事件流（Neutral Event Stream）**：时间轴右侧平缓滚动的灰色小字流水，默认折叠，供随时展开查阅；
-  5. ✅ **一键静音与过滤控制器**：
-     - 顶部常设快捷开关：`[全部]`、`[仅看最高板/高标]`、`[仅看指数/宏观]`、`[一键静音所有视觉脉冲]`。
+### 5.3 第三层：提醒通过什么方式呈现？（低侵入视觉层）
+- 🚫 **绝无模态弹窗拦截**；
+- 🚫 **绝无声音警报**；
+- ✅ **看板呼吸微标（Subtle Pulse Badges）**：
+  * 🔴 深红微标：恶性结构破坏（最高板炸板天地板、指数断崖跳水）；
+  * 🟡 橙黄微标：结构性转折共振（容量中军放量拉升、新最高板上位）；
+- ✅ **右侧折叠时序事件流**：时间轴滚动客观流水，默认静音折叠；
+- ✅ **一键全静音总开关**：看板顶部支持一键屏蔽全部视觉脉冲。
 
 ---
 
-## 六、数据模型与持久化方案设计（建议 Schema）
+## 六、数据模型与持久化方案设计（落实契约与 None 防伪）
 
-本节为架构设计预研，**在 Step 1 阶段不写入代码，不执行数据库变更**，待董事会审阅批准后在 Step 2 受控实施。
-
-### 6.1 持久化分层策略：轻量时序与事件分离
-盘中数据若按每秒或每30秒全量写入 SQLite，会导致单日产生数十万条碎片记录，极易引发 SQLite 锁表与磁盘 I/O 恶化。为此设计**“双层解耦架构”**：
-
-1. **热时序数据层（In-Memory Hot RingBuffer / Redis）**：
-   - 在后端进程内存中维护一个双端循环队列（Ring Buffer），保存当日全市场宽基指数与重点池标的的最新 240 分钟序列；
-   - 盘中实时 API 查询直接从内存中极速切片返回，耗时 $< 5\text{ms}$，零数据库读写压力；
-2. **持久化事件与快照层（SQLite Cold Archive）**：
-   - 仅落盘两张结构化表：
-     * `intraday_market_snapshot`：盘中每 5 分钟采样一次的宏观大盘快照（单日仅 48 条记录）；
-     * `intraday_anomaly_event`：通过 Level 1 过滤的盘中确定性客观事件（单日约 50～200 条记录）。
-
-### 6.2 建议数据库表 Schema 设计
+### 6.1 契约统一与 None 防伪改造（【v1.1 必修项 1】）
+为彻底贯彻“零填充防伪”，数据库 Schema 中所有统计指标**统一去除默认值 0，改为显式可空 `nullable=True, default=None`**。
 
 ```python
-# 建议新建模型 (待董事会批准 Step 2 时实施): backend/app/models/market.py 或 monitor.py
+# backend/app/models/market.py 或 monitor.py (待 Step 2 受控实施)
+
+from sqlalchemy import Column, Integer, Float, String, Text, DateTime, UniqueConstraint, func
+from ..core.database import Base
 
 class IntradayMarketSnapshot(Base):
     """盘中市场宏观时序快照表 (每5分钟采样一条，单日48条)"""
@@ -372,27 +367,27 @@ class IntradayMarketSnapshot(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     date = Column(String, nullable=False, index=True)        # 交易日 YYYY-MM-DD
     timestamp = Column(String, nullable=False, index=True)   # 精确时间 HH:MM:SS
-    minute_index = Column(Integer, nullable=False)           # 盘中分钟索引 1~240
+    minute_index = Column(Integer, nullable=False)           # 盘中有效分钟 1~240
 
-    # 宏观指数与量能切片
-    sh_index_price = Column(Float)                           # 上证指数价格
-    sh_index_pct = Column(Float)                             # 上证涨跌幅
-    sz_index_price = Column(Float)                           # 深证成指价格
-    sz_index_pct = Column(Float)                             # 深证涨跌幅
-    cy_index_pct = Column(Float)                             # 创业板涨跌幅
-    total_amount_yi = Column(Float)                          # 两市累计成交额(亿元)
-    volume_proj_yi = Column(Float, nullable=True)            # 日内预测全天成交额(亿元)
+    # 宏观指数与量能切片 (统一 nullable=True, default=None)
+    sh_index_price = Column(Float, nullable=True, default=None)
+    sh_index_pct = Column(Float, nullable=True, default=None)
+    sz_index_price = Column(Float, nullable=True, default=None)
+    sz_index_pct = Column(Float, nullable=True, default=None)
+    cy_index_pct = Column(Float, nullable=True, default=None)
+    total_amount_yi = Column(Float, nullable=True, default=None)
+    volume_proj_yi = Column(Float, nullable=True, default=None)  # 09:30~09:45 强制为 None
 
-    # 市场多空广度
-    up_count = Column(Integer, default=0)                    # 上涨家数
-    down_count = Column(Integer, default=0)                  # 下跌家数
-    limit_up_count = Column(Integer, default=0)              # 涨停家数
-    limit_down_count = Column(Integer, default=0)            # 跌停家数
-    broken_limit_count = Column(Integer, default=0)          # 炸板家数
+    # 市场多空广度 (统一 nullable=True, default=None 杜绝 0 伪造)
+    up_count = Column(Integer, nullable=True, default=None)
+    down_count = Column(Integer, nullable=True, default=None)
+    limit_up_count = Column(Integer, nullable=True, default=None)
+    limit_down_count = Column(Integer, nullable=True, default=None)
+    broken_limit_count = Column(Integer, nullable=True, default=None)
 
-    # 核心高标结构
-    max_height = Column(Integer, default=0)                  # 当前全市场最高连板高度
-    leader_stock = Column(String, nullable=True)             # 当前最高空间板代码及名称
+    # 核心高标结构 (统一 nullable=True, default=None)
+    max_height = Column(Integer, nullable=True, default=None)
+    leader_stock = Column(String, nullable=True, default=None)
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (
@@ -401,7 +396,7 @@ class IntradayMarketSnapshot(Base):
 
 
 class IntradayAnomalyEvent(Base):
-    """盘中显著物理异动与相变事件表 (单日约50~200条)"""
+    """盘中显著物理异动与相变事件表 (边沿触发，单日约20~80条)"""
     __tablename__ = "intraday_anomaly_event"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -415,13 +410,13 @@ class IntradayAnomalyEvent(Base):
     symbol = Column(String, nullable=True, index=True)       # 涉及股票代码 (如 000001)
     name = Column(String, nullable=True)                     # 股票名称
 
-    # 量化事实度量
-    price = Column(Float, nullable=True)                     # 事件发生时价格
-    pct_change = Column(Float, nullable=True)                # 当日累计涨跌幅
-    window_delta_pct = Column(Float, nullable=True)          # 窗口内速动变化率 (如 3分钟 +4.2%)
-    window_amount_wan = Column(Float, nullable=True)         # 窗口内成交额 (万元)
-    surge_ratio = Column(Float, nullable=True)               # 量能爆发倍数 (如 3.5倍)
-    details = Column(Text, nullable=True)                    # 结构化明细 JSON (封单额、关联板块等)
+    # 量化事实度量 (统一 nullable=True, default=None)
+    price = Column(Float, nullable=True, default=None)
+    pct_change = Column(Float, nullable=True, default=None)
+    window_delta_pct = Column(Float, nullable=True, default=None)
+    window_amount_wan = Column(Float, nullable=True, default=None)
+    surge_ratio = Column(Float, nullable=True, default=None) # 09:30~10:00 强制为 None
+    details = Column(Text, nullable=True, default=None)      # 结构化明细 JSON
 
     created_at = Column(DateTime, server_default=func.now())
 ```
@@ -435,35 +430,13 @@ class IntradayAnomalyEvent(Base):
 
 | HTTP 方法 | 路径 | 描述 | 请求参数 | 响应主要字段 |
 | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/monitor/realtime` | 获取盘中最新微观综合切片 | `date` (可选) | 指数行情、涨跌家数比、两市成交额、量能投影、最高板状态、新鲜度 |
+| `GET` | `/api/v1/monitor/realtime` | 获取盘中最新微观综合切片 | `date` (可选) | 指数行情、两市成交额、量能投影(ESTIMATED)、涨跌家数比、最高板状态、数据新鲜度 |
 | `GET` | `/api/v1/monitor/series` | 获取日内分时宏观时序曲线 | `date` (可选) | 1 分钟 / 5 分钟采样的指数走势、累计成交柱状序列、涨跌家数曲线 |
 | `GET` | `/api/v1/monitor/events` | 获取盘中客观事件流 | `date`, `severity`, `limit` | 显著事件列表（时间戳、类别、级别、标的、速动量度、明细） |
 | `GET` | `/api/v1/monitor/watchlist`| 获取核心高标梯队盘中状态 | `date` (可选) | 继承自 M1 的高标在盘中的实时涨跌幅、最新换手、封单/炸板状态 |
 
-### 7.2 前端作战看板规划（`frontend/src/app/monitor/page.tsx`）
-彻底淘汰原有的 `"Coming in Phase 2"` 占位符，构建**“09:30～15:00 盘中事实全景作战看板”**：
-
-1. **顶部状态栏（Header & Status Bar）**：
-   - 交易时钟指示器（盘前等待 / 盘中活跃 / 午间休市 / 盘后已锁盘）；
-   - 数据新鲜度脉冲徽章（$\text{Freshness} \le 15\text{s}$ 绿灯呼吸，超时黄灯提示）；
-   - 醒目置顶免责声明横条。
-2. **宏观量能与广度观测卡片区（Macro & Breadth Grid）**：
-   - **两市动态量能卡片**：当前累计成交额、同比昨日同期变化、全天量能投影估算（以昨日 M1.4 为基准）；
-   - **全市场多空广度卡片**：上涨家数 / 下跌家数动态对比条，平盘家数；
-   - **涨跌停与连板极值卡片**：涨停家数、跌停家数、炸板家数、实时炸板率、当前最高连板空间。
-3. **分时多空走势全景图（Intraday Timeline Chart）**：
-   - 上证指数与黄白分时双线；
-   - 分时成交量放大/缩量柱状图；
-   - 异动事件发生点在时间轴上的微型锚点标记。
-4. **核心高标与结构雷达（High-Tier Ecosystem Radar）**：
-   - 继承自 M1 的重点连板池表格：实时价格、日内涨幅、开盘溢价（来自 M3）、换手率、当前状态（连板封死 / 炸板分歧 / 冲高回落）；
-   - 空间板最高标置顶突出。
-5. **客观异动事件流抽屉（Anomaly Event Timeline Stream）**：
-   - 采用右侧或底部时间轴流动组件；
-   - 按时间由新到旧排列，支持按级别（Critical / Transition）筛选；
-   - 纯粹客观物理叙事实录，绝无交易信号。
-
-### 7.3 前端强类型 TypeScript 契约模型设计
+### 7.2 前端强类型 TypeScript 契约模型设计（【v1.1 必修项 1】）
+前端类型定义全部与后端的 `nullable=True, default=None` 严格同构对齐：
 
 ```typescript
 // frontend/src/types/monitor.ts
@@ -481,15 +454,18 @@ export type AnomalyCategory =
 export interface MacroSnapshotItem {
   timestamp: string;
   minute_index: number;
-  sh_price: number;
-  sh_pct: number;
-  total_amount_yi: number;
-  volume_proj_yi: number | null;
-  up_count: number;
-  down_count: number;
-  limit_up_count: number;
-  limit_down_count: number;
-  broken_count: number;
+  sh_price: number | null;
+  sh_pct: number | null;
+  total_amount_yi: number | null;
+  volume_proj_yi: number | null; // 09:30~09:45 严格为 null，前端显示 '--' 并标 ESTIMATED
+  is_proj_estimated: boolean;    // 是否带 ESTIMATED 标签
+  up_count: number | null;
+  down_count: number | null;
+  limit_up_count: number | null;
+  limit_down_count: number | null;
+  broken_count: number | null;
+  max_height: number | null;
+  leader_stock: string | null;
 }
 
 export interface IntradayAnomalyEventItem {
@@ -498,14 +474,14 @@ export interface IntradayAnomalyEventItem {
   minute_index: number;
   category: AnomalyCategory;
   severity: AnomalySeverity;
-  symbol: string;
-  name: string;
-  price: number;
-  pct_change: number;
+  symbol: string | null;
+  name: string | null;
+  price: number | null;
+  pct_change: number | null;
   window_delta_pct: number | null;
   window_amount_wan: number | null;
-  surge_ratio: number | null;
-  details_desc: string;
+  surge_ratio: number | null;    // 09:30~10:00 严格为 null (BASELINE_NOT_READY)
+  details_desc: string | null;
 }
 
 export interface MonitorRealtimeResponse {
@@ -517,11 +493,11 @@ export interface MonitorRealtimeResponse {
   watchlist: Array<{
     symbol: string;
     name: string;
-    board_count: number;
+    board_count: number | null;
     open_pct: number | null;     // 来自 M3 竞价继承
-    current_pct: number;
-    status: "SEALED" | "BROKEN" | "NORMAL";
-    amount_yi: number;
+    current_pct: number | null;
+    status: "SEALED" | "BROKEN" | "NORMAL" | "HALTED";
+    amount_yi: number | null;
   }>;
   recent_events: IntradayAnomalyEventItem[];
   disclaimer: string;
@@ -530,57 +506,74 @@ export interface MonitorRealtimeResponse {
 
 ---
 
-## 八、四权分立质量闸门与红队攻防验收规划
+## 八、数据采集防封与高并发持久化兜底（新增机制）
 
-### 8.1 红队攻防测试用例规划（Step 3 重点验证）
-在进入实施阶段后，红队特使将针对 M4 进行以下专门白盒与黑盒渗透：
+依据董事会第七条必修项（**“Provider 层配置指数退避降级，SQLite 写入配置异步批处理”**），确立以下基础设施级兜底防护：
 
-1. **【零买卖信号渗透测试】**：
-   - 攻击手段：扫描 M4 后端服务、API 响应及前端界面所有文本，断言不得出现 `买入/卖出/打板/做多/做空/止损` 等字样；
-2. **【伪异动与杂毛压测（Spam Attack）】**：
-   - 攻击手段：模拟注入 100 只 ST 股或成交额不足 500 万的小盘股急速涨幅变动，验证 Level 2 认知过滤层是否能 100% 拦截杂毛，绝不产生界面提醒；
-3. **【数据延迟与停滞欺骗测试】**：
-   - 攻击手段：人工断流行情源 120 秒，验证系统是否准确置灰、标记 `STALE`/`DELAYED`，且绝不使用过期数据误报虚假脉冲；
-4. **【午休与跨时段时钟攻击】**：
-   - 攻击手段：在 11:30~13:00 模拟发送请求，验证调度器与时序窗口是否正确冻结，下午 13:00 唤醒时是否无缝拼接；
-5. **【乱序与重复包幂等测试】**：
-   - 攻击手段：向时序缓冲队列倒序乱序推入快照切片，验证 Ring Buffer 的幂等过滤机制是否坚如磐石。
+### 8.1 行情采集 Provider 指数退避与防封限流（【v1.1 必修项 7】）
+1. **分批与并发限流**：
+   - 重点监控池标的（约 30~50 只）查询，严格按每批次 15 只切分；
+   - 批次之间强制增加 $150\text{ms} \sim 300\text{ms}$ 的随机 Jitter 间隔，严禁短时间并发轰炸公共免费行情源；
+2. **指数退避降级（Exponential Backoff with Jitter）**：
+   - 当遇到 HTTP 403、429、502 或连续网络超时时：
+     * 第 1 次重试：等待 $1.0\text{s} + \text{random}(0, 0.5\text{s})$；
+     * 第 2 次重试：等待 $2.0\text{s} + \text{random}(0, 1.0\text{s})$；
+     * 第 3 次重试：等待 $4.0\text{s} + \text{random}(0, 2.0\text{s})$；
+     * 连续 3 次失败：本轮采样放弃，切片数据安全置为 `None`，触发数据延迟降级，严禁无限循环重试挂死主线程。
 
-### 8.2 质量发布闸门 7 大铁律核验规划
+### 8.2 SQLite 写入异步批处理队列（Async Batch Queue）
+1. **写操作解耦**：
+   - 盘中时序快照与异动事件**严禁同步阻塞写入 SQLite**；
+   - 采集引擎计算出的数据切片与事件，推入 `asyncio.Queue` 内存写入队列；
+2. **批量合并落盘（Batch Flush）**：
+   - 后台守护 Task 每 10 秒唤醒一次，或队列堆积达到 10 条记录时，执行一次 `session.add_all()` 批量落盘事务提交；
+   - 彻底避免单日高频写 I/O 锁死 SQLite 数据库，确保读写并发顺畅。
+
+---
+
+## 九、四权分立质量闸门与红队攻防验收规划
+
+### 9.1 红队攻防测试用例规划（Step 3 重点验证）
+1. **【零买卖信号渗透测试】**：扫描 M4 全代码与 UI 文本，断言买卖操作词检出率为 0；
+2. **【伪异动与杂毛压测（Spam Attack）】**：注入 100 只 ST 股及小微盘股，断言 Level 2 认知过滤层拦截率 100%；
+3. **【数据延迟与停滞欺骗测试】**：断网 120 秒，验证系统是否准确置灰、标记 `STALE` 并停滞异动计算；
+4. **【午休与跨时段拼接攻击】**：验证 11:30~13:00 时钟冻结，以及 13:00~13:05 跨段向前无缝抓取 11:25~11:30 切片；
+5. **【冷启动防护攻击】**：在 09:30~09:45 注入请求，断言 `volume_proj_yi` 100% 严格为 `None`；在 09:30~10:00 断言 $R_{vol}$ 100% 为 `None`；
+6. **【Edge Trigger 防刷屏攻击】**：模拟标的持续封死 60 个采样周期，断言数据库与事件流仅有且只有 1 条记录。
+
+### 9.2 质量发布闸门 7 大铁律核验规划
 质量发布闸门裁判（`quality_gatekeeper`）在终审时将核验：
 1. **零买卖交易信号**（铁律 1）；
-2. **异动数学形式化完备性**（基准、窗口、阈值、质量 4 要素齐全，铁律 2）；
-3. **时序一致性与空安全**（无前值伪造、无假 0、双轨时间戳，铁律 3）；
+2. **异动数学四元组完备性**（基准、窗口、阈值、质量 4 要素齐全，铁律 2）；
+3. **时序一致性与 None 防伪**（可空类型对齐、无前值伪造、无假 0，铁律 3）；
 4. **前序契约只读单向消费**（M1/M2/M3 表结构 0 修改，铁律 4）；
-5. **反报警器三层过滤闭环**（记录/提醒/呈现分层清晰，无弹窗，铁律 5）；
+5. **反报警器三层漏斗闭环**（Edge Trigger、冷启动保护、白名单排除项、15分钟冷却，铁律 5）；
 6. **架构整洁与零死代码**（淘汰原有占位符，TypeScript 生产编译 0 报错，铁律 6）；
 7. **自动化全覆盖与灾备同步**（端到端验证脚本 100% 通过，Git 工作区 Clean，铁律 7）。
 
 ---
 
-## 九、实施阶段规划与工序安排
+## 十、实施阶段规划与工序安排
 
-依据董事会指令，**当前仅完成 Step 1 架构设计，严禁擅自开始代码实施**。
-
-后续推进工序严格受控如下：
+依据最高董事会指示，**本设计单 (v1.1) 提交董事会签署代码实施令后，进入受控工序实施**：
 
 ```mermaid
 flowchart LR
-    S1["Step 1: 设计单编制 (本单 v1.0)"] --> S1_REV["董事会审阅与裁决"]
-    S1_REV -->|批准授权| S2_PLAN["Step 2A: 主开发制定 Plan 内部工序"]
-    S2_PLAN --> S2_CODE["Step 2B: 受控代码实施 (后端+数据+API+前端)"]
+    S1["Step 1: 设计单 v1.1 终审"] --> S1_APP["董事会签署 Step 2 代码实施令"]
+    S1_APP --> S2_PLAN["Step 2A: 主开发内部 Plan 制定"]
+    S2_PLAN --> S2_CODE["Step 2B: 受控代码实施 (Provider+Service+API+UI)"]
     S2_CODE --> S3_RED["Step 3: 独立红队破坏性测试与缺陷闭环"]
     S3_RED --> S4_GATE["Step 4: 质量闸门终审裁决"]
     S4_GATE --> S5_BOARD["Step 5: 呈报最高董事会封口令"]
 ```
 
-1. **Step 1（当前节点）**：完成《G5-Phase 2：M4 盘中动态监控与异动感知系统技术设计单 (v1.0)》，提交最高董事会审阅；
-2. **Step 2（待董事会正式授权）**：
-   - Primary Developer 制定内部实施 Plan；
-   - 实施轻量时序内存队列与滑动窗口计算服务；
-   - 实施异动数学模型与三层认知过滤；
-   - 实施后端 REST API 路由与自动化集成测试；
-   - 重构前端 `frontend/src/app/monitor/page.tsx` 全景作战看板；
+1. **Step 1（当前节点已完成）**：编制完成《G5-Phase 2：M4 盘中动态监控与异动感知系统技术设计单 (v1.1)》，提交最高董事会签发 Step 2 实施令；
+2. **Step 2（待实施令下达）**：
+   - 制定内部工序 Plan；
+   - 实施数据模型（支持可空 None）、异步批处理队列与指数退避 Provider；
+   - 实施轻量时序内存环、冷启动保护、量能投影 $W(T)$ 与 Edge Trigger 异动感知引擎；
+   - 实施后端 REST API 路由与自动化集成验证测试；
+   - 重构前端作战看板 `frontend/src/app/monitor/page.tsx`；
 3. **Step 3**：移交独立红队特使执行攻击性破坏测试；
 4. **Step 4**：移交独立质量发布闸门裁判执行终审裁决；
 5. **Step 5**：呈报最高董事会签署正式封口决议。
