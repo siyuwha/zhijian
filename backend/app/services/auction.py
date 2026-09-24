@@ -54,8 +54,8 @@ class AuctionService:
             try:
                 rep = json.loads(prev_review.report_content)
                 ms = rep.get("market_state", {})
-                d6 = ms.get("dimensions", {}).get("D6", {})
-                raw_amt = d6.get("metrics", {}).get("total_amount")
+                d6 = ms.get("dimensions", {}).get("D6") or {}
+                raw_amt = (d6.get("metrics") or {}).get("total_amount")
                 if raw_amt is not None and float(raw_amt) > 0:
                     yesterday_total_amount_yi = round(float(raw_amt), 0)
             except Exception as e:
@@ -65,7 +65,7 @@ class AuctionService:
             try:
                 lu = json.loads(prev_review.limit_up_analysis)
                 prev_pool = lu.get("pool", [])
-                max_board_height = lu.get("max_board_height", 0)
+                max_board_height = lu.get("max_height") or lu.get("max_board_height", 0)
             except Exception as e:
                 logger.warning(f"解析前日涨停梯队失败: {e}")
 
@@ -110,10 +110,11 @@ class AuctionService:
         max_board_info = None
         extreme_stocks = []
 
-        # 寻找前日最高空间板股票
+        # 寻找前日最高空间板股票 (兼容 lbc 与 board_count 键名)
         highest_stock_code = None
         for s in prev_pool:
-            if s.get("board_count") == max_board_height and max_board_height > 0:
+            s_height = s.get("lbc") or s.get("board_count", 0)
+            if s_height == max_board_height and max_board_height > 0:
                 highest_stock_code = s.get("code") or s.get("symbol")
                 break
 
@@ -132,8 +133,9 @@ class AuctionService:
             elif sq.get("is_one_word_down"):
                 one_word_down_count += 1
 
-            # 标记最高空间板信息
-            if highest_stock_code and (sq.get("code") == highest_stock_code or sq.get("symbol") == highest_stock_code):
+            # 标记最高空间板信息 (精准基于后 6 位代码无偏比对)
+            sq_code_6 = str(sq.get("code") or sq.get("symbol") or "")[-6:]
+            if highest_stock_code and sq_code_6 == str(highest_stock_code)[-6:]:
                 max_board_info = {
                     "symbol": sq.get("symbol") or sq.get("code"),
                     "name": sq.get("name"),

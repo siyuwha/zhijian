@@ -87,11 +87,26 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
             logger.error(f"Sina get_index_quotes failed: {e}")
             return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
 
+    @staticmethod
+    def _format_stock_code(c: str) -> str:
+        """为股票代码自动补齐 sh/sz/bj 市场前缀"""
+        c_clean = str(c).strip().lower()
+        if c_clean.startswith(("sh", "sz", "bj")):
+            return c_clean
+        if c_clean.startswith(("60", "68", "90")):
+            return f"sh{c_clean}"
+        elif c_clean.startswith(("00", "30", "20")):
+            return f"sz{c_clean}"
+        elif c_clean.startswith(("8", "4", "92")):
+            return f"bj{c_clean}"
+        return c_clean
+
     async def get_stock_quotes(self, codes: List[str]) -> DataResult:
-        """分批获取个股行情（每批10只，间隔0.3s）"""
+        """分批获取个股行情（自动补齐市场前缀，每批10只，间隔0.3s）"""
         results = []
         chunk_size = 10
-        chunks = [codes[i:i + chunk_size] for i in range(0, len(codes), chunk_size)]
+        formatted_codes = [self._format_stock_code(c) for c in codes if c]
+        chunks = [formatted_codes[i:i + chunk_size] for i in range(0, len(formatted_codes), chunk_size)]
 
         try:
             async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
@@ -106,7 +121,8 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                     for line in content.strip().split("\n"):
                         if not line or '="' in line and line.endswith('";'):
                             var_name, val = line.split("=", 1)
-                            code = var_name.split("_")[-1].replace('"', '')
+                            full_code = var_name.split("_")[-1].replace('"', '')
+                            symbol = full_code[-6:] if len(full_code) >= 6 else full_code
                             val_str = val.strip().strip('";')
                             parts = val_str.split(",")
                             if len(parts) >= 32:
@@ -128,7 +144,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                                 is_one_word_up = False
                                 is_one_word_down = False
                                 if open_price is not None and high is not None and low is not None and open_pct is not None:
-                                    threshold = 19.8 if (code.startswith("30") or code.startswith("68")) else 9.8
+                                    threshold = 19.8 if (symbol.startswith("30") or symbol.startswith("68")) else 9.8
                                     if open_price == high == low and open_pct >= threshold:
                                         is_one_word_up = True
                                     elif open_price == high == low and open_pct <= -threshold:
@@ -136,8 +152,8 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
 
                                 if price is not None and price > 0:
                                     results.append({
-                                        "code": code,
-                                        "symbol": code,
+                                        "code": full_code,
+                                        "symbol": symbol,
                                         "name": name,
                                         "open": open_price,
                                         "prev_close": prev_close,
