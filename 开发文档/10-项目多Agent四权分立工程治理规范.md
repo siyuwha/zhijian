@@ -54,6 +54,10 @@ flowchart TD
 
 ### Step 2：受控实施（Controlled Implementation）
 * 架构与主开发在本地受控修改代码。
+* **【内部工序机制（Internal Plan Mechanism）】**：
+  * Plan 仅作为主开发（Primary Developer）的内部实施工具，用于提升代码落地与验证的执行颗粒度；
+  * **治理权力结构保持绝对不变**：不新增 Agent 权限，不改变各 Agent 职责边界，不改变用户审批节点，不改变 Red Team / Validation / Release Gate 的独立性；
+  * Plan 产生的过程结果仅作为后续红队审计与质量闸门的辅助参考证据，原有裁决机制与一票否决权保持不变。
 * 编写必要的业务逻辑与底层实现。
 * 实施完成后，主开发生成自测说明与变更文件清单，触发移交。
 
