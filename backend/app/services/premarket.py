@@ -74,12 +74,12 @@ class PremarketService:
                 d2_metrics = d2.get("metrics", {})
                 d6_metrics = d6.get("metrics", {})
 
-                sub_domains = d3.get("sub_domains", {})
-                sub_a = sub_domains.get("speculative_structure", {})
-                sub_b = sub_domains.get("tail_extremes", {})
+                sub_domains = d3.get("sub_domains") or {}
+                sub_a = sub_domains.get("speculative_structure") or {}
+                sub_b = sub_domains.get("tail_extremes") or {}
 
-                sub_a_metrics = sub_a.get("metrics", {})
-                sub_b_metrics = sub_b.get("metrics", {})
+                sub_a_metrics = sub_a.get("metrics") or {}
+                sub_b_metrics = sub_b.get("metrics") or {}
 
                 max_board_val = (
                     sub_a_metrics.get("max_board_height", {}).get("raw")
@@ -148,11 +148,12 @@ class PremarketService:
                     },
                     "sub_b_extremes": {
                         "limit_up_count": limit_up_val,
-                        "limit_down_count": limit_down_val,
+                        "limit_down_count": limit_down_count if limit_down_val is not None else None,
                         "limit_diff": limit_diff_val,
                         "broken_limit_ratio": broken_ratio_val,
                         "score": sub_b.get("score"),
                     },
+                    "dimensions": dims,
                     "narrative": (
                         f"前一交易日（{prev_review.date}）市场物理状态表征为【{state_label}】，两市成交额约 "
                         f"{total_amount_val if total_amount_val > 0 else '--'} 亿元。全市场连板最高空间为 "

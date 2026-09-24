@@ -91,6 +91,14 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
     return val.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   };
 
+  const formatRatioToPct = (val?: number | null) => {
+    if (val === null || val === undefined) return '--';
+    const num = Number(val);
+    if (isNaN(num)) return '--';
+    const pct = num <= 1.0 && num >= 0 ? num * 100 : num;
+    return `${pct.toFixed(1)}%`;
+  };
+
   if (loading) {
     return (
       <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
@@ -371,10 +379,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                         <span className="text-slate-400">
                           晋级率:{' '}
                           <b className="text-slate-200">
-                            {yesterday_review_summary.sub_a_structure?.promotion_rate !== null &&
-                            yesterday_review_summary.sub_a_structure?.promotion_rate !== undefined
-                              ? `${yesterday_review_summary.sub_a_structure.promotion_rate.toFixed(1)}%`
-                              : '--'}
+                            {formatRatioToPct(yesterday_review_summary.sub_a_structure?.promotion_rate)}
                           </b>
                         </span>
                       </div>
@@ -387,20 +392,23 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                         <span className="text-slate-400">
                           涨停/跌停:{' '}
                           <b className="text-rose-400">
-                            {yesterday_review_summary.sub_b_extremes?.limit_up_count ?? '--'}
+                            {yesterday_review_summary.sub_b_extremes?.limit_up_count !== null &&
+                            yesterday_review_summary.sub_b_extremes?.limit_up_count !== undefined
+                              ? yesterday_review_summary.sub_b_extremes.limit_up_count
+                              : '--'}
                           </b>
                           /
                           <b className="text-emerald-400">
-                            {yesterday_review_summary.sub_b_extremes?.limit_down_count ?? '--'}
+                            {yesterday_review_summary.sub_b_extremes?.limit_down_count !== null &&
+                            yesterday_review_summary.sub_b_extremes?.limit_down_count !== undefined
+                              ? yesterday_review_summary.sub_b_extremes.limit_down_count
+                              : '--'}
                           </b>
                         </span>
                         <span className="text-slate-400">
                           真实炸板率:{' '}
                           <b className="text-slate-200">
-                            {yesterday_review_summary.sub_b_extremes?.broken_limit_ratio !== null &&
-                            yesterday_review_summary.sub_b_extremes?.broken_limit_ratio !== undefined
-                              ? `${yesterday_review_summary.sub_b_extremes.broken_limit_ratio.toFixed(1)}%`
-                              : '--'}
+                            {formatRatioToPct(yesterday_review_summary.sub_b_extremes?.broken_limit_ratio)}
                           </b>
                         </span>
                       </div>
