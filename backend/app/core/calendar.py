@@ -1,15 +1,34 @@
 from datetime import date, datetime, timedelta
 
+# 2026 年法定节假日休市日历扩展
+DEFAULT_HOLIDAYS = {
+    # 元旦
+    "2026-01-01", "2026-01-02",
+    # 春节
+    "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20",
+    # 清明节
+    "2026-04-03", "2026-04-06",
+    # 劳动节
+    "2026-05-01", "2026-05-04", "2026-05-05",
+    # 端午节
+    "2026-06-19",
+    # 中秋节
+    "2026-09-25",
+    # 国庆节
+    "2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07",
+}
+
 class TradingCalendar:
     """
     A股交易日历基础实现
     - 基础判断：排除周六、周日
-    - 预留法定节假日配置扩展
+    - 扩展支持：法定节假日（中秋、国庆、春节等）自动休市判定
     """
 
     def __init__(self, custom_holidays: set[str] | None = None):
-        # 预留自定义节假日列表 (YYYY-MM-DD)
-        self.holidays = custom_holidays or set()
+        self.holidays = set(DEFAULT_HOLIDAYS)
+        if custom_holidays:
+            self.holidays.update(custom_holidays)
 
     def is_trading_day(self, target_date: date | str | None = None) -> bool:
         """判断是否为交易日（默认当前日期）"""
