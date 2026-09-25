@@ -1,7 +1,11 @@
 export interface IndexData {
+  code?: string;
   name: string;
-  price: number;
-  changePercent: number;
+  price: number | null;
+  change?: number | null;
+  pct_change?: number | null;
+  changePercent?: number | null;
+  amount_wan?: number | null;
 }
 
 export interface LimitUpData {
