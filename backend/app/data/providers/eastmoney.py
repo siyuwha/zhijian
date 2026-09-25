@@ -157,3 +157,98 @@ class EastmoneyProvider(BaseProvider, MarketBreadthCapability, MicroCapCapabilit
         except Exception as e:
             logger.error(f"Eastmoney get_high_tier_performance failed: {e}")
             return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
+    async def get_top_sectors(self, limit: int = 3) -> DataResult:
+        """
+        获取当日实时涨幅排名前 N 的行业板块
+        """
+        try:
+            url = "https://push2delay.eastmoney.com/api/qt/clist/get"
+            params = {
+                "pn": "1",
+                "pz": str(limit),
+                "po": "1",
+                "np": "1",
+                "fltt": "2",
+                "invt": "2",
+                "fid": "f3",
+                "fs": "m:90+t:2+f:!50",
+                "fields": "f12,f14,f2,f3"
+            }
+            async with httpx.AsyncClient(timeout=10.0, trust_env=False, follow_redirects=True) as client:
+                resp = await client.get(url, params=params, headers=self.HEADERS)
+                res_data = resp.json()
+
+            diff_list = res_data.get("data", {}).get("diff", [])
+            sectors = []
+            for item in diff_list:
+                sectors.append({
+                    "code": item.get("f12"),
+                    "name": item.get("f14"),
+                    "pct_change": float(item.get("f3", 0.0))
+                })
+
+            return DataResult(
+                data=sectors,
+                quality=DataQuality.FULL if sectors else DataQuality.PARTIAL,
+                provider=self.name
+            )
+        except Exception as e:
+            logger.error(f"Eastmoney get_top_sectors failed: {e}")
+            return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
+    async def get_large_cap_turnover_cores(self, min_cap_yi: float = 1000.0, top_turnover: int = 20) -> DataResult:
+        """
+        获取核心容量中军 (总市值 >= min_cap_yi 且成交额排名前列，排除 ST/*ST/退市标的)
+        """
+        try:
+            url = "https://push2delay.eastmoney.com/api/qt/clist/get"
+            params = {
+                "pn": "1",
+                "pz": "60",
+                "po": "1",
+                "np": "1",
+                "fltt": "2",
+                "invt": "2",
+                "fid": "f6",  # 按成交额倒序
+                "fs": "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23",
+                "fields": "f12,f14,f2,f3,f6,f20"
+            }
+            async with httpx.AsyncClient(timeout=10.0, trust_env=False, follow_redirects=True) as client:
+                resp = await client.get(url, params=params, headers=self.HEADERS)
+                res_data = resp.json()
+
+            diff_list = res_data.get("data", {}).get("diff", [])
+            cores = []
+            for item in diff_list:
+                name = str(item.get("f14", "")).strip()
+                # 排除 ST, *ST, 退市
+                if name.startswith(("ST", "*ST", "退")):
+                    continue
+
+                market_cap_yuan = float(item.get("f20") or 0.0)
+                market_cap_yi = round(market_cap_yuan / 1e8, 2)
+                amount_yuan = float(item.get("f6") or 0.0)
+                amount_yi = round(amount_yuan / 1e8, 2)
+
+                if market_cap_yi >= min_cap_yi:
+                    cores.append({
+                        "symbol": item.get("f12"),
+                        "name": name,
+                        "price": float(item.get("f2") or 0.0),
+                        "pct_change": float(item.get("f3") or 0.0),
+                        "amount_yi": amount_yi,
+                        "market_cap_yi": market_cap_yi
+                    })
+                    if len(cores) >= top_turnover:
+                        break
+
+            return DataResult(
+                data=cores,
+                quality=DataQuality.FULL if cores else DataQuality.PARTIAL,
+                provider=self.name
+            )
+        except Exception as e:
+            logger.error(f"Eastmoney get_large_cap_turnover_cores failed: {e}")
+            return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+

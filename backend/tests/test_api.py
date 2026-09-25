@@ -134,6 +134,33 @@ async def test_backend_core_flows():
         for forbidden in ["建议买入", "强烈推荐", "打板买入", "挂单清仓", "开盘做多"]:
             assert forbidden not in narrative
 
+        # 15. M4 Monitor Realtime Snapshot
+        r_mon_rt = await client.get("/api/v1/monitor/realtime")
+        assert r_mon_rt.status_code == 200
+        mon_rt_data = r_mon_rt.json()["data"]
+        assert "session_state" in mon_rt_data
+        assert "macro" in mon_rt_data
+        assert "watchlist" in mon_rt_data
+        assert "disclaimer" in mon_rt_data
+        assert "非买卖建议" in mon_rt_data["disclaimer"]
+
+        # 16. M4 Monitor Series
+        r_mon_series = await client.get("/api/v1/monitor/series")
+        assert r_mon_series.status_code == 200
+        mon_series_data = r_mon_series.json()["data"]
+        assert isinstance(mon_series_data, list)
+
+        # 17. M4 Monitor Events
+        r_mon_events = await client.get("/api/v1/monitor/events")
+        assert r_mon_events.status_code == 200
+        mon_events_data = r_mon_events.json()["data"]
+        assert isinstance(mon_events_data, list)
+
+        # 18. M4 铁律断言：零买卖信号与免责隔离
+        all_mon_text = f"{r_mon_rt.text} {r_mon_events.text}"
+        for forbidden in ["买入", "卖出", "加仓", "建仓", "清仓", "打板建议", "主力吸筹", "止损点"]:
+            assert forbidden not in all_mon_text
+
 if __name__ == "__main__":
     asyncio.run(test_backend_core_flows())
     print("All backend tests passed!")

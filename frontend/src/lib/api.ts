@@ -7,6 +7,11 @@ import {
   AuctionReportDetail,
   AuctionReportSummaryItem
 } from '@/types/report';
+import { 
+  MonitorRealtimeResponse,
+  MacroSnapshotItem,
+  IntradayAnomalyEventItem
+} from '@/types/monitor';
 import { IndexData } from '@/types/market';
 
 const BACKEND_HOST = 'http://localhost:8000';
@@ -71,4 +76,21 @@ export const api = {
     fetchAPI<any>(`/reports/auction/generate${date ? `?date=${date}` : ''}`, { method: 'POST' }),
   getMarketState: (date: string) => 
     fetchAPI<any>(`/cognition/market-state/${date}`),
+  // M4 盘中动态监控端点
+  getMonitorRealtime: (date?: string) =>
+    fetchAPI<MonitorRealtimeResponse>(`/monitor/realtime${date ? `?date=${date}` : ''}`),
+  getMonitorSeries: (date?: string) =>
+    fetchAPI<MacroSnapshotItem[]>(`/monitor/series${date ? `?date=${date}` : ''}`),
+  getMonitorEvents: (date?: string, severity?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    if (severity) params.append('severity', severity);
+    if (limit) params.append('limit', limit.toString());
+    const qs = params.toString();
+    return fetchAPI<IntradayAnomalyEventItem[]>(`/monitor/events${qs ? `?${qs}` : ''}`);
+  },
+  getMonitorWatchlist: (date?: string) =>
+    fetchAPI<{ symbols: string[]; count: number }>(`/monitor/watchlist${date ? `?date=${date}` : ''}`),
+  triggerMonitorScan: (date?: string) =>
+    fetchAPI<any>(`/monitor/trigger-scan${date ? `?date=${date}` : ''}`, { method: 'POST' }),
 };

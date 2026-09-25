@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from typing import List, Optional
 import httpx
 from .base import BaseProvider
@@ -102,9 +103,9 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
         return c_clean
 
     async def get_stock_quotes(self, codes: List[str]) -> DataResult:
-        """分批获取个股行情（自动补齐市场前缀，每批10只，间隔0.3s）"""
+        """分批获取个股行情（自动补齐市场前缀，每批15只，带Jitter与指数退避）"""
         results = []
-        chunk_size = 10
+        chunk_size = 15
         formatted_codes = [self._format_stock_code(c) for c in codes if c]
         chunks = [formatted_codes[i:i + chunk_size] for i in range(0, len(formatted_codes), chunk_size)]
 
@@ -112,11 +113,31 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
             async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 for idx, chunk in enumerate(chunks):
                     if idx > 0:
-                        await asyncio.sleep(0.3)
+                        # 批次之间增加 150ms ~ 300ms 随机 Jitter 间隔
+                        await asyncio.sleep(random.uniform(0.15, 0.30))
 
                     url = f"https://hq.sinajs.cn/list={','.join(chunk)}"
-                    resp = await client.get(url, headers=self.HEADERS)
-                    content = resp.content.decode("gbk", errors="ignore")
+                    content = ""
+                    max_retries = 3
+                    for retry in range(max_retries):
+                        try:
+                            resp = await client.get(url, headers=self.HEADERS)
+                            if resp.status_code == 200:
+                                content = resp.content.decode("gbk", errors="ignore")
+                                break
+                            elif resp.status_code in (403, 429, 502):
+                                delay = (2 ** retry) * 1.0 + random.uniform(0, 0.5)
+                                logger.warning(f"Sina HTTP {resp.status_code}, backing off {delay:.2f}s (retry {retry+1}/{max_retries})")
+                                await asyncio.sleep(delay)
+                        except (httpx.TimeoutException, httpx.NetworkError) as e:
+                            delay = (2 ** retry) * 1.0 + random.uniform(0, 0.5)
+                            if retry < max_retries - 1:
+                                await asyncio.sleep(delay)
+                            else:
+                                logger.warning(f"Sina chunk {chunk} network error after {max_retries} retries: {e}")
+
+                    if not content:
+                        continue
 
                     for line in content.strip().split("\n"):
                         if not line or '="' in line and line.endswith('";'):
@@ -134,6 +155,14 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                                 low = float(parts[5]) if parts[5] else None
                                 volume = float(parts[8]) if parts[8] else None
                                 amount = float(parts[9]) if parts[9] else None
+
+                                # 盘口档位提取 (买一/卖一)
+                                bid1_vol = float(parts[10]) if len(parts) > 10 and parts[10] else 0.0
+                                bid1_price = float(parts[11]) if len(parts) > 11 and parts[11] else 0.0
+                                ask1_vol = float(parts[20]) if len(parts) > 20 and parts[20] else 0.0
+                                ask1_price = float(parts[21]) if len(parts) > 21 and parts[21] else 0.0
+                                bid1_amount = round(bid1_vol * bid1_price, 2)
+
                                 trade_date = parts[30] if len(parts) > 30 and parts[30] else None
                                 trade_time = parts[31] if len(parts) > 31 and parts[31] else None
 
@@ -141,14 +170,27 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                                 if open_price is not None and prev_close is not None and prev_close > 0:
                                     open_pct = round((open_price - prev_close) / prev_close * 100, 2)
 
+                                pct_change = None
+                                if price is not None and prev_close is not None and prev_close > 0:
+                                    pct_change = round((price - prev_close) / prev_close * 100, 2)
+
+                                threshold = 19.8 if (symbol.startswith("30") or symbol.startswith("68")) else 9.8
+
                                 is_one_word_up = False
                                 is_one_word_down = False
                                 if open_price is not None and high is not None and low is not None and open_pct is not None:
-                                    threshold = 19.8 if (symbol.startswith("30") or symbol.startswith("68")) else 9.8
                                     if open_price == high == low and open_pct >= threshold:
                                         is_one_word_up = True
                                     elif open_price == high == low and open_pct <= -threshold:
                                         is_one_word_down = True
+
+                                # 盘中涨停与封死判定 (卖一挂单量为 0 且价格达到涨停阈值)
+                                is_limit_up = False
+                                is_sealed = False
+                                if pct_change is not None and pct_change >= threshold - 0.2:
+                                    is_limit_up = True
+                                    if ask1_vol == 0 or ask1_price == 0:
+                                        is_sealed = True
 
                                 if price is not None and price > 0:
                                     results.append({
@@ -163,6 +205,14 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                                         "volume": volume,
                                         "amount": amount,
                                         "open_pct": open_pct,
+                                        "pct_change": pct_change,
+                                        "bid1_vol": bid1_vol,
+                                        "bid1_price": bid1_price,
+                                        "bid1_amount": bid1_amount,
+                                        "ask1_vol": ask1_vol,
+                                        "ask1_price": ask1_price,
+                                        "is_limit_up": is_limit_up,
+                                        "is_sealed": is_sealed,
                                         "is_one_word_up": is_one_word_up,
                                         "is_one_word_down": is_one_word_down,
                                         "date": trade_date,

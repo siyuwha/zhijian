@@ -73,3 +73,62 @@ class MarketNews(Base):
     brief = Column(Text)
     publish_time = Column(String)
     collected_at = Column(DateTime, server_default=func.now())
+
+class IntradayMarketSnapshot(Base):
+    """盘中市场宏观时序快照表 (每5分钟采样一条，单日48条)"""
+    __tablename__ = "intraday_market_snapshot"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(String, nullable=False, index=True)        # 交易日 YYYY-MM-DD
+    timestamp = Column(String, nullable=False, index=True)   # 精确时间 HH:MM:SS
+    minute_index = Column(Integer, nullable=False)           # 盘中有效分钟 1~240
+
+    # 宏观指数与量能切片 (统一 nullable=True, default=None 贯彻 None 防伪)
+    sh_index_price = Column(Float, nullable=True, default=None)
+    sh_index_pct = Column(Float, nullable=True, default=None)
+    sz_index_price = Column(Float, nullable=True, default=None)
+    sz_index_pct = Column(Float, nullable=True, default=None)
+    cy_index_pct = Column(Float, nullable=True, default=None)
+    total_amount_yi = Column(Float, nullable=True, default=None)
+    volume_proj_yi = Column(Float, nullable=True, default=None)  # 09:30~09:45 强制为 None
+
+    # 市场多空广度 (统一 nullable=True, default=None 杜绝 0 伪造)
+    up_count = Column(Integer, nullable=True, default=None)
+    down_count = Column(Integer, nullable=True, default=None)
+    limit_up_count = Column(Integer, nullable=True, default=None)
+    limit_down_count = Column(Integer, nullable=True, default=None)
+    broken_limit_count = Column(Integer, nullable=True, default=None)
+
+    # 核心高标结构 (统一 nullable=True, default=None)
+    max_height = Column(Integer, nullable=True, default=None)
+    leader_stock = Column(String, nullable=True, default=None)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("date", "timestamp", name="uix_intraday_snapshot_date_time"),
+    )
+
+class IntradayAnomalyEvent(Base):
+    """盘中显著物理异动与相变事件表 (边沿触发，单日约20~80条)"""
+    __tablename__ = "intraday_anomaly_event"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(String, nullable=False, index=True)        # 交易日 YYYY-MM-DD
+    timestamp = Column(String, nullable=False, index=True)   # 事件精确时间 HH:MM:SS
+    minute_index = Column(Integer, nullable=False)           # 发生分钟 1~240
+
+    # 事件分类与标的
+    event_category = Column(String, nullable=False)          # LIMIT_UP_LOCK / LIMIT_UP_BREAK / VELOCITY_SPIKE / VOLUME_SURGE / LEADER_SHIFT / BREADTH_PULSE
+    severity_level = Column(String, nullable=False)          # CRITICAL / TRANSITION / INFO
+    symbol = Column(String, nullable=True, index=True)       # 涉及股票代码 (如 000001)
+    name = Column(String, nullable=True)                     # 股票名称
+
+    # 量化事实度量 (统一 nullable=True, default=None)
+    price = Column(Float, nullable=True, default=None)
+    pct_change = Column(Float, nullable=True, default=None)
+    window_delta_pct = Column(Float, nullable=True, default=None)
+    window_amount_wan = Column(Float, nullable=True, default=None)
+    surge_ratio = Column(Float, nullable=True, default=None) # 09:30~10:00 强制为 None
+    details = Column(Text, nullable=True, default=None)      # 结构化明细 JSON
+
+    created_at = Column(DateTime, server_default=func.now())
