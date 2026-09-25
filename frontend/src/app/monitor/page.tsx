@@ -157,18 +157,18 @@ export default function MonitorPage() {
     }
   };
 
-  // 事件类别字典
+  // 事件类别字典 (严格对齐技术设计单 v1.1 规范枚举)
   const getEventCategoryMeta = (cat: AnomalyCategory) => {
     switch (cat) {
-      case 'LIMIT_UP_SEAL':
+      case 'LIMIT_UP_LOCK':
         return { label: '涨停封板', badge: 'bg-rose-500/20 text-rose-400 border-rose-500/40', icon: Lock };
-      case 'LIMIT_UP_BROKEN':
+      case 'LIMIT_UP_BREAK':
         return { label: '突发炸板', badge: 'bg-amber-500/20 text-amber-400 border-amber-500/40', icon: Unlock };
       case 'LIMIT_DOWN':
         return { label: '触及跌停', badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40', icon: AlertTriangle };
-      case 'VOL_PULSE':
+      case 'VOLUME_SURGE':
         return { label: '量能脉冲', badge: 'bg-blue-500/20 text-blue-400 border-blue-500/40', icon: Zap };
-      case 'MOMENTUM_BREAK':
+      case 'VELOCITY_SPIKE':
         return { label: '动量突变', badge: 'bg-purple-500/20 text-purple-400 border-purple-500/40', icon: TrendingUp };
       case 'RESONANCE':
         return { label: '系统共振', badge: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40', icon: Radio };
@@ -376,7 +376,7 @@ export default function MonitorPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>两市成交额与全天投影</span>
-              {macro?.volume_proj_status === 'ESTIMATED' && (
+              {(macro?.is_proj_estimated || macro?.volume_proj_status === 'ESTIMATED') && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   ESTIMATED 估算
                 </span>
@@ -720,6 +720,13 @@ export default function MonitorPage() {
                           {ev.surge_ratio !== null && (
                             <span>R_vol: <strong className="text-amber-300">{ev.surge_ratio.toFixed(1)}x</strong></span>
                           )}
+                        </div>
+                      )}
+
+                      {/* 结构化客观明细 */}
+                      {ev.details && (
+                        <div className="text-[11px] text-slate-400 font-sans pt-0.5 leading-relaxed">
+                          {typeof ev.details === 'string' ? ev.details : JSON.stringify(ev.details)}
                         </div>
                       )}
                     </div>

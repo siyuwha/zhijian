@@ -162,6 +162,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                                 ask1_vol = float(parts[20]) if len(parts) > 20 and parts[20] else 0.0
                                 ask1_price = float(parts[21]) if len(parts) > 21 and parts[21] else 0.0
                                 bid1_amount = round(bid1_vol * bid1_price, 2)
+                                bid1_amount_wan = round(bid1_amount / 10000.0, 2)
 
                                 trade_date = parts[30] if len(parts) > 30 and parts[30] else None
                                 trade_time = parts[31] if len(parts) > 31 and parts[31] else None
@@ -184,12 +185,13 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                                     elif open_price == high == low and open_pct <= -threshold:
                                         is_one_word_down = True
 
-                                # 盘中涨停与封死判定 (卖一挂单量为 0 且价格达到涨停阈值)
+                                # 盘中涨停与封死判定 (卖一挂单量为 0 且价格达到涨停阈值，且买一封单金额 >= 1000 万元)
                                 is_limit_up = False
                                 is_sealed = False
                                 if pct_change is not None and pct_change >= threshold - 0.2:
                                     is_limit_up = True
-                                    if ask1_vol == 0 or ask1_price == 0:
+                                    # 卖一空单且买一封单达标 (实盘 >= 1000万元，或一字涨停)
+                                    if (ask1_vol == 0 or ask1_price == 0) and (bid1_amount >= 10000000.0 or is_one_word_up):
                                         is_sealed = True
 
                                 if price is not None and price > 0:
@@ -209,6 +211,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                                         "bid1_vol": bid1_vol,
                                         "bid1_price": bid1_price,
                                         "bid1_amount": bid1_amount,
+                                        "bid1_amount_wan": bid1_amount_wan,
                                         "ask1_vol": ask1_vol,
                                         "ask1_price": ask1_price,
                                         "is_limit_up": is_limit_up,

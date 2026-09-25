@@ -5,8 +5,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from app.core.database import init_db
 
 async def test_backend_core_flows():
+    await init_db()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Health check

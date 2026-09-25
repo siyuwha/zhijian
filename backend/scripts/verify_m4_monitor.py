@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.services.monitor import MonitorService
-from app.core.database import async_session
+from app.core.database import async_session, init_db
 from app.models.market import IntradayMarketSnapshot, IntradayAnomalyEvent
 
 async def verify_m4():
@@ -36,6 +36,7 @@ async def verify_m4():
     print(">>> 开始执行 G5-Phase 2 M4 盘中动态监控系统端到端自动化验证")
     print("=" * 65)
 
+    await init_db()
     today_str = datetime.now().strftime("%Y-%m-%d")
 
     async with async_session() as session:

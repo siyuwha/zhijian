@@ -1,6 +1,7 @@
 /**
  * G5-Phase 2: M4 盘中动态监控与异动感知系统 - 前端强类型契约
  * 遵循 7+1 铁律项：全量统计指标均采用可空类型 (number | null, string | null)，杜绝 0 伪造
+ * 严格对齐技术设计单 v1.1 规范枚举与字段命名
  */
 
 export type TradingSessionState = 'PRE_MARKET' | 'ACTIVE' | 'NOON_BREAK' | 'CLOSED';
@@ -8,11 +9,11 @@ export type TradingSessionState = 'PRE_MARKET' | 'ACTIVE' | 'NOON_BREAK' | 'CLOS
 export type AnomalySeverity = 'CRITICAL' | 'TRANSITION' | 'INFO';
 
 export type AnomalyCategory = 
-  | 'LIMIT_UP_SEAL'       // 涨停封板 (Edge Trigger)
-  | 'LIMIT_UP_BROKEN'     // 突发炸板 (Edge Trigger)
+  | 'LIMIT_UP_LOCK'       // 涨停封板 (Edge Trigger)
+  | 'LIMIT_UP_BREAK'      // 突发炸板 (Edge Trigger)
   | 'LIMIT_DOWN'          // 触及跌停 (Edge Trigger)
-  | 'VOL_PULSE'           // 流动性脉冲比率突增 (R_vol >= 3.0)
-  | 'MOMENTUM_BREAK'      // 动量突变拉升 (5分钟急拉)
+  | 'VOLUME_SURGE'        // 流动性脉冲比率突增 (R_vol >= 3.0)
+  | 'VELOCITY_SPIKE'      // 动量突变拉升 (3~5分钟急拉)
   | 'RESONANCE';          // 系统性共振拉升
 
 export type WatchlistStatus = 'NORMAL' | 'SEALED' | 'BROKEN' | 'HALTED';
@@ -26,9 +27,13 @@ export interface MacroSnapshotItem {
   minute_index: number;
   sh_price: number | null;
   sh_pct: number | null;
+  sz_price?: number | null;
+  sz_pct?: number | null;
+  cy_pct?: number | null;
   total_amount_yi: number | null;
   volume_proj_yi: number | null;
-  volume_proj_status: VolumeProjStatus;
+  is_proj_estimated: boolean | null;
+  volume_proj_status?: VolumeProjStatus;
   up_count: number | null;
   down_count: number | null;
   limit_up_count: number | null;
@@ -62,7 +67,7 @@ export interface IntradayAnomalyEventItem {
   window_delta_pct: number | null;
   window_amount_wan: number | null;
   surge_ratio: number | null;
-  details: Record<string, any> | null;
+  details: Record<string, any> | string | null;
 }
 
 export interface MonitorRealtimeResponse {

@@ -2,9 +2,11 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from ..core.calendar import calendar
 from ..core.database import async_session
+from datetime import datetime
 from ..services.daily_review import DailyReviewService
 from ..services.premarket import PremarketService
 from ..services.auction import AuctionService
+from ..services.monitor import MonitorService
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,15 @@ class TaskScheduler:
             id="daily_review",
             misfire_grace_time=300
         )
+        # 盘中动态监控与异动感知 (交易时段每 60 秒轮询采样与异动扫描)
+        self.scheduler.add_job(
+            self._run_intraday_monitor,
+            "interval",
+            seconds=60,
+            id="intraday_monitor",
+            max_instances=1,
+            coalesce=True
+        )
         logger.info("TaskScheduler jobs configured.")
 
     def start(self):
@@ -78,5 +89,22 @@ class TaskScheduler:
             service = DailyReviewService(session)
             await service.generate_review()
             logger.info("Scheduled daily review completed.")
+
+    async def _run_intraday_monitor(self):
+        if not calendar.is_trading_day():
+            return
+        state = MonitorService.get_trading_session_state()
+        if state != "ACTIVE":
+            return
+        try:
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            async with async_session() as session:
+                service = MonitorService(session)
+                await service.capture_macro_snapshot(today_str)
+                await service.detect_anomalies(today_str)
+                await service.flush_async_queue()
+                logger.debug("Scheduled intraday snapshot & anomaly scan completed.")
+        except Exception as e:
+            logger.error(f"Scheduled intraday monitor error: {e}")
 
 task_scheduler = TaskScheduler()

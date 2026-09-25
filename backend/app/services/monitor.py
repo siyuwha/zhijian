@@ -38,9 +38,70 @@ class MonitorService:
     _recent_events_cache: List[dict] = []
     # 异步写入队列
     _async_write_queue: asyncio.Queue = asyncio.Queue()
-    _flush_task_running: bool = False
+    # 缓存归属日期 (用于日切隔离，防止次日假炸板风暴与历史时序污染)
+    _cache_date: Optional[str] = None
+    _flush_task: Optional[asyncio.Task] = None
 
     DISCLAIMER = "【客观物理事实测量提示】本看板仅对盘中市场量价与流动性数据进行客观时间序列观测与统计记录，非买卖建议，不构成任何投资建议或交易执行指令。市场有风险，决策须自主。"
+
+    @classmethod
+    def _ensure_date_cache(cls, target_date: str):
+        """
+        日切与缓存隔离：当接收到新交易日请求时，自动清理上一日内存状态，防止次日开盘假炸板与历史时序污染
+        【红队审计整改项 4】
+        """
+        if cls._cache_date is None:
+            cls._cache_date = target_date
+        elif cls._cache_date != target_date:
+            logger.info(f"MonitorService 触发日切隔离清理: {cls._cache_date} -> {target_date}")
+            cls._macro_series_cache.clear()
+            cls._stock_series_cache.clear()
+            cls._stock_state_cache.clear()
+            cls._cooldown_cache.clear()
+            cls._recent_events_cache.clear()
+            cls._cache_date = target_date
+
+    @classmethod
+    def start_background_daemon(cls, session_factory):
+        """启动后台异步批处理持久化与采样 Daemon【红队审计整改项 5】"""
+        if cls._flush_task is None or cls._flush_task.done():
+            cls._flush_task = asyncio.create_task(cls._daemon_loop(session_factory))
+            logger.info("MonitorService 异步批处理与盘中采样 Daemon 已启动")
+
+    @classmethod
+    async def stop_background_daemon(cls, session_factory=None):
+        """停止后台 Daemon 并安全落盘【红队审计整改项 5】"""
+        if cls._flush_task and not cls._flush_task.done():
+            cls._flush_task.cancel()
+            try:
+                await cls._flush_task
+            except asyncio.CancelledError:
+                pass
+            cls._flush_task = None
+        if session_factory and not cls._async_write_queue.empty():
+            try:
+                async with session_factory() as session:
+                    srv = MonitorService(session)
+                    await srv.flush_async_queue()
+            except Exception as e:
+                logger.error(f"MonitorService 停止时最终刷盘异常: {e}")
+        logger.info("MonitorService 后台 Daemon 已安全停止")
+
+
+    @classmethod
+    async def _daemon_loop(cls, session_factory):
+        """后台消费循环：每 10 秒唤醒消费异步写队列"""
+        while True:
+            try:
+                await asyncio.sleep(10)
+                if not cls._async_write_queue.empty():
+                    async with session_factory() as session:
+                        srv = MonitorService(session)
+                        await srv.flush_async_queue()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"MonitorService 异步写队列落盘循环异常: {e}")
 
     def __init__(self, session: Optional[AsyncSession] = None):
         self.session = session
@@ -207,9 +268,9 @@ class MonitorService:
             code = s.get("code") or s.get("symbol")
             if code:
                 sym = str(code).strip()[-6:]
-                # 排除 ST 标的
-                name = str(s.get("name", ""))
-                if not name.startswith(("ST", "*ST", "退")):
+                # 排除 ST, *ST, 退市整理期 (含 xx退)
+                name_upper = str(s.get("name", "")).upper()
+                if "ST" not in name_upper and "退" not in name_upper:
                     watchlist_set.add(sym)
 
         # 2. 获取领涨行业前 3 (来自 Eastmoney)
@@ -364,6 +425,8 @@ class MonitorService:
         if session_state != "ACTIVE":
             return []
 
+        self._ensure_date_cache(date_str)
+
         # 获取重点池行情
         watchlist = await self.build_watchlist_universe(date_str)
         if not watchlist:
@@ -373,18 +436,56 @@ class MonitorService:
         quotes = stock_res.data or []
         detected_events = []
 
-        # 取得当前大盘波动 (用于系统性共振计算)
+        # 取得当前大盘与双创指数波动 (用于系统性共振计算)
         cur_macro = self._macro_series_cache.get(minute_index, {})
         sh_pct = cur_macro.get("sh_pct")
+        cy_pct = cur_macro.get("cy_pct")
 
         # 检查大盘 5 分钟波动: IndexCoMove >= 0.15%
         # 【v1.1 必修项 7】：午休跨段拼接 (13:00~13:05 跨段取 11:25~11:30)
         macro_prev_5 = self._get_stitched_macro_point(minute_index, 5)
-        index_co_move = False
-        if sh_pct is not None and macro_prev_5 and macro_prev_5.get("sh_pct") is not None:
-            sh_delta = abs(sh_pct - macro_prev_5["sh_pct"])
-            if sh_delta >= 0.15:
-                index_co_move = True
+        prev_sh_pct = macro_prev_5.get("sh_pct") if macro_prev_5 else None
+        prev_cy_pct = macro_prev_5.get("cy_pct") if macro_prev_5 else None
+
+        sh_index_delta = round(sh_pct - prev_sh_pct, 4) if (sh_pct is not None and prev_sh_pct is not None) else 0.0
+        cy_index_delta = round(cy_pct - prev_cy_pct, 4) if (cy_pct is not None and prev_cy_pct is not None) else sh_index_delta
+
+        # 预先将本轮行情推入切片，并计算各标的 3 分钟速动速度
+        stock_velocity_map = {}
+        for sq in quotes:
+            sym = sq.get("symbol")
+            price = sq.get("price")
+            pct_change = sq.get("pct_change")
+            amount = sq.get("amount") or 0.0
+            is_sealed = sq.get("is_sealed", False)
+
+            if not sym or price is None or pct_change is None:
+                continue
+
+            if sym not in self._stock_series_cache:
+                self._stock_series_cache[sym] = []
+            self._stock_series_cache[sym].append({
+                "minute_index": minute_index,
+                "price": price,
+                "pct_change": pct_change,
+                "amount": amount,
+                "is_sealed": is_sealed,
+                "timestamp": time_str
+            })
+            if len(self._stock_series_cache[sym]) > 60:
+                self._stock_series_cache[sym] = self._stock_series_cache[sym][-60:]
+
+            slices = self._stock_series_cache[sym]
+            if len(slices) >= 4:
+                s_prev_3 = self._get_stitched_stock_slice(slices, minute_index, 3)
+                if s_prev_3 and s_prev_3.get("price") and s_prev_3["price"] > 0:
+                    v_3m = round((price - s_prev_3["price"]) / s_prev_3["price"] * 100, 2)
+                    delta_amt_wan = round((amount - s_prev_3.get("amount", 0.0)) / 10000.0, 1)
+                    stock_velocity_map[sym] = (v_3m, delta_amt_wan)
+
+        # 统计重点池同向快速异动标的数，用于 SectorCoMove (同向标的数 >= 2)
+        pos_movers_count = sum(1 for v, _ in stock_velocity_map.values() if v >= 2.0)
+        neg_movers_count = sum(1 for v, _ in stock_velocity_map.values() if v <= -2.0)
 
         for sq in quotes:
             sym = sq.get("symbol")
@@ -397,21 +498,6 @@ class MonitorService:
             if not sym or price is None or pct_change is None:
                 continue
 
-            # 更新个股内存分时切片队列
-            if sym not in self._stock_series_cache:
-                self._stock_series_cache[sym] = []
-            self._stock_series_cache[sym].append({
-                "minute_index": minute_index,
-                "price": price,
-                "pct_change": pct_change,
-                "amount": amount,
-                "is_sealed": is_sealed,
-                "timestamp": time_str
-            })
-            # 仅保留最近 60 个采样切片
-            if len(self._stock_series_cache[sym]) > 60:
-                self._stock_series_cache[sym] = self._stock_series_cache[sym][-60:]
-
             # ------------------------------------------------------------------
             # 规则 A: 边沿跃迁触发 Edge Trigger (涨停封死与炸板)
             # 【v1.1 必修项 4】：仅在状态改变瞬间触发，持续封死绝对不重复插入！
@@ -421,12 +507,13 @@ class MonitorService:
 
             # 1. 封死涨停跃迁: NORMAL -> SEALED
             if prev_status != "SEALED" and current_status == "SEALED":
+                bid1_wan = round(sq.get("bid1_amount_wan", (sq.get("bid1_amount") or 0.0) / 10000.0), 1)
                 event = {
                     "date": date_str,
                     "timestamp": time_str,
                     "minute_index": minute_index,
                     "event_category": "LIMIT_UP_LOCK",
-                    "severity_level": "TRANSITION",
+                    "severity_level": "CRITICAL",
                     "symbol": sym,
                     "name": name,
                     "price": price,
@@ -434,7 +521,7 @@ class MonitorService:
                     "window_delta_pct": None,
                     "window_amount_wan": round(amount / 10000.0, 1),
                     "surge_ratio": None,
-                    "details": f"标的封死涨停，买一封单额 {sq.get('bid1_amount', 0)} 万元"
+                    "details": f"标的封死涨停，买一封单额 {bid1_wan} 万元"
                 }
                 detected_events.append(event)
                 self._record_event(event)
@@ -464,49 +551,59 @@ class MonitorService:
 
             # ------------------------------------------------------------------
             # 规则 B: 动量突变四元组与系统性共振
-            # 【v1.1 必修项 5】：IndexCoMove (>=0.15%) 或 SectorCoMove (>=2)
+            # 【v1.1 必修项 5 & 红队审计整改项 3】：严格判断同向联动，杜绝诱多与背离误判
             # ------------------------------------------------------------------
-            slices = self._stock_series_cache[sym]
-            if len(slices) >= 4:
-                # 取 3 分钟前切片
-                s_prev_3 = self._get_stitched_stock_slice(slices, minute_index, 3)
-                if s_prev_3 and s_prev_3.get("price") and s_prev_3["price"] > 0:
-                    v_3m = round((price - s_prev_3["price"]) / s_prev_3["price"] * 100, 2)
-                    delta_amount_wan = round((amount - s_prev_3.get("amount", 0.0)) / 10000.0, 1)
+            if sym in stock_velocity_map:
+                v_3m, delta_amount_wan = stock_velocity_map[sym]
 
-                    # 主板 3%，双创 5%，成交额达标
-                    threshold_v = 5.0 if (sym.startswith("30") or sym.startswith("68")) else 3.0
-                    threshold_amt = 3000.0 if (sym.startswith("30") or sym.startswith("68")) else 2000.0
+                # 主板 3%，双创 5%，成交额达标
+                threshold_v = 5.0 if (sym.startswith("30") or sym.startswith("68")) else 3.0
+                threshold_amt = 3000.0 if (sym.startswith("30") or sym.startswith("68")) else 2000.0
 
-                    if abs(v_3m) >= threshold_v and delta_amount_wan >= threshold_amt:
-                        # 检查系统性共振与 15 分钟降噪
-                        cooldown_key = f"{sym}_VELOCITY"
-                        if self._is_cooldown_expired(cooldown_key, now_dt):
-                            # 简化共振: 指数联动 或 默认纳入 Level 1 记录
-                            severity = "TRANSITION" if index_co_move else "INFO"
-                            event = {
-                                "date": date_str,
-                                "timestamp": time_str,
-                                "minute_index": minute_index,
-                                "event_category": "VELOCITY_SPIKE",
-                                "severity_level": severity,
-                                "symbol": sym,
-                                "name": name,
-                                "price": price,
-                                "pct_change": pct_change,
-                                "window_delta_pct": v_3m,
-                                "window_amount_wan": delta_amount_wan,
-                                "surge_ratio": None,
-                                "details": f"3分钟速动变化 {v_3m}%，窗口成交 {delta_amount_wan} 万元 (共振={index_co_move})"
-                            }
-                            detected_events.append(event)
-                            self._record_event(event)
-                            self._cooldown_cache[cooldown_key] = now_dt
+                if abs(v_3m) >= threshold_v and delta_amount_wan >= threshold_amt:
+                    # 双创标的对比创业板指，主板对比上证指数
+                    target_idx_delta = cy_index_delta if (sym.startswith("30") or sym.startswith("68")) else sh_index_delta
+                    
+                    # 严格同向性判定: 标的拉升时大盘必须同向拉升 >= 0.15% (绝对禁止大盘暴跌个股拉升判定为共振)
+                    index_co_move = False
+                    if v_3m > 0 and target_idx_delta >= 0.15:
+                        index_co_move = True
+                    elif v_3m < 0 and target_idx_delta <= -0.15:
+                        index_co_move = True
+
+                    # SectorCoMove: 板块/重点池同向标的数 >= 2
+                    sector_co_move = (pos_movers_count >= 2 if v_3m > 0 else neg_movers_count >= 2)
+
+                    is_resonance = index_co_move or sector_co_move
+                    severity = "TRANSITION" if is_resonance else "INFO"
+
+                    cooldown_key = f"{sym}_VELOCITY"
+                    if self._is_cooldown_expired(cooldown_key, now_dt):
+                        resonance_desc = f"指数同向={index_co_move}, 板块同向={sector_co_move}"
+                        event = {
+                            "date": date_str,
+                            "timestamp": time_str,
+                            "minute_index": minute_index,
+                            "event_category": "VELOCITY_SPIKE",
+                            "severity_level": severity,
+                            "symbol": sym,
+                            "name": name,
+                            "price": price,
+                            "pct_change": pct_change,
+                            "window_delta_pct": v_3m,
+                            "window_amount_wan": delta_amount_wan,
+                            "surge_ratio": None,
+                            "details": f"3分钟速动变化 {v_3m}%，窗口成交 {delta_amount_wan} 万元 (共振={is_resonance}: {resonance_desc})"
+                        }
+                        detected_events.append(event)
+                        self._record_event(event)
+                        self._cooldown_cache[cooldown_key] = now_dt
 
             # ------------------------------------------------------------------
             # 规则 C: 流动性脉冲比率 R_vol 与 30 分钟冷启动保护
             # 【v1.1 必修项 3】：09:30~10:00 (minute_index <= 30) 统一输出 None
             # ------------------------------------------------------------------
+            slices = self._stock_series_cache.get(sym, [])
             if minute_index <= 30:
                 # 冷启动保护期: 强制为 None，不计算 R_vol
                 pass
@@ -534,6 +631,7 @@ class MonitorService:
                         detected_events.append(event)
                         self._record_event(event)
                         self._cooldown_cache[cooldown_key] = now_dt
+                        self._cooldown_cache[cooldown_key] = now_dt
 
         return detected_events
 
@@ -545,12 +643,22 @@ class MonitorService:
         """
         获取 delta_minutes 前的宏观快照点位
         【v1.1 必修项 7】：午休跨段拼接 (13:00~13:05 跨段取 11:25~11:30)
+        【红队审计整改项 8】：抗抖动滑动探测，防止偶发丢包导致共振失效
         """
         target_m = current_minute - delta_minutes
-        # 若刚好跨越午休 (13:00 为 minute 121, 11:30 为 minute 120)
         if target_m <= 0:
             target_m = 1
-        return self._macro_series_cache.get(target_m)
+        # 1. 精确匹配
+        if target_m in self._macro_series_cache:
+            return self._macro_series_cache[target_m]
+        # 2. 逆序滑动探测最近有效点 (<= target_m)
+        candidate_mins = [m for m in self._macro_series_cache.keys() if m <= target_m]
+        if candidate_mins:
+            return self._macro_series_cache[max(candidate_mins)]
+        # 3. 若无更早点，返回最早采样点
+        if self._macro_series_cache:
+            return self._macro_series_cache[min(self._macro_series_cache.keys())]
+        return None
 
     def _get_stitched_stock_slice(self, slices: List[dict], current_minute: int, delta_minutes: int) -> Optional[dict]:
         """在个股历史切片中寻找 delta_minutes 前的切片 (午休有效时间差计为 0)"""
@@ -637,6 +745,7 @@ class MonitorService:
                         cy_index_pct=data.get("cy_pct"),
                         total_amount_yi=data.get("total_amount_yi"),
                         volume_proj_yi=data.get("volume_proj_yi"),
+                        is_proj_estimated=data.get("is_proj_estimated", False),
                         up_count=data.get("up_count"),
                         down_count=data.get("down_count"),
                         limit_up_count=data.get("limit_up_count"),
@@ -682,6 +791,7 @@ class MonitorService:
         """
         获取盘中最新综合切片 (耗时 < 5ms)
         """
+        self._ensure_date_cache(date_str)
         now_dt = datetime.now()
         minute_index = self.get_minute_index(now_dt)
         session_state = self.get_trading_session_state(now_dt)
@@ -728,13 +838,22 @@ class MonitorService:
         }
 
     async def get_series_data(self, date_str: str) -> List[dict]:
-        """获取日内分时宏观时序曲线"""
-        if self._macro_series_cache:
+        """
+        获取日内分时宏观时序曲线
+        【红队审计整改项 4】：仅今日返回内存热缓存，历史日期穿透数据库查询
+        """
+        self._ensure_date_cache(date_str)
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        if date_str == today_str and self._macro_series_cache:
             return sorted(self._macro_series_cache.values(), key=lambda x: x.get("minute_index", 0))
 
         # 从数据库加载历史记录
         if self.session:
-            stmt = select(IntradayMarketSnapshot).where(IntradayMarketSnapshot.date == date_str).order_by(IntradayMarketSnapshot.minute_index)
+            stmt = (
+                select(IntradayMarketSnapshot)
+                .where(IntradayMarketSnapshot.date == date_str)
+                .order_by(IntradayMarketSnapshot.minute_index)
+            )
             res = await self.session.execute(stmt)
             rows = res.scalars().all()
             return [
@@ -746,6 +865,7 @@ class MonitorService:
                     "sh_pct": r.sh_index_pct,
                     "total_amount_yi": r.total_amount_yi,
                     "volume_proj_yi": r.volume_proj_yi,
+                    "is_proj_estimated": getattr(r, "is_proj_estimated", False),
                     "up_count": r.up_count,
                     "down_count": r.down_count,
                     "limit_up_count": r.limit_up_count,
@@ -759,8 +879,43 @@ class MonitorService:
         return []
 
     async def get_events_stream(self, date_str: str, severity: Optional[str] = None, limit: int = 50) -> List[dict]:
-        """获取盘中客观事件流"""
-        events = self._recent_events_cache
-        if severity:
-            events = [e for e in events if e.get("severity_level") == severity]
-        return events[:limit]
+        """
+        获取盘中客观事件流
+        【红队审计整改项 4】：仅今日优先读取内存热缓存，历史日期穿透数据库查询
+        """
+        self._ensure_date_cache(date_str)
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        if date_str == today_str and self._recent_events_cache:
+            events = self._recent_events_cache
+            if severity:
+                events = [e for e in events if e.get("severity_level") == severity]
+            return events[:limit]
+
+        # 历史日期从数据库查询
+        if self.session:
+            stmt = select(IntradayAnomalyEvent).where(IntradayAnomalyEvent.date == date_str)
+            if severity:
+                stmt = stmt.where(IntradayAnomalyEvent.severity_level == severity)
+            stmt = stmt.order_by(IntradayAnomalyEvent.minute_index.desc(), IntradayAnomalyEvent.id.desc()).limit(limit)
+            res = await self.session.execute(stmt)
+            rows = res.scalars().all()
+            return [
+                {
+                    "id": r.id,
+                    "date": r.date,
+                    "timestamp": r.timestamp,
+                    "minute_index": r.minute_index,
+                    "event_category": r.event_category,
+                    "severity_level": r.severity_level,
+                    "symbol": r.symbol,
+                    "name": r.name,
+                    "price": r.price,
+                    "pct_change": r.pct_change,
+                    "window_delta_pct": r.window_delta_pct,
+                    "window_amount_wan": r.window_amount_wan,
+                    "surge_ratio": r.surge_ratio,
+                    "details": r.details
+                }
+                for r in rows
+            ]
+        return []

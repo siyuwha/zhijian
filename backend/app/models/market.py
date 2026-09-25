@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, Text, DateTime, UniqueConstraint, func
+from sqlalchemy import Column, Integer, Float, String, Text, DateTime, UniqueConstraint, Boolean, func
 from ..core.database import Base
 
 class MarketIndexDaily(Base):
@@ -91,6 +91,7 @@ class IntradayMarketSnapshot(Base):
     cy_index_pct = Column(Float, nullable=True, default=None)
     total_amount_yi = Column(Float, nullable=True, default=None)
     volume_proj_yi = Column(Float, nullable=True, default=None)  # 09:30~09:45 强制为 None
+    is_proj_estimated = Column(Boolean, nullable=True, default=False)  # 量能投影是否处于估算状态
 
     # 市场多空广度 (统一 nullable=True, default=None 杜绝 0 伪造)
     up_count = Column(Integer, nullable=True, default=None)

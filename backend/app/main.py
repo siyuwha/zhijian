@@ -3,11 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
-from .core.database import init_db
+from .core.database import init_db, async_session
 from .core.logging import setup_logging
 from . import models  # 注册所有ORM模型到Base.metadata
 from .api.v1 import router as api_router
 from .tasks.scheduler import task_scheduler
+from .services.monitor import MonitorService
 from .data.providers import init_providers
 
 setup_logging(debug=settings.DEBUG)
@@ -20,10 +21,12 @@ async def lifespan(app: FastAPI):
     await init_db()
     init_providers()
     task_scheduler.start()
+    MonitorService.start_background_daemon(async_session)
     logger.info(f"{settings.PROJECT_NAME} backend started successfully.")
     yield
     # Shutdown
     logger.info("Shutting down...")
+    await MonitorService.stop_background_daemon(async_session)
     task_scheduler.shutdown()
     logger.info("Scheduler stopped.")
 

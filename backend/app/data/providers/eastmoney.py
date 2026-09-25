@@ -222,8 +222,9 @@ class EastmoneyProvider(BaseProvider, MarketBreadthCapability, MicroCapCapabilit
             cores = []
             for item in diff_list:
                 name = str(item.get("f14", "")).strip()
-                # 排除 ST, *ST, 退市
-                if name.startswith(("ST", "*ST", "退")):
+                # 排除 ST, *ST, 退市整理期 (含 xx退)
+                upper_name = name.upper()
+                if "ST" in upper_name or "退" in upper_name:
                     continue
 
                 market_cap_yuan = float(item.get("f20") or 0.0)
