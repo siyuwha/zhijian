@@ -9,7 +9,7 @@ services:
     container_name: trading-ai-backend
     restart: always
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -33,7 +33,7 @@ services:
     container_name: trading-ai-frontend
     restart: always
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - TZ=Asia/Shanghai
