@@ -93,4 +93,42 @@ export const api = {
     fetchAPI<{ symbols: string[]; count: number }>(`/monitor/watchlist${date ? `?date=${date}` : ''}`),
   triggerMonitorScan: (date?: string) =>
     fetchAPI<any>(`/monitor/trigger-scan${date ? `?date=${date}` : ''}`, { method: 'POST' }),
+
+  // G1-M3 交易记录与持仓管理端点
+  getPositions: (refreshQuote: boolean = true) =>
+    fetchAPI<import('@/types/trading').Position[]>(`/trading/positions?refresh_quote=${refreshQuote}`),
+  getTradeRecords: (params?: { code?: string; direction?: string; record_type?: string; page?: number; limit?: number }) => {
+    const sp = new URLSearchParams();
+    if (params?.code) sp.append('code', params.code);
+    if (params?.direction) sp.append('direction', params.direction);
+    if (params?.record_type) sp.append('record_type', params.record_type);
+    if (params?.page) sp.append('page', params.page.toString());
+    if (params?.limit) sp.append('limit', params.limit.toString());
+    const qs = sp.toString();
+    return fetchAPI<{ items: import('@/types/trading').TradeRecord[]; total: number; page: number; limit: number }>(`/trading/records${qs ? `?${qs}` : ''}`);
+  },
+  getTradeRecordDetail: (id: number) =>
+    fetchAPI<import('@/types/trading').TradeRecord>(`/trading/records/${id}`),
+  addTradeRecord: (payload: import('@/types/trading').TradeRecordCreatePayload) =>
+    fetchAPI<import('@/types/trading').TradeRecord>('/trading/records', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  reverseTradeRecord: (payload: import('@/types/trading').ReversalTradeCreatePayload) =>
+    fetchAPI<import('@/types/trading').TradeRecord>('/trading/records/reverse', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getTradeStats: () =>
+    fetchAPI<import('@/types/trading').TradeStats>('/trading/stats'),
+  saveTradeNote: (payload: import('@/types/trading').TradeNoteCreatePayload) =>
+    fetchAPI<import('@/types/trading').TradeNote>('/trading/notes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getTradeNote: (tradeId: number) =>
+    fetchAPI<import('@/types/trading').TradeNote>(`/trading/notes/${tradeId}`),
+  reconcilePositions: (code?: string) =>
+    fetchAPI<any>(`/trading/reconcile${code ? `?code=${code}` : ''}`, { method: 'POST' }),
 };
+
