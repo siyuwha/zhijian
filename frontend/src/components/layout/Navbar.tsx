@@ -48,6 +48,16 @@ export function Navbar() {
             );
           })}
         </div>
+        {/* Version Badge */}
+        <div className="p-4 border-t border-slate-800/80 text-xs text-slate-500 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-slate-400">Cognition MVP</span>
+            <span className="px-1.5 py-0.5 rounded bg-teal-950 text-teal-400 border border-teal-800/50 font-mono text-[10px]">
+              v0.1.0
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-600 font-mono">2026.09.28 首战版</span>
+        </div>
       </nav>
 
       {/* Mobile Bottom Navigation */}
