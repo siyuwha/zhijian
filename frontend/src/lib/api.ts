@@ -14,7 +14,8 @@ import {
 } from '@/types/monitor';
 import { IndexData } from '@/types/market';
 
-const BACKEND_HOST = 'http://localhost:8000';
+const BACKEND_HOST = process.env.NEXT_PUBLIC_API_URL || 
+  (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8000` : 'http://localhost:8000');
 const BASE_URL = `${BACKEND_HOST}/api/v1`;
 
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {

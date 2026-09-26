@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ai-trading-backend:latest
+    container_name: trading-ai-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/trading.db
+      - TZ=Asia/Shanghai
+    networks:
+      - trading-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\""]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: ai-trading-frontend:latest
+    container_name: trading-ai-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - trading-net
+
+networks:
+  trading-net:
+    driver: bridge
