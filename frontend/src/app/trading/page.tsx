@@ -42,6 +42,7 @@ export default function TradingPage() {
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
   const [isReversalModalOpen, setIsReversalModalOpen] = useState(false);
   const [isNoteDrawerOpen, setIsNoteDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 表单状态
   const [tradeForm, setTradeForm] = useState<TradeRecordCreatePayload>({
@@ -118,7 +119,9 @@ export default function TradingPage() {
   // 提交交易记录
   const handleSubmitTrade = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setActionError(null);
+    setIsSubmitting(true);
     try {
       if (!tradeForm.code || !/^\d{6}$/.test(tradeForm.code)) {
         throw new Error('股票代码必须为6位纯数字');
@@ -141,6 +144,8 @@ export default function TradingPage() {
       setTimeout(() => setActionSuccess(null), 3000);
     } catch (err: any) {
       setActionError(err?.message || '录入交易失败');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -155,8 +160,9 @@ export default function TradingPage() {
   // 提交冲正
   const handleSubmitReversal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reversalTarget) return;
+    if (!reversalTarget || isSubmitting) return;
     setActionError(null);
+    setIsSubmitting(true);
     try {
       await api.reverseTradeRecord({
         target_record_id: reversalTarget.id,
@@ -171,6 +177,8 @@ export default function TradingPage() {
       setTimeout(() => setActionSuccess(null), 3000);
     } catch (err: any) {
       setActionError(err?.message || '发起冲正失败');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -192,8 +200,9 @@ export default function TradingPage() {
   // 提交反思笔记
   const handleSubmitNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRecordForNote) return;
+    if (!selectedRecordForNote || isSubmitting) return;
     setActionError(null);
+    setIsSubmitting(true);
     try {
       await api.saveTradeNote({
         trade_id: selectedRecordForNote.id,
@@ -212,6 +221,8 @@ export default function TradingPage() {
       setTimeout(() => setActionSuccess(null), 3000);
     } catch (err: any) {
       setActionError(err?.message || '保存反思笔记失败');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -821,9 +832,10 @@ export default function TradingPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition shadow-sm disabled:opacity-50"
                 >
-                  确认录入事实
+                  {isSubmitting ? '正在录入...' : '确认录入事实'}
                 </button>
               </div>
             </form>
@@ -879,9 +891,10 @@ export default function TradingPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition shadow-sm disabled:opacity-50"
                 >
-                  确认生成冲正对冲
+                  {isSubmitting ? '正在对冲...' : '确认生成冲正对冲'}
                 </button>
               </div>
             </form>
@@ -972,9 +985,10 @@ export default function TradingPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold transition shadow-sm"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold transition shadow-sm disabled:opacity-50"
                 >
-                  保存反思笔记
+                  {isSubmitting ? '正在保存...' : '保存反思笔记'}
                 </button>
               </div>
             </form>
