@@ -130,5 +130,40 @@ export const api = {
     fetchAPI<import('@/types/trading').TradeNote>(`/trading/notes/${tradeId}`),
   reconcilePositions: (code?: string) =>
     fetchAPI<any>(`/trading/reconcile${code ? `?code=${code}` : ''}`, { method: 'POST' }),
+
+  // =========================================================================
+  // G1-Cognition 验证闭环增强接口
+  // =========================================================================
+  triggerTradeDiagnosis: (tradeId: number) =>
+    fetchAPI<import('@/types/cognition').CognitiveTradeDiagnosis>(`/cognition/diagnosis/trade/${tradeId}`, { method: 'POST' }),
+  getTradeDiagnosis: (tradeId: number) =>
+    fetchAPI<import('@/types/cognition').CognitiveTradeDiagnosis>(`/cognition/diagnosis/trade/${tradeId}`),
+  confirmTradeDiagnosis: (tradeId: number, payload: { human_status: 'CONFIRMED' | 'MODIFIED'; human_comment?: string }) =>
+    fetchAPI<any>(`/cognition/diagnosis/trade/${tradeId}/confirm`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  getWeeklyAudit: (weekOffset: number = 0) =>
+    fetchAPI<import('@/types/cognition').WeeklyAuditResponse>(`/cognition/audit/weekly?week_offset=${weekOffset}`),
+  createMarketHypothesis: (payload: import('@/types/cognition').MarketHypothesisCreatePayload) =>
+    fetchAPI<import('@/types/cognition').MarketHypothesis>('/cognition/hypotheses', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getMarketHypotheses: (params?: { target_date?: string; status?: string; page?: number; limit?: number }) => {
+    const sp = new URLSearchParams();
+    if (params?.target_date) sp.append('target_date', params.target_date);
+    if (params?.status) sp.append('status', params.status);
+    if (params?.page) sp.append('page', params.page.toString());
+    if (params?.limit) sp.append('limit', params.limit.toString());
+    const qs = sp.toString();
+    return fetchAPI<{ items: import('@/types/cognition').MarketHypothesis[]; total: number; page: number; limit: number }>(
+      `/cognition/hypotheses${qs ? `?${qs}` : ''}`
+    );
+  },
+  verifyMarketHypothesis: (id: number, stage: 'AUCTION_0925' | 'CLOSE_1530') =>
+    fetchAPI<import('@/types/cognition').HypothesisVerification>(`/cognition/hypotheses/${id}/verify?stage=${stage}`, {
+      method: 'POST',
+    }),
 };
 

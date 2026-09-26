@@ -21,8 +21,12 @@ import {
   Layers,
   Search,
   Filter,
-  X
+  X,
+  Brain,
+  BarChart2,
+  CheckCheck
 } from 'lucide-react';
+import { CognitiveTradeDiagnosis, WeeklyAuditResponse } from '@/types/cognition';
 
 export default function TradingPage() {
   // 核心状态
@@ -66,6 +70,19 @@ export default function TradingPage() {
   });
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  // G1-Cognition 认知诊断与周度复盘状态
+  const [isDiagnosisDrawerOpen, setIsDiagnosisDrawerOpen] = useState(false);
+  const [selectedRecordForDiag, setSelectedRecordForDiag] = useState<TradeRecord | null>(null);
+  const [diagnosisData, setDiagnosisData] = useState<CognitiveTradeDiagnosis | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagSubmitting, setDiagSubmitting] = useState(false);
+  const [diagComment, setDiagComment] = useState('');
+
+  const [isWeeklyAuditOpen, setIsWeeklyAuditOpen] = useState(false);
+  const [weeklyAuditData, setWeeklyAuditData] = useState<WeeklyAuditResponse | null>(null);
+  const [weeklyAuditLoading, setWeeklyAuditLoading] = useState(false);
+  const [weeklyOffset, setWeeklyOffset] = useState(0);
 
   // 加载全量数据
   const loadData = async (refreshQuote: boolean = true) => {
@@ -241,6 +258,74 @@ export default function TradingPage() {
     }
   };
 
+  // 打开单笔交易认知诊断抽屉
+  const handleOpenDiagnosisModal = async (record: TradeRecord) => {
+    setSelectedRecordForDiag(record);
+    setIsDiagnosisDrawerOpen(true);
+    setDiagLoading(true);
+    setDiagnosisData(null);
+    setDiagComment('');
+    setActionError(null);
+    try {
+      let diag: CognitiveTradeDiagnosis;
+      try {
+        diag = await api.getTradeDiagnosis(record.id);
+      } catch (e: any) {
+        // 若尚无诊断记录，主动触发一次对撞诊断
+        diag = await api.triggerTradeDiagnosis(record.id);
+      }
+      setDiagnosisData(diag);
+      setDiagComment(diag.human_comment || '');
+    } catch (err: any) {
+      console.error('加载认知诊断失败:', err);
+      setActionError(err?.message || '获取认知诊断失败');
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
+  // 确认或修正单笔认知诊断
+  const handleConfirmDiagnosis = async (status: 'CONFIRMED' | 'MODIFIED') => {
+    if (!selectedRecordForDiag || !diagnosisData || diagSubmitting) return;
+    setDiagSubmitting(true);
+    setActionError(null);
+    try {
+      await api.confirmTradeDiagnosis(selectedRecordForDiag.id, {
+        human_status: status,
+        human_comment: diagComment.trim() || undefined,
+      });
+      setDiagnosisData({
+        ...diagnosisData,
+        human_status: status,
+        human_comment: diagComment.trim() || null,
+      });
+      setActionSuccess(status === 'CONFIRMED' ? '已确认采纳该笔交易的 AI 认知诊断！' : '已成功录入人工修正意见！');
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (err: any) {
+      console.error('确认诊断失败:', err);
+      setActionError(err?.message || '确认诊断操作失败');
+    } finally {
+      setDiagSubmitting(false);
+    }
+  };
+
+  // 打开周度认知复盘抽屉
+  const handleOpenWeeklyAudit = async (offset: number = 0) => {
+    setIsWeeklyAuditOpen(true);
+    setWeeklyOffset(offset);
+    setWeeklyAuditLoading(true);
+    setActionError(null);
+    try {
+      const res = await api.getWeeklyAudit(offset);
+      setWeeklyAuditData(res);
+    } catch (err: any) {
+      console.error('加载周度认知复盘失败:', err);
+      setActionError(err?.message || '加载周度复盘数据失败');
+    } finally {
+      setWeeklyAuditLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
       {/* 顶部标题栏与全局操作 */}
@@ -284,6 +369,14 @@ export default function TradingPage() {
           >
             <RotateCcw className={`w-3.5 h-3.5 ${reconciling ? 'animate-spin' : ''}`} />
             对账重算
+          </button>
+          <button
+            onClick={() => handleOpenWeeklyAudit(0)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900/80 text-indigo-300 text-sm border border-indigo-800 transition"
+            title="查看周度三维客观认知复盘与未确认样本隔离度量"
+          >
+            <BarChart2 className="w-3.5 h-3.5" />
+            周度认知复盘
           </button>
         </div>
       </div>
@@ -619,6 +712,17 @@ export default function TradingPage() {
                           <BookOpen className="w-3.5 h-3.5" />
                           {hasNote ? '查看/追加反思' : '写复盘反思'}
                         </button>
+
+                        {!isReversal && (
+                          <button
+                            onClick={() => handleOpenDiagnosisModal(r)}
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-indigo-950/60 hover:bg-indigo-900/70 text-indigo-300 border border-indigo-800/80 transition"
+                            title="对撞市场状态D1~D6，生成双层物理隔离的单笔认知诊断"
+                          >
+                            <Brain className="w-3.5 h-3.5" />
+                            认知诊断
+                          </button>
+                        )}
 
                         {!isReversal && (
                           <button
@@ -992,6 +1096,361 @@ export default function TradingPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 弹窗 4: 单笔认知诊断抽屉 (Cognitive Diagnosis Drawer) */}
+      {isDiagnosisDrawerOpen && selectedRecordForDiag && (
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-indigo-900/60 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-lg font-bold text-slate-100">
+                  单笔交易认知诊断与人机核准
+                </h3>
+              </div>
+              <button onClick={() => setIsDiagnosisDrawerOpen(false)} className="text-slate-400 hover:text-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {diagLoading ? (
+              <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
+                <p className="text-sm">正在对撞成交当日客观环境状态 (D1~D6) 并生成认知诊断...</p>
+              </div>
+            ) : diagnosisData ? (
+              <div className="space-y-4 text-xs">
+                {/* 1. 物理层 A: 事实层 (Ground Truth Layer) */}
+                <div className="rounded-lg bg-slate-950 p-3.5 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-300 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                      【事实层】成交与环境对撞快照 (Ground Truth)
+                    </span>
+                    <span className="font-mono text-slate-500">流水 #{selectedRecordForDiag.id}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-slate-300 pt-1">
+                    <div className="bg-slate-900/80 p-2 rounded">
+                      <div className="text-[10px] text-slate-500">标的资产</div>
+                      <div className="font-bold text-slate-200">{selectedRecordForDiag.name || selectedRecordForDiag.code} ({selectedRecordForDiag.code})</div>
+                    </div>
+                    <div className="bg-slate-900/80 p-2 rounded">
+                      <div className="text-[10px] text-slate-500">方向 / 单价</div>
+                      <div className={selectedRecordForDiag.direction === 'buy' ? 'text-red-300 font-bold' : 'text-emerald-300 font-bold'}>
+                        {selectedRecordForDiag.direction.toUpperCase()} @ ¥{selectedRecordForDiag.price.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="bg-slate-900/80 p-2 rounded">
+                      <div className="text-[10px] text-slate-500">股数 / 总额</div>
+                      <div>{selectedRecordForDiag.quantity} 股 / ¥{selectedRecordForDiag.amount.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-slate-900/80 p-2 rounded">
+                      <div className="text-[10px] text-slate-500">成交时间</div>
+                      <div>{selectedRecordForDiag.trade_time}</div>
+                    </div>
+                  </div>
+
+                  {/* 对撞的环境测量快照 */}
+                  <div className="bg-slate-900/60 p-2.5 rounded border border-slate-800/80 mt-2">
+                    <div className="text-[10px] text-slate-400 font-medium mb-1">
+                      当日市场客观测度 ({diagnosisData.market_d1_d6_snapshot.date || diagnosisData.date}):
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-teal-300 font-medium text-[11px] border border-slate-700">
+                        状态: {diagnosisData.market_d1_d6_snapshot.state_label || '未分类 / 缺失'}
+                      </span>
+                      {diagnosisData.market_d1_d6_snapshot.composite_score != null && (
+                        <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[11px] border border-slate-700">
+                          综合测度: {diagnosisData.market_d1_d6_snapshot.composite_score.toFixed(1)}
+                        </span>
+                      )}
+                      {diagnosisData.market_d1_d6_snapshot.indicators && diagnosisData.market_d1_d6_snapshot.indicators.length > 0 && (
+                        <span className="text-[11px] text-slate-400">
+                          (D1~D6 已加载 {diagnosisData.market_d1_d6_snapshot.indicators.length} 项度量)
+                        </span>
+                      )}
+                    </div>
+                    {diagnosisData.market_d1_d6_snapshot.note && (
+                      <p className="text-[11px] text-slate-500 mt-1 italic">
+                        {diagnosisData.market_d1_d6_snapshot.note}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. 物理层 B: AI 解释层与人机审定状态 (Cognitive Interpretation Layer) */}
+                <div className="rounded-lg bg-indigo-950/20 p-3.5 border border-indigo-900/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                      <Brain className="w-3.5 h-3.5" />
+                      【认知解释层】AI 诊断分析 (Cognitive Interpretation)
+                    </span>
+                    {/* 治理胶囊徽章 */}
+                    {diagnosisData.human_status === 'UNCONFIRMED' && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-800/80 font-semibold text-[10px] flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 text-amber-400" />
+                        [AI 诊断 / 待人工确认]
+                      </span>
+                    )}
+                    {diagnosisData.human_status === 'CONFIRMED' && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 font-semibold text-[10px] flex items-center gap-1">
+                        <CheckCheck className="w-3 h-3 text-emerald-400" />
+                        [已人工确认采纳]
+                      </span>
+                    )}
+                    {diagnosisData.human_status === 'MODIFIED' && (
+                      <span className="px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/80 font-semibold text-[10px] flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-cyan-400" />
+                        [人工已修正]
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-slate-900/70 p-2.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-500 font-medium">环境匹配类型 (Environment Match)</div>
+                      <div className="text-slate-200 font-bold mt-0.5">
+                        {diagnosisData.env_match_type === 'HIGH_MATCH' && '🟢 顺应主线环境 (High Match)'}
+                        {diagnosisData.env_match_type === 'LOW_MATCH' && '🔴 逆势/弱匹配环境 (Low Match)'}
+                        {diagnosisData.env_match_type === 'EMO_DRIVEN' && '⚠️ 情绪驱动/盲目上头 (Emo Driven)'}
+                        {diagnosisData.env_match_type === 'AMBIGUOUS' && '⚪ 震荡模糊/中性 (Ambiguous)'}
+                        {!['HIGH_MATCH', 'LOW_MATCH', 'EMO_DRIVEN', 'AMBIGUOUS'].includes(diagnosisData.env_match_type) && diagnosisData.env_match_type}
+                      </div>
+                    </div>
+                    <div className="bg-slate-900/70 p-2.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-500 font-medium">逻辑兑现度 (Logic Realization)</div>
+                      <div className="text-slate-200 font-bold mt-0.5">
+                        {diagnosisData.logic_realization === 'REALIZED' && '✅ 逻辑按预期兑现 (Realized)'}
+                        {diagnosisData.logic_realization === 'UNREALIZED' && '❌ 逻辑未兑现/逻辑落空 (Unrealized)'}
+                        {diagnosisData.logic_realization === 'ACCIDENTAL' && '⚡ 意外扰动/运气盈亏 (Accidental)'}
+                        {!['REALIZED', 'UNREALIZED', 'ACCIDENTAL'].includes(diagnosisData.logic_realization) && diagnosisData.logic_realization}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/70 p-2.5 rounded border border-slate-800 space-y-1">
+                    <div className="text-[10px] text-indigo-300 font-semibold">认知偏离与根因剖析 (Cognitive Gap Analysis)</div>
+                    <div className="text-slate-300 leading-relaxed whitespace-pre-line">
+                      {diagnosisData.cognitive_gap_analysis}
+                    </div>
+                  </div>
+
+                  {diagnosisData.human_comment && (
+                    <div className="bg-cyan-950/20 p-2.5 rounded border border-cyan-900/50 space-y-1">
+                      <div className="text-[10px] text-cyan-400 font-semibold">既有人工审定批注 (Human Comment)</div>
+                      <div className="text-cyan-200/90 leading-relaxed">
+                        {diagnosisData.human_comment}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. 人机审定与主权回环操作栏 (HITL Review Actions) */}
+                <div className="rounded-lg bg-slate-950 p-3.5 border border-slate-800 space-y-2.5">
+                  <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                    <span>人工审定与修正 (Human-In-The-Loop Confirmation)</span>
+                    <span className="text-[10px] text-amber-400 font-normal">
+                      * 未经确认的诊断绝对不计入周报与量化统计
+                    </span>
+                  </div>
+
+                  <textarea
+                    rows={2}
+                    value={diagComment}
+                    onChange={(e) => setDiagComment(e.target.value)}
+                    placeholder="输入审定意见、同意/修正理由，或补充心理盲区反思..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 text-xs focus:outline-none focus:border-indigo-500"
+                  />
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={diagSubmitting}
+                      onClick={() => handleConfirmDiagnosis('MODIFIED')}
+                      className="px-3.5 py-1.5 rounded bg-cyan-900/40 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-800/80 font-medium text-xs transition disabled:opacity-50"
+                      title="保留诊断并附加人工修正批注"
+                    >
+                      {diagSubmitting ? '提交中...' : '人工修正并入库 (Modify)'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={diagSubmitting}
+                      onClick={() => handleConfirmDiagnosis('CONFIRMED')}
+                      className="px-4 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                      title="采纳AI诊断结论并标记为人工确认"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                      {diagSubmitting ? '确认中...' : '确认采纳 (Confirm)'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400">
+                暂未获取到诊断数据。
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 弹窗 5: 周度认知复盘抽屉 (Weekly Audit Drawer) */}
+      {isWeeklyAuditOpen && (
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-indigo-900/60 rounded-xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* 标题栏与周期切换 */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-lg font-bold text-slate-100">
+                  周度客观认知复盘看板
+                </h3>
+                <span className="text-xs px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">
+                  {weeklyAuditData?.week_label || '当前周期'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center rounded border border-slate-700 bg-slate-800 text-xs">
+                  <button
+                    onClick={() => handleOpenWeeklyAudit(0)}
+                    className={`px-2.5 py-1 transition ${weeklyOffset === 0 ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    本周
+                  </button>
+                  <button
+                    onClick={() => handleOpenWeeklyAudit(1)}
+                    className={`px-2.5 py-1 transition ${weeklyOffset === 1 ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    上周
+                  </button>
+                  <button
+                    onClick={() => handleOpenWeeklyAudit(2)}
+                    className={`px-2.5 py-1 transition ${weeklyOffset === 2 ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    上上周
+                  </button>
+                </div>
+                <button onClick={() => setIsWeeklyAuditOpen(false)} className="text-slate-400 hover:text-slate-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 未确认隔离铁律提示 */}
+            <div className="rounded-lg bg-indigo-950/30 border border-indigo-800/60 p-3 text-xs text-indigo-200 flex items-start gap-2">
+              <ShieldAlert className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>治理铁律生效中：</strong> 仅计入经由人工审定（CONFIRMED / MODIFIED）的真实样本。未确认样本已被严格物理隔离；当有效样本为空时，指标严格留白渲染为 <code className="text-amber-300">--</code>，绝无零填充伪造数据。
+              </div>
+            </div>
+
+            {weeklyAuditLoading ? (
+              <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
+                <p className="text-sm">正在聚合核算周度三维客观认知度量...</p>
+              </div>
+            ) : weeklyAuditData ? (
+              <div className="space-y-4">
+                {/* 1. 三维核心客观度量矩阵 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+                    <div className="text-xs text-slate-400 font-medium">环境匹配度 (EMD)</div>
+                    <div className="text-2xl font-bold font-mono text-teal-400 mt-1">
+                      {weeklyAuditData.metrics.env_match_degree != null 
+                        ? `${weeklyAuditData.metrics.env_match_degree.toFixed(1)}%` 
+                        : '--'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      顺应主流环境交易笔数占比
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+                    <div className="text-xs text-slate-400 font-medium">逻辑兑现度 (LRD)</div>
+                    <div className="text-2xl font-bold font-mono text-indigo-400 mt-1">
+                      {weeklyAuditData.metrics.logic_realization_degree != null 
+                        ? `${weeklyAuditData.metrics.logic_realization_degree.toFixed(1)}%` 
+                        : '--'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      建仓依据真实兑现比例
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+                    <div className="text-xs text-slate-400 font-medium">结果偏离度 (ODD)</div>
+                    <div className="text-2xl font-bold font-mono text-amber-400 mt-1">
+                      {weeklyAuditData.metrics.outcome_deviation_degree != null 
+                        ? `${weeklyAuditData.metrics.outcome_deviation_degree.toFixed(1)}%` 
+                        : '--'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      逻辑兑现与实际盈亏的偏差度
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. 样本统计分布 */}
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs text-slate-300 font-medium">
+                    <span>交易诊断样本治理画像</span>
+                    <div className="flex items-center gap-3 font-mono text-[11px]">
+                      <span>周总交易: <strong className="text-slate-100">{weeklyAuditData.total_trades}</strong> 笔</span>
+                      <span>已确认样本: <strong className="text-emerald-400">{weeklyAuditData.confirmed_samples_count}</strong> 笔</span>
+                      <span>隔离未确认: <strong className="text-amber-400">{weeklyAuditData.total_trades - weeklyAuditData.confirmed_samples_count}</strong> 笔</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
+                    <div className="bg-slate-900 p-2.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-500">高匹配交易 (High Match)</div>
+                      <div className="text-base font-bold text-emerald-400 font-mono mt-0.5">
+                        {weeklyAuditData.trade_sample_summary.high_match} 笔
+                      </div>
+                    </div>
+                    <div className="bg-slate-900 p-2.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-500">低匹配交易 (Low Match)</div>
+                      <div className="text-base font-bold text-rose-400 font-mono mt-0.5">
+                        {weeklyAuditData.trade_sample_summary.low_match} 笔
+                      </div>
+                    </div>
+                    <div className="bg-slate-900 p-2.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-500">情绪驱动 (Emo Driven)</div>
+                      <div className="text-base font-bold text-amber-400 font-mono mt-0.5">
+                        {weeklyAuditData.trade_sample_summary.emo_driven} 笔
+                      </div>
+                    </div>
+                    <div className="bg-slate-900 p-2.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-500">模糊/中性 (Ambiguous)</div>
+                      <div className="text-base font-bold text-slate-400 font-mono mt-0.5">
+                        {weeklyAuditData.trade_sample_summary.ambiguous} 笔
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. 实证观察与认知洞察 */}
+                {weeklyAuditData.empirical_observations && weeklyAuditData.empirical_observations.length > 0 && (
+                  <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2 text-xs">
+                    <div className="font-medium text-slate-300">实证观察与周期认知反思洞察</div>
+                    <ul className="space-y-1.5 text-slate-400">
+                      {weeklyAuditData.empirical_observations.map((obs, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-indigo-400 font-mono">•</span>
+                          <span>{obs}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
       )}

@@ -21,14 +21,58 @@ import {
   TrendingDown,
   BarChart3,
   Scale,
-  HelpCircle
+  HelpCircle,
+  Crosshair,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Play,
+  Plus
 } from 'lucide-react';
+import { MarketHypothesis, MarketHypothesisCreatePayload } from '@/types/cognition';
 
 export default function ReviewDetailPage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = use(params);
   const [data, setData] = useState<DailyReviewDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 推演假说跟踪器状态 (G1-Cognition Pre-market Hypothesis Tracker)
+  const [hypotheses, setHypotheses] = useState<MarketHypothesis[]>([]);
+  const [hypoLoading, setHypoLoading] = useState(false);
+  const [showCreateHypo, setShowCreateHypo] = useState(false);
+  const [creatingHypo, setCreatingHypo] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
+  const [hypoError, setHypoError] = useState<string | null>(null);
+  const [hypoSuccess, setHypoSuccess] = useState<string | null>(null);
+
+  // 表单默认针对下一个交易日
+  const [newHypoForm, setNewHypoForm] = useState<MarketHypothesisCreatePayload>({
+    target_date: '',
+    hypothesis_type: 'SENTIMENT_CYCLE',
+    target_asset: '全市场短线情绪',
+    expected_scenario: 'ROTATION',
+    premise_logic: '',
+    expected_phenomenon: '',
+    invalidation_condition: '',
+    assertion_metrics: {
+      auction_up_ratio_min: 0.5,
+      auction_limit_down_max: 0,
+      close_limit_up_min: 30
+    }
+  });
+
+  const loadHypotheses = async () => {
+    try {
+      setHypoLoading(true);
+      const res = await api.getMarketHypotheses({ target_date: date });
+      setHypotheses(res.items || []);
+    } catch (err: any) {
+      console.error('加载推演假说失败:', err);
+    } finally {
+      setHypoLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -45,7 +89,46 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
       }
     }
     loadData();
+    loadHypotheses();
   }, [date]);
+
+  // 创建推演假说
+  const handleCreateHypo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (creatingHypo) return;
+    setCreatingHypo(true);
+    setHypoError(null);
+    try {
+      if (!newHypoForm.target_date || !newHypoForm.premise_logic || !newHypoForm.expected_phenomenon) {
+        throw new Error('请完整填写目标日期、前提逻辑与预期盘面现象');
+      }
+      await api.createMarketHypothesis(newHypoForm);
+      setHypoSuccess('推演假说已成功锁定录入！');
+      setShowCreateHypo(false);
+      await loadHypotheses();
+      setTimeout(() => setHypoSuccess(null), 3000);
+    } catch (err: any) {
+      setHypoError(err?.message || '创建推演假说失败');
+    } finally {
+      setCreatingHypo(false);
+    }
+  };
+
+  // 触发客观核验
+  const handleVerify = async (hypoId: number, stage: 'AUCTION_0925' | 'CLOSE_1530') => {
+    setVerifyingId(hypoId);
+    setHypoError(null);
+    try {
+      await api.verifyMarketHypothesis(hypoId, stage);
+      setHypoSuccess(`假说 #${hypoId} [${stage === 'AUCTION_0925' ? '09:25 竞价' : '15:30 收盘'}] 客观核对完成！`);
+      await loadHypotheses();
+      setTimeout(() => setHypoSuccess(null), 3000);
+    } catch (err: any) {
+      setHypoError(err?.message || '执行客观核对失败');
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
   // 物理状态标签颜色映射
   const getStateBadgeStyle = (label?: string) => {
@@ -348,6 +431,348 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* 核心第四板块：跨交易日推演假说跟踪器 (Pre-market Hypothesis Tracker) */}
+      {/* ==================================================================== */}
+      <div className="space-y-4 pt-4 border-t border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Crosshair className="w-5 h-5 text-teal-400" />
+            <h2 className="text-lg font-bold text-white">跨交易日推演假说跟踪与客观核对</h2>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-950 text-teal-300 border border-teal-800 font-mono">
+              Hypothesis Tracker
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setShowCreateHypo(!showCreateHypo);
+                if (!newHypoForm.target_date) {
+                  // 计算下一个交易日草稿
+                  const d = new Date(date);
+                  d.setDate(d.getDate() + (d.getDay() === 5 ? 3 : 1));
+                  const nextDateStr = d.toISOString().split('T')[0];
+                  setNewHypoForm(f => ({ ...f, target_date: nextDateStr }));
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs transition shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {showCreateHypo ? '收起录入表单' : '录入推演假说'}
+            </button>
+            <button
+              onClick={loadHypotheses}
+              disabled={hypoLoading}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 transition"
+              title="刷新假说与兑现核对状态"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${hypoLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* 提示消息 */}
+        {hypoSuccess && (
+          <div className="flex items-center gap-2 p-3 bg-emerald-950/70 border border-emerald-800 text-emerald-300 rounded-lg text-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{hypoSuccess}</span>
+          </div>
+        )}
+        {hypoError && (
+          <div className="flex items-center gap-2 p-3 bg-rose-950/70 border border-rose-800 text-rose-300 rounded-lg text-xs">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{hypoError}</span>
+          </div>
+        )}
+
+        {/* 新建假说录入表单 */}
+        {showCreateHypo && (
+          <Card className="bg-slate-900 border-teal-500/40 animate-in fade-in">
+            <CardHeader className="pb-3 border-b border-slate-800">
+              <CardTitle className="text-sm font-bold text-teal-300 flex items-center gap-2">
+                <Crosshair className="w-4 h-4 text-teal-400" />
+                录入前向推演假说（不可篡改锁定）
+              </CardTitle>
+              <p className="text-xs text-slate-400">
+                依据科学哲学原则，假说必须具备可证伪性与客观兑现条件，开盘后状态机将自动锁定并禁止篡改。
+              </p>
+            </CardHeader>
+            <CardContent className="p-4 md:p-6">
+              <form onSubmit={handleCreateHypo} className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1">目标验证日期 (YYYY-MM-DD) *</label>
+                    <input
+                      type="date"
+                      required
+                      value={newHypoForm.target_date}
+                      onChange={(e) => setNewHypoForm(f => ({ ...f, target_date: e.target.value }))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">假说类型 (Hypothesis Type) *</label>
+                    <select
+                      value={newHypoForm.hypothesis_type}
+                      onChange={(e) => setNewHypoForm(f => ({ ...f, hypothesis_type: e.target.value as any }))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100"
+                    >
+                      <option value="SENTIMENT_CYCLE">情绪周期推演 (SENTIMENT_CYCLE)</option>
+                      <option value="INDEX_TREND">大盘指数趋势 (INDEX_TREND)</option>
+                      <option value="SECTOR_LEADER">核心板块与高标 (SECTOR_LEADER)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">目标标的/主线资产 *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newHypoForm.target_asset}
+                      onChange={(e) => setNewHypoForm(f => ({ ...f, target_asset: e.target.value }))}
+                      placeholder="例如：连板高标空间 / 芯片半导体 / 沪深300"
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1">预期情景 (Expected Scenario) *</label>
+                    <select
+                      value={newHypoForm.expected_scenario}
+                      onChange={(e) => setNewHypoForm(f => ({ ...f, expected_scenario: e.target.value as any }))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100"
+                    >
+                      <option value="ROTATION">轮动博弈 (ROTATION)</option>
+                      <option value="ACCELERATION">加速扩散 (ACCELERATION)</option>
+                      <option value="DIVERGENCE">分歧分化 (DIVERGENCE)</option>
+                      <option value="REBOUND">超跌反弹 (REBOUND)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">核心前提逻辑 (Premise Logic) *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newHypoForm.premise_logic}
+                      onChange={(e) => setNewHypoForm(f => ({ ...f, premise_logic: e.target.value }))}
+                      placeholder="例如：今日高标全部晋级，两市成交放量，短线情绪处于扩散主升期..."
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1">预期客观盘面现象 (Expected Phenomenon) *</label>
+                    <textarea
+                      rows={2}
+                      required
+                      value={newHypoForm.expected_phenomenon}
+                      onChange={(e) => setNewHypoForm(f => ({ ...f, expected_phenomenon: e.target.value }))}
+                      placeholder="例如：09:25 竞价核心高标高开>3%，全天上证成交额突破1万亿，涨停数>40家..."
+                      className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">失效/证伪刚性条件 (Invalidation Condition) *</label>
+                    <textarea
+                      rows={2}
+                      required
+                      value={newHypoForm.invalidation_condition}
+                      onChange={(e) => setNewHypoForm(f => ({ ...f, invalidation_condition: e.target.value }))}
+                      placeholder="例如：开盘跌停家数>2家，或核心高标竞价跌停低开，或大盘缩量超15%..."
+                      className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateHypo(false)}
+                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-medium"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingHypo}
+                    className="px-5 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded font-bold transition shadow-sm disabled:opacity-50"
+                  >
+                    {creatingHypo ? '正在锁定...' : '锁定并提交假说'}
+                  </button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 假说列表与双轨客观核对 */}
+        {hypotheses.length === 0 ? (
+          <div className="p-8 text-center rounded-xl bg-slate-900/40 border border-dashed border-slate-800 text-slate-400 space-y-2">
+            <Crosshair className="w-8 h-8 mx-auto text-slate-600" />
+            <div className="text-sm font-semibold text-slate-300">本日暂无推演假说跟踪记录</div>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              可以在上方点击【录入推演假说】针对下一交易日制定推演预案，系统将在开盘后执行 09:25 竞价初判与 15:30 收盘终核。
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {hypotheses.map((hypo) => {
+              const vAuction = hypo.verifications?.find(v => v.verification_stage === 'AUCTION_0925');
+              const vClose = hypo.verifications?.find(v => v.verification_stage === 'CLOSE_1530');
+
+              const getOutcomeBadge = (outcome?: string) => {
+                switch (outcome) {
+                  case 'CONFIRMED':
+                    return <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold text-[10px]">🟢 逻辑证实 (CONFIRMED)</span>;
+                  case 'FALSIFIED':
+                    return <span className="px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold text-[10px]">🔴 逻辑证伪 (FALSIFIED)</span>;
+                  case 'PARTIAL':
+                    return <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-bold text-[10px]">🟡 部分兑现 (PARTIAL)</span>;
+                  case 'INCONCLUSIVE':
+                    return <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-bold text-[10px]">⚪ 数据缺失防伪 (INCONCLUSIVE)</span>;
+                  case 'INVALID':
+                    return <span className="px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-bold text-[10px]">🟣 前提失效 (INVALID)</span>;
+                  default:
+                    return <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px]">待核验</span>;
+                }
+              };
+
+              return (
+                <Card key={hypo.id} className="bg-slate-900/80 border-slate-800 shadow-md">
+                  <CardHeader className="pb-3 border-b border-slate-800/80">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-teal-400 border border-slate-700">
+                          #{hypo.id}
+                        </span>
+                        <CardTitle className="text-base font-bold text-slate-100">
+                          {hypo.target_asset} · {hypo.expected_scenario}
+                        </CardTitle>
+                        <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                          {hypo.hypothesis_type}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 font-mono">
+                          目标验证日: <strong className="text-slate-200">{hypo.target_date}</strong>
+                        </span>
+                        <span className={`text-[11px] px-2 py-0.5 rounded font-mono font-semibold uppercase ${
+                          hypo.status === 'CLOSED'
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : hypo.status === 'VERIFYING'
+                            ? 'bg-cyan-950 text-cyan-400 border border-cyan-800'
+                            : 'bg-slate-800 text-slate-300 border border-slate-700'
+                        }`}>
+                          状态: {hypo.status}
+                        </span>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="p-4 md:p-6 space-y-4 text-xs">
+                    {/* 推演前提与预期 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60">
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-semibold mb-1">核心逻辑依据 (Premise)</div>
+                        <div className="text-slate-300 leading-relaxed">{hypo.premise_logic}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-teal-400 font-semibold mb-1">预期兑现盘面现象 (Phenomenon)</div>
+                        <div className="text-slate-300 leading-relaxed">{hypo.expected_phenomenon}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-rose-400 font-semibold mb-1">失效/证伪刚性条件 (Invalidation)</div>
+                        <div className="text-slate-300 leading-relaxed">{hypo.invalidation_condition}</div>
+                      </div>
+                    </div>
+
+                    {/* 双轨核验快照卡片 (Stage 1 & Stage 2) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      {/* Stage 1: 早盘竞价初判 */}
+                      <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                            <Clock className="w-3.5 h-3.5 text-teal-400" />
+                            <span>早盘竞价初判快照 (AUCTION_0925)</span>
+                          </div>
+                          {vAuction ? getOutcomeBadge(vAuction.outcome) : (
+                            <button
+                              onClick={() => handleVerify(hypo.id, 'AUCTION_0925')}
+                              disabled={verifyingId === hypo.id}
+                              className="px-2.5 py-1 rounded bg-teal-700 hover:bg-teal-600 text-white font-medium text-[11px] transition shadow-sm disabled:opacity-50 flex items-center gap-1"
+                            >
+                              <Play className="w-3 h-3" />
+                              {verifyingId === hypo.id ? '核对中...' : '执行早盘初核'}
+                            </button>
+                          )}
+                        </div>
+
+                        {vAuction ? (
+                          <div className="space-y-1.5 text-slate-400 text-xs">
+                            <div className="text-slate-300 bg-slate-900/60 p-2 rounded border border-slate-800">
+                              <span className="text-slate-500 font-semibold">客观偏差分析: </span>
+                              {vAuction.deviation_analysis}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono">
+                              核验时间: {vAuction.verified_at || '--'}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-slate-500 text-[11px] italic">
+                            早盘 09:25:30 竞价数据到达后，将自动对撞高标溢价与竞价量能比。
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Stage 2: 全天收盘终核 */}
+                      <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>全天收盘结案终核 (CLOSE_1530)</span>
+                          </div>
+                          {vClose ? getOutcomeBadge(vClose.outcome) : (
+                            <button
+                              onClick={() => handleVerify(hypo.id, 'CLOSE_1530')}
+                              disabled={verifyingId === hypo.id}
+                              className="px-2.5 py-1 rounded bg-indigo-700 hover:bg-indigo-600 text-white font-medium text-[11px] transition shadow-sm disabled:opacity-50 flex items-center gap-1"
+                            >
+                              <Play className="w-3 h-3" />
+                              {verifyingId === hypo.id ? '终核中...' : '执行收盘终核'}
+                            </button>
+                          )}
+                        </div>
+
+                        {vClose ? (
+                          <div className="space-y-1.5 text-slate-400 text-xs">
+                            <div className="text-slate-300 bg-slate-900/60 p-2 rounded border border-slate-800">
+                              <span className="text-slate-500 font-semibold">终局 Gap 归因: </span>
+                              {vClose.deviation_analysis}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono">
+                              终核时间: {vClose.verified_at || '--'}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-slate-500 text-[11px] italic">
+                            15:30 收盘后终局裁决。联合唯一键确保双快照并存，不可物理覆盖。
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

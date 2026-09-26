@@ -6,7 +6,12 @@ from .market import (
     IntradayMarketSnapshot,
     IntradayAnomalyEvent,
 )
-from .cognition import CognitionMarketState
+from .cognition import (
+    CognitionMarketState,
+    CognitiveTradeDiagnosis,
+    MarketHypothesis,
+    HypothesisVerification,
+)
 from .report import DailyReview, PremarketBriefing, AuctionReport
 from .trading import TradeRecord, Position, TradeNote
 from .strategy import Strategy, SelectionResult, SelectionCandidate
@@ -21,6 +26,9 @@ __all__ = [
     "IntradayMarketSnapshot",
     "IntradayAnomalyEvent",
     "CognitionMarketState",
+    "CognitiveTradeDiagnosis",
+    "MarketHypothesis",
+    "HypothesisVerification",
     "DailyReview",
     "PremarketBriefing",
     "AuctionReport",
