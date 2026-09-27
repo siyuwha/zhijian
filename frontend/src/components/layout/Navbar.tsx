@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { Home, FileText, Newspaper, Clock, MonitorPlay, TrendingUp, Compass, PlaySquare, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,17 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const activeItemRef = useRef<HTMLAnchorElement | null>(null);
+
+  useEffect(() => {
+    if (activeItemRef.current) {
+      activeItemRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [pathname]);
 
   return (
     <>
@@ -60,23 +72,29 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 text-white z-50">
-        <div className="flex justify-around items-center p-2">
-          {navItems.slice(0, 5).map((item) => {
+      {/* Mobile Bottom Navigation (Horizontal Scrollable) */}
+      <nav
+        aria-label="移动端底部导航"
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 text-white z-50 pb-[env(safe-area-inset-bottom,0px)]"
+      >
+        <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar scroll-smooth">
+          {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                ref={isActive ? activeItemRef : null}
                 className={cn(
-                  "flex flex-col items-center p-2 rounded-lg transition-colors",
-                  isActive ? "text-teal-400" : "text-slate-400"
+                  "flex flex-col items-center justify-center min-w-[4.25rem] px-2 py-1.5 rounded-lg transition-colors flex-shrink-0 select-none",
+                  isActive
+                    ? "bg-teal-500/15 text-teal-400 font-medium border border-teal-500/30"
+                    : "text-slate-400 hover:text-slate-200 active:bg-slate-800/80 border border-transparent"
                 )}
               >
-                <Icon className="w-6 h-6 mb-1" />
-                <span className="text-[10px]">{item.name}</span>
+                <Icon className={cn("w-5 h-5 mb-1 flex-shrink-0", isActive ? "text-teal-400" : "text-slate-400")} />
+                <span className="text-[11px] whitespace-nowrap leading-none tracking-tight">{item.name}</span>
               </Link>
             );
           })}
@@ -85,3 +103,4 @@ export function Navbar() {
     </>
   );
 }
+

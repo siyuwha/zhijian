@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="zh">
       <body className="font-sans antialiased bg-slate-950 text-slate-50 min-h-screen flex">
         <Navbar />
-        <main className="flex-1 pb-20 md:pb-0 overflow-auto">
+        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-auto">
           {children}
         </main>
       </body>
