@@ -69,24 +69,50 @@ class CognitionReviewService:
         if market_state:
             state_label = market_state.state_label or "标准状态"
             try:
-                raw_indicators = json.loads(market_state.indicators) if market_state.indicators else []
+                raw_indicators = json.loads(market_state.indicators) if market_state.indicators else {}
                 market_snapshot = {
+                    "market_state_id": market_state.id,
                     "date": market_state.date,
                     "state_label": state_label,
                     "composite_score": market_state.composite_score,
+                    "data_quality": market_state.data_quality,
                     "indicators": raw_indicators,
                 }
-                for ind in raw_indicators:
-                    name = ind.get("dimension") or ind.get("name") or ""
-                    val = float(ind.get("score") or ind.get("value") or 50.0)
-                    if "D1" in name or "趋势" in name:
-                        d1_score = val
-                    elif "D3" in name or "分化" in name:
-                        d3_score = val
-                    elif "D5" in name or "情绪" in name or "连板" in name:
-                        d5_score = val
-            except Exception:
-                market_snapshot = {"error": "INDICATOR_PARSE_ERROR"}
+                # 兼容 dict (如 {"D1": {...}, ...}) 与 list (如 [{...}, ...])
+                dim_items = []
+                if isinstance(raw_indicators, dict):
+                    dim_items = list(raw_indicators.values())
+                elif isinstance(raw_indicators, list):
+                    dim_items = raw_indicators
+
+                for ind in dim_items:
+                    if not isinstance(ind, dict):
+                        continue
+                    dim_id = str(ind.get("dimension_id") or ind.get("dimension") or "")
+                    name = str(ind.get("name") or "")
+                    val = ind.get("score")
+                    if val is None:
+                        val = ind.get("reference_score")
+                    if val is None and ind.get("sub_domains"):
+                        sub_a = ind["sub_domains"].get("speculative_structure", {})
+                        if isinstance(sub_a, dict):
+                            val = sub_a.get("score")
+                    val_float = float(val) if val is not None else 50.0
+
+                    if "D1" in dim_id or "整体" in name or "趋势" in name:
+                        d1_score = val_float
+                    elif "D3" in dim_id or "情绪" in name or "极端" in name:
+                        d3_score = val_float
+                    elif "D5" in dim_id or "外部" in name:
+                        d5_score = val_float
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"解析市场状态快照失败: {e}")
+                market_snapshot = {
+                    "market_state_id": market_state.id,
+                    "date": market_state.date,
+                    "error": f"INDICATOR_PARSE_ERROR: {str(e)}"
+                }
         else:
             market_snapshot = {
                 "status": "PARTIAL",
@@ -463,8 +489,22 @@ class CognitionReviewService:
                 if sh_open_min is not None and auc_report.index_open_data:
                     try:
                         open_dict = json.loads(auc_report.index_open_data)
-                        sh_pct = open_dict.get("sh000001", {}).get("pct", 0.0)
-                        if sh_pct < sh_open_min:
+                        sh_pct = None
+                        if isinstance(open_dict, dict) and "indices" in open_dict:
+                            for idx_item in open_dict["indices"]:
+                                if idx_item.get("code") in ("sh000001", "000001", "s_sh000001"):
+                                    sh_pct = idx_item.get("pct_change")
+                                    if sh_pct is None:
+                                        sh_pct = idx_item.get("change_pct")
+                                    break
+                        elif isinstance(open_dict, dict):
+                            sh_obj = open_dict.get("sh000001") or open_dict.get("000001")
+                            if isinstance(sh_obj, dict):
+                                sh_pct = sh_obj.get("pct") or sh_obj.get("pct_change")
+                            elif isinstance(sh_obj, (int, float)):
+                                sh_pct = float(sh_obj)
+
+                        if sh_pct is not None and sh_pct < sh_open_min:
                             is_falsified = True
                     except Exception:
                         pass

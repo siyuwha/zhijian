@@ -7,6 +7,7 @@ os.makedirs(os.path.dirname(settings.DATABASE_URL.split("///")[-1]), exist_ok=Tr
 
 engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
+async_session_factory = async_session
 
 Base = declarative_base()
 

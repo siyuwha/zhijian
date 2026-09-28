@@ -97,10 +97,19 @@ class TradingService:
                     },
                 )
 
+        # 0. 规范清洗股票名称，确保 UTF-8，彻底清除乱码与 ????
+        cleaned_name = payload.name
+        if cleaned_name:
+            cleaned_name = cleaned_name.replace("?", "").replace("？", "").strip()
+            if not cleaned_name:
+                cleaned_name = None
+        if not cleaned_name:
+            cleaned_name = pos.name if (pos and pos.name and "?" not in pos.name) else payload.code
+
         # 5. 写入 Truth Ledger
         record = TradeRecord(
             code=payload.code,
-            name=payload.name or (pos.name if pos else payload.code),
+            name=cleaned_name,
             direction=payload.direction.lower(),
             price=payload.price,
             quantity=payload.quantity,
@@ -122,12 +131,12 @@ class TradingService:
                 pos.quantity = new_qty
                 pos.total_cost = new_total_cost
                 pos.avg_cost = round(new_total_cost / new_qty, 3) if new_qty > 0 else payload.price
-                if payload.name:
-                    pos.name = payload.name
+                if cleaned_name and cleaned_name != pos.code:
+                    pos.name = cleaned_name
             else:
                 pos = Position(
                     code=payload.code,
-                    name=payload.name or payload.code,
+                    name=cleaned_name,
                     quantity=payload.quantity,
                     avg_cost=payload.price,
                     total_cost=amount,
@@ -146,8 +155,21 @@ class TradingService:
             else:
                 pos.total_cost = round(pos.quantity * pos.avg_cost, 2)
 
+        # 确保交易事实优先落盘 (硬约束 3: 交易账本永远优先于 AI 服务)
         await self.session.commit()
         await self.session.refresh(record)
+
+        # 7. 派生单笔认知对撞诊断 (严格与交易事务解耦，故障绝不影响交易事实)
+        try:
+            from .cognition_review import CognitionReviewService
+            cog_service = CognitionReviewService(self.session)
+            await cog_service.diagnose_trade(record.id)
+        except Exception as diag_err:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"交易 #{record.id} 自动认知诊断触发异常 (已安全解耦降级，交易事实百分之百落盘): {diag_err}"
+            )
+
         return record
 
     async def create_reversal_record(self, payload: ReversalTradeCreate) -> TradeRecord:
@@ -300,18 +322,21 @@ class TradingService:
                     if q and q.get("price") and float(q["price"]) > 0:
                         cur_p = round(float(q["price"]), 3)
                         pos.current_price = cur_p
-                        pos.price_type = "REALTIME" if is_live else "PREV_CLOSE"
+                        # 落实硬约束 4: 严格区分盘中实时与收盘补偿语义
+                        pos.price_type = "REALTIME" if is_live else "EOD_COMPENSATED"
                         pos.quote_time = q.get("time") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         pos.floating_pnl = round((cur_p - pos.avg_cost) * pos.quantity, 2)
                     else:
-                        if pos.current_price is None:
+                        if pos.current_price is not None:
+                            pos.price_type = "EXPIRED"
+                        else:
                             pos.price_type = "UNAVAILABLE"
                             pos.floating_pnl = None
 
                 await self.session.commit()
             except Exception as e:
-                # 记录日志，保持既有数据或标记降级，绝对不崩溃
-                pass
+                import logging
+                logging.getLogger(__name__).warning(f"更新持仓行情异常: {e}")
 
         results = []
         for p in positions:

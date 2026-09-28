@@ -42,6 +42,9 @@ class MarketState(BaseModel):
     data_quality: DataQuality = Field(default=DataQuality.FULL, description="FULL / PARTIAL / INVALID")
     dimensions: Dict[str, SubDimensionState] = Field(default_factory=dict, description="六大子维度状态字典")
     missing_metrics: List[str] = Field(default_factory=list, description="缺失指标标识清单")
+    available_weight: Optional[float] = Field(default=None, description="综合分计算时有效维度的权重总和(0.0-1.0)")
+    composite_score_method: Optional[str] = Field(default=None, description="综合得分计算方法(如 FULL_WEIGHTED / RENORMALIZED_VALID_DIMENSIONS / NONE_DUE_TO_INSUFFICIENT_DATA)")
+    quality_level: Optional[str] = Field(default=None, description="质量级别详细描述")
     config_snapshot_version: str = Field(default="v1", description="对应配置版本")
 
 class CognitionInput(BaseModel):

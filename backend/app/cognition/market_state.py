@@ -54,7 +54,14 @@ class MarketStateComputer(CognitionLayerInterface):
             missing_metrics_global.extend(missing)
 
         # 2. 全局数据质量判定与综合分计算 (Level 2 -> Level 3)
-        global_quality, composite_score, global_label = self._synthesize_global_state(sub_dimension_states)
+        (
+            global_quality,
+            composite_score,
+            global_label,
+            available_weight,
+            composite_score_method,
+            quality_level,
+        ) = self._synthesize_global_state(sub_dimension_states)
 
         return MarketState(
             timestamp=datetime.now(),
@@ -63,6 +70,9 @@ class MarketStateComputer(CognitionLayerInterface):
             data_quality=global_quality,
             dimensions=sub_dimension_states,
             missing_metrics=missing_metrics_global,
+            available_weight=available_weight,
+            composite_score_method=composite_score_method,
+            quality_level=quality_level,
             config_snapshot_version=self.config.version
         )
 
@@ -320,13 +330,20 @@ class MarketStateComputer(CognitionLayerInterface):
     def _synthesize_global_state(
         self,
         sub_dims: Dict[str, SubDimensionState]
-    ) -> tuple[DataQuality, Optional[float], str]:
-        """综合全局状态与数据质量判定"""
-        has_critical_dim_invalid = False
-        has_partial_or_optional_invalid = False
+    ) -> tuple[DataQuality, Optional[float], str, Optional[float], str, str]:
+        """
+        综合全局状态与数据质量判定 (落实 P0 硬约束 2)
+        - 坚决废除“单一核心维度缺失直接整天判死刑”机制
+        - 哪个指标缺失 -> 哪个指标 INVALID -> 整体质量评分真实反映缺失程度
+        - 当有效加权维度总和 >= 0.30 (且至少 2 个有效维度) 时，判定为 PARTIAL，按有效维度重归一化加权
+        - 输出元数据：available_weight, composite_score_method, quality_level
+        """
+        has_any_invalid_dim = False
+        has_any_partial_dim = False
 
         total_valid_dim_weight = 0.0
         dim_weighted_sum = 0.0
+        valid_dim_count = 0
 
         for dim_cfg in self.config.dimensions:
             if not dim_cfg.enabled:
@@ -337,33 +354,56 @@ class MarketStateComputer(CognitionLayerInterface):
                 continue
 
             if state.quality == DataQuality.INVALID:
-                if dim_cfg.is_critical_dimension:
-                    has_critical_dim_invalid = True
-                else:
-                    has_partial_or_optional_invalid = True
+                has_any_invalid_dim = True
             elif state.quality == DataQuality.PARTIAL:
-                has_partial_or_optional_invalid = True
+                has_any_partial_dim = True
+                valid_dim_count += 1
                 if state.score is not None:
                     total_valid_dim_weight += dim_cfg.dimension_weight
                     dim_weighted_sum += state.score * dim_cfg.dimension_weight
             elif state.quality == DataQuality.FULL:
+                valid_dim_count += 1
                 if state.score is not None:
                     total_valid_dim_weight += dim_cfg.dimension_weight
                     dim_weighted_sum += state.score * dim_cfg.dimension_weight
 
-        # 铁律：关键维度缺失 -> INVALID，强制 composite_score = None
-        if has_critical_dim_invalid:
-            return DataQuality.INVALID, None, "UNAVAILABLE_DUE_TO_DATA_QUALITY"
+        # 检查是否全部有效
+        if not has_any_invalid_dim and not has_any_partial_dim and total_valid_dim_weight > 0:
+            composite_score = round(dim_weighted_sum / total_valid_dim_weight, 2)
+            global_label = self._classify_score(composite_score)
+            return (
+                DataQuality.FULL,
+                composite_score,
+                global_label,
+                round(total_valid_dim_weight, 4),
+                "FULL_WEIGHTED",
+                "full_coverage",
+            )
 
-        if total_valid_dim_weight == 0.0:
-            return DataQuality.INVALID, None, "UNAVAILABLE_DUE_TO_DATA_QUALITY"
+        # 降级分支：存在部分维度缺失或无效
+        # 只要有效加权维度总和 >= 0.30 且至少有有效维度支撑，则保留真实事实并标记 PARTIAL
+        if total_valid_dim_weight >= 0.30 and valid_dim_count >= 2:
+            composite_score = round(dim_weighted_sum / total_valid_dim_weight, 2)
+            base_label = self._classify_score(composite_score)
+            global_label = f"{base_label} (部分降级)"
+            return (
+                DataQuality.PARTIAL,
+                composite_score,
+                global_label,
+                round(total_valid_dim_weight, 4),
+                "RENORMALIZED_VALID_DIMENSIONS",
+                f"partial_available_weight_{round(total_valid_dim_weight, 2)}",
+            )
 
-        # 部分缺失但关键完备 -> PARTIAL，重归一化计算
-        composite_score = round(dim_weighted_sum / total_valid_dim_weight, 2)
-        global_quality = DataQuality.PARTIAL if has_partial_or_optional_invalid else DataQuality.FULL
-        global_label = self._classify_score(composite_score)
-
-        return global_quality, composite_score, global_label
+        # 有效数据极度匮乏 (权重不足 0.30 或有效维度极少) -> INVALID
+        return (
+            DataQuality.INVALID,
+            None,
+            "UNAVAILABLE_DUE_TO_DATA_QUALITY",
+            round(total_valid_dim_weight, 4) if total_valid_dim_weight > 0 else 0.0,
+            "NONE_DUE_TO_INSUFFICIENT_DATA",
+            "insufficient_weight_invalid",
+        )
 
     def _normalize_metric(self, value: float, config: MetricConfig) -> float:
         """根据指标配置的阈值进行 0~100 归一化映射"""
