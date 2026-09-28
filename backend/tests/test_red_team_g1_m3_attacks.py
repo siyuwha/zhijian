@@ -117,7 +117,7 @@ async def test_red_team_g1_m3_all_attacks():
             "trade_time": "2026-09-26 10:05:00",
         })
 
-        # 2.3 持有 200 股试图卖出 201 股（差 1 股越界超卖攻击）
+        # 2.3 持有 200 股试图卖出 201 股（差 1 股零股越界攻击，应被拦截）与 300 股（整手超卖攻击）
         r_oversell_1 = await client.post("/api/v1/trading/records", json={
             "code": "000001",
             "direction": "sell",
@@ -125,7 +125,16 @@ async def test_red_team_g1_m3_all_attacks():
             "quantity": 201,
             "trade_time": "2026-09-26 10:10:00",
         })
-        assert r_oversell_1.status_code == 400, "风控击穿：允许超持仓数量卖出！"
+        assert r_oversell_1.status_code in (400, 422), "风控击穿：允许非整手卖出！"
+
+        r_oversell_2 = await client.post("/api/v1/trading/records", json={
+            "code": "000001",
+            "direction": "sell",
+            "price": 11.00,
+            "quantity": 300,
+            "trade_time": "2026-09-26 10:10:00",
+        })
+        assert r_oversell_2.status_code == 400, "风控击穿：允许超持仓数量卖出！"
 
         # 2.4 加权移动平均成本核算攻击：
         # 再加仓买入 300 股 @ 12.00

@@ -96,13 +96,13 @@ async def test_trading_full_lifecycle():
         pos_600519 = next((p for p in r_pos_check.json()["data"] if p["code"] == "600519"), None)
         assert pos_600519["quantity"] == 300
 
-        # 4. AC-1 第三步：部分减仓卖出 150股 @ 1700.00
+        # 4. AC-1 第三步：部分减仓卖出 100股 @ 1700.00
         sell1_payload = {
             "code": "600519",
             "name": "贵州茅台",
             "direction": "sell",
             "price": 1700.00,
-            "quantity": 150,
+            "quantity": 100,
             "trade_time": "2026-09-26 11:15:00",
             "trade_reason": "触及阻力位减半止盈",
             "source": "manual",
@@ -111,22 +111,22 @@ async def test_trading_full_lifecycle():
         r_sell1 = await client.post("/api/v1/trading/records", json=sell1_payload)
         assert r_sell1.status_code == 200
 
-        # 验证部分减仓后：剩余持仓 150 股，均价依然保持 1620.00 不变，总成本减半
+        # 验证部分减仓后：剩余持仓 200 股，均价依然保持 1620.00 不变，总成本相应减少
         r_pos3 = await client.get("/api/v1/trading/positions?refresh_quote=false")
         pos_600519 = next((p for p in r_pos3.json()["data"] if p["code"] == "600519"), None)
-        assert pos_600519["quantity"] == 150
+        assert pos_600519["quantity"] == 200
         assert pos_600519["avg_cost"] == 1620.00
-        assert pos_600519["total_cost"] == 243000.00
+        assert pos_600519["total_cost"] == 324000.00
 
         # 5. 验证已实现盈亏与单笔卖出胜率统计
         r_stats1 = await client.get("/api/v1/trading/stats")
         assert r_stats1.status_code == 200
         stats1 = r_stats1.json()["data"]
-        # 卖出150股: (1700 - 1620) * 150 = +12,000.00
+        # 卖出100股: (1700 - 1620) * 100 = +8,000.00
         assert stats1["closed_trades"] == 1
         assert stats1["win_trades"] == 1
         assert stats1["closed_leg_win_rate"] == 100.0
-        assert stats1["total_realized_pnl"] == 12000.00
+        assert stats1["total_realized_pnl"] == 8000.00
 
         # 6. AC-2：认知笔记 1:1 强绑定与增量追加测试
         note_create_payload = {
@@ -206,7 +206,7 @@ async def test_trading_full_lifecycle():
         r_stats2 = await client.get("/api/v1/trading/stats")
         stats2 = r_stats2.json()["data"]
         assert stats2["closed_trades"] == 1  # 依然只有 600519 的那笔卖出，冲正卖出被严格隔离排除
-        assert stats2["total_realized_pnl"] == 12000.00
+        assert stats2["total_realized_pnl"] == 8000.00
         assert stats2["closed_leg_win_rate"] == 100.0
 
         # 8. 幂等性与 60s 指纹防重拦截（补丁 5）

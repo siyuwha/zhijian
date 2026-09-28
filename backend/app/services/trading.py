@@ -347,8 +347,11 @@ class TradingService:
 
         return {
             "reversal_record": rev_record,
-            "corrected_record": new_record
+            "corrected_record": new_record,
+            "reversal": rev_record,
+            "corrected": new_record
         }
+
 
     async def _reconcile_single_code(self, code: str) -> Position:
         """针对单只标的顺序回放流水，成对排除冲正对，重算派生持仓"""
