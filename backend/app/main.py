@@ -53,3 +53,11 @@ async def health_check():
         "project": settings.PROJECT_NAME,
         "api_version": "v1"
     }
+
+@app.get("/version")
+async def version_info():
+    return {
+        "status": "ok",
+        "commit": "add942d",
+        "sina_protocol": "http"
+    }
