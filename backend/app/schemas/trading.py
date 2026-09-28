@@ -30,10 +30,22 @@ class TradeRecordCreate(BaseModel):
             raise ValueError("交易方向只能为 buy 或 sell")
         return d
 
+    @field_validator("quantity")
+    @classmethod
+    def validate_quantity(cls, v: int) -> int:
+        if v < 100 or v % 100 != 0:
+            raise ValueError("交易数量必须为 100 股或 100 的整数倍 (一手起报)")
+        return v
+
 class ReversalTradeCreate(BaseModel):
     target_record_id: int = Field(..., description="待红字冲正的原始交易流水ID")
     reason: str = Field(..., min_length=2, max_length=200, description="冲正原因说明")
     idempotency_key: Optional[str] = Field(None, max_length=64, description="客户端幂等唯一键")
+
+class CorrectTradeRecordRequest(BaseModel):
+    target_record_id: int = Field(..., description="待纠错的原始交易流水ID")
+    reason: str = Field(..., min_length=2, max_length=200, description="纠错/修改原因说明")
+    corrected_data: TradeRecordCreate = Field(..., description="修正后的有效交易内容")
 
 class TradeNoteCreate(BaseModel):
     trade_id: int = Field(..., description="关联的具体交易ID（1:1唯一对应）")

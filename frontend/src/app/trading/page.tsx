@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
-import { Position, TradeRecord, TradeStats, TradeRecordCreatePayload, ReversalTradeCreatePayload, TradeNoteCreatePayload } from '@/types/trading';
+import { Position, TradeRecord, TradeStats, TradeRecordCreatePayload, ReversalTradeCreatePayload, TradeNoteCreatePayload, SecuritySearchResult } from '@/types/trading';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   TrendingUp, 
@@ -45,6 +45,7 @@ export default function TradingPage() {
   // 弹窗状态
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
   const [isReversalModalOpen, setIsReversalModalOpen] = useState(false);
+  const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false);
   const [isNoteDrawerOpen, setIsNoteDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -60,6 +61,23 @@ export default function TradingPage() {
   });
   const [reversalTarget, setReversalTarget] = useState<TradeRecord | null>(null);
   const [reversalReason, setReversalReason] = useState('');
+  const [correctionTarget, setCorrectionTarget] = useState<TradeRecord | null>(null);
+  const [correctionReason, setCorrectionReason] = useState('数据录入修正');
+  const [correctionForm, setCorrectionForm] = useState<TradeRecordCreatePayload>({
+    code: '',
+    name: '',
+    direction: 'buy',
+    price: 0,
+    quantity: 100,
+    trade_time: '',
+    trade_reason: '',
+  });
+
+  // 标的代码与名称联动搜索状态
+  const [searchResults, setSearchResults] = useState<SecuritySearchResult[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchTargetModal, setSearchTargetModal] = useState<'trade' | 'correction' | null>(null);
+
   const [selectedRecordForNote, setSelectedRecordForNote] = useState<TradeRecord | null>(null);
   const [noteForm, setNoteForm] = useState({
     mental_state: '',
@@ -117,6 +135,67 @@ export default function TradingPage() {
     loadData(true);
   }, [currentPage, filterDirection, searchCode]);
 
+  // 股票代码与名称联动搜索处理
+  const handleCodeInputChange = async (val: string, targetModal: 'trade' | 'correction') => {
+    const cleanCode = val.trim();
+    if (targetModal === 'trade') {
+      setTradeForm(f => ({ ...f, code: cleanCode }));
+    } else {
+      setCorrectionForm(f => ({ ...f, code: cleanCode }));
+    }
+
+    if (/^\d{6}$/.test(cleanCode)) {
+      try {
+        const results = await api.searchSecurities(cleanCode, 5);
+        const match = results?.find(r => r.code === cleanCode) || results?.[0];
+        if (match && match.code === cleanCode) {
+          if (targetModal === 'trade') {
+            setTradeForm(f => ({ ...f, code: match.code, name: match.name }));
+          } else {
+            setCorrectionForm(f => ({ ...f, code: match.code, name: match.name }));
+          }
+        }
+      } catch (err) {
+        console.error('标的代码联想失败:', err);
+      }
+    }
+  };
+
+  const handleNameInputChange = async (val: string, targetModal: 'trade' | 'correction') => {
+    if (targetModal === 'trade') {
+      setTradeForm(f => ({ ...f, name: val }));
+    } else {
+      setCorrectionForm(f => ({ ...f, name: val }));
+    }
+
+    const query = val.trim();
+    if (query.length >= 1) {
+      try {
+        setSearchTargetModal(targetModal);
+        const results = await api.searchSecurities(query, 8);
+        setSearchResults(results || []);
+        setShowSearchResults((results && results.length > 0) || false);
+      } catch (err) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    } else {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setSearchTargetModal(null);
+    }
+  };
+
+  const handleSelectSecurity = (item: SecuritySearchResult, targetModal: 'trade' | 'correction') => {
+    if (targetModal === 'trade') {
+      setTradeForm(f => ({ ...f, code: item.code, name: item.name }));
+    } else {
+      setCorrectionForm(f => ({ ...f, code: item.code, name: item.name }));
+    }
+    setShowSearchResults(false);
+    setSearchTargetModal(null);
+  };
+
   // 打开新建交易弹窗
   const handleOpenTradeModal = (defaultDirection: 'buy' | 'sell' = 'buy', prefillPosition?: Position) => {
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -129,6 +208,8 @@ export default function TradingPage() {
       trade_time: nowStr,
       trade_reason: '',
     });
+    setShowSearchResults(false);
+    setSearchTargetModal(null);
     setActionError(null);
     setIsTradeModalOpen(true);
   };
@@ -146,8 +227,8 @@ export default function TradingPage() {
       if (tradeForm.price <= 0) {
         throw new Error('成交单价必须大于0');
       }
-      if (tradeForm.quantity <= 0) {
-        throw new Error('成交股数必须为正整数');
+      if (tradeForm.quantity < 100 || tradeForm.quantity % 100 !== 0) {
+        throw new Error('A股买卖数量必须大于等于100且为100的整数倍（整手）');
       }
 
       await api.addTradeRecord({
@@ -161,6 +242,67 @@ export default function TradingPage() {
       setTimeout(() => setActionSuccess(null), 3000);
     } catch (err: any) {
       setActionError(err?.message || '录入交易失败');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 打开纠错弹窗
+  const handleOpenCorrectionModal = (record: TradeRecord) => {
+    setCorrectionTarget(record);
+    setCorrectionReason('数据录入修正');
+    setCorrectionForm({
+      code: record.code,
+      name: record.name || '',
+      direction: record.direction,
+      price: record.price,
+      quantity: record.quantity,
+      trade_time: record.trade_time,
+      trade_reason: record.trade_reason || '',
+    });
+    setShowSearchResults(false);
+    setSearchTargetModal(null);
+    setActionError(null);
+    setIsCorrectionModalOpen(true);
+  };
+
+  // 提交纠错
+  const handleSubmitCorrection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!correctionTarget || isSubmitting) return;
+    setActionError(null);
+
+    if (!correctionForm.code || !/^\d{6}$/.test(correctionForm.code)) {
+      setActionError('股票代码必须为6位纯数字');
+      return;
+    }
+    if (correctionForm.price <= 0) {
+      setActionError('成交单价必须大于0');
+      return;
+    }
+    if (correctionForm.quantity < 100 || correctionForm.quantity % 100 !== 0) {
+      setActionError('A股买卖数量必须大于等于100且为100的整数倍（整手）');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await api.correctTradeRecord({
+        target_record_id: correctionTarget.id,
+        reason: correctionReason.trim() || '数据录入修正',
+        corrected_data: {
+          ...correctionForm,
+          idempotency_key: `corr_${correctionTarget.id}_${Date.now()}`
+        }
+      });
+
+      setActionSuccess(`流水 #${correctionTarget.id} 纠错成功！已生成冲正流水并录入新交易流水。`);
+      setIsCorrectionModalOpen(false);
+      setCorrectionTarget(null);
+      await loadData(true);
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (err: any) {
+      setActionError(err?.message || '纠错操作失败');
     } finally {
       setIsSubmitting(false);
     }
@@ -726,6 +868,17 @@ export default function TradingPage() {
 
                         {!isReversal && (
                           <button
+                            onClick={() => handleOpenCorrectionModal(r)}
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-amber-950/60 hover:bg-amber-900/70 text-amber-300 border border-amber-800/80 transition"
+                            title="修正交易记录（原子化执行：冲销原交易 + 录入新交易 + 迁移笔记）"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            纠错
+                          </button>
+                        )}
+
+                        {!isReversal && (
+                          <button
                             onClick={() => handleOpenReversalModal(r)}
                             className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-slate-800/80 hover:bg-rose-950/50 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 transition"
                             title="对错账生成等量反向对冲记录，成对排除在胜率盈亏核算之外"
@@ -846,7 +999,7 @@ export default function TradingPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 relative">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">股票代码 *</label>
                   <input
@@ -854,19 +1007,38 @@ export default function TradingPage() {
                     required
                     placeholder="600519"
                     value={tradeForm.code}
-                    onChange={(e) => setTradeForm(f => ({ ...f, code: e.target.value.trim() }))}
+                    onChange={(e) => handleCodeInputChange(e.target.value, 'trade')}
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 font-mono"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">股票名称</label>
+                <div className="relative">
+                  <label className="block text-xs text-slate-400 mb-1">股票名称 (支持拼音/汉字联想)</label>
                   <input
                     type="text"
-                    placeholder="贵州茅台"
+                    placeholder="例如 茅台 / gzmt"
                     value={tradeForm.name || ''}
-                    onChange={(e) => setTradeForm(f => ({ ...f, name: e.target.value }))}
+                    onChange={(e) => handleNameInputChange(e.target.value, 'trade')}
+                    onFocus={() => {
+                      if (searchResults.length > 0 && searchTargetModal === 'trade') {
+                        setShowSearchResults(true);
+                      }
+                    }}
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100"
                   />
+                  {showSearchResults && searchTargetModal === 'trade' && searchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                      {searchResults.map((item) => (
+                        <div
+                          key={item.code}
+                          onClick={() => handleSelectSecurity(item, 'trade')}
+                          className="px-3 py-2 text-xs hover:bg-teal-900/40 cursor-pointer flex items-center justify-between border-b border-slate-700/50 last:border-b-0"
+                        >
+                          <span className="font-semibold text-slate-200">{item.name}</span>
+                          <span className="text-slate-400 font-mono">{item.code} ({item.market})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -884,16 +1056,19 @@ export default function TradingPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">成交数量 (股) *</label>
+                  <label className="block text-xs text-slate-400 mb-1">成交数量 (股) * (整手 ≥ 100)</label>
                   <input
                     type="number"
                     step="100"
-                    min="1"
+                    min="100"
                     required
                     value={tradeForm.quantity || ''}
                     onChange={(e) => setTradeForm(f => ({ ...f, quantity: parseInt(e.target.value, 10) || 0 }))}
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 font-mono"
                   />
+                  {tradeForm.quantity > 0 && (tradeForm.quantity < 100 || tradeForm.quantity % 100 !== 0) && (
+                    <p className="text-xs text-rose-400 mt-1">数量必须 ≥ 100 且为 100 的整数倍</p>
+                  )}
                 </div>
               </div>
 
@@ -999,6 +1174,193 @@ export default function TradingPage() {
                   className="px-5 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition shadow-sm disabled:opacity-50"
                 >
                   {isSubmitting ? '正在对冲...' : '确认生成冲正对冲'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 弹窗 4: 交易记录纠错弹窗 (Correction Modal) */}
+      {isCorrectionModalOpen && correctionTarget && (
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-amber-900/60 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-amber-300 flex items-center gap-2">
+                <RotateCcw className="w-5 h-5 text-amber-400" />
+                交易记录纠错 (Truth Ledger Correction)
+              </h3>
+              <button onClick={() => setIsCorrectionModalOpen(false)} className="text-slate-400 hover:text-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-amber-950/30 border border-amber-900/60 rounded p-3 text-xs text-amber-200/90 leading-relaxed">
+              <strong>审计不可篡改闭环保障：</strong> 系统将原子化自动生成一条冲正流水（REVERSAL）抵消原记录 #{correctionTarget.id}，同时生成一条全新正确的交易事实流水，并自动迁移复盘反思笔记及重新核算对齐持仓。
+            </div>
+
+            <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs space-y-1 font-mono text-slate-400">
+              <div className="text-slate-500 font-sans font-semibold">原错误流水事实快照:</div>
+              <div>流水 #{correctionTarget.id} | {correctionTarget.name || correctionTarget.code} ({correctionTarget.code}) | {correctionTarget.direction.toUpperCase()}</div>
+              <div>单价: ¥{correctionTarget.price.toFixed(2)} | 数量: {correctionTarget.quantity.toLocaleString()} 股 | 总额: ¥{correctionTarget.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</div>
+            </div>
+
+            <form onSubmit={handleSubmitCorrection} className="space-y-4 text-sm">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">纠错原因 / 修正说明 *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="例如：成交单价录入笔误 / 调整成交数量..."
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 text-xs"
+                />
+              </div>
+
+              {/* 方向切换 */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCorrectionForm(f => ({ ...f, direction: 'buy' }))}
+                  className={`flex-1 py-1.5 text-center rounded-lg font-bold text-xs transition border ${
+                    correctionForm.direction === 'buy'
+                      ? 'bg-red-950 text-red-300 border-red-700'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}
+                >
+                  买入 (Buy)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCorrectionForm(f => ({ ...f, direction: 'sell' }))}
+                  className={`flex-1 py-1.5 text-center rounded-lg font-bold text-xs transition border ${
+                    correctionForm.direction === 'sell'
+                      ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}
+                >
+                  卖出 (Sell)
+                </button>
+              </div>
+
+              {/* 股票代码与名称联动 */}
+              <div className="grid grid-cols-2 gap-3 relative">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">股票代码 *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="600519"
+                    value={correctionForm.code}
+                    onChange={(e) => handleCodeInputChange(e.target.value, 'correction')}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 font-mono"
+                  />
+                </div>
+                <div className="relative">
+                  <label className="block text-xs text-slate-400 mb-1">股票名称 (支持拼音/汉字联想)</label>
+                  <input
+                    type="text"
+                    placeholder="例如 茅台 / gzmt"
+                    value={correctionForm.name || ''}
+                    onChange={(e) => handleNameInputChange(e.target.value, 'correction')}
+                    onFocus={() => {
+                      if (searchResults.length > 0 && searchTargetModal === 'correction') {
+                        setShowSearchResults(true);
+                      }
+                    }}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100"
+                  />
+                  {showSearchResults && searchTargetModal === 'correction' && searchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                      {searchResults.map((item) => (
+                        <div
+                          key={item.code}
+                          onClick={() => handleSelectSecurity(item, 'correction')}
+                          className="px-3 py-2 text-xs hover:bg-teal-900/40 cursor-pointer flex items-center justify-between border-b border-slate-700/50 last:border-b-0"
+                        >
+                          <span className="font-semibold text-slate-200">{item.name}</span>
+                          <span className="text-slate-400 font-mono">{item.code} ({item.market})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 单价与数量 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">修正单价 (元) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={correctionForm.price || ''}
+                    onChange={(e) => setCorrectionForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">修正数量 (股) * (整手 ≥ 100)</label>
+                  <input
+                    type="number"
+                    step="100"
+                    min="100"
+                    required
+                    value={correctionForm.quantity || ''}
+                    onChange={(e) => setCorrectionForm(f => ({ ...f, quantity: parseInt(e.target.value, 10) || 0 }))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 font-mono"
+                  />
+                  {correctionForm.quantity > 0 && (correctionForm.quantity < 100 || correctionForm.quantity % 100 !== 0) && (
+                    <p className="text-xs text-rose-400 mt-1">数量必须 ≥ 100 且为 100 的整数倍</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">成交时间 (YYYY-MM-DD HH:MM:SS) *</label>
+                <input
+                  type="text"
+                  required
+                  value={correctionForm.trade_time}
+                  onChange={(e) => setCorrectionForm(f => ({ ...f, trade_time: e.target.value }))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">交易理由说明</label>
+                <textarea
+                  rows={2}
+                  value={correctionForm.trade_reason || ''}
+                  onChange={(e) => setCorrectionForm(f => ({ ...f, trade_reason: e.target.value }))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 text-xs"
+                />
+              </div>
+
+              <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs font-mono flex justify-between text-slate-400">
+                <span>修正后成交总额:</span>
+                <span className="font-bold text-amber-300">
+                  ¥{(correctionForm.price * correctionForm.quantity).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCorrectionModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 text-xs font-medium"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 rounded-lg text-xs font-bold transition shadow-sm disabled:opacity-50"
+                >
+                  {isSubmitting ? '正在纠错重算...' : '确认执行纠错'}
                 </button>
               </div>
             </form>

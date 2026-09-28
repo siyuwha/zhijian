@@ -72,3 +72,7 @@ class DataService:
 
     async def get_capital_flow(self, code: str) -> DataResult:
         return await self._execute_cached("capital_flow", "get_capital_flow", code)
+
+    async def search_securities(self, query: str, limit: int = 10) -> DataResult:
+        return await self._execute_cached("security_search", "search_security", query, limit)
+

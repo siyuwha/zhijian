@@ -102,3 +102,11 @@ class CapitalFlowCapability(ABC):
     @abstractmethod
     async def get_capital_flow(self, code: str) -> DataResult:
         pass
+
+class SecuritySearchCapability(ABC):
+    """证券主数据与代码/名称/拼音模糊搜索能力"""
+    @abstractmethod
+    async def search_security(self, query: str, limit: int = 10) -> DataResult:
+        """根据代码、中文简称或拼音首字母模糊搜索证券"""
+        pass
+

@@ -16,7 +16,10 @@ import {
 import {
   Activity,
   AlertTriangle,
+  ArrowDown,
   ArrowDownRight,
+  ArrowUp,
+  ArrowUpDown,
   ArrowUpRight,
   BarChart3,
   Bell,
@@ -50,6 +53,35 @@ export default function MonitorPage() {
   const [severityFilter, setSeverityFilter] = useState<string | null>(null);
   const [triggeringScan, setTriggeringScan] = useState<boolean>(false);
   const [hoveredPoint, setHoveredPoint] = useState<MacroSnapshotItem | null>(null);
+
+  // 重点监控池三态排序状态 (P1-E: 默认 -> 降序 -> 升序 -> 默认，纯前端内存排序，0网络开销)
+  type WatchlistSortField = 'open_pct' | 'current_pct' | 'amount_yi' | null;
+  type WatchlistSortOrder = 'asc' | 'desc' | null;
+  const [sortField, setSortField] = useState<WatchlistSortField>(null);
+  const [sortOrder, setSortOrder] = useState<WatchlistSortOrder>(null);
+
+  const handleWatchlistSort = (field: 'open_pct' | 'current_pct' | 'amount_yi') => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortOrder('desc'); // 第一击：降序
+    } else if (sortOrder === 'desc') {
+      setSortOrder('asc');  // 第二击：升序
+    } else {
+      setSortField(null);   // 第三击：重置默认
+      setSortOrder(null);
+    }
+  };
+
+  const sortedWatchlist = useMemo(() => {
+    const list = realtime?.watchlist ? [...realtime.watchlist] : [];
+    if (!sortField || !sortOrder) return list;
+
+    return list.sort((a, b) => {
+      const valA = a[sortField] ?? -999999;
+      const valB = b[sortField] ?? -999999;
+      return sortOrder === 'desc' ? valB - valA : valA - valB;
+    });
+  }, [realtime?.watchlist, sortField, sortOrder]);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -562,14 +594,65 @@ export default function MonitorPage() {
                     <tr>
                       <th className="py-2.5 px-3">代码 / 名称</th>
                       <th className="py-2.5 px-2">盘中状态</th>
-                      <th className="py-2.5 px-2 text-right">竞价开盘</th>
-                      <th className="py-2.5 px-2 text-right">当前涨幅</th>
-                      <th className="py-2.5 px-3 text-right">成交额</th>
+                      <th 
+                        className="py-2.5 px-2 text-right cursor-pointer select-none hover:text-cyan-300 transition-colors"
+                        onClick={() => handleWatchlistSort('open_pct')}
+                        title="点击按竞价开盘排序 (默认/降序/升序)"
+                      >
+                        <div className="inline-flex items-center gap-1 justify-end">
+                          <span>竞价开盘</span>
+                          {sortField === 'open_pct' ? (
+                            sortOrder === 'desc' ? (
+                              <ArrowDown className="w-3 h-3 text-cyan-400" />
+                            ) : (
+                              <ArrowUp className="w-3 h-3 text-cyan-400" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-600 opacity-60" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="py-2.5 px-2 text-right cursor-pointer select-none hover:text-cyan-300 transition-colors"
+                        onClick={() => handleWatchlistSort('current_pct')}
+                        title="点击按当前涨幅排序 (默认/降序/升序)"
+                      >
+                        <div className="inline-flex items-center gap-1 justify-end">
+                          <span>当前涨幅</span>
+                          {sortField === 'current_pct' ? (
+                            sortOrder === 'desc' ? (
+                              <ArrowDown className="w-3 h-3 text-cyan-400" />
+                            ) : (
+                              <ArrowUp className="w-3 h-3 text-cyan-400" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-600 opacity-60" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="py-2.5 px-3 text-right cursor-pointer select-none hover:text-cyan-300 transition-colors"
+                        onClick={() => handleWatchlistSort('amount_yi')}
+                        title="点击按成交额排序 (默认/降序/升序)"
+                      >
+                        <div className="inline-flex items-center gap-1 justify-end">
+                          <span>成交额</span>
+                          {sortField === 'amount_yi' ? (
+                            sortOrder === 'desc' ? (
+                              <ArrowDown className="w-3 h-3 text-cyan-400" />
+                            ) : (
+                              <ArrowUp className="w-3 h-3 text-cyan-400" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-600 opacity-60" />
+                          )}
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-mono">
-                    {realtime?.watchlist && realtime.watchlist.length > 0 ? (
-                      realtime.watchlist.map((item, idx) => (
+                    {sortedWatchlist && sortedWatchlist.length > 0 ? (
+                      sortedWatchlist.map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
                           <td className="py-2 px-3 font-medium text-slate-200">
                             <div>{item.name}</div>

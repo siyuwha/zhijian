@@ -6,10 +6,22 @@ from ...services.trading import TradingService
 from ...schemas.trading import (
     TradeRecordCreate,
     ReversalTradeCreate,
+    CorrectTradeRecordRequest,
     TradeNoteCreate,
 )
 
 router = APIRouter(prefix="/trading", tags=["Trading"])
+
+@router.get("/security/search")
+async def search_securities(
+    q: str = Query(..., min_length=1, description="股票代码/名称/首字母拼音"),
+    limit: int = Query(10, ge=1, le=50, description="返回数量"),
+    db: AsyncSession = Depends(get_db),
+):
+    """A股证券主数据与代码/名称/拼音模糊搜索 (P1-A)"""
+    service = TradingService(db)
+    results = await service.search_securities(query=q, limit=limit)
+    return {"code": 200, "data": results}
 
 @router.get("/records")
 async def list_records(
@@ -38,6 +50,13 @@ async def reverse_record(payload: ReversalTradeCreate, db: AsyncSession = Depend
     service = TradingService(db)
     rev_record = await service.create_reversal_record(payload)
     return {"code": 200, "data": rev_record}
+
+@router.post("/records/correct")
+async def correct_record(payload: CorrectTradeRecordRequest, db: AsyncSession = Depends(get_db)):
+    """对既有流水执行审计链安全纠错 (P1-C: 生成冲正消除原交易 + 创建修正新交易)"""
+    service = TradingService(db)
+    res = await service.correct_trade_record(payload)
+    return {"code": 200, "data": res}
 
 @router.get("/records/{id}")
 async def get_record(id: int = Path(..., description="交易记录ID"), db: AsyncSession = Depends(get_db)):

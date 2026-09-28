@@ -169,7 +169,7 @@ export default function Dashboard() {
             <div className="flex justify-between items-center">
               <CardTitle className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-teal-400" />
-                最新收盘市场客观状态 (M1.4 向量)
+                最新收盘市场客观状态向量
               </CardTitle>
               <span className="text-xs text-slate-500 font-mono">基准日: {reportDate}</span>
             </div>
@@ -266,7 +266,7 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center gap-2 text-amber-400 mb-2">
                     <Sun className="w-5 h-5" />
-                    <span className="font-semibold text-sm">M2 盘前简报</span>
+                    <span className="font-semibold text-sm">盘前简报</span>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     08:00 自动生成 · 隔夜外盘三大股指、富时 A50、大宗商品及早盘观察重点
@@ -285,7 +285,7 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center gap-2 text-emerald-400 mb-2">
                     <Clock className="w-5 h-5" />
-                    <span className="font-semibold text-sm">M3 竞价事实</span>
+                    <span className="font-semibold text-sm">竞价事实</span>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     09:26 自动生成 · 09:25 开盘集合竞价总额、竞价量能比与高标开盘承接
@@ -304,7 +304,7 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center gap-2 text-cyan-400 mb-2">
                     <Radio className="w-5 h-5" />
-                    <span className="font-semibold text-sm">M4 盘中动态</span>
+                    <span className="font-semibold text-sm">盘中动态</span>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     盘中 60 秒轮询 · 分时走势、量能投影 W(T)、边沿跃迁与系统性共振雷达
@@ -323,7 +323,7 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center gap-2 text-indigo-400 mb-2">
                     <FileText className="w-5 h-5" />
-                    <span className="font-semibold text-sm">M1 收盘复盘</span>
+                    <span className="font-semibold text-sm">盘后复盘</span>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     15:35 自动生成 · 全景六维认知向量 D1~D6、市场广度、连板生态全景归档
@@ -341,7 +341,7 @@ export default function Dashboard() {
       {/* 第四区: 底部法定免责声明 */}
       <div className="p-4 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-slate-400 leading-relaxed">
         <span className="text-slate-300 font-semibold">【客观物理事实测量提示】</span>
-        本系统所有模块（M1 收盘复盘、M2 盘前简报、M3 竞价事实、M4 盘中动态）仅对市场量价、流动性及衍生数据进行客观时间序列测量与物理结构呈现，绝不提供任何买卖建议、交易信号或主观投资咨询。所有客观度量均需结合投资者个人独立研判。
+        本系统所有模块（盘后复盘、盘前简报、竞价事实、盘中动态）仅对市场量价、流动性及衍生数据进行客观时间序列测量与物理结构呈现，绝不提供任何买卖建议、交易信号或主观投资咨询。所有客观度量均需结合投资者个人独立研判。
       </div>
     </div>
   );

@@ -165,11 +165,11 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
             <div className="flex items-center gap-3">
               <Sunrise className="w-8 h-8 text-amber-400" />
               <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                M2 盘前全景简报 · {date}
+                盘前全景简报 · {date}
               </h1>
             </div>
             <p className="text-xs md:text-sm text-slate-400">
-              汇聚隔夜外盘波动 · 继承前日 M1.4 状态向量 · 4 维客观观察方向推演
+              汇聚隔夜外盘波动 · 继承前日状态向量 · 4 维客观观察方向推演
             </p>
           </div>
         </div>
@@ -251,7 +251,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-indigo-400" />
             <h2 className="text-lg font-bold text-white tracking-wide">
-              前日 M1.4 纯净状态向量继承
+              前日纯净状态向量继承
             </h2>
             <span className="text-xs text-slate-400">（物理事实承接 · 防标量塌缩）</span>
           </div>

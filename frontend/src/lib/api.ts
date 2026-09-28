@@ -131,6 +131,14 @@ export const api = {
     fetchAPI<import('@/types/trading').TradeNote>(`/trading/notes/${tradeId}`),
   reconcilePositions: (code?: string) =>
     fetchAPI<any>(`/trading/reconcile${code ? `?code=${code}` : ''}`, { method: 'POST' }),
+  searchSecurities: (q: string, limit: number = 10) =>
+    fetchAPI<import('@/types/trading').SecuritySearchResult[]>(`/trading/security/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  correctTradeRecord: (payload: import('@/types/trading').CorrectTradeRecordPayload) =>
+    fetchAPI<{ reversal: import('@/types/trading').TradeRecord; corrected: import('@/types/trading').TradeRecord }>('/trading/records/correct', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
 
   // =========================================================================
   // G1-Cognition 验证闭环增强接口

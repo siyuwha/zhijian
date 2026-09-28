@@ -42,4 +42,7 @@ def init_providers():
     registry.register("news", "cls", cls, is_primary=True)
     registry.register("news", "sina", sina, is_primary=False)
 
+    # 证券主数据模糊搜索
+    registry.register("security_search", "eastmoney", east, is_primary=True)
+
 init_providers()

@@ -9,6 +9,7 @@ from ..models.trading import TradeRecord, Position, TradeNote
 from ..schemas.trading import (
     TradeRecordCreate,
     ReversalTradeCreate,
+    CorrectTradeRecordRequest,
     TradeNoteCreate,
     TradeRecordResponse,
     PositionResponse,
@@ -103,6 +104,13 @@ class TradingService:
             cleaned_name = cleaned_name.replace("?", "").replace("？", "").strip()
             if not cleaned_name:
                 cleaned_name = None
+        if not cleaned_name or cleaned_name == payload.code:
+            try:
+                sec_list = await self.search_securities(payload.code, limit=1)
+                if sec_list and sec_list[0].get("name"):
+                    cleaned_name = sec_list[0]["name"].strip()
+            except Exception:
+                pass
         if not cleaned_name:
             cleaned_name = pos.name if (pos and pos.name and "?" not in pos.name) else payload.code
 
@@ -226,6 +234,122 @@ class TradingService:
         await self.session.refresh(rev_record)
         return rev_record
 
+    async def correct_trade_record(self, payload: CorrectTradeRecordRequest) -> Dict[str, Any]:
+        """
+        对既有交易执行审计链不可篡改纠错 (P1-C)
+        流程：
+        1. 验证目标交易 target_record 存在且为有效 TRADE (未被冲正)
+        2. 生成系统冲正流水 REVERSAL，消除原交易对账本与持仓的影响
+        3. 生成修正后的新交易流水 TRADE，记录溯源信息
+        4. 顺序重放持仓 (若代码发生变更，同时重算原标的与新标的持仓)
+        5. 提交事务，触发新交易的解耦认知诊断
+        """
+        stmt = select(TradeRecord).where(TradeRecord.id == payload.target_record_id)
+        target = (await self.session.execute(stmt)).scalars().first()
+        if not target:
+            raise HTTPException(status_code=404, detail="待纠错的交易记录不存在")
+        if target.record_type != "TRADE":
+            raise HTTPException(status_code=400, detail="只能对正常交易流水 (TRADE) 进行纠错")
+
+        stmt_rev_check = select(TradeRecord).where(TradeRecord.reversed_record_id == target.id)
+        already_reversed = (await self.session.execute(stmt_rev_check)).scalars().first()
+        if already_reversed:
+            raise HTTPException(status_code=400, detail="该记录已被冲正或纠错，不可重复操作")
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        rev_direction = "sell" if target.direction == "buy" else "buy"
+        rev_amount = round(target.price * target.quantity, 2)
+
+        # 1. 创建红字冲正流水
+        rev_record = TradeRecord(
+            code=target.code,
+            name=target.name,
+            direction=rev_direction,
+            price=target.price,
+            quantity=target.quantity,
+            amount=rev_amount,
+            trade_time=now_str,
+            trade_reason=f"[纠错冲正: 抵消流水#{target.id}] {payload.reason}",
+            source=target.source,
+            record_type="REVERSAL",
+            reversed_record_id=target.id,
+            idempotency_key=f"correct_rev_{target.id}_{int(time.time()*1000)}"
+        )
+        self.session.add(rev_record)
+        await self.session.flush()
+
+        # 2. 准备修正后的新交易数据
+        corr = payload.corrected_data
+        corr_amount = round(corr.price * corr.quantity, 2)
+        corr_name = corr.name
+        if corr_name:
+            corr_name = corr_name.replace("?", "").replace("？", "").strip()
+            if not corr_name:
+                corr_name = None
+        if not corr_name or corr_name == corr.code:
+            try:
+                sec_list = await self.search_securities(corr.code, limit=1)
+                if sec_list and sec_list[0].get("name"):
+                    corr_name = sec_list[0]["name"].strip()
+            except Exception:
+                pass
+        if not corr_name:
+            corr_name = corr.code
+
+        new_record = TradeRecord(
+            code=corr.code,
+            name=corr_name,
+            direction=corr.direction.lower(),
+            price=corr.price,
+            quantity=corr.quantity,
+            amount=corr_amount,
+            trade_time=corr.trade_time,
+            trade_reason=f"[纠错修正自流水#{target.id}] {corr.trade_reason or payload.reason}",
+            source=corr.source,
+            record_type="TRADE",
+            reversed_record_id=None,
+            idempotency_key=corr.idempotency_key or f"corr_new_{target.id}_{int(time.time()*1000)}"
+        )
+        self.session.add(new_record)
+        await self.session.flush()
+
+        # 3. 继承或迁移复盘笔记 (若原交易有笔记)
+        stmt_note = select(TradeNote).where(TradeNote.trade_id == target.id)
+        target_note = (await self.session.execute(stmt_note)).scalars().first()
+        if target_note:
+            new_note = TradeNote(
+                trade_id=new_record.id,
+                date=target_note.date,
+                mental_state=target_note.mental_state,
+                decision_logic=target_note.decision_logic,
+                reflection=target_note.reflection,
+                lessons=f"[从流水#{target.id}纠错继承] {target_note.lessons or ''}"
+            )
+            self.session.add(new_note)
+
+        # 4. 全量重放受影响标的的持仓
+        await self._reconcile_single_code(target.code)
+        if corr.code != target.code:
+            await self._reconcile_single_code(corr.code)
+
+        await self.session.commit()
+        await self.session.refresh(rev_record)
+        await self.session.refresh(new_record)
+
+        # 5. 解耦触发新交易的认知诊断
+        try:
+            from .cognition_review import CognitionReviewService
+            cog_service = CognitionReviewService(self.session)
+            await cog_service.diagnose_trade(new_record.id)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"纠错新交易 #{new_record.id} 自动认知诊断触发降级: {e}")
+
+        return {
+            "reversal_record": rev_record,
+            "corrected_record": new_record
+        }
+
     async def _reconcile_single_code(self, code: str) -> Position:
         """针对单只标的顺序回放流水，成对排除冲正对，重算派生持仓"""
         stmt = select(TradeRecord).where(TradeRecord.code == code).order_by(TradeRecord.trade_time.asc(), TradeRecord.id.asc())
@@ -295,6 +419,50 @@ class TradingService:
         
         await self.session.commit()
         return {"status": "SUCCESS", "reconciled_codes": codes, "positions": results}
+
+    async def search_securities(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """A股标的代码/名称/拼音双向搜索 (支持本地持仓库优先聚合与外部主数据模糊搜索)"""
+        if not query or not str(query).strip():
+            return []
+        q = str(query).strip().lower()
+
+        results = []
+        seen_codes = set()
+
+        # 1. 优先从本地 Position 与 TradeRecord 匹配已交易的标的 (毫秒级响应)
+        try:
+            stmt_pos = select(Position).where(
+                or_(Position.code.like(f"%{q}%"), Position.name.like(f"%{q}%"))
+            ).limit(limit)
+            local_pos = (await self.session.execute(stmt_pos)).scalars().all()
+            for p in local_pos:
+                if p.code and p.code not in seen_codes:
+                    seen_codes.add(p.code)
+                    results.append({
+                        "code": p.code,
+                        "name": p.name or p.code,
+                        "pinyin": "",
+                        "market": "持仓标的"
+                    })
+        except Exception:
+            pass
+
+        # 2. 从外部标准证券主数据搜索补全
+        try:
+            ext_res = await self.data_service.search_securities(q, limit=limit)
+            if ext_res and ext_res.data:
+                for item in ext_res.data:
+                    c = item.get("code")
+                    if c and c not in seen_codes:
+                        seen_codes.add(c)
+                        results.append(item)
+                        if len(results) >= limit:
+                            break
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"外部证券搜索异常: {e}")
+
+        return results[:limit]
 
     async def get_positions(self, refresh_quote: bool = True) -> List[Dict[str, Any]]:
         """

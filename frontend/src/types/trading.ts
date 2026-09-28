@@ -89,3 +89,18 @@ export interface TradeNoteCreatePayload {
   lessons?: string;
   append_mode?: boolean;
 }
+
+export interface SecuritySearchResult {
+  code: string;
+  name: string;
+  market: string;
+  security_type: string;
+  pinyin?: string;
+}
+
+export interface CorrectTradeRecordPayload {
+  target_record_id: number;
+  reason: string;
+  corrected_data: TradeRecordCreatePayload;
+}
+

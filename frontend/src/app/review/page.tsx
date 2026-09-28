@@ -104,7 +104,7 @@ export default function ReviewPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Activity className="w-6 h-6 text-teal-400" />
-            <h1 className="text-2xl font-bold tracking-tight text-white">收盘认知复盘 (M1)</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-white">收盘认知复盘</h1>
           </div>
           <p className="text-sm text-slate-400">
             真实多源行情驱动 · 六维正交状态向量 · 物理分级客观表征 · 零填充防伪

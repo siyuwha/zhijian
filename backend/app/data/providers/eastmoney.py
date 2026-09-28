@@ -1,5 +1,6 @@
 import logging
-from typing import Optional
+import urllib.parse
+from typing import Optional, List, Dict, Any
 import httpx
 from .base import BaseProvider
 from ..capabilities import (
@@ -8,11 +9,12 @@ from ..capabilities import (
     MarketBreadthCapability,
     MicroCapCapability,
     HighTierPerformanceCapability,
+    SecuritySearchCapability,
 )
 
 logger = logging.getLogger(__name__)
 
-class EastmoneyProvider(BaseProvider, MarketBreadthCapability, MicroCapCapability, HighTierPerformanceCapability):
+class EastmoneyProvider(BaseProvider, MarketBreadthCapability, MicroCapCapability, HighTierPerformanceCapability, SecuritySearchCapability):
     """
     东方财富全市场广度、风格及高标数据适配器
     实现：
@@ -252,4 +254,42 @@ class EastmoneyProvider(BaseProvider, MarketBreadthCapability, MicroCapCapabilit
         except Exception as e:
             logger.error(f"Eastmoney get_large_cap_turnover_cores failed: {e}")
             return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
+    async def search_security(self, query: str, limit: int = 10) -> DataResult:
+        """
+        A股证券代码/名称/拼音前缀模糊搜索 (支持6位代码、中文名称、首字母拼音)
+        """
+        if not query or not str(query).strip():
+            return DataResult(data=[], quality=DataQuality.FULL, provider=self.name)
+
+        q = str(query).strip()
+        try:
+            url = f"https://searchapi.eastmoney.com/api/suggest/get?type=14&token=D43BF722C8E33BDC906FB84D85E326E8&input={urllib.parse.quote(q)}"
+            async with httpx.AsyncClient(timeout=5.0, trust_env=False, follow_redirects=True) as client:
+                resp = await client.get(url, headers=self.HEADERS)
+                data = resp.json()
+
+            raw_items = data.get("QuotationCodeTable", {}).get("Data", []) or []
+            results = []
+            for item in raw_items:
+                classify = item.get("Classify", "")
+                code = item.get("Code", "")
+                name = item.get("Name", "")
+                pinyin = item.get("PinYin", "")
+                # 仅保留A股主板、科创板、创业板、北交所主板证券
+                if classify in ("AStock", "BSEStock") or (len(code) == 6 and code.startswith(("60", "68", "00", "30", "8", "4", "92"))):
+                    results.append({
+                        "code": code,
+                        "name": name,
+                        "pinyin": pinyin,
+                        "market": item.get("SecurityTypeName", "")
+                    })
+                    if len(results) >= limit:
+                        break
+
+            return DataResult(data=results, quality=DataQuality.FULL, provider=self.name)
+        except Exception as e:
+            logger.warning(f"Eastmoney search_security failed for '{q}': {e}")
+            return DataResult(data=[], quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
 
