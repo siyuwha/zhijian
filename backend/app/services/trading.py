@@ -313,8 +313,14 @@ class TradingService:
                 quote_map = {}
                 if data_result and data_result.data:
                     for item in data_result.data:
-                        if isinstance(item, dict) and "code" in item:
-                            quote_map[item["code"]] = item
+                        if isinstance(item, dict):
+                            if "code" in item:
+                                quote_map[item["code"]] = item
+                                # 剥离市场前缀作为 key (例如 sh600519 -> 600519)
+                                clean_code = str(item["code"]).replace("sh", "").replace("sz", "").replace("bj", "")
+                                quote_map[clean_code] = item
+                            if "symbol" in item:
+                                quote_map[item["symbol"]] = item
 
                 is_live = self._is_market_trading_time()
                 for pos in positions:

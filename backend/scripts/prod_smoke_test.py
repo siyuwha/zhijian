@@ -15,6 +15,7 @@ import urllib.request
 import urllib.parse
 import json
 import time
+from datetime import datetime
 import os
 import sys
 
@@ -255,7 +256,7 @@ def run_smoke_test():
     print("生产冒烟 8 项核验汇总:")
     print("=" * 60)
     for r in results:
-        badge = "🟢 PASS" if r["status"] == "PASS" else "🔴 FAIL"
+        badge = "PASS" if r["status"] == "PASS" else "FAIL"
         print(f"[{badge}] {r['check_id']} {r['name']} - {r['detail']}")
 
     all_passed = all(r["status"] == "PASS" for r in results)
