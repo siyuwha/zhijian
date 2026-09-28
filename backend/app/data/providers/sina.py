@@ -44,7 +44,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
         try:
             # 确保代码以 s_ 为前缀（简版行情）
             formatted_codes = [c if c.startswith("s_") else f"s_{c}" for c in codes]
-            url = f"https://hq.sinajs.cn/list={','.join(formatted_codes)}"
+            url = f"http://hq.sinajs.cn/list={','.join(formatted_codes)}"
 
             async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
@@ -116,7 +116,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                         # 批次之间增加 150ms ~ 300ms 随机 Jitter 间隔
                         await asyncio.sleep(random.uniform(0.15, 0.30))
 
-                    url = f"https://hq.sinajs.cn/list={','.join(chunk)}"
+                    url = f"http://hq.sinajs.cn/list={','.join(chunk)}"
                     content = ""
                     max_retries = 3
                     for retry in range(max_retries):
@@ -140,87 +140,90 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                         continue
 
                     for line in content.strip().split("\n"):
-                        if not line or '="' in line and line.endswith('";'):
-                            var_name, val = line.split("=", 1)
-                            full_code = var_name.split("_")[-1].replace('"', '')
-                            symbol = full_code[-6:] if len(full_code) >= 6 else full_code
-                            val_str = val.strip().strip('";')
-                            parts = val_str.split(",")
-                            if len(parts) >= 32:
-                                name = parts[0]
-                                open_price = float(parts[1]) if parts[1] else None
-                                prev_close = float(parts[2]) if parts[2] else None
-                                price = float(parts[3]) if parts[3] else None
-                                high = float(parts[4]) if parts[4] else None
-                                low = float(parts[5]) if parts[5] else None
-                                volume = float(parts[8]) if parts[8] else None
-                                amount = float(parts[9]) if parts[9] else None
+                        line = line.strip()
+                        if not line or "=" not in line:
+                            continue
+                        var_name, val = line.split("=", 1)
+                        full_code = var_name.split("_")[-1].replace('"', '').strip()
+                        symbol = full_code[-6:] if len(full_code) >= 6 else full_code
+                        val_str = val.strip().strip('";')
+                        parts = val_str.split(",")
+                        if len(parts) >= 32:
+                            name = parts[0].strip()
+                            open_price = float(parts[1]) if parts[1] else None
+                            prev_close = float(parts[2]) if parts[2] else None
+                            price = float(parts[3]) if parts[3] else None
+                            high = float(parts[4]) if parts[4] else None
+                            low = float(parts[5]) if parts[5] else None
+                            volume = float(parts[8]) if parts[8] else None
+                            amount = float(parts[9]) if parts[9] else None
 
-                                # 盘口档位提取 (买一/卖一)
-                                bid1_vol = float(parts[10]) if len(parts) > 10 and parts[10] else 0.0
-                                bid1_price = float(parts[11]) if len(parts) > 11 and parts[11] else 0.0
-                                ask1_vol = float(parts[20]) if len(parts) > 20 and parts[20] else 0.0
-                                ask1_price = float(parts[21]) if len(parts) > 21 and parts[21] else 0.0
-                                bid1_amount = round(bid1_vol * bid1_price, 2)
-                                bid1_amount_wan = round(bid1_amount / 10000.0, 2)
+                            # 盘口档位提取 (买一/卖一)
+                            bid1_vol = float(parts[10]) if len(parts) > 10 and parts[10] else 0.0
+                            bid1_price = float(parts[11]) if len(parts) > 11 and parts[11] else 0.0
+                            ask1_vol = float(parts[20]) if len(parts) > 20 and parts[20] else 0.0
+                            ask1_price = float(parts[21]) if len(parts) > 21 and parts[21] else 0.0
+                            bid1_amount = round(bid1_vol * bid1_price, 2)
+                            bid1_amount_wan = round(bid1_amount / 10000.0, 2)
 
-                                trade_date = parts[30] if len(parts) > 30 and parts[30] else None
-                                trade_time = parts[31] if len(parts) > 31 and parts[31] else None
+                            trade_date = parts[30] if len(parts) > 30 and parts[30] else None
+                            trade_time = parts[31] if len(parts) > 31 and parts[31] else None
 
-                                open_pct = None
-                                if open_price is not None and prev_close is not None and prev_close > 0:
-                                    open_pct = round((open_price - prev_close) / prev_close * 100, 2)
+                            open_pct = None
+                            if open_price is not None and prev_close is not None and prev_close > 0:
+                                open_pct = round((open_price - prev_close) / prev_close * 100, 2)
 
-                                pct_change = None
-                                if price is not None and prev_close is not None and prev_close > 0:
-                                    pct_change = round((price - prev_close) / prev_close * 100, 2)
+                            pct_change = None
+                            if price is not None and prev_close is not None and prev_close > 0:
+                                pct_change = round((price - prev_close) / prev_close * 100, 2)
 
-                                threshold = 19.8 if (symbol.startswith("30") or symbol.startswith("68")) else 9.8
+                            threshold = 19.8 if (symbol.startswith("30") or symbol.startswith("68")) else 9.8
 
-                                is_one_word_up = False
-                                is_one_word_down = False
-                                if open_price is not None and high is not None and low is not None and open_pct is not None:
-                                    if open_price == high == low and open_pct >= threshold:
-                                        is_one_word_up = True
-                                    elif open_price == high == low and open_pct <= -threshold:
-                                        is_one_word_down = True
+                            is_one_word_up = False
+                            is_one_word_down = False
+                            if open_price is not None and high is not None and low is not None and open_pct is not None:
+                                if open_price == high == low and open_pct >= threshold:
+                                    is_one_word_up = True
+                                elif open_price == high == low and open_pct <= -threshold:
+                                    is_one_word_down = True
 
-                                # 盘中涨停与封死判定 (卖一挂单量为 0 且价格达到涨停阈值，且买一封单金额 >= 1000 万元)
-                                is_limit_up = False
-                                is_sealed = False
-                                if pct_change is not None and pct_change >= threshold - 0.2:
-                                    is_limit_up = True
-                                    # 卖一空单且买一封单达标 (实盘 >= 1000万元，或一字涨停)
-                                    if (ask1_vol == 0 or ask1_price == 0) and (bid1_amount >= 10000000.0 or is_one_word_up):
-                                        is_sealed = True
+                            # 盘中涨停与封死判定 (卖一挂单量为 0 且价格达到涨停阈值，且买一封单金额 >= 1000 万元)
+                            is_limit_up = False
+                            is_sealed = False
+                            if pct_change is not None and pct_change >= threshold - 0.2:
+                                is_limit_up = True
+                                # 卖一空单且买一封单达标 (实盘 >= 1000万元，或一字涨停)
+                                if (ask1_vol == 0 or ask1_price == 0) and (bid1_amount >= 10000000.0 or is_one_word_up):
+                                    is_sealed = True
 
-                                if price is not None and price > 0:
-                                    results.append({
-                                        "code": full_code,
-                                        "symbol": symbol,
-                                        "name": name,
-                                        "open": open_price,
-                                        "prev_close": prev_close,
-                                        "price": price,
-                                        "high": high,
-                                        "low": low,
-                                        "volume": volume,
-                                        "amount": amount,
-                                        "open_pct": open_pct,
-                                        "pct_change": pct_change,
-                                        "bid1_vol": bid1_vol,
-                                        "bid1_price": bid1_price,
-                                        "bid1_amount": bid1_amount,
-                                        "bid1_amount_wan": bid1_amount_wan,
-                                        "ask1_vol": ask1_vol,
-                                        "ask1_price": ask1_price,
-                                        "is_limit_up": is_limit_up,
-                                        "is_sealed": is_sealed,
-                                        "is_one_word_up": is_one_word_up,
-                                        "is_one_word_down": is_one_word_down,
-                                        "date": trade_date,
-                                        "time": trade_time,
-                                    })
+                            if price is not None and price > 0:
+                                results.append({
+                                    "code": full_code,
+                                    "symbol": symbol,
+                                    "name": name,
+                                    "open": open_price,
+                                    "prev_close": prev_close,
+                                    "price": round(price, 3),
+                                    "high": high,
+                                    "low": low,
+                                    "volume": volume,
+                                    "amount": amount,
+                                    "amount_wan": round(amount / 10000.0, 2) if amount else 0.0,
+                                    "open_pct": open_pct,
+                                    "pct_change": pct_change,
+                                    "bid1_vol": bid1_vol,
+                                    "bid1_price": bid1_price,
+                                    "bid1_amount": bid1_amount,
+                                    "bid1_amount_wan": bid1_amount_wan,
+                                    "ask1_vol": ask1_vol,
+                                    "ask1_price": ask1_price,
+                                    "is_limit_up": is_limit_up,
+                                    "is_sealed": is_sealed,
+                                    "is_one_word_up": is_one_word_up,
+                                    "is_one_word_down": is_one_word_down,
+                                    "date": trade_date,
+                                    "time": f"{trade_date} {trade_time}" if (trade_date and trade_time) else datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                })
 
             return DataResult(
                 data=results,
@@ -236,7 +239,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
         try:
             # 纳斯达克, 道琼斯, 标普500, 富时A50, 恒生
             overnight_codes = ["gb_ixic", "gb_dji", "gb_inx", "hf_CHA50CFD", "int_hangseng"]
-            url = f"https://hq.sinajs.cn/list={','.join(overnight_codes)}"
+            url = f"http://hq.sinajs.cn/list={','.join(overnight_codes)}"
 
             async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
@@ -336,7 +339,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
     async def get_external_risk(self) -> DataResult:
         """获取 A50 变动及标准化多空指标 (若不可靠则返回 PARTIAL/UNAVAILABLE，严禁臆测字段)"""
         try:
-            url = "https://hq.sinajs.cn/list=hf_CHA50CFD"
+            url = "http://hq.sinajs.cn/list=hf_CHA50CFD"
             async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
                 content = resp.content.decode("gbk", errors="ignore")
