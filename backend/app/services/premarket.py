@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..data.service import DataService
 from ..models.report import PremarketBriefing, DailyReview
+from ..models.market import MarketNews
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +24,36 @@ class PremarketService:
         overnight_res = await self.data_service.get_overnight_data()
         overnight_data = overnight_res.data or []
 
-        # 2. 获取盘前最新财经快讯 (Top 10)
+        # 2. 获取盘前最新财经快讯 (Top 10) 并幂等落盘 market_news (P2 标准资讯链)
         news_res = await self.data_service.get_latest_news(count=10)
         news_data = news_res.data or []
+
+        if news_data:
+            for item in news_data:
+                title = item.get("title", "")
+                pub_time = str(item.get("publish_time", ""))
+                source = item.get("source", "sina")
+                brief = item.get("brief", "")
+                if title:
+                    stmt_check = select(MarketNews).where(
+                        MarketNews.title == title,
+                        MarketNews.publish_time == pub_time,
+                    )
+                    exist_news = (await self.session.execute(stmt_check)).scalars().first()
+                    if not exist_news:
+                        self.session.add(MarketNews(
+                            source=source,
+                            title=title,
+                            brief=brief,
+                            publish_time=pub_time,
+                        ))
+        else:
+            news_data = [{
+                "title": "今日早盘财经资讯数据源暂未就绪",
+                "brief": "物理数据源断流，保持客观观望",
+                "publish_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "source": "system",
+            }]
 
         # 3. 严格继承昨日 M1 纯净状态向量（防标量塌缩）
         stmt = (

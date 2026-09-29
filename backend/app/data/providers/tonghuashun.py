@@ -23,7 +23,14 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
     }
 
     def __init__(self):
-        super().__init__(name="tonghuashun_eastmoney")
+        super().__init__(
+            name="tonghuashun_eastmoney",
+            implementation_status="部分接入",
+            connectivity_verified="待验证",
+            schema_verified="待验证",
+            semantic_verified="待验证",
+            production_eligible="暂不准入",
+        )
 
     async def is_available(self) -> bool:
         return True

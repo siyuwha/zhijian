@@ -21,7 +21,14 @@ class CLSProvider(BaseProvider, NewsCapability):
     }
 
     def __init__(self):
-        super().__init__(name="cls")
+        super().__init__(
+            name="cls",
+            implementation_status="部分接入",
+            connectivity_verified="连通受限",
+            schema_verified="存在漂移",
+            semantic_verified="待验证",
+            production_eligible="暂不准入",
+        )
 
     async def is_available(self) -> bool:
         return True

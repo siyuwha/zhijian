@@ -2,24 +2,151 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 class DataQuality(str, Enum):
-    FULL = "full"
-    PARTIAL = "partial"
-    INVALID = "invalid"
-    FAILED = "failed"
-    UNAVAILABLE = "unavailable"
+    """
+    数据完整度与质量等级 (Data Integrity & Quality)
+    严格反映数据内容的完整性与可信程度，与时间时态完全正交。
+    """
+    FULL = "FULL"                # 全部核心指标与次要维度完备，数值完全自洽
+    PARTIAL = "PARTIAL"          # 核心指标可用，但部分非关键次要指标缺失或未就绪
+    DEGRADED = "DEGRADED"        # 核心指标通过降级途径提供 (如切换至备用源，或使用容忍期内的历史快照)
+    INVALID = "INVALID"          # 数据协议畸变、校验失败或数值严重失真 (坚决丢弃，不提供给上层)
+    UNAVAILABLE = "UNAVAILABLE"  # 所有物理数据源断流且无有效快照缓存 (显式报错，绝不填 0)
+    FAILED = "FAILED"            # 兼容性别名，等同于 UNAVAILABLE / 失败
+
+    @classmethod
+    def _missing_(cls, value: object):
+        if isinstance(value, str):
+            val_upper = value.upper()
+            for member in cls:
+                if member.value == val_upper or member.name == val_upper:
+                    return member
+        return super()._missing_(value)
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other.upper() or self.value == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.value)
+
+class Freshness(str, Enum):
+    """
+    数据新鲜度与时态语义 (Temporal Freshness & Price Semantics)
+    严格反映数据所对应的物理时间窗口与价格语义，与数据质量完全正交。
+    """
+    REALTIME = "REALTIME"                # 盘中高频实时数据 (<15s 采样滞后)
+    DELAYED = "DELAYED"                  # 延迟行情 (通常为 15 分钟以上延时，禁止用于突破信号)
+    EOD_COMPENSATED = "EOD_COMPENSATED"  # 收盘日终结算补偿价 (盘后资产核算专用，严禁当作盘中最新跳动)
+    STALE = "STALE"                      # 超过正常采样周期，使用可接受容忍窗口内的最后有效已知快照
+    EXPIRED = "EXPIRED"                  # 严重过期失效，已丧失时效参考价值
+    UNAVAILABLE = "UNAVAILABLE"          # 物理数据缺失，无时态信息
+
+    @classmethod
+    def _missing_(cls, value: object):
+        if isinstance(value, str):
+            val_upper = value.upper()
+            for member in cls:
+                if member.value == val_upper or member.name == val_upper:
+                    return member
+        return super()._missing_(value)
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other.upper() or self.value == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.value)
+
+class ProviderErrorCode(str, Enum):
+    """标准化提供者错误码"""
+    NONE = "NONE"
+    TIMEOUT = "TIMEOUT"                  # 网络/服务端物理超时 (>=5000ms)
+    CONNECTION_ERROR = "CONNECTION_ERROR"# 网络连接失败 / TCP断开 / DNS解析失败
+    HTTP_ERROR = "HTTP_ERROR"            # 4xx / 5xx HTTP 异常
+    WAF_BLOCKED = "WAF_BLOCKED"          # 触发远端 WAF / 验证码 / IP 限制
+    EMPTY_PAYLOAD = "EMPTY_PAYLOAD"      # 数据源返回空内容 / 零字节
+    MALFORMED_PARSE = "MALFORMED_PARSE"  # JSON/文本协议解析崩溃 / 乱码
+    SCHEMA_MISMATCH = "SCHEMA_MISMATCH"  # 核心业务字段缺失
+    SEMANTIC_INVALID = "SEMANTIC_INVALID"# 数值逻辑异常 (如现价<=0，成交量为负)
+    RATE_LIMITED = "RATE_LIMITED"        # 触达本地预算或远端限流
+
+@dataclass(frozen=True)
+class ProviderRequest:
+    """标准化请求契约"""
+    capability: str
+    method: str
+    symbols: List[str] = field(default_factory=list)
+    date: Optional[str] = None
+    options: Dict[str, Any] = field(default_factory=dict)
+    timeout_ms: int = 5000
+    trace_id: str = ""
+
+@dataclass
+class ProviderResponse:
+    """标准化响应契约 (所有 Provider 产出的物理快照)"""
+    data: Any
+    provider: str
+    capability: str
+    quality: DataQuality
+    freshness: Freshness
+    latency_ms: int = 0
+    source_timestamp: Optional[datetime] = None
+    received_timestamp: datetime = field(default_factory=datetime.now)
+    validity: bool = True
+    error_code: ProviderErrorCode = ProviderErrorCode.NONE
+    error_message: Optional[str] = None
+    observation_id: str = ""
+    fallback_used: bool = False
+
+    def to_data_result(self) -> "DataResult":
+        return DataResult(
+            data=self.data,
+            quality=self.quality,
+            provider=self.provider,
+            timestamp=self.received_timestamp,
+            error_message=self.error_message,
+            fallback_used=self.fallback_used,
+            freshness=self.freshness,
+            latency_ms=self.latency_ms,
+            error_code=self.error_code,
+            observation_id=self.observation_id,
+        )
 
 @dataclass
 class DataResult:
-    """统一数据返回结构"""
+    """统一数据返回结构 (兼顾既有业务消费与 P2 标准契约)"""
     data: Any
     quality: DataQuality
     provider: str                      # 实际提供数据的 Provider 名称
     timestamp: datetime = field(default_factory=datetime.now)
     error_message: Optional[str] = None
     fallback_used: bool = False
+    freshness: Freshness = Freshness.REALTIME
+    latency_ms: int = 0
+    error_code: ProviderErrorCode = ProviderErrorCode.NONE
+    observation_id: str = ""
+
+    def to_provider_response(self, capability: str = "unknown") -> ProviderResponse:
+        return ProviderResponse(
+            data=self.data,
+            provider=self.provider,
+            capability=capability,
+            quality=self.quality,
+            freshness=self.freshness,
+            latency_ms=self.latency_ms,
+            source_timestamp=self.timestamp,
+            received_timestamp=self.timestamp,
+            validity=self.quality not in (DataQuality.INVALID, DataQuality.UNAVAILABLE),
+            error_code=self.error_code,
+            error_message=self.error_message,
+            observation_id=self.observation_id,
+            fallback_used=self.fallback_used,
+        )
 
 class IndexQuoteCapability(ABC):
     """A股指数行情能力 (D1 / D6)"""
@@ -109,4 +236,3 @@ class SecuritySearchCapability(ABC):
     async def search_security(self, query: str, limit: int = 10) -> DataResult:
         """根据代码、中文简称或拼音首字母模糊搜索证券"""
         pass
-

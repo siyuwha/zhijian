@@ -13,7 +13,7 @@ def init_providers():
     cls = CLSProvider()
     east = EastmoneyProvider()
 
-    # 指数与个股行情
+    # 指数与个股行情 (Primary: Sina)
     registry.register("index_quote", "sina", sina, is_primary=True)
     registry.register("stock_quote", "sina", sina, is_primary=True)
 
@@ -38,9 +38,9 @@ def init_providers():
     # 日线结算
     registry.register("settlement", "baostock", baostock, is_primary=True)
 
-    # 快讯新闻：财联社为主，新浪为备用降级
-    registry.register("news", "cls", cls, is_primary=True)
-    registry.register("news", "sina", sina, is_primary=False)
+    # 快讯新闻：根据 P2 设计单，Sina Feed 为准入 Primary，CLS 为 Secondary (连通受限/待修复签名)
+    registry.register("news", "sina", sina, is_primary=True)
+    registry.register("news", "cls", cls, is_primary=False)
 
     # 证券主数据模糊搜索
     registry.register("security_search", "eastmoney", east, is_primary=True)

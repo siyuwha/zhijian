@@ -32,7 +32,14 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
     }
 
     def __init__(self):
-        super().__init__(name="sina")
+        super().__init__(
+            name="sina",
+            implementation_status="已接入",
+            connectivity_verified="已验证",
+            schema_verified="已验证",
+            semantic_verified="已验证",
+            production_eligible="准入",
+        )
 
     async def is_available(self) -> bool:
         return True
