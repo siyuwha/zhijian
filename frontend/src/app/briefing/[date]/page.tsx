@@ -66,37 +66,58 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
     }
   };
 
-  const formatPct = (val?: number | null) => {
-    if (val === null || val === undefined) return '--';
-    const sign = val > 0 ? '+' : '';
-    return `${sign}${val.toFixed(2)}%`;
+  const formatPct = (val?: number | string | null) => {
+    if (val === null || val === undefined || val === '--') return '--';
+    const num = Number(val);
+    if (isNaN(num)) return '--';
+    const sign = num > 0 ? '+' : '';
+    return `${sign}${num.toFixed(2)}%`;
   };
 
-  const getPctColor = (val?: number | null) => {
-    if (val === null || val === undefined) return 'text-slate-400';
-    if (val > 0) return 'text-rose-400';
-    if (val < 0) return 'text-emerald-400';
+  const getPctColor = (val?: number | string | null) => {
+    if (val === null || val === undefined || val === '--') return 'text-slate-400';
+    const num = Number(val);
+    if (isNaN(num)) return 'text-slate-400';
+    if (num > 0) return 'text-rose-400';
+    if (num < 0) return 'text-emerald-400';
     return 'text-slate-400';
   };
 
-  const getPctBg = (val?: number | null) => {
-    if (val === null || val === undefined) return 'bg-slate-800/40 border-slate-700/60';
-    if (val > 0) return 'bg-rose-950/30 border-rose-900/50';
-    if (val < 0) return 'bg-emerald-950/30 border-emerald-900/50';
+  const getPctBg = (val?: number | string | null) => {
+    if (val === null || val === undefined || val === '--') return 'bg-slate-800/40 border-slate-700/60';
+    const num = Number(val);
+    if (isNaN(num)) return 'bg-slate-800/40 border-slate-700/60';
+    if (num > 0) return 'bg-rose-950/30 border-rose-900/50';
+    if (num < 0) return 'bg-emerald-950/30 border-emerald-900/50';
     return 'bg-slate-800/40 border-slate-700/60';
   };
 
-  const formatNumber = (val?: number | null, decimals = 2) => {
-    if (val === null || val === undefined) return '--';
-    return val.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const formatNumber = (val?: number | string | null, decimals = 2) => {
+    if (val === null || val === undefined || val === '--') return '--';
+    const num = Number(val);
+    if (isNaN(num)) return '--';
+    return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   };
 
-  const formatRatioToPct = (val?: number | null) => {
-    if (val === null || val === undefined) return '--';
+  const formatRatioToPct = (val?: number | string | null) => {
+    if (val === null || val === undefined || val === '--') return '--';
     const num = Number(val);
     if (isNaN(num)) return '--';
     const pct = num <= 1.0 && num >= 0 ? num * 100 : num;
     return `${pct.toFixed(1)}%`;
+  };
+
+  const formatChangeVal = (val?: number | string | null) => {
+    if (val === null || val === undefined || val === '' || val === '--') return '--';
+    const num = Number(val);
+    if (isNaN(num)) return '--';
+    return num > 0 ? `+${num.toFixed(2)}` : num.toFixed(2);
+  };
+
+  const isValidNumber = (val?: number | string | null): boolean => {
+    if (val === null || val === undefined || val === '' || val === '--') return false;
+    const n = Number(val);
+    return !isNaN(n);
   };
 
   if (loading) {
@@ -232,9 +253,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                     <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">
                       <span>点位变动</span>
                       <span className={`font-mono ${getPctColor(idx.change_val)}`}>
-                        {idx.change_val !== null && idx.change_val !== undefined
-                          ? (idx.change_val > 0 ? `+${idx.change_val.toFixed(2)}` : idx.change_val.toFixed(2))
-                          : '--'}
+                        {formatChangeVal(idx.change_val)}
                       </span>
                     </div>
                   </CardContent>
@@ -290,18 +309,14 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                   <div>
                     <span className="text-xs text-slate-400 mr-2">综合得分:</span>
                     <span className="font-mono font-bold text-white">
-                      {yesterday_review_summary.composite_score !== null &&
-                      yesterday_review_summary.composite_score !== undefined
-                        ? yesterday_review_summary.composite_score.toFixed(1)
-                        : '--'}
+                      {formatNumber(yesterday_review_summary.composite_score, 1)}
                     </span>
                   </div>
                   <div>
                     <span className="text-xs text-slate-400 mr-2">全市场成交额:</span>
                     <span className="font-mono font-bold text-teal-300">
-                      {yesterday_review_summary.total_amount !== null &&
-                      yesterday_review_summary.total_amount !== undefined
-                        ? `${yesterday_review_summary.total_amount.toFixed(0)} 亿元`
+                      {isValidNumber(yesterday_review_summary.total_amount)
+                        ? `${Number(yesterday_review_summary.total_amount).toFixed(0)} 亿元`
                         : '--'}
                     </span>
                   </div>
@@ -323,28 +338,23 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                     <div className="p-2 rounded bg-slate-850 border border-slate-800">
                       <div className="text-[11px] text-slate-400 mb-0.5">上涨家数</div>
                       <div className="text-sm font-mono font-bold text-rose-400">
-                        {yesterday_review_summary.breadth?.up_count !== null &&
-                        yesterday_review_summary.breadth?.up_count !== undefined
-                          ? `${yesterday_review_summary.breadth.up_count} 家`
+                        {isValidNumber(yesterday_review_summary.breadth?.up_count)
+                          ? `${yesterday_review_summary.breadth?.up_count} 家`
                           : '--'}
                       </div>
                     </div>
                     <div className="p-2 rounded bg-slate-850 border border-slate-800">
                       <div className="text-[11px] text-slate-400 mb-0.5">下跌家数</div>
                       <div className="text-sm font-mono font-bold text-emerald-400">
-                        {yesterday_review_summary.breadth?.down_count !== null &&
-                        yesterday_review_summary.breadth?.down_count !== undefined
-                          ? `${yesterday_review_summary.breadth.down_count} 家`
+                        {isValidNumber(yesterday_review_summary.breadth?.down_count)
+                          ? `${yesterday_review_summary.breadth?.down_count} 家`
                           : '--'}
                       </div>
                     </div>
                     <div className="p-2 rounded bg-slate-850 border border-slate-800">
                       <div className="text-[11px] text-slate-400 mb-0.5">涨跌比值</div>
                       <div className="text-sm font-mono font-bold text-white">
-                        {yesterday_review_summary.breadth?.up_down_ratio !== null &&
-                        yesterday_review_summary.breadth?.up_down_ratio !== undefined
-                          ? yesterday_review_summary.breadth.up_down_ratio.toFixed(2)
-                          : '--'}
+                        {formatNumber(yesterday_review_summary.breadth?.up_down_ratio, 2)}
                       </div>
                     </div>
                   </div>
@@ -370,9 +380,8 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                         <span className="text-slate-400">
                           最高空间:{' '}
                           <b className="text-amber-400">
-                            {yesterday_review_summary.sub_a_structure?.max_board_height !== null &&
-                            yesterday_review_summary.sub_a_structure?.max_board_height !== undefined
-                              ? `${yesterday_review_summary.sub_a_structure.max_board_height} 板`
+                            {isValidNumber(yesterday_review_summary.sub_a_structure?.max_board_height)
+                              ? `${yesterday_review_summary.sub_a_structure?.max_board_height} 板`
                               : '--'}
                           </b>
                         </span>
@@ -392,16 +401,14 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                         <span className="text-slate-400">
                           涨停/跌停:{' '}
                           <b className="text-rose-400">
-                            {yesterday_review_summary.sub_b_extremes?.limit_up_count !== null &&
-                            yesterday_review_summary.sub_b_extremes?.limit_up_count !== undefined
-                              ? yesterday_review_summary.sub_b_extremes.limit_up_count
+                            {isValidNumber(yesterday_review_summary.sub_b_extremes?.limit_up_count)
+                              ? yesterday_review_summary.sub_b_extremes?.limit_up_count
                               : '--'}
                           </b>
                           /
                           <b className="text-emerald-400">
-                            {yesterday_review_summary.sub_b_extremes?.limit_down_count !== null &&
-                            yesterday_review_summary.sub_b_extremes?.limit_down_count !== undefined
-                              ? yesterday_review_summary.sub_b_extremes.limit_down_count
+                            {isValidNumber(yesterday_review_summary.sub_b_extremes?.limit_down_count)
+                              ? yesterday_review_summary.sub_b_extremes?.limit_down_count
                               : '--'}
                           </b>
                         </span>
