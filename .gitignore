@@ -27,6 +27,7 @@ Thumbs.db
 # Next.js
 .next/
 out/
+*.tsbuildinfo
 
 # 日志与本地数据库
 *.log

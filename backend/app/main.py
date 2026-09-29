@@ -46,18 +46,19 @@ app.add_middleware(
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+from app.version import get_version_info, VERSION, get_git_commit
+
 @app.get("/health")
 async def health_check():
     return {
         "status": "ok",
         "project": settings.PROJECT_NAME,
-        "api_version": "v1"
+        "api_version": "v1",
+        "app_version": f"v{VERSION}",
+        "commit": get_git_commit()
     }
 
 @app.get("/version")
 async def version_info():
-    return {
-        "status": "ok",
-        "commit": "add942d",
-        "sina_protocol": "http"
-    }
+    return get_version_info()
+
