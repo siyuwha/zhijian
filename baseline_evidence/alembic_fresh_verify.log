@@ -1,0 +1,66 @@
+=== ALEMBIC FRESH DATABASE UPGRADE VERIFICATION LOG ===
+Timestamp: 2026-10-01 22:49:12 CST
+Target: Empty SQLite database (test_alembic_run_upgrade.db)
+Command: alembic upgrade head
+Working Directory: d:\项目库\AI认知复盘交易系统\backend
+
+[ALEMBIC EXECUTION RESULT]
+Exit Code: 0
+STDERR:
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> d440da877b6a, p2_track_a_and_cognition_phase2a_baseline
+
+[DATABASE PHYSICAL SCHEMA VERIFICATION]
+Total Tables Created: 32
+Tables List:
+1. alembic_version
+2. auction_report
+3. cognition_chain_state
+4. cognition_diff_report
+5. cognition_market_state
+6. cognition_prompt_spec
+7. cognition_record
+8. cognitive_trade_diagnosis
+9. daily_review
+10. data_quality_log
+11. hypothesis_verification
+12. intraday_anomaly_event
+13. intraday_market_snapshot
+14. market_daily_snapshot
+15. market_hypothesis
+16. market_index_daily
+17. market_limit_up_daily
+18. market_limit_up_summary
+19. market_news
+20. market_settlement_cache
+21. position
+22. premarket_briefing
+23. selection_candidate
+24. selection_result
+25. sim_account
+26. sim_position
+27. sim_trade
+28. strategy
+29. system_config
+30. task_log
+31. trade_note
+32. trade_record
+
+[WORM TRIGGERS PHYSICAL VERIFICATION]
+Total Triggers: 5
+1. trg_cognition_chain_state_no_delete ON cognition_chain_state
+2. trg_cognition_prompt_spec_no_delete ON cognition_prompt_spec
+3. trg_cognition_prompt_spec_no_update ON cognition_prompt_spec
+4. trg_cognition_record_no_delete ON cognition_record
+5. trg_cognition_record_no_update ON cognition_record
+
+[GENESIS ANCHOR VERIFICATION]
+cognition_chain_state Row:
+chain_id: MAIN_LEDGER
+tail_sequence_id: 0
+tail_record_hash: 0000000000000000000000000000000000000000000000000000000000000000
+updated_at: 2026-10-01 14:49:12
+
+Conclusion:
+Fresh SQLite database migration via `alembic upgrade head` achieves complete schema, full WORM triggers, and valid genesis anchor without application startup dependencies.

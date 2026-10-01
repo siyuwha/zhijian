@@ -7,6 +7,9 @@ from .base import BaseProvider
 from ..capabilities import (
     DataQuality,
     DataResult,
+    DataStatus,
+    Freshness,
+    ProviderErrorCode,
     IndexQuoteCapability,
     NewsCapability,
     OvernightCapability,
@@ -321,27 +324,88 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
             return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
 
     async def get_latest_news(self, count: int = 15) -> DataResult:
-        """新浪财经新闻 feed 备用方案"""
+        """新浪财经新闻 feed 备用方案（双源容灾）"""
         try:
             # 简版财经要闻
             url = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2509&k=&num=15&page=1"
-            async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
+            async with httpx.AsyncClient(timeout=8.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
-                data = resp.json()
+                if resp.status_code != 200:
+                    return DataResult(
+                        data=None,
+                        quality=DataQuality.UNAVAILABLE,
+                        status=DataStatus.ERROR,
+                        error_code=ProviderErrorCode.HTTP_ERROR,
+                        provider=self.name,
+                        error_message=f"Sina news HTTP {resp.status_code}"
+                    )
+                text = resp.text.strip()
+                if not text:
+                    return DataResult(
+                        data=None,
+                        quality=DataQuality.UNAVAILABLE,
+                        status=DataStatus.EMPTY,
+                        error_code=ProviderErrorCode.EMPTY_PAYLOAD,
+                        provider=self.name,
+                        error_message="Sina news returned empty payload"
+                    )
+                try:
+                    data = resp.json()
+                except Exception as e:
+                    return DataResult(
+                        data=None,
+                        quality=DataQuality.INVALID,
+                        status=DataStatus.ERROR,
+                        error_code=ProviderErrorCode.MALFORMED_PARSE,
+                        provider=self.name,
+                        error_message=f"Sina news JSON decode error: {e}"
+                    )
 
             items = []
             for entry in data.get("result", {}).get("data", [])[:count]:
                 items.append({
                     "title": entry.get("title"),
                     "brief": entry.get("intro"),
-                    "publish_time": entry.get("ctime"),
+                    "publish_time": str(entry.get("ctime")),
                     "source": "sina"
                 })
 
-            return DataResult(data=items, quality=DataQuality.FULL, provider=self.name)
+            if not items:
+                return DataResult(
+                    data=[],
+                    quality=DataQuality.PARTIAL,
+                    status=DataStatus.EMPTY,
+                    provider=self.name,
+                    error_message="Sina news returned 0 items"
+                )
+
+            return DataResult(
+                data=items,
+                quality=DataQuality.FULL,
+                status=DataStatus.AVAILABLE,
+                freshness=Freshness.REALTIME,
+                provider=self.name
+            )
+        except httpx.TimeoutException as te:
+            logger.warning(f"Sina get_latest_news timeout: {te}")
+            return DataResult(
+                data=None,
+                quality=DataQuality.UNAVAILABLE,
+                status=DataStatus.TIMEOUT,
+                error_code=ProviderErrorCode.TIMEOUT,
+                provider=self.name,
+                error_message=f"Sina news timeout (>8s): {te}"
+            )
         except Exception as e:
             logger.error(f"Sina get_latest_news failed: {e}")
-            return DataResult(data=None, quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+            return DataResult(
+                data=None,
+                quality=DataQuality.FAILED,
+                status=DataStatus.ERROR,
+                error_code=ProviderErrorCode.CONNECTION_ERROR,
+                provider=self.name,
+                error_message=str(e)
+            )
 
     async def get_external_risk(self) -> DataResult:
         """获取 A50 变动及标准化多空指标 (若不可靠则返回 PARTIAL/UNAVAILABLE，严禁臆测字段)"""

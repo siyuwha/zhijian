@@ -1,0 +1,49 @@
+=== PYTEST FULL TEST SUITE ISOLATED RUN LOG ===
+Timestamp: 2026-10-01 22:56:02 CST
+Working Directory: d:\项目库\AI认知复盘交易系统\backend
+Command: pytest -v
+
+[TEST RUN SUMMARY]
+Total Tests: 148
+Passed: 148
+Failed: 0
+Errors: 0
+Duration: 66.78s
+Exit Code: 0
+
+[COLLECTED TEST FILES & COUNTS]
+1. tests/test_api.py (23 passed)
+2. tests/test_cognition_step1_contracts.py (6 passed)
+3. tests/test_cognition_step2_storage.py (13 passed)
+4. tests/test_cognition_step3_p0_gates.py (29 passed)
+5. tests/test_cognition_step4_contracts.py (4 passed)
+6. tests/test_cognition_step5_assembly.py (7 passed)
+7. tests/test_cognition_step5_evaluator.py (6 passed)
+8. tests/test_cognition_step5_falsification.py (6 passed)
+9. tests/test_cognition_step6_ac_and_red_team.py (19 passed)
+10. tests/test_cognition_validation.py (1 passed)
+11. tests/test_cognition_worm_hardening.py (6 passed)
+12. tests/test_p2_resilience.py (15 passed)
+13. tests/test_red_team_g1_m3_attacks.py (1 passed)
+14. tests/test_track_a_production_readiness.py (5 passed)
+15. tests/test_trading.py (1 passed)
+
+[PHYSICAL DATABASE UNTOUCHED VERIFICATION]
+Target 1: D:\项目库\AI认知复盘交易系统\data\trading.db
+- Pre-run SHA256:  8FF39CE5B3B7311425051769E1E8DAB7A930ECE89AEEB24286AC28C42C91E6ED
+- Post-run SHA256: 8FF39CE5B3B7311425051769E1E8DAB7A930ECE89AEEB24286AC28C42C91E6ED
+- Length: 544768 bytes
+- LastWriteTime: 2026/10/01 17:48:48
+- Verification: 100% UNTOUCHED (Bit-level identical)
+
+Target 2: D:\项目库\AI认知复盘交易系统\backend\data\trading.db
+- Pre-run SHA256:  B3DF70538941949047EB1DDE792D9A6D00F0CA2B3966E050AE68E82F160F0D36
+- Post-run SHA256: B3DF70538941949047EB1DDE792D9A6D00F0CA2B3966E050AE68E82F160F0D36
+- Length: 589824 bytes
+- LastWriteTime: 2026/10/01 18:16:41
+- Verification: 100% UNTOUCHED (Bit-level identical)
+
+Hermetic Sandbox Database:
+- Sandbox Path: %TEMP%\trading_test_sandbox_<pid>.db
+- Fixture: backend/tests/conftest.py::hermetic_test_database_sandbox
+- Behavior: Cleanly isolated, all runtime schema created in temp DB, 0 writes leaked to workspace DBs.

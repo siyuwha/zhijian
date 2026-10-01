@@ -1,0 +1,416 @@
+{
+  "timestamp": "2026-10-01T17:47:31.586253",
+  "routes_count": 58,
+  "routes": [
+    {
+      "path": "/openapi.json",
+      "name": "openapi",
+      "methods": [
+        "HEAD",
+        "GET"
+      ]
+    },
+    {
+      "path": "/docs",
+      "name": "swagger_ui_html",
+      "methods": [
+        "HEAD",
+        "GET"
+      ]
+    },
+    {
+      "path": "/docs/oauth2-redirect",
+      "name": "swagger_ui_redirect",
+      "methods": [
+        "HEAD",
+        "GET"
+      ]
+    },
+    {
+      "path": "/redoc",
+      "name": "redoc_html",
+      "methods": [
+        "HEAD",
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/market/indices",
+      "name": "get_index_quotes",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/market/limit-up",
+      "name": "get_limit_up_pool",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/market/news",
+      "name": "get_latest_news",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/daily-review",
+      "name": "list_daily_reviews",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/daily-review/{date}",
+      "name": "get_daily_review",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/daily-review/generate",
+      "name": "generate_daily_review",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/premarket",
+      "name": "list_premarket_briefings",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/premarket/{date}",
+      "name": "get_premarket_briefing",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/premarket/generate",
+      "name": "generate_premarket_briefing",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/auction",
+      "name": "list_auction_reports",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/auction/{date}",
+      "name": "get_auction_report",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/auction/generate",
+      "name": "generate_auction_report",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/security/search",
+      "name": "search_securities",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/records",
+      "name": "list_records",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/records",
+      "name": "add_record",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/records/reverse",
+      "name": "reverse_record",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/records/correct",
+      "name": "correct_record",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/records/{id}",
+      "name": "get_record",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/positions",
+      "name": "list_positions",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/stats",
+      "name": "get_stats",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/notes",
+      "name": "add_note",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/notes/{trade_id}",
+      "name": "get_note",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/trading/reconcile",
+      "name": "reconcile_positions",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/strategy/strategies",
+      "name": "list_strategies",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/strategy/strategies",
+      "name": "create_strategy",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/simulation/accounts",
+      "name": "list_accounts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/simulation/accounts",
+      "name": "create_account",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/simulation/accounts/{account_id}/positions",
+      "name": "list_sim_positions",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/market-state/{date}",
+      "name": "get_market_state",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/config/indicators",
+      "name": "get_indicators_config",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/config/indicators",
+      "name": "update_indicators_config",
+      "methods": [
+        "PUT"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/diagnosis/trade/{trade_id}",
+      "name": "trigger_trade_diagnosis",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/diagnosis/trade/{trade_id}",
+      "name": "get_trade_diagnosis",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/diagnosis/trade/{trade_id}/confirm",
+      "name": "confirm_trade_diagnosis",
+      "methods": [
+        "PUT"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/audit/weekly",
+      "name": "get_weekly_audit",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/hypotheses",
+      "name": "create_hypothesis",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/hypotheses",
+      "name": "get_hypotheses",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/hypotheses/{id}/verify",
+      "name": "verify_hypothesis",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/records/{record_id}",
+      "name": "reject_cognition_record_update",
+      "methods": [
+        "PATCH"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/records/{record_id}",
+      "name": "reject_cognition_record_update",
+      "methods": [
+        "PUT"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/records/{record_id}",
+      "name": "reject_cognition_record_delete",
+      "methods": [
+        "DELETE"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/prompt-specs/{spec_id}",
+      "name": "reject_prompt_spec_update",
+      "methods": [
+        "PATCH"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/prompt-specs/{spec_id}",
+      "name": "reject_prompt_spec_update",
+      "methods": [
+        "PUT"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/prompt-specs/{spec_id}",
+      "name": "reject_prompt_spec_delete",
+      "methods": [
+        "DELETE"
+      ]
+    },
+    {
+      "path": "/api/v1/cognition/chain-state/{chain_id}",
+      "name": "reject_chain_state_delete",
+      "methods": [
+        "DELETE"
+      ]
+    },
+    {
+      "path": "/api/v1/system/data-quality",
+      "name": "list_data_quality_logs",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/system/tasks",
+      "name": "list_task_logs",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/monitor/realtime",
+      "name": "get_monitor_realtime",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/monitor/series",
+      "name": "get_monitor_series",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/monitor/events",
+      "name": "get_monitor_events",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/monitor/watchlist",
+      "name": "get_monitor_watchlist",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/monitor/trigger-scan",
+      "name": "trigger_monitor_scan",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/health",
+      "name": "health_check",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/version",
+      "name": "version_info",
+      "methods": [
+        "GET"
+      ]
+    }
+  ]
+}

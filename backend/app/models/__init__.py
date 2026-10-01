@@ -5,12 +5,20 @@ from .market import (
     MarketNews,
     IntradayMarketSnapshot,
     IntradayAnomalyEvent,
+    MarketSettlementCache,
+    MarketDailySnapshot,
 )
 from .cognition import (
     CognitionMarketState,
     CognitiveTradeDiagnosis,
     MarketHypothesis,
     HypothesisVerification,
+)
+from .cognition_v2 import (
+    CognitionRecord,
+    CognitionChainState,
+    CognitionPromptSpec,
+    CognitionDiffReport,
 )
 from .report import DailyReview, PremarketBriefing, AuctionReport
 from .trading import TradeRecord, Position, TradeNote
@@ -25,10 +33,16 @@ __all__ = [
     "MarketNews",
     "IntradayMarketSnapshot",
     "IntradayAnomalyEvent",
+    "MarketSettlementCache",
+    "MarketDailySnapshot",
     "CognitionMarketState",
     "CognitiveTradeDiagnosis",
     "MarketHypothesis",
     "HypothesisVerification",
+    "CognitionRecord",
+    "CognitionChainState",
+    "CognitionPromptSpec",
+    "CognitionDiffReport",
     "DailyReview",
     "PremarketBriefing",
     "AuctionReport",

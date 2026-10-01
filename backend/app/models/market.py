@@ -133,3 +133,49 @@ class IntradayAnomalyEvent(Base):
     details = Column(Text, nullable=True, default=None)      # 结构化明细 JSON
 
     created_at = Column(DateTime, server_default=func.now())
+
+class MarketSettlementCache(Base):
+    """Baostock/日终结算价本地缓存表 (P1-1 韧性支撑，超时降级与新鲜度审计)"""
+    __tablename__ = "market_settlement_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String, nullable=False, index=True)
+    date = Column(String, nullable=False, index=True)
+    open = Column(Float, nullable=True)
+    high = Column(Float, nullable=True)
+    low = Column(Float, nullable=True)
+    close = Column(Float, nullable=True)
+    prev_close = Column(Float, nullable=True)
+    volume = Column(Float, nullable=True)
+    amount = Column(Float, nullable=True)
+    pct_change = Column(Float, nullable=True)
+    source = Column(String, default="baostock")
+    status = Column(String, default="AVAILABLE")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("code", "date", name="uix_settlement_code_date"),
+    )
+
+class MarketDailySnapshot(Base):
+    """盘后/早盘离线物理事实快照表 (P1-3 离线重放与自愈支撑，为未来 Cognition 提供坚实物理锚点)"""
+    __tablename__ = "market_daily_snapshot"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(String, nullable=False, index=True)
+    snapshot_type = Column(String, nullable=False, index=True) # EOD_CLOSE (15:30) / AUCTION_0925 (09:25)
+    indices_snapshot = Column(Text, nullable=True)       # 指数切片 JSON
+    breadth_snapshot = Column(Text, nullable=True)       # 广度切片 JSON
+    limit_up_snapshot = Column(Text, nullable=True)      # 涨停池切片 JSON
+    micro_cap_snapshot = Column(Text, nullable=True)     # 微盘股切片 JSON
+    external_risk_snapshot = Column(Text, nullable=True) # 外部风险切片 JSON
+    high_tier_snapshot = Column(Text, nullable=True)     # 高标承接切片 JSON
+    market_state_snapshot = Column(Text, nullable=True)  # 综合状态量度 JSON
+    data_quality = Column(String, default="FULL")        # FULL / PARTIAL / UNAVAILABLE
+    source_status = Column(Text, nullable=True)          # 各 Provider 状态字典 JSON
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("date", "snapshot_type", name="uix_daily_snapshot_date_type"),
+    )

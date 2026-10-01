@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..data.service import DataService
 from ..models.report import AuctionReport, DailyReview
+from ..models.market import MarketDailySnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +20,35 @@ class AuctionService:
     async def generate_auction_report(self, date_str: Optional[str] = None) -> AuctionReport:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
 
+        # 检查是否已存在历史 09:25 集合竞价物理快照 (用于离线重放与自愈)
+        snap_stmt = select(MarketDailySnapshot).where(
+            MarketDailySnapshot.date == today,
+            MarketDailySnapshot.snapshot_type == "AUCTION_0925"
+        )
+        existing_auction_snapshot = (await self.session.execute(snap_stmt)).scalars().first()
+
+        now = datetime.now()
+        is_today = (now.strftime("%Y-%m-%d") == today)
+        is_auction_time = is_today and (now.hour == 9 and 15 <= now.minute <= 30)
+
         # 1. 采集 09:25 开盘指数快照 (上证、深证、创业板、科创50、北证50)
         index_codes = ["sh000001", "sz399001", "sz399006", "sh000688", "bj899050"]
-        index_res = await self.data_service.get_index_quotes(index_codes)
-        quotes: List[Dict[str, Any]] = index_res.data or []
+        if not is_auction_time and existing_auction_snapshot and existing_auction_snapshot.indices_snapshot:
+            try:
+                parsed_indices = json.loads(existing_auction_snapshot.indices_snapshot)
+                if isinstance(parsed_indices, dict):
+                    quotes = parsed_indices.get("indices", [])
+                elif isinstance(parsed_indices, list):
+                    quotes = parsed_indices
+                else:
+                    quotes = []
+                logger.info(f"Self-healed auction index observation from MarketDailySnapshot for {today}")
+            except Exception:
+                index_res = await self.data_service.get_index_quotes(index_codes)
+                quotes = index_res.data or []
+        else:
+            index_res = await self.data_service.get_index_quotes(index_codes)
+            quotes = index_res.data or []
 
         sh_amount_wan = None
         sz_amount_wan = None
@@ -262,6 +288,19 @@ class AuctionService:
                 emotion_judgment=emotion_json,
             )
             self.session.add(report_record)
+
+        # 6. 持久化 MarketDailySnapshot (AUCTION_0925 快照)
+        if not existing_auction_snapshot and quotes:
+            snap_record = MarketDailySnapshot(
+                date=today,
+                snapshot_type="AUCTION_0925",
+                indices_snapshot=index_json,
+                high_tier_snapshot=high_open_json,
+                market_state_snapshot=emotion_json,
+                data_quality="FULL" if is_auction_time else "OFFLINE_INFERRED",
+                source_status=json.dumps({"is_live_auction": is_auction_time}, ensure_ascii=False),
+            )
+            self.session.add(snap_record)
 
         await self.session.commit()
         await self.session.refresh(report_record)

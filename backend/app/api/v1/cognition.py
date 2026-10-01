@@ -216,3 +216,50 @@ async def verify_hypothesis(
             "verified_at": v.verified_at,
         },
     }
+
+# =========================================================================
+# WORM 第三道接口防线：API 级显式阻断端点 (API-Level WORM Guards)
+# =========================================================================
+
+@router.put("/records/{record_id}")
+@router.patch("/records/{record_id}")
+async def reject_cognition_record_update(record_id: str):
+    """API-Level WORM 防篡改阻断守卫：不可变认知记录禁止修改"""
+    raise HTTPException(
+        status_code=405,
+        detail="WORM Violation: CognitionRecord is immutable. UPDATE operations are strictly prohibited at API level."
+    )
+
+@router.delete("/records/{record_id}")
+async def reject_cognition_record_delete(record_id: str):
+    """API-Level WORM 防篡改阻断守卫：不可变认知记录禁止删除"""
+    raise HTTPException(
+        status_code=405,
+        detail="WORM Violation: CognitionRecord is immutable. DELETE operations are strictly prohibited at API level."
+    )
+
+@router.put("/prompt-specs/{spec_id}")
+@router.patch("/prompt-specs/{spec_id}")
+async def reject_prompt_spec_update(spec_id: str):
+    """API-Level WORM 防篡改阻断守卫：不可变 Prompt 规格禁止原地修改"""
+    raise HTTPException(
+        status_code=405,
+        detail="WORM Violation: CognitionPromptSpec is immutable. UPDATE operations are strictly prohibited at API level."
+    )
+
+@router.delete("/prompt-specs/{spec_id}")
+async def reject_prompt_spec_delete(spec_id: str):
+    """API-Level WORM 防篡改阻断守卫：不可变 Prompt 规格禁止删除"""
+    raise HTTPException(
+        status_code=405,
+        detail="WORM Violation: CognitionPromptSpec is immutable. DELETE operations are strictly prohibited at API level."
+    )
+
+@router.delete("/chain-state/{chain_id}")
+async def reject_chain_state_delete(chain_id: str):
+    """API-Level WORM 防篡改阻断守卫：账本锚点控制行永久驻留，严禁删除"""
+    raise HTTPException(
+        status_code=405,
+        detail="WORM Violation: CognitionChainState is permanent ledger anchor. DELETE operations are strictly prohibited at API level."
+    )
+

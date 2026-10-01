@@ -62,6 +62,40 @@ class Freshness(str, Enum):
     def __hash__(self):
         return hash(self.value)
 
+class DataStatus(str, Enum):
+    """
+    数据源物理状态与可用性语义 (Data Source Availability & Health Status)
+    按最高裁决严格区分：
+    - AVAILABLE: 正常有效获取
+    - EMPTY: 接口正常响应但数据集为空（非异常，如非交易时段空响应或无新资讯）
+    - STALE: 缓存过期或降级历史快照
+    - TIMEOUT: 网络/服务端物理超时
+    - ERROR: 接口异常/解析错误/网络阻断
+    杜绝以“空字符串 + JSON Parse Error”表达缺失。
+    """
+    AVAILABLE = "AVAILABLE"
+    EMPTY = "EMPTY"
+    STALE = "STALE"
+    TIMEOUT = "TIMEOUT"
+    ERROR = "ERROR"
+
+    @classmethod
+    def _missing_(cls, value: object):
+        if isinstance(value, str):
+            val_upper = value.upper()
+            for member in cls:
+                if member.value == val_upper or member.name == val_upper:
+                    return member
+        return super()._missing_(value)
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other.upper() or self.value == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.value)
+
 class ProviderErrorCode(str, Enum):
     """标准化提供者错误码"""
     NONE = "NONE"
@@ -102,6 +136,22 @@ class ProviderResponse:
     error_message: Optional[str] = None
     observation_id: str = ""
     fallback_used: bool = False
+    status: Optional[DataStatus] = None
+
+    def get_status(self) -> DataStatus:
+        if self.status:
+            return self.status
+        if self.error_code == ProviderErrorCode.TIMEOUT:
+            return DataStatus.TIMEOUT
+        if self.freshness == Freshness.STALE:
+            return DataStatus.STALE
+        if self.error_code in (ProviderErrorCode.MALFORMED_PARSE, ProviderErrorCode.HTTP_ERROR, ProviderErrorCode.CONNECTION_ERROR) or (self.quality in (DataQuality.INVALID, DataQuality.FAILED) and self.error_code != ProviderErrorCode.NONE):
+            return DataStatus.ERROR
+        if self.error_code == ProviderErrorCode.EMPTY_PAYLOAD or (self.data is None and self.quality in (DataQuality.UNAVAILABLE, DataQuality.PARTIAL)):
+            return DataStatus.EMPTY
+        if self.quality in (DataQuality.FULL, DataQuality.PARTIAL) and self.data is not None:
+            return DataStatus.AVAILABLE
+        return DataStatus.AVAILABLE
 
     def to_data_result(self) -> "DataResult":
         return DataResult(
@@ -115,6 +165,7 @@ class ProviderResponse:
             latency_ms=self.latency_ms,
             error_code=self.error_code,
             observation_id=self.observation_id,
+            status=self.get_status(),
         )
 
 @dataclass
@@ -130,6 +181,24 @@ class DataResult:
     latency_ms: int = 0
     error_code: ProviderErrorCode = ProviderErrorCode.NONE
     observation_id: str = ""
+    status: Optional[DataStatus] = None
+
+    def __post_init__(self):
+        if self.status is None:
+            if self.error_code == ProviderErrorCode.TIMEOUT:
+                self.status = DataStatus.TIMEOUT
+            elif self.freshness == Freshness.STALE:
+                self.status = DataStatus.STALE
+            elif self.error_code in (ProviderErrorCode.MALFORMED_PARSE, ProviderErrorCode.HTTP_ERROR, ProviderErrorCode.CONNECTION_ERROR):
+                self.status = DataStatus.ERROR
+            elif self.quality in (DataQuality.INVALID, DataQuality.FAILED) and self.error_code != ProviderErrorCode.NONE:
+                self.status = DataStatus.ERROR
+            elif self.error_code == ProviderErrorCode.EMPTY_PAYLOAD or (self.data is None and self.quality in (DataQuality.UNAVAILABLE, DataQuality.PARTIAL)):
+                self.status = DataStatus.EMPTY
+            elif self.quality in (DataQuality.FULL, DataQuality.PARTIAL) and self.data is not None:
+                self.status = DataStatus.AVAILABLE
+            else:
+                self.status = DataStatus.AVAILABLE if self.data is not None else DataStatus.EMPTY
 
     def to_provider_response(self, capability: str = "unknown") -> ProviderResponse:
         return ProviderResponse(
@@ -146,6 +215,7 @@ class DataResult:
             error_message=self.error_message,
             observation_id=self.observation_id,
             fallback_used=self.fallback_used,
+            status=self.status,
         )
 
 class IndexQuoteCapability(ABC):

@@ -1,0 +1,14 @@
+=== ALEMBIC CURRENT ===
+d440da877b6a (head)
+
+=== ALEMBIC HISTORY -V ===
+Rev: d440da877b6a (head)
+Parent: <base>
+Path: D:\项目库\AI认知复盘交易系统\backend\migrations\versions\d440da877b6a_p2_track_a_and_cognition_phase2a_.py
+
+    p2_track_a_and_cognition_phase2a_baseline
+    
+    Revision ID: d440da877b6a
+    Revises: 
+    Create Date: 2026-09-30 22:05:57.332290
+

@@ -38,9 +38,9 @@ def init_providers():
     # 日线结算
     registry.register("settlement", "baostock", baostock, is_primary=True)
 
-    # 快讯新闻：根据 P2 设计单，Sina Feed 为准入 Primary，CLS 为 Secondary (连通受限/待修复签名)
-    registry.register("news", "sina", sina, is_primary=True)
-    registry.register("news", "cls", cls, is_primary=False)
+    # 快讯新闻：CLS 财联社快讯为主源（已修复参数与签名，准入），Sina Feed 为双源容灾热备（Dual-Source Failover）
+    registry.register("news", "cls", cls, is_primary=True)
+    registry.register("news", "sina", sina, is_primary=False)
 
     # 证券主数据模糊搜索
     registry.register("security_search", "eastmoney", east, is_primary=True)

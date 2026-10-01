@@ -9,6 +9,7 @@ from ..cognition.market_state import market_state_computer
 from ..cognition.interfaces import CognitionInput
 from ..models.report import DailyReview
 from ..models.cognition import CognitionMarketState
+from ..models.market import MarketDailySnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -22,30 +23,72 @@ class DailyReviewService:
     async def generate_review(self, date_str: Optional[str] = None) -> DailyReview:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
 
+        # 检查是否已存在历史离线物理快照 (用于离线重放与自愈)
+        snap_stmt = select(MarketDailySnapshot).where(
+            MarketDailySnapshot.date == today,
+            MarketDailySnapshot.snapshot_type == "EOD_CLOSE"
+        )
+        existing_snapshot = (await self.session.execute(snap_stmt)).scalars().first()
+
         # 1. 采集主要指数数据 (D1 / D6)
         indices = ["s_sh000001", "s_sz399001", "s_sz399006", "s_sh000688"]
         index_res = await self.data_service.get_index_quotes(indices)
         index_data = index_res.data or []
 
+        # 离线自愈判定：若外部数据源返回空且本地存在历史快照，则自愈加载物理事实
+        if not index_data and existing_snapshot and existing_snapshot.indices_snapshot:
+            try:
+                index_data = json.loads(existing_snapshot.indices_snapshot)
+                logger.info(f"Self-healed index observation from MarketDailySnapshot for {today}")
+            except Exception:
+                pass
+
         # 2. 采集涨停池与情绪数据 (D2 / D3)
         limit_up_res = await self.data_service.get_limit_up_pool(today)
         limit_up_summary = limit_up_res.data or {}
+        if not limit_up_summary and existing_snapshot and existing_snapshot.limit_up_snapshot:
+            try:
+                limit_up_summary = json.loads(existing_snapshot.limit_up_snapshot)
+                logger.info(f"Self-healed limit up observation from MarketDailySnapshot for {today}")
+            except Exception:
+                pass
 
         # 3. 采集全市场广度 (D2)
         breadth_res = await self.data_service.get_market_breadth()
         breadth_data = breadth_res.data or {}
+        if not breadth_data and existing_snapshot and existing_snapshot.breadth_snapshot:
+            try:
+                breadth_data = json.loads(existing_snapshot.breadth_snapshot)
+                logger.info(f"Self-healed market breadth observation from MarketDailySnapshot for {today}")
+            except Exception:
+                pass
 
         # 4. 采集微盘股风格代理数据 (D4)
         micro_res = await self.data_service.get_micro_cap_quote()
         micro_data = micro_res.data or {}
+        if not micro_data and existing_snapshot and existing_snapshot.micro_cap_snapshot:
+            try:
+                micro_data = json.loads(existing_snapshot.micro_cap_snapshot)
+            except Exception:
+                pass
 
         # 5. 采集外部风险与A50 (D5)
         ext_res = await self.data_service.get_external_risk()
         ext_data = ext_res.data or {}
+        if not ext_data and existing_snapshot and existing_snapshot.external_risk_snapshot:
+            try:
+                ext_data = json.loads(existing_snapshot.external_risk_snapshot)
+            except Exception:
+                pass
 
         # 6. 采集高位股/连板承接表现 (D3)
         high_tier_res = await self.data_service.get_high_tier_performance()
         high_tier_data = high_tier_res.data or {}
+        if not high_tier_data and existing_snapshot and existing_snapshot.high_tier_snapshot:
+            try:
+                high_tier_data = json.loads(existing_snapshot.high_tier_snapshot)
+            except Exception:
+                pass
 
         # 7. 查找前一交易日复盘记录（提取昨日成交额与昨日涨停数，用于环比量能与连板晋级率）
         prev_stmt = select(DailyReview).where(DailyReview.date < today).order_by(DailyReview.date.desc()).limit(1)
@@ -99,7 +142,49 @@ class DailyReviewService:
         self.session.add(cog_record)
         await self.session.flush()
 
-        # 9. 生成并持久化 DailyReview 报告
+        # 9. 持久化底层物理快照表 MarketDailySnapshot (P1-3 盘后离线快照与自愈机制)
+        snap_stmt = select(MarketDailySnapshot).where(
+            MarketDailySnapshot.date == today,
+            MarketDailySnapshot.snapshot_type == "EOD_CLOSE"
+        )
+        existing_snapshot = (await self.session.execute(snap_stmt)).scalars().first()
+
+        source_status_dict = {
+            "indices": str(getattr(index_res, "status", "UNKNOWN")),
+            "limit_up": str(getattr(limit_up_res, "status", "UNKNOWN")),
+            "breadth": str(getattr(breadth_res, "status", "UNKNOWN")),
+            "micro_cap": str(getattr(micro_res, "status", "UNKNOWN")),
+            "external_risk": str(getattr(ext_res, "status", "UNKNOWN")),
+            "high_tier": str(getattr(high_tier_res, "status", "UNKNOWN")),
+        }
+
+        if existing_snapshot:
+            existing_snapshot.indices_snapshot = json.dumps(index_data, ensure_ascii=False)
+            existing_snapshot.breadth_snapshot = json.dumps(breadth_data, ensure_ascii=False)
+            existing_snapshot.limit_up_snapshot = json.dumps(limit_up_summary, ensure_ascii=False)
+            existing_snapshot.micro_cap_snapshot = json.dumps(micro_data, ensure_ascii=False)
+            existing_snapshot.external_risk_snapshot = json.dumps(ext_data, ensure_ascii=False)
+            existing_snapshot.high_tier_snapshot = json.dumps(high_tier_data, ensure_ascii=False)
+            existing_snapshot.market_state_snapshot = json.dumps(dimensions_dump, ensure_ascii=False)
+            existing_snapshot.data_quality = market_state.data_quality.value
+            existing_snapshot.source_status = json.dumps(source_status_dict, ensure_ascii=False)
+        else:
+            daily_snapshot = MarketDailySnapshot(
+                date=today,
+                snapshot_type="EOD_CLOSE",
+                indices_snapshot=json.dumps(index_data, ensure_ascii=False),
+                breadth_snapshot=json.dumps(breadth_data, ensure_ascii=False),
+                limit_up_snapshot=json.dumps(limit_up_summary, ensure_ascii=False),
+                micro_cap_snapshot=json.dumps(micro_data, ensure_ascii=False),
+                external_risk_snapshot=json.dumps(ext_data, ensure_ascii=False),
+                high_tier_snapshot=json.dumps(high_tier_data, ensure_ascii=False),
+                market_state_snapshot=json.dumps(dimensions_dump, ensure_ascii=False),
+                data_quality=market_state.data_quality.value,
+                source_status=json.dumps(source_status_dict, ensure_ascii=False),
+            )
+            self.session.add(daily_snapshot)
+
+        # 10. 生成并持久化 DailyReview 报告
         review_data = {
             "title": f"{today} A股收盘认知复盘",
             "indices": index_data,

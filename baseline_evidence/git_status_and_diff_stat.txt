@@ -1,0 +1,101 @@
+=== GIT STATUS ===
+On branch master
+Your branch and 'nas/master' have diverged,
+and have 1 and 1 different commits each, respectively.
+  (use "git pull" if you want to integrate the remote branch with yours)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   backend/app/api/v1/cognition.py
+	modified:   backend/app/core/database.py
+	modified:   backend/app/data/capabilities.py
+	modified:   backend/app/data/providers/__init__.py
+	modified:   backend/app/data/providers/baostock_provider.py
+	modified:   backend/app/data/providers/cls.py
+	modified:   backend/app/data/providers/eastmoney.py
+	modified:   backend/app/data/providers/sina.py
+	modified:   backend/app/models/__init__.py
+	modified:   backend/app/models/market.py
+	modified:   backend/app/services/auction.py
+	modified:   backend/app/services/daily_review.py
+	modified:   pytest.ini
+	modified:   "\345\274\200\345\217\221\346\226\207\346\241\243/28-Cognition-Phase2-\345\217\257\345\256\241\350\256\241\347\273\223\346\236\204\345\214\226\350\256\244\347\237\245\345\274\225\346\223\216\346\212\200\346\234\257\350\256\276\350\256\241\345\215\225.md"
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	"01_Phase2A_\344\272\213\345\256\236\345\256\241\350\256\241\346\212\245\345\221\212.md"
+	backend/alembic.ini
+	backend/app/cognition/chain_state.py
+	backend/app/cognition/diff/
+	backend/app/cognition/hash_chain.py
+	backend/app/cognition/hypothesis/
+	backend/app/cognition/input/
+	backend/app/cognition/jcs.py
+	backend/app/cognition/observation/
+	backend/app/cognition/replay/
+	backend/app/models/cognition_v2.py
+	backend/migrations/
+	backend/tests/test_cognition_phase2a_step1.py
+	backend/tests/test_cognition_phase2b_replay.py
+	backend/tests/test_cognition_static_architecture_scan.py
+	backend/tests/test_cognition_step2_jcs_hash_chain.py
+	backend/tests/test_cognition_step3_adapters.py
+	backend/tests/test_cognition_step3_assembly.py
+	backend/tests/test_cognition_step3_contract.py
+	backend/tests/test_cognition_step3_p0_gates.py
+	backend/tests/test_cognition_step4_contracts.py
+	backend/tests/test_cognition_step5_assembly.py
+	backend/tests/test_cognition_step5_evaluator.py
+	backend/tests/test_cognition_step5_falsification.py
+	backend/tests/test_cognition_step6_ac_and_red_team.py
+	backend/tests/test_cognition_worm_hardening.py
+	backend/tests/test_track_a_production_readiness.py
+	baseline_evidence/
+	"\345\274\200\345\217\221\346\226\207\346\241\243/29-Cognition-Phase2A\346\236\266\346\236\204\344\270\216\346\225\260\346\215\256\345\245\221\347\272\246\345\206\273\347\273\223\345\206\263\350\256\256\344\270\216\345\256\236\346\226\275\347\272\246\346\235\237\345\215\225.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/30-M1~M6-S1~S4-Production-Readiness\345\205\250\351\207\217\345\256\241\350\256\241\346\212\245\345\221\212.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/31-Cognition-Phase2A-Step1\345\256\236\346\226\275\347\212\266\346\200\201\344\270\216Gate\346\212\245\345\221\212.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/32-Track-A-Production-Readiness\351\227\255\347\216\257\351\252\214\346\224\266\346\212\245\345\221\212.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/33-Phase-2A-Step1-WORM-Hardening\351\227\255\347\216\257\351\252\214\346\224\266\346\212\245\345\221\212.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/34-Phase-2A-Step3-\345\256\236\346\226\275\350\276\271\347\225\214\344\270\216\346\225\260\346\215\256\345\245\221\347\272\246\345\256\236\346\226\275\350\256\241\345\210\222.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/35-Phase-2A-Step3.1-\345\256\214\346\210\220\346\212\245\345\221\212\344\270\216Contract-Test-Evidence.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/36-Phase-2A-Step3.2-\344\272\213\345\256\236\346\212\275\345\217\226\351\200\202\351\205\215\345\231\250\345\256\214\346\210\220\346\212\245\345\221\212\344\270\216Contract-Test-Evidence.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/37-Phase-2A-Step3.3.1-Eligibility-Contract\344\270\216Conflict-Policy\345\206\273\347\273\223\345\215\225.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/38-Phase-2A-Step3.3-\345\256\236\346\226\275\345\256\214\346\210\220\346\212\245\345\221\212\344\270\216P0-Gate\350\257\201\346\215\256\351\223\276.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/39-Phase-2A-Step3.4-\347\273\274\345\220\210\347\273\204\350\243\205\344\270\216\345\205\250\351\223\276\350\267\257\345\206\267\345\220\257\345\212\250\351\235\231\346\200\201\351\252\214\346\224\266\345\256\236\346\226\275\350\256\241\345\210\222.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/40-Phase-2A-Step3.4-\345\256\236\346\226\275\345\256\214\346\210\220\346\212\245\345\221\212\344\270\216\345\205\250\351\223\276\350\267\257\351\252\214\346\224\266\350\257\201\346\215\256\351\223\276.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/41-Phase-2A-Step3-Final-Closure-Audit\346\234\200\347\273\210\345\260\201\345\217\243\345\256\241\350\256\241\344\270\216\350\256\244\347\237\245\350\276\223\345\205\245\345\245\221\347\272\246\345\206\273\347\273\223\345\215\225.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/42-Phase-2A-Step4-\345\201\207\350\257\264\345\256\232\344\271\211\346\212\225\345\275\261\344\270\216\346\224\266\347\252\204AST\346\226\255\350\250\200\346\211\247\350\241\214\345\231\250\345\256\236\346\226\275\350\247\204\345\210\222.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/43-Phase-2A-Step4\344\270\216Step5\350\201\214\350\264\243\350\276\271\347\225\214\346\276\204\346\270\205\344\270\216\346\236\266\346\236\204\350\243\201\345\206\263\346\226\271\346\241\210.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/44-Phase-2A-Step4-\345\256\236\346\226\275\345\256\214\346\210\220\346\212\245\345\221\212\344\270\216\345\245\221\347\272\246\347\273\210\345\261\200\345\206\273\347\273\223\345\215\225.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/45-Phase-2A-Step5-\346\224\266\347\252\204AST\350\247\243\351\207\212\346\211\247\350\241\214\345\231\250\344\270\216\344\272\213\345\220\216\350\257\201\344\274\252\351\227\255\347\216\257\345\256\236\346\226\275\350\247\204\345\210\222.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/46-Phase-2A-Step5-\345\256\236\346\226\275\345\256\214\346\210\220\346\212\245\345\221\212\344\270\216\350\257\201\344\274\252\351\227\255\347\216\257\351\252\214\346\224\266\350\257\201\346\215\256\351\223\276.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/47-Phase-2A-Step6-\345\205\250\351\207\217AC\351\252\214\346\224\266\344\270\216\347\272\242\351\230\237\345\256\241\350\256\241\345\256\236\346\226\275\350\256\241\345\210\222.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/48-Phase-2A-Step6-\347\273\210\345\261\200\351\252\214\346\224\266\344\270\216\347\272\242\351\230\237\345\256\241\350\256\241\346\200\273\346\212\245\345\221\212.md"
+	"\345\274\200\345\217\221\346\226\207\346\241\243/49-Phase-2B-\345\256\236\346\226\275\350\247\204\345\210\222\344\270\216\347\247\221\345\255\246\345\256\236\351\252\214\345\257\271\346\222\236\345\274\225\346\223\216\346\212\200\346\234\257\350\256\276\350\256\241\345\215\225.md"
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+=== GIT DIFF --STAT ===
+ backend/app/api/v1/cognition.py                    |   47 +
+ backend/app/core/database.py                       |    2 +
+ backend/app/data/capabilities.py                   |   70 ++
+ backend/app/data/providers/__init__.py             |    6 +-
+ backend/app/data/providers/baostock_provider.py    |  176 ++-
+ backend/app/data/providers/cls.py                  |  117 +-
+ backend/app/data/providers/eastmoney.py            |  372 +++++-
+ backend/app/data/providers/sina.py                 |   76 +-
+ backend/app/models/__init__.py                     |   14 +
+ backend/app/models/market.py                       |   46 +
+ backend/app/services/auction.py                    |   43 +-
+ backend/app/services/daily_review.py               |   87 +-
+ pytest.ini                                         |    1 +
+ ...234\257\350\256\276\350\256\241\345\215\225.md" | 1210 ++++++++++++--------
+ 14 files changed, 1681 insertions(+), 586 deletions(-)
+
+=== GIT LOG -N 5 ===
+c52d1c8 (HEAD -> master) feat(version): upgrade system to v0.2.0 with engineering dynamic versioning
+e26031b fix(frontend): safe null and string formatting in briefing market breadth card
+92d09f8 feat(p2): P2 Engineering Acceptance Baseline
+9ed2e1a docs(p2): baseline approved design for P2 data resilience and health governance
+8f30046 fix(p1): align test assertions, trading correction response format, and compose volume
