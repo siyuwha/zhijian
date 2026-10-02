@@ -1,0 +1,68 @@
+{
+  "version": "v0.2.0-engineering-baseline",
+  "commit": "d44348379a5b81d5c9753346b07cb0d115c89081",
+  "baseline_created_at": "2026-10-02T00:17:36+08:00",
+  "asset_reference": "KA-06 (Baseline Diff & Anti-Regression Gate)",
+  "metrics": {
+    "total_tests_required": 148,
+    "test_pass_rate_min": 1.0,
+    "test_failure_max": 0,
+    "test_error_max": 0,
+    "max_allowed_duration_seconds": 120.0
+  },
+  "schema_contract": {
+    "expected_tables_count": 32,
+    "expected_tables": [
+      "alembic_version",
+      "auction_report",
+      "cognition_chain_state",
+      "cognition_diff_report",
+      "cognition_market_state",
+      "cognition_prompt_spec",
+      "cognition_record",
+      "cognitive_trade_diagnosis",
+      "daily_review",
+      "data_quality_log",
+      "hypothesis_verification",
+      "intraday_anomaly_event",
+      "intraday_market_snapshot",
+      "market_daily_snapshot",
+      "market_hypothesis",
+      "market_index_daily",
+      "market_limit_up_daily",
+      "market_limit_up_summary",
+      "market_news",
+      "market_settlement_cache",
+      "position",
+      "premarket_briefing",
+      "selection_candidate",
+      "selection_result",
+      "sim_account",
+      "sim_position",
+      "sim_trade",
+      "strategy",
+      "system_config",
+      "task_log",
+      "trade_note",
+      "trade_record"
+    ],
+    "expected_triggers_count": 5,
+    "expected_triggers": [
+      "trg_cognition_chain_state_no_delete",
+      "trg_cognition_prompt_spec_no_delete",
+      "trg_cognition_prompt_spec_no_update",
+      "trg_cognition_record_no_delete",
+      "trg_cognition_record_no_update"
+    ],
+    "genesis_anchor": {
+      "chain_id": "MAIN_LEDGER",
+      "tail_sequence_id": 0,
+      "tail_record_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "database_isolation": {
+    "physical_db_path_root": "data/trading.db",
+    "physical_db_path_backend": "backend/data/trading.db",
+    "enforce_zero_modification": true
+  }
+}

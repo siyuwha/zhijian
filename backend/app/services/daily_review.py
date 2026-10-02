@@ -222,6 +222,16 @@ class DailyReviewService:
 
         await self.session.commit()
         await self.session.refresh(review_record)
+
+        # 11. 最小认知桥梁 (Minimal Cognition Bridge): 自动接入 Phase 2A 不可变认知账本
+        try:
+            from ..cognition.bridge import CognitionBridge
+            target_snapshot = existing_snapshot if existing_snapshot else daily_snapshot
+            bridge = CognitionBridge(self.session)
+            await bridge.record_daily_review(today, target_snapshot, review_record)
+        except Exception as e:
+            logger.error(f"Minimal Cognition Bridge recording error for {today}: {e}")
+
         return review_record
 
     async def get_review_by_date(self, date_str: str) -> Optional[DailyReview]:

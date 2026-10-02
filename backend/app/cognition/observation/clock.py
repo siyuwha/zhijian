@@ -6,7 +6,7 @@
 
 from datetime import datetime, timezone, timedelta
 import hashlib
-from typing import Optional
+from typing import Optional, Union
 
 
 # 统一时区为 Asia/Shanghai (UTC+8)
@@ -24,6 +24,15 @@ class DeterministicClock:
         if self._current_time.tzinfo is None:
             self._current_time = self._current_time.replace(tzinfo=BEIJING_TZ)
         self._seq_counter: int = 0
+
+    @classmethod
+    def frozen(cls, dt_or_str: Union[str, datetime] = "2026-09-30T09:25:00.000+08:00") -> "DeterministicClock":
+        if isinstance(dt_or_str, datetime):
+            if dt_or_str.tzinfo is None:
+                dt_or_str = dt_or_str.replace(tzinfo=BEIJING_TZ)
+            iso = dt_or_str.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "+08:00"
+            return cls(iso)
+        return cls(dt_or_str)
 
     @property
     def current_time(self) -> datetime:
