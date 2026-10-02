@@ -174,5 +174,16 @@ export const api = {
     fetchAPI<import('@/types/cognition').HypothesisVerification>(`/cognition/hypotheses/${id}/verify?stage=${stage}`, {
       method: 'POST',
     }),
+
+  // =========================================================================
+  // Phase 2B.3: 认知闭环三卡片聚合接口
+  // =========================================================================
+  getCognitionReviewLoop: (date: string) =>
+    fetchAPI<import('@/types/cognition').CognitionReviewLoopData>(`/cognition/review-loop/${date}`),
+  proposeTodayHypothesis: (payload: { market_date: string; target_date?: string }) =>
+    fetchAPI<any>('/cognition/hypotheses/propose-today', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
 

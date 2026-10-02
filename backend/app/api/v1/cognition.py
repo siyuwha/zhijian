@@ -11,6 +11,8 @@ from ...services.cognition_review import CognitionReviewService
 from ...schemas.cognition import (
     DiagnosisConfirmPayload,
     MarketHypothesisCreate,
+    CognitionReviewLoopResponse,
+    ProposeTodayHypothesisPayload,
 )
 
 router = APIRouter(prefix="/cognition", tags=["Cognition"])
@@ -262,4 +264,42 @@ async def reject_chain_state_delete(chain_id: str):
         status_code=405,
         detail="WORM Violation: CognitionChainState is permanent ledger anchor. DELETE operations are strictly prohibited at API level."
     )
+
+# =========================================================================
+# Phase 2B.3: 认知闭环前端可视化聚合接口
+# 上位依据：《开发文档/59-Phase-2B.3-认知闭环前端可视化契约设计单.md》
+# =========================================================================
+
+@router.get("/review-loop/{date}", response_model=CognitionReviewLoopResponse)
+async def get_cognition_review_loop(date: str, db: AsyncSession = Depends(get_db)):
+    """获取指定日期的三卡片认知闭环数据 (今日事实 + 今日假说 + 昨日假说裁决)"""
+    service = CognitionReviewService(db)
+    data = await service.get_review_loop_data(date)
+    return CognitionReviewLoopResponse(data=data)
+
+@router.post("/hypotheses/propose-today")
+async def propose_today_hypothesis(
+    payload: ProposeTodayHypothesisPayload, db: AsyncSession = Depends(get_db)
+):
+    """收盘后触发受约束大模型推演假说生成，经 ProposalValidator 准入校验后存入 WORM 账本"""
+    if payload.target_date and payload.target_date <= payload.market_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Temporal causality violation: target_date ({payload.target_date}) must be strictly greater than market_date ({payload.market_date})"
+        )
+    service = CognitionReviewService(db)
+    hypo = await service.propose_today_hypothesis(payload.market_date, payload.target_date)
+    return {
+        "code": 200,
+        "message": "Market hypothesis proposed and locked successfully",
+        "data": {
+            "id": hypo.id,
+            "created_date": hypo.created_date,
+            "target_date": hypo.target_date,
+            "hypothesis_type": hypo.hypothesis_type,
+            "target_asset": hypo.target_asset,
+            "status": hypo.status,
+        },
+    }
+
 

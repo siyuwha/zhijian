@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
 class DiagnosisConfirmPayload(BaseModel):
@@ -86,3 +86,109 @@ class MarketHypothesisResponse(BaseModel):
     status: str
     verifications: List[HypothesisVerificationResponse] = []
     created_at: Optional[datetime] = None
+
+
+# =========================================================================
+# Phase 2B.3: 认知闭环三卡片聚合 DTO (Cognition Review Loop DTOs)
+# 上位依据：《开发文档/59-Phase-2B.3-认知闭环前端可视化契约设计单.md》
+# =========================================================================
+
+class FactIndexItem(BaseModel):
+    code: str
+    name: str
+    price: Optional[float] = None
+    pct_change: Optional[float] = None
+
+class FactSentiment(BaseModel):
+    limit_up_count: Optional[int] = None
+    limit_down_count: Optional[int] = None
+    max_board_height: Optional[int] = None
+    broken_limit_count: Optional[int] = None
+    broken_ratio: Optional[float] = None
+
+class FactBreadth(BaseModel):
+    up_count: Optional[int] = None
+    down_count: Optional[int] = None
+    flat_count: Optional[int] = None
+
+class FactLayer(BaseModel):
+    indices: List[FactIndexItem] = []
+    sentiment: FactSentiment = Field(default_factory=FactSentiment)
+    breadth: FactBreadth = Field(default_factory=FactBreadth)
+
+class DerivedStateLayer(BaseModel):
+    state_label: str = "平稳中性"
+    config_version: str = "v1.0"
+
+class TodayFactsDTO(BaseModel):
+    fact_layer: FactLayer = Field(default_factory=FactLayer)
+    derived_state: DerivedStateLayer = Field(default_factory=DerivedStateLayer)
+    observation_timestamp: Optional[str] = None
+    fact_snapshot_hash: Optional[str] = None
+    data_quality: Optional[str] = "GOOD"
+    completeness: Optional[float] = 1.0
+
+class AssertionDTO(BaseModel):
+    assertion_id: str
+    metric_type: str
+    target_code: str = "ALL_A"
+    operator: str
+    threshold: Any
+    description: Optional[str] = None
+
+class HypothesisMetaDTO(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    model_name: str = "deepseek-flash"
+    prompt_spec_version: str = "1.1.0"
+    hypothesis_hash: Optional[str] = None
+
+class TodayHypothesisDTO(BaseModel):
+    id: int
+    status: str = "PENDING"
+    created_date: str
+    target_date: str
+    hypothesis_type: str
+    target_asset: str
+    expected_scenario: str
+    premise_logic: str
+    expected_phenomenon: str
+    expected_assertions: List[AssertionDTO] = []
+    invalidation_condition: str
+    invalidation_assertions: List[AssertionDTO] = []
+    meta: HypothesisMetaDTO = Field(default_factory=HypothesisMetaDTO)
+
+class AdjudicationComparisonItem(BaseModel):
+    assertion_id: str
+    kind: str  # EXPECTED / INVALIDATION
+    metric_type: str
+    operator: str
+    threshold: Any
+    actual_value: Optional[float] = None
+    is_satisfied: bool
+
+class YesterdayAdjudicationDTO(BaseModel):
+    hypothesis_id: int
+    created_date: str
+    target_date: str
+    hypothesis_type: str
+    premise_logic: str
+    outcome: Literal["CONFIRMED", "FALSIFIED", "INCONCLUSIVE"]
+    falsification_triggered: bool = False
+    details: str = ""
+    comparison_matrix: List[AdjudicationComparisonItem] = []
+
+class CognitionReviewLoopData(BaseModel):
+    market_date: str
+    today_facts: TodayFactsDTO
+    today_hypothesis: Optional[TodayHypothesisDTO] = None
+    yesterday_adjudication: Optional[YesterdayAdjudicationDTO] = None
+
+class CognitionReviewLoopResponse(BaseModel):
+    code: int = 200
+    message: str = "success"
+    data: CognitionReviewLoopData
+
+class ProposeTodayHypothesisPayload(BaseModel):
+    market_date: str
+    target_date: Optional[str] = None
+

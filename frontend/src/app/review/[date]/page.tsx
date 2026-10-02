@@ -30,6 +30,7 @@ import {
   Plus
 } from 'lucide-react';
 import { MarketHypothesis, MarketHypothesisCreatePayload } from '@/types/cognition';
+import { CognitionLoopVisualizer } from '@/components/cognition/CognitionLoopVisualizer';
 
 export default function ReviewDetailPage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = use(params);
@@ -280,6 +281,11 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
           </span>
         </div>
       )}
+
+      {/* ==================================================================== */}
+      {/* Phase 2B.3: 认知闭环三核心卡片 (今日事实 -> 今日假说 -> 昨日裁决) */}
+      {/* ==================================================================== */}
+      <CognitionLoopVisualizer marketDate={date} />
 
       {/* ==================================================================== */}
       {/* 核心第一板块：六维市场状态向量 (Market State Vector) 看板 */}

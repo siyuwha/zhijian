@@ -18,7 +18,20 @@ from ..models.market import MarketDailySnapshot
 from ..schemas.cognition import (
     DiagnosisConfirmPayload,
     MarketHypothesisCreate,
+    TodayFactsDTO,
+    FactLayer,
+    FactIndexItem,
+    FactSentiment,
+    FactBreadth,
+    DerivedStateLayer,
+    TodayHypothesisDTO,
+    AssertionDTO,
+    HypothesisMetaDTO,
+    YesterdayAdjudicationDTO,
+    AdjudicationComparisonItem,
+    CognitionReviewLoopData,
 )
+from ..cognition.hypothesis.falsification import FalsificationEngine
 
 class CognitionReviewService:
     """
@@ -589,3 +602,334 @@ class CognitionReviewService:
         await self.session.commit()
         await self.session.refresh(verification)
         return verification
+
+    # =========================================================================
+    # Phase 2B.3: 认知闭环三卡片聚合与受约束 AI 生成服务
+    # 上位依据：《开发文档/59-Phase-2B.3-认知闭环前端可视化契约设计单.md》
+    # =========================================================================
+
+    async def get_review_loop_data(self, market_date: str) -> CognitionReviewLoopData:
+        """获取三卡片闭环聚合数据 (今日事实 + 今日假说 + 昨日假说裁决)"""
+        # 1. 组装今日事实卡 (Today's Facts)
+        stmt_rev = select(DailyReview).where(DailyReview.date == market_date)
+        today_rev = (await self.session.execute(stmt_rev)).scalars().first()
+
+        fact_indices = []
+        sentiment_dto = FactSentiment()
+        breadth_dto = FactBreadth()
+        state_label = "平稳中性"
+        composite_score = None
+
+        if today_rev:
+            if today_rev.market_overview:
+                try:
+                    raw_indices = json.loads(today_rev.market_overview)
+                    if isinstance(raw_indices, list):
+                        for item in raw_indices:
+                            fact_indices.append(FactIndexItem(
+                                code=item.get("code") or item.get("symbol", ""),
+                                name=item.get("name", ""),
+                                price=float(item.get("price") or 0.0),
+                                pct_change=float(item.get("pct_change") or 0.0),
+                            ))
+                except Exception:
+                    pass
+
+            if today_rev.limit_up_analysis:
+                try:
+                    raw_lu = json.loads(today_rev.limit_up_analysis)
+                    if isinstance(raw_lu, dict):
+                        sentiment_dto = FactSentiment(
+                            limit_up_count=int(raw_lu.get("total_count") or 0),
+                            limit_down_count=int(raw_lu.get("limit_down_count") or 0),
+                            max_board_height=int(raw_lu.get("max_height") or 0),
+                            broken_limit_count=int(raw_lu.get("broken_limit_count") or 0),
+                            broken_ratio=float(raw_lu.get("broken_limit_ratio") or 0.0),
+                        )
+                except Exception:
+                    pass
+
+        # 市场状态
+        stmt_state = (
+            select(CognitionMarketState)
+            .where(CognitionMarketState.date == market_date)
+            .order_by(CognitionMarketState.id.desc())
+        )
+        ms_rec = (await self.session.execute(stmt_state)).scalars().first()
+        if ms_rec:
+            state_label = ms_rec.state_label or state_label
+
+        import hashlib
+        obs_time = today_rev.created_at.isoformat() if (today_rev and getattr(today_rev, "created_at", None)) else f"{market_date}T15:00:00"
+
+        # 真实 Observation 事实快照哈希：严格绑定底层完整 MarketDailySnapshot 规范载荷 (RFC 8785 JCS)
+        # 铁律：若 Observation Snapshot 不存在，严禁用另一种语义的 Review Payload 冒充同一 hash
+        fact_hash = None
+        stmt_m1_snap = select(MarketDailySnapshot).where(
+            and_(
+                MarketDailySnapshot.date == market_date,
+                MarketDailySnapshot.snapshot_type == "EOD_CLOSE",
+            )
+        )
+        m1_snap = (await self.session.execute(stmt_m1_snap)).scalars().first()
+        if m1_snap:
+            from ..cognition.jcs import hash_jcs
+            canonical_payload = {
+                "breadth_snapshot": m1_snap.breadth_snapshot,
+                "date": m1_snap.date,
+                "external_risk_snapshot": m1_snap.external_risk_snapshot,
+                "high_tier_snapshot": m1_snap.high_tier_snapshot,
+                "indices_snapshot": m1_snap.indices_snapshot,
+                "limit_up_snapshot": m1_snap.limit_up_snapshot,
+                "market_state_snapshot": m1_snap.market_state_snapshot,
+                "micro_cap_snapshot": m1_cap if (m1_cap := getattr(m1_snap, "micro_cap_snapshot", None)) else None,
+                "snapshot_type": m1_snap.snapshot_type,
+            }
+            fact_hash = f"obs-{hash_jcs(canonical_payload)[:16]}"
+
+        today_facts_dto = TodayFactsDTO(
+            fact_layer=FactLayer(
+                indices=fact_indices,
+                sentiment=sentiment_dto,
+                breadth=breadth_dto,
+            ),
+            derived_state=DerivedStateLayer(
+                state_label=state_label,
+                config_version="v1.0",
+            ),
+            observation_timestamp=obs_time,
+            fact_snapshot_hash=fact_hash,
+            data_quality="GOOD" if today_rev else "PARTIAL",
+            completeness=1.0 if (today_rev and fact_indices) else (0.5 if today_rev else 0.0),
+        )
+
+        # 2. 组装今日 AI 假说卡 (Today's Hypothesis)
+        stmt_today_hypo = (
+            select(MarketHypothesis)
+            .where(MarketHypothesis.created_date == market_date)
+            .order_by(MarketHypothesis.id.desc())
+        )
+        today_hypo = (await self.session.execute(stmt_today_hypo)).scalars().first()
+
+        today_hypo_dto = None
+        if today_hypo:
+            exp_assertions = []
+            inv_assertions = []
+            meta_dto = HypothesisMetaDTO()
+
+            if today_hypo.assertion_metrics:
+                try:
+                    raw_metrics = (
+                        json.loads(today_hypo.assertion_metrics)
+                        if isinstance(today_hypo.assertion_metrics, str)
+                        else today_hypo.assertion_metrics
+                    )
+                    for a in raw_metrics.get("expected_assertions", []):
+                        exp_assertions.append(AssertionDTO(
+                            assertion_id=a.get("assertion_id", "exp"),
+                            metric_type=a.get("metric_type", "pct_change"),
+                            target_code=a.get("target_code", "ALL_A"),
+                            operator=a.get("operator", "GTE"),
+                            threshold=a.get("threshold", 0.0),
+                            description=a.get("description"),
+                        ))
+                    for a in raw_metrics.get("invalidation_assertions", []):
+                        inv_assertions.append(AssertionDTO(
+                            assertion_id=a.get("assertion_id", "inv"),
+                            metric_type=a.get("metric_type", "pct_change"),
+                            target_code=a.get("target_code", "ALL_A"),
+                            operator=a.get("operator", "GT"),
+                            threshold=a.get("threshold", 0.0),
+                            description=a.get("description"),
+                        ))
+                    raw_meta = raw_metrics.get("meta", {})
+                    meta_dto = HypothesisMetaDTO(
+                        model_name=raw_meta.get("model_name", "deepseek-flash"),
+                        prompt_spec_version=raw_meta.get("prompt_spec_version", "1.1.0"),
+                        hypothesis_hash=raw_meta.get("hypothesis_hash"),
+                    )
+                except Exception:
+                    pass
+
+            today_hypo_dto = TodayHypothesisDTO(
+                id=today_hypo.id,
+                status=today_hypo.status,
+                created_date=today_hypo.created_date,
+                target_date=today_hypo.target_date,
+                hypothesis_type=today_hypo.hypothesis_type,
+                target_asset=today_hypo.target_asset,
+                expected_scenario=today_hypo.expected_scenario,
+                premise_logic=today_hypo.premise_logic,
+                expected_phenomenon=today_hypo.expected_phenomenon,
+                expected_assertions=exp_assertions,
+                invalidation_condition=today_hypo.invalidation_condition,
+                invalidation_assertions=inv_assertions,
+                meta=meta_dto,
+            )
+
+        # 3. 组装昨日假说裁决卡 (Yesterday's Adjudication) - 严格只读，零写入副作用
+        stmt_prev_hypo = (
+            select(MarketHypothesis)
+            .where(MarketHypothesis.target_date == market_date)
+            .order_by(MarketHypothesis.id.desc())
+        )
+        prev_hypo = (await self.session.execute(stmt_prev_hypo)).scalars().first()
+
+        yesterday_adjudication_dto = None
+        if prev_hypo:
+            stmt_ver = (
+                select(HypothesisVerification)
+                .where(
+                    and_(
+                        HypothesisVerification.hypothesis_id == prev_hypo.id,
+                        HypothesisVerification.verification_stage == "CLOSE_1530",
+                    )
+                )
+                .order_by(HypothesisVerification.id.desc())
+            )
+            ver = (await self.session.execute(stmt_ver)).scalars().first()
+
+            # 严格只读契约：若尚未生成核验记录，查询接口绝对不主动写库产生裁决
+            if ver:
+                outcome = ver.outcome
+                details = ver.deviation_analysis or ver.gap_summary
+
+                from ..cognition.hypothesis.service_adapter import HypothesisServiceAdapter
+                from ..cognition.hypothesis.evaluator import AssertionOutcome
+
+                ast_def = HypothesisServiceAdapter.compile_hypothesis_definition(prev_hypo)
+                obs_data = HypothesisServiceAdapter.extract_observation_data(market_date, review=today_rev)
+                adj_res = FalsificationEngine.adjudicate(ast_def, obs_data)
+
+                falsification_triggered = adj_res.falsification_triggered
+                comparison_matrix = []
+
+                for exp_res in adj_res.expected_results:
+                    m_type = "unknown"
+                    op_str = "GTE"
+                    th_val = exp_res.target_value
+                    for ma in ast_def.expected_assertions:
+                        if ma.assertion_id == exp_res.assertion_id:
+                            m_type = ma.metric
+                            op_str = ma.operator.value
+                            break
+                    comparison_matrix.append(AdjudicationComparisonItem(
+                        assertion_id=exp_res.assertion_id,
+                        kind="EXPECTED",
+                        metric_type=m_type,
+                        operator=op_str,
+                        threshold=th_val,
+                        actual_value=exp_res.actual_value,
+                        is_satisfied=exp_res.outcome == AssertionOutcome.PASSED,
+                    ))
+
+                for inv_res in adj_res.invalidation_results:
+                    m_type = "unknown"
+                    op_str = "GT"
+                    th_val = inv_res.target_value
+                    for ma in ast_def.invalidation_assertions:
+                        if ma.assertion_id == inv_res.assertion_id:
+                            m_type = ma.metric
+                            op_str = ma.operator.value
+                            break
+                    comparison_matrix.append(AdjudicationComparisonItem(
+                        assertion_id=inv_res.assertion_id,
+                        kind="INVALIDATION",
+                        metric_type=m_type,
+                        operator=op_str,
+                        threshold=th_val,
+                        actual_value=inv_res.actual_value,
+                        is_satisfied=inv_res.outcome == AssertionOutcome.PASSED,
+                    ))
+
+                if outcome not in ("CONFIRMED", "FALSIFIED", "INCONCLUSIVE"):
+                    outcome = "INCONCLUSIVE"
+
+                yesterday_adjudication_dto = YesterdayAdjudicationDTO(
+                    hypothesis_id=prev_hypo.id,
+                    created_date=prev_hypo.created_date,
+                    target_date=prev_hypo.target_date,
+                    hypothesis_type=prev_hypo.hypothesis_type,
+                    premise_logic=prev_hypo.premise_logic,
+                    outcome=outcome,
+                    falsification_triggered=falsification_triggered,
+                    details=details,
+                    comparison_matrix=comparison_matrix,
+                )
+
+        return CognitionReviewLoopData(
+            market_date=market_date,
+            today_facts=today_facts_dto,
+            today_hypothesis=today_hypo_dto,
+            yesterday_adjudication=yesterday_adjudication_dto,
+        )
+
+    async def propose_today_hypothesis(
+        self, market_date: str, target_date: Optional[str] = None
+    ) -> MarketHypothesis:
+        """触发受约束大模型假说提议生成，经 ProposalValidator 准入校验后存入 WORM 账本"""
+        stmt_rev = select(DailyReview).where(DailyReview.date == market_date)
+        today_rev = (await self.session.execute(stmt_rev)).scalars().first()
+        if not today_rev:
+            raise HTTPException(status_code=404, detail=f"未找到 {market_date} 的收盘复盘事实")
+
+        if not target_date:
+            cur_dt = datetime.strptime(market_date, "%Y-%m-%d")
+            offset = 3 if cur_dt.weekday() == 4 else (2 if cur_dt.weekday() == 5 else 1)
+            target_date = (cur_dt + timedelta(days=offset)).strftime("%Y-%m-%d")
+
+        # 刚性时间因果防线：服务端强制校验 target_date > market_date，杜绝未来信息污染
+        if target_date <= market_date:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Temporal causality violation: target_date ({target_date}) must be strictly greater than market_date ({market_date})"
+            )
+
+        indices = json.loads(today_rev.market_overview) if today_rev.market_overview else []
+        lu_data = json.loads(today_rev.limit_up_analysis) if today_rev.limit_up_analysis else {}
+
+        obs = {
+            "market_date": market_date,
+            "indices": indices,
+            "limit_up_summary": {
+                "total_limit_up": lu_data.get("total_count", 0),
+                "limit_down_count": lu_data.get("limit_down_count", 0),
+                "max_board_height": lu_data.get("max_height", 0),
+                "broken_ratio": lu_data.get("broken_limit_ratio", 0.0),
+            },
+            "breadth": {"up_count": 0, "down_count": 0},
+            "market_state": {"state_label": "真实收盘切片"},
+        }
+
+        from ..cognition.hypothesis.prompt_spec import PromptSpec
+        from ..cognition.hypothesis.sandbox_proposer import SandboxProposer
+        from ..cognition.hypothesis.llm_driver import LLMDriverAdapter, SandboxLLMError
+
+        driver = LLMDriverAdapter()
+        if not driver.is_configured:
+            raise HTTPException(
+                status_code=400,
+                detail="LLM API Key 尚未配置，无法执行真实 AI 假说推演。请在环境中设置 LLM_API_KEY。"
+            )
+
+        spec = PromptSpec.create_canonical()
+        proposer = SandboxProposer(prompt_spec=spec)
+
+        try:
+            exec_record = proposer.propose(
+                observation=obs,
+                target_date=target_date,
+                generator_fn=driver.generate,
+            )
+        except SandboxLLMError as se:
+            raise HTTPException(status_code=502, detail=f"LLM 驱动调用失败: {str(se)}")
+
+        if not exec_record.is_valid:
+            raise HTTPException(
+                status_code=400,
+                detail=f"LLM 提案准入校验未通过 [{exec_record.validation_error_code}]: {exec_record.validation_error_detail}"
+            )
+
+        hypo = await self.create_hypothesis(exec_record.compiled_hypothesis)
+        return hypo
+
