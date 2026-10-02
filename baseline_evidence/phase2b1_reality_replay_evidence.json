@@ -1,0 +1,117 @@
+{
+  "audit_timestamp": "2026-10-02T15:14:40.645858",
+  "nas_source_records": 5,
+  "invariants": {
+    "time_causality": {
+      "past_date_blocked": true,
+      "same_date_blocked": true,
+      "message": "时间因果违规：目标验证日期 (2026-09-27) 必须严格晚于假说建立日期 (2026-09-28)，禁止时间倒挂与回溯偷看"
+    }
+  },
+  "adjudications": [
+    {
+      "hypothesis_id": 1,
+      "target_date": "2026-09-29",
+      "hypothesis_type": "SENTIMENT_CYCLE",
+      "expected": "CONFIRMED",
+      "actual_outcome": "CONFIRMED",
+      "deviation_analysis": "[CONFIRMED]: 预期断言符合度 1/1 (逻辑=AND), 证伪断言均未触发",
+      "gap_summary": "全部断言吻合预期，假说证实 (CONFIRMED)",
+      "snapshot": {
+        "metrics_summary": {
+          "inv_ld_surge": 10.0,
+          "exp_lu_min": 57.0
+        },
+        "falsification_triggered": false,
+        "target_date": "2026-09-29",
+        "data_quality": "PARTIAL"
+      }
+    },
+    {
+      "hypothesis_id": 2,
+      "target_date": "2026-09-29",
+      "hypothesis_type": "INDEX_TREND",
+      "expected": "FALSIFIED",
+      "actual_outcome": "FALSIFIED",
+      "deviation_analysis": "[FALSIFIED]: 证伪断言 'inv_sh_drop' 触发，假说被直接证伪短路",
+      "gap_summary": "触碰反向证伪红线，假说被证伪 (FALSIFIED)",
+      "snapshot": {
+        "metrics_summary": {
+          "inv_sh_drop": 0.18
+        },
+        "falsification_triggered": true,
+        "target_date": "2026-09-29",
+        "data_quality": "PARTIAL"
+      }
+    },
+    {
+      "hypothesis_id": 3,
+      "target_date": "2026-09-29",
+      "hypothesis_type": "BREADTH_TREND",
+      "expected": "INCONCLUSIVE",
+      "actual_outcome": "INCONCLUSIVE",
+      "deviation_analysis": "[INCONCLUSIVE]: 数据缺失或断言未决: 预期断言 exp_micro_turnover 缺数",
+      "gap_summary": "关键指标缺失，无法确证 (INCONCLUSIVE)",
+      "snapshot": {
+        "metrics_summary": {},
+        "falsification_triggered": false,
+        "target_date": "2026-09-29",
+        "data_quality": "PARTIAL"
+      }
+    }
+  ],
+  "immutability": {
+    "worm_enforced": true,
+    "idempotent_call_id_match": true,
+    "idempotent_call_outcome_match": true,
+    "verified_at": "2026-10-02 07:14:40"
+  },
+  "frontend_contract": {
+    "target_date": "2026-09-29",
+    "total_items": 3,
+    "all_items_have_verifications": true,
+    "sample_first_item": {
+      "id": 3,
+      "created_date": "2026-09-28",
+      "target_date": "2026-09-29",
+      "hypothesis_type": "BREADTH_TREND",
+      "target_asset": "微盘股活跃度",
+      "expected_scenario": "ROTATION",
+      "premise_logic": "预期微盘股群体平均换手率爆发",
+      "expected_phenomenon": "微盘股换手率 >= 8.0%",
+      "invalidation_condition": "换手率指标缺失无法确证",
+      "assertion_metrics": {
+        "expected_assertions": [
+          {
+            "assertion_id": "exp_micro_turnover",
+            "metric_type": "turnover_ratio",
+            "target_code": "ALL_A",
+            "operator": "GTE",
+            "threshold": 8.0,
+            "missing_data_policy": "INCONCLUSIVE"
+          }
+        ]
+      },
+      "status": "CLOSED",
+      "created_at": "2026-10-02 07:14:40",
+      "verifications": [
+        {
+          "id": 3,
+          "hypothesis_id": 3,
+          "verification_stage": "CLOSE_1530",
+          "actual_data_snapshot": {
+            "metrics_summary": {},
+            "falsification_triggered": false,
+            "target_date": "2026-09-29",
+            "data_quality": "PARTIAL"
+          },
+          "outcome": "INCONCLUSIVE",
+          "accuracy_score": null,
+          "deviation_analysis": "[INCONCLUSIVE]: 数据缺失或断言未决: 预期断言 exp_micro_turnover 缺数",
+          "gap_summary": "关键指标缺失，无法确证 (INCONCLUSIVE)",
+          "verified_at": "2026-10-02 07:14:40"
+        }
+      ]
+    }
+  }
+}

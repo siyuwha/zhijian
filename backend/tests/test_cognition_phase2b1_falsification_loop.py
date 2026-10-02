@@ -254,6 +254,7 @@ async def test_cognition_review_service_e2e_verify_flow(async_session: AsyncSess
 
     # 1. 创建假说
     payload = MarketHypothesisCreate(
+        created_date="2026-09-29",
         target_date="2026-09-30",
         hypothesis_type="SENTIMENT_CYCLE",
         target_asset="全市场短线情绪",
@@ -303,3 +304,85 @@ async def test_cognition_review_service_e2e_verify_flow(async_session: AsyncSess
     item = res["items"][0]
     assert len(item["verifications"]) == 1
     assert item["verifications"][0]["outcome"] == "CONFIRMED"
+
+
+@pytest.mark.asyncio
+async def test_time_causality_rejection(async_session: AsyncSession):
+    """验证时间因果律硬阻断：严禁目标验证日期早于或等于假说建立日期"""
+    from fastapi import HTTPException
+    service = CognitionReviewService(async_session)
+
+    # 1. 目标日期早于建立日期 (时间倒挂)
+    with pytest.raises(HTTPException) as exc_info:
+        await service.create_hypothesis(
+            MarketHypothesisCreate(
+                created_date="2026-09-28",
+                target_date="2026-09-27",
+                hypothesis_type="INDEX_TREND",
+                target_asset="上证指数",
+                expected_scenario="BREAKOUT",
+                premise_logic="测试时间倒挂",
+                expected_phenomenon="应拦截",
+                invalidation_condition="立即阻断",
+            )
+        )
+    assert exc_info.value.status_code == 400
+    assert "时间因果违规" in exc_info.value.detail
+
+    # 2. 目标日期等于建立日期 (当天自证违规)
+    with pytest.raises(HTTPException) as exc_info2:
+        await service.create_hypothesis(
+            MarketHypothesisCreate(
+                created_date="2026-09-28",
+                target_date="2026-09-28",
+                hypothesis_type="INDEX_TREND",
+                target_asset="上证指数",
+                expected_scenario="BREAKOUT",
+                premise_logic="测试当天自证",
+                expected_phenomenon="应拦截",
+                invalidation_condition="立即阻断",
+            )
+        )
+    assert exc_info2.value.status_code == 400
+    assert "时间因果违规" in exc_info2.value.detail
+
+
+@pytest.mark.asyncio
+async def test_invalidation_shortcuts_and_real_falsification():
+    """验证轻量级证伪规则 shortcuts (sh_invalidation_min 与 limit_down_invalidation_max) 编译与求值"""
+    hypo_drop = MarketHypothesis(
+        id=99,
+        created_date="2026-09-28",
+        target_date="2026-09-29",
+        hypothesis_type="INDEX_TREND",
+        target_asset="上证指数",
+        expected_scenario="BREAKOUT",
+        premise_logic="预期大盘强攻",
+        expected_phenomenon="收盘涨幅>1.5%",
+        invalidation_condition="涨幅低于0.5%则证伪",
+        assertion_metrics=json.dumps({
+            "sh_pct_change_min": 1.5,
+            "sh_invalidation_min": 0.5,
+            "limit_down_invalidation_max": 30.0,
+        }),
+    )
+
+    # 模拟真实 09-29 事实：上证仅涨 0.18%，跌停 10 家
+    obs_data = {
+        "date": "2026-09-29",
+        "status": "AVAILABLE",
+        "stocks": [
+            {"code": "sh000001", "name": "上证指数", "pct_change": 0.18, "price": 3830.45},
+            {"code": "ALL_A", "name": "全市场宏观聚合", "pct_change": 0.18, "limit_up_count": 57.0, "limit_down_count": 10.0},
+        ],
+    }
+
+    adj = HypothesisServiceAdapter.adjudicate_definition = HypothesisServiceAdapter.adjudicate(hypo_drop, None, None)
+    # 抽取数据求值
+    adj_res = HypothesisServiceAdapter.compile_hypothesis_definition(hypo_drop)
+    from app.cognition.hypothesis.falsification import FalsificationEngine
+    result = FalsificationEngine.adjudicate(adj_res, obs_data)
+
+    assert result.outcome == HypothesisOutcome.FALSIFIED
+    assert result.falsification_triggered is True
+    assert "inv_sh_drop" in result.details

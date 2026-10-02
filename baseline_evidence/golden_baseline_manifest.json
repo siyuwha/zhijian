@@ -1,10 +1,10 @@
 {
-  "version": "v0.2.2-hypothesis-loop-baseline",
-  "commit": "b278879e959635b7ec6fc5be2a1ee59ae0656a59",
-  "baseline_created_at": "2026-10-02T14:16:30+08:00",
+  "version": "v0.2.3-reality-replay-audit-baseline",
+  "commit": "e29d4ee",
+  "baseline_created_at": "2026-10-02T15:17:00+08:00",
   "asset_reference": "KA-06 (Baseline Diff & Anti-Regression Gate)",
   "metrics": {
-    "total_tests_required": 170,
+    "total_tests_required": 172,
     "test_pass_rate_min": 1.0,
     "test_failure_max": 0,
     "test_error_max": 0,

@@ -356,10 +356,19 @@ class CognitionReviewService:
     # =========================================================================
 
     async def create_hypothesis(self, payload: MarketHypothesisCreate) -> MarketHypothesis:
-        """创建跨日推演假说 (进入 PENDING 待锁状态)"""
+        """创建跨日推演假说 (进入 PENDING 待锁状态，硬性阻断时间倒挂)"""
         today_str = datetime.now().strftime("%Y-%m-%d")
+        created_date = payload.created_date or today_str
+
+        # 刚性时间因果审计：禁止目标验证日期早于或等于建立日期
+        if payload.created_date and payload.target_date <= payload.created_date:
+            raise HTTPException(
+                status_code=400,
+                detail=f"时间因果违规：目标验证日期 ({payload.target_date}) 必须严格晚于假说建立日期 ({payload.created_date})，禁止时间倒挂与回溯偷看",
+            )
+
         hypo = MarketHypothesis(
-            created_date=today_str,
+            created_date=created_date,
             target_date=payload.target_date,
             hypothesis_type=payload.hypothesis_type,
             target_asset=payload.target_asset,

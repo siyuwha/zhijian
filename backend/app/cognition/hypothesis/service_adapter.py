@@ -114,6 +114,19 @@ class HypothesisServiceAdapter:
                         target_value=float(raw_metrics["sh_invalidation_max"]),
                     )
                 )
+            if "sh_invalidation_min" in raw_metrics:
+                invalidation_assertions.append(
+                    MetricAssertion(
+                        assertion_id="inv_sh_drop",
+                        metric=MetricType.PCT_CHANGE.value,
+                        selector=StructuredFilter(
+                            universe_type=UniverseType.ALL_A,
+                            conditions=[FilterCondition(field="code", op=OperatorType.EQ, val="sh000001")]
+                        ),
+                        operator=OperatorType.LT,
+                        target_value=float(raw_metrics["sh_invalidation_min"]),
+                    )
+                )
             if "limit_up_invalidation_max" in raw_metrics:
                 invalidation_assertions.append(
                     MetricAssertion(
@@ -125,6 +138,19 @@ class HypothesisServiceAdapter:
                         ),
                         operator=OperatorType.GT,
                         target_value=float(raw_metrics["limit_up_invalidation_max"]),
+                    )
+                )
+            if "limit_down_invalidation_max" in raw_metrics:
+                invalidation_assertions.append(
+                    MetricAssertion(
+                        assertion_id="inv_ld_surge",
+                        metric=MetricType.LIMIT_DOWN_COUNT.value,
+                        selector=StructuredFilter(
+                            universe_type=UniverseType.ALL_A,
+                            conditions=[FilterCondition(field="code", op=OperatorType.EQ, val="ALL_A")]
+                        ),
+                        operator=OperatorType.GT,
+                        target_value=float(raw_metrics["limit_down_invalidation_max"]),
                     )
                 )
 

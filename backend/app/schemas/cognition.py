@@ -50,6 +50,7 @@ class WeeklyAuditResponse(BaseModel):
 class MarketHypothesisCreate(BaseModel):
     """创建跨日推演假说 Payload (严格遵循 Phase 2B.1 认知契约，不做交易预测)"""
     target_date: str = Field(..., description="目标验证日期 YYYY-MM-DD")
+    created_date: Optional[str] = Field(None, description="假说创立日期 YYYY-MM-DD (缺省为当日，历史回放时支持显式设定)")
     hypothesis_type: str = Field("SENTIMENT_CYCLE", description="假说类别：SENTIMENT_CYCLE / INDEX_TREND / MARKET_STATE / BREADTH_TREND")
     target_asset: str = Field(..., description="推演标的宏观对象，如全市场短线情绪或主要宽基指数")
     expected_scenario: str = Field("WEAK_CONSOLIDATION", description="预期演绎形态")
