@@ -1,0 +1,269 @@
+{
+  "audit_metadata": {
+    "git_head": "97899fd",
+    "golden_baseline": "v0.2.3-reality-replay-audit-baseline",
+    "audit_timestamp": "2026-10-02T16:39:21.116525",
+    "nas_source_path": "\\\\Fn-evo2-xh\\Docker\\AI-Trading-System\\data\\trading.db",
+    "nas_records_loaded": 5
+  },
+  "question_a_threshold_freezing": {
+    "verdict": "PASS",
+    "runtime_mechanism_frozen": true,
+    "hash_generated_before_verification": true,
+    "verification_does_not_modify_metrics": true,
+    "threshold_provenance_note": "在系统机制层面为 PASS：AST模型设计为 frozen=True，入库即锁定，核验逻辑为纯只读求值。在测试用例来源层面需如实披露：由于本次为历史事后重放，回放脚本中的阈值数值（40/50/1.5/0.5/8.0）由工程师作为 Benchmark Fixtures 人工选定以完整覆盖三态分支，而非 2026-09-28 当日实时前瞻盲测产生。"
+  },
+  "question_b_future_leakage": {
+    "verdict": "PASS",
+    "time_inversion_blocked_400": true,
+    "future_data_absent_in_db_at_creation": true,
+    "premature_verification_yields_inconclusive": true,
+    "temporal_isolation_confirmed": true,
+    "causality_checks_detail": [
+      {
+        "test": "past_target_date",
+        "passed": true,
+        "status_code": 400,
+        "detail": "时间因果违规：目标验证日期 (2026-09-27) 必须严格晚于假说建立日期 (2026-09-28)，禁止时间倒挂与回溯偷看"
+      },
+      {
+        "test": "same_target_date",
+        "passed": true,
+        "status_code": 400,
+        "detail": "时间因果违规：目标验证日期 (2026-09-28) 必须严格晚于假说建立日期 (2026-09-28)，禁止时间倒挂与回溯偷看"
+      }
+    ]
+  },
+  "question_c_rule_adjudication": {
+    "verdict": "PASS",
+    "h1_confirmed_proven": true,
+    "h2_falsified_proven": true,
+    "h3_inconclusive_proven": true,
+    "falsification_first_priority_enforced": true,
+    "missing_not_false_invariant_enforced": true,
+    "hardcoded_result_in_service": false
+  },
+  "question_d_mechanism_vs_validity": {
+    "verdict": "PASS",
+    "proven_layer": "机制层 (Mechanism Layer)：可审计假说定义、AST解释、反向证伪与时序隔离状态机完全成立",
+    "unproven_layer": "认知有效性层 (Cognitive Validity Layer)：不证明预测能力有效、不证明策略Alpha、不证明市场规律普遍成立",
+    "formal_demarcation": true
+  },
+  "question_e_verification_pollution": {
+    "verdict": "PASS",
+    "replay_script_hardcodes_service_output": false,
+    "frontend_ui_derives_outcome": false,
+    "evidence_json_matches_sandbox_db": true,
+    "worm_idempotent_reproducible": true,
+    "disclosed_fixture_nature": "明确披露：回放用例中的具体数值属于白盒回归测试夹具（Benchmark Fixtures），其目的在于严密验证代码执行路径的数学正确性，未发现业务逻辑层的伪造或污染。"
+  },
+  "evidence_chain": [
+    {
+      "hypothesis_id": 1,
+      "hypothesis_hash": "0194f102ad860f53c13e347973043fafde0d18e3a943d2cf701b2d741af99e7d",
+      "created_date": "2026-09-28",
+      "freeze_status_at_creation": "PENDING",
+      "target_date": "2026-09-29",
+      "ast_assertions": {
+        "expected": [
+          {
+            "assertion_id": "exp_lu_min",
+            "metric": "limit_up_count",
+            "selector": {
+              "universe_type": "ALL_A",
+              "conditions": [
+                {
+                  "field": "code",
+                  "op": "EQ",
+                  "val": "ALL_A"
+                }
+              ],
+              "logical_op": "AND"
+            },
+            "aggregation": "NONE",
+            "operator": "GTE",
+            "target_value": 40.0,
+            "target_range": null,
+            "unit": "PERCENT",
+            "time_binding": "auction_0925",
+            "missing_data_policy": "INCONCLUSIVE"
+          }
+        ],
+        "invalidation": [
+          {
+            "assertion_id": "inv_ld_surge",
+            "metric": "limit_down_count",
+            "selector": {
+              "universe_type": "ALL_A",
+              "conditions": [
+                {
+                  "field": "code",
+                  "op": "EQ",
+                  "val": "ALL_A"
+                }
+              ],
+              "logical_op": "AND"
+            },
+            "aggregation": "NONE",
+            "operator": "GT",
+            "target_value": 50.0,
+            "target_range": null,
+            "unit": "PERCENT",
+            "time_binding": "auction_0925",
+            "missing_data_policy": "INCONCLUSIVE"
+          }
+        ]
+      },
+      "observation_snapshot": {
+        "source": "NAS DailyReview(2026-09-29)",
+        "metrics_extracted": {
+          "limit_up_count": 57.0,
+          "limit_down_count": 10.0
+        }
+      },
+      "adjudication_rule": "inv_ld_surge(10.0 > 50.0)=FAILED; exp_lu_min(57.0 >= 40.0)=PASSED",
+      "verification_snapshot": {
+        "metrics_summary": {
+          "inv_ld_surge": 10.0,
+          "exp_lu_min": 57.0
+        },
+        "falsification_triggered": false,
+        "target_date": "2026-09-29",
+        "data_quality": "PARTIAL"
+      },
+      "final_outcome": "CONFIRMED",
+      "verified_at": "2026-10-02 08:39:21"
+    },
+    {
+      "hypothesis_id": 2,
+      "hypothesis_hash": "2d8343b969234140524791e7bf9e1d884ba8b56cf323c9eba6b9ab3833991e12",
+      "created_date": "2026-09-28",
+      "freeze_status_at_creation": "PENDING",
+      "target_date": "2026-09-29",
+      "ast_assertions": {
+        "expected": [
+          {
+            "assertion_id": "exp_sh_pct_min",
+            "metric": "pct_change",
+            "selector": {
+              "universe_type": "ALL_A",
+              "conditions": [
+                {
+                  "field": "code",
+                  "op": "EQ",
+                  "val": "sh000001"
+                }
+              ],
+              "logical_op": "AND"
+            },
+            "aggregation": "NONE",
+            "operator": "GTE",
+            "target_value": 1.5,
+            "target_range": null,
+            "unit": "PERCENT",
+            "time_binding": "auction_0925",
+            "missing_data_policy": "INCONCLUSIVE"
+          }
+        ],
+        "invalidation": [
+          {
+            "assertion_id": "inv_sh_drop",
+            "metric": "pct_change",
+            "selector": {
+              "universe_type": "ALL_A",
+              "conditions": [
+                {
+                  "field": "code",
+                  "op": "EQ",
+                  "val": "sh000001"
+                }
+              ],
+              "logical_op": "AND"
+            },
+            "aggregation": "NONE",
+            "operator": "LT",
+            "target_value": 0.5,
+            "target_range": null,
+            "unit": "PERCENT",
+            "time_binding": "auction_0925",
+            "missing_data_policy": "INCONCLUSIVE"
+          }
+        ]
+      },
+      "observation_snapshot": {
+        "source": "NAS DailyReview(2026-09-29)",
+        "metrics_extracted": {
+          "sh000001_pct_change": 0.18
+        }
+      },
+      "adjudication_rule": "inv_sh_drop(0.18 < 0.5)=PASSED -> Short-circuit FALSIFIED",
+      "verification_snapshot": {
+        "metrics_summary": {
+          "inv_sh_drop": 0.18
+        },
+        "falsification_triggered": true,
+        "target_date": "2026-09-29",
+        "data_quality": "PARTIAL"
+      },
+      "final_outcome": "FALSIFIED",
+      "verified_at": "2026-10-02 08:39:21"
+    },
+    {
+      "hypothesis_id": 3,
+      "hypothesis_hash": "378c8e0f937b05a4c0cc65e37f7f71628f0c72069b714f19984ab32d2b9ec893",
+      "created_date": "2026-09-28",
+      "freeze_status_at_creation": "PENDING",
+      "target_date": "2026-09-29",
+      "ast_assertions": {
+        "expected": [
+          {
+            "assertion_id": "exp_micro_turnover",
+            "metric": "turnover_ratio",
+            "selector": {
+              "universe_type": "ALL_A",
+              "conditions": [
+                {
+                  "field": "code",
+                  "op": "EQ",
+                  "val": "ALL_A"
+                }
+              ],
+              "logical_op": "AND"
+            },
+            "aggregation": "NONE",
+            "operator": "GTE",
+            "target_value": 8.0,
+            "target_range": null,
+            "unit": "PERCENT",
+            "time_binding": "auction_0925",
+            "missing_data_policy": "INCONCLUSIVE"
+          }
+        ],
+        "invalidation": []
+      },
+      "observation_snapshot": {
+        "source": "NAS DailyReview(2026-09-29)",
+        "metrics_extracted": {
+          "turnover_ratio": null
+        }
+      },
+      "adjudication_rule": "exp_micro_turnover(missing) -> MissingDataPolicy.INCONCLUSIVE",
+      "verification_snapshot": {
+        "metrics_summary": {},
+        "falsification_triggered": false,
+        "target_date": "2026-09-29",
+        "data_quality": "PARTIAL"
+      },
+      "final_outcome": "INCONCLUSIVE",
+      "verified_at": "2026-10-02 08:39:21"
+    }
+  ],
+  "physical_database_safety": {
+    "root_db_hash_match": true,
+    "backend_db_hash_match": true,
+    "root_db_hash": "8ff39ce5b3b7311425051769e1e8dab7a930ece89aeeb24286ac28c42c91e6ed",
+    "backend_db_hash": "b3df70538941949047eb1dde792d9a6d00f0ca2b3966e050ae68e82f160f0d36",
+    "zero_pollution_confirmed": true
+  },
+  "final_gate_conclusion": "CLOSURE-PASS"
+}
