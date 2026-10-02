@@ -1,10 +1,10 @@
 {
-  "version": "v0.2.0-engineering-baseline",
-  "commit": "d44348379a5b81d5c9753346b07cb0d115c89081",
-  "baseline_created_at": "2026-10-02T00:17:36+08:00",
+  "version": "v0.2.1-cognition-guard-baseline",
+  "commit": "a34a1f293c73284bd9a4cac5dc6dd3d105fb2ae1",
+  "baseline_created_at": "2026-10-02T12:28:30+08:00",
   "asset_reference": "KA-06 (Baseline Diff & Anti-Regression Gate)",
   "metrics": {
-    "total_tests_required": 148,
+    "total_tests_required": 165,
     "test_pass_rate_min": 1.0,
     "test_failure_max": 0,
     "test_error_max": 0,

@@ -11,16 +11,29 @@ from app.cognition.hash_chain import verify_chain_integrity, verify_single_recor
 from app.cognition.clock import DeterministicClock
 from app.services.daily_review import DailyReviewService
 
+
+def make_valid_indices(base_price=3300.0, base_pct=1.0):
+    return [
+        {"code": "s_sh000001", "name": "上证指数", "price": base_price, "pct_change": base_pct, "amount_wan": 450000.0},
+        {"code": "s_sz399001", "name": "深证成指", "price": 10500.0, "pct_change": base_pct * 0.8, "amount_wan": 550000.0},
+        {"code": "s_sz399006", "name": "创业板指", "price": 2100.0, "pct_change": base_pct * 1.2, "amount_wan": 250000.0},
+        {"code": "s_sh000688", "name": "科创50", "price": 980.0, "pct_change": base_pct * 0.9, "amount_wan": 150000.0},
+    ]
+
+
+def make_valid_breadth():
+    return {"up_count": 3200, "down_count": 1500, "total_amount": 12000.0}
+
+
 @pytest.mark.asyncio
 async def test_bridge_records_daily_review_and_advances_chain():
-    """验证最小认知桥梁：成功将 M1 收盘复盘写入不可变账本并推进链指针"""
+    """验证最小认知桥梁：合规 M1 复盘成功通过准入并写入不可变账本"""
     async with async_session() as session:
         bridge = CognitionBridge(session)
         test_date = "2026-10-01"
 
-        # 构造模拟 M1 物理快照与报告
-        indices_data = [{"code": "s_sh000001", "name": "上证指数", "price": 3300.0, "pct_change": 1.2, "amount_wan": 450000.0}]
-        breadth_data = {"up_count": 3200, "down_count": 1500, "total_amount": 12000.0}
+        indices_data = make_valid_indices(3300.0, 1.2)
+        breadth_data = make_valid_breadth()
         limit_up_data = {"limit_up_count": 58, "broken_ratio": 0.15, "max_height": 5}
         dimensions_data = {
             "label": "BALANCED",
@@ -88,14 +101,16 @@ async def test_bridge_sequential_chain_integrity():
         snap_a = MarketDailySnapshot(
             date=day_a,
             snapshot_type="EOD_CLOSE",
-            indices_snapshot=json.dumps([{"code": "s_sh000001", "name": "上证指数", "price": 3310.0, "pct_change": 0.3, "amount_wan": 460000.0}]),
+            indices_snapshot=json.dumps(make_valid_indices(3310.0, 0.3), ensure_ascii=False),
+            breadth_snapshot=json.dumps(make_valid_breadth(), ensure_ascii=False),
             market_state_snapshot=json.dumps({"label": "BALANCED", "composite_score": 60.0}),
             data_quality="FULL"
         )
         snap_b = MarketDailySnapshot(
             date=day_b,
             snapshot_type="EOD_CLOSE",
-            indices_snapshot=json.dumps([{"code": "s_sh000001", "name": "上证指数", "price": 3330.0, "pct_change": 0.6, "amount_wan": 490000.0}]),
+            indices_snapshot=json.dumps(make_valid_indices(3330.0, 0.6), ensure_ascii=False),
+            breadth_snapshot=json.dumps(make_valid_breadth(), ensure_ascii=False),
             market_state_snapshot=json.dumps({"label": "OVERHEATED", "composite_score": 75.0}),
             data_quality="FULL"
         )
@@ -135,7 +150,8 @@ async def test_bridge_idempotency_prevents_forks():
         snap = MarketDailySnapshot(
             date=day,
             snapshot_type="EOD_CLOSE",
-            indices_snapshot=json.dumps([{"code": "s_sh000001", "name": "上证指数", "price": 3340.0, "pct_change": 0.4, "amount_wan": 470000.0}]),
+            indices_snapshot=json.dumps(make_valid_indices(3340.0, 0.4), ensure_ascii=False),
+            breadth_snapshot=json.dumps(make_valid_breadth(), ensure_ascii=False),
             market_state_snapshot=json.dumps({"label": "BALANCED", "composite_score": 58.0}),
             data_quality="FULL"
         )
@@ -174,7 +190,8 @@ async def test_worm_trigger_guards_bridged_records():
             snap = MarketDailySnapshot(
                 date="2026-10-14",
                 snapshot_type="EOD_CLOSE",
-                indices_snapshot=json.dumps([{"code": "s_sh000001", "name": "上证指数", "price": 3300.0, "pct_change": 0.5, "amount_wan": 400000.0}]),
+                indices_snapshot=json.dumps(make_valid_indices(3300.0, 0.5), ensure_ascii=False),
+                breadth_snapshot=json.dumps(make_valid_breadth(), ensure_ascii=False),
                 data_quality="FULL"
             )
             session.add(snap)
@@ -210,8 +227,8 @@ async def test_daily_review_service_e2e_triggers_cognition_bridge():
         snap = MarketDailySnapshot(
             date=today,
             snapshot_type="EOD_CLOSE",
-            indices_snapshot=json.dumps([{"code": "s_sh000001", "name": "上证指数", "price": 3350.0, "pct_change": 0.5, "amount_wan": 500000.0}]),
-            breadth_snapshot=json.dumps({"up_count": 3000, "down_count": 1600, "total_amount": 11000.0}),
+            indices_snapshot=json.dumps(make_valid_indices(3350.0, 0.5), ensure_ascii=False),
+            breadth_snapshot=json.dumps(make_valid_breadth(), ensure_ascii=False),
             limit_up_snapshot=json.dumps({"limit_up_count": 50, "broken_ratio": 0.12, "max_height": 4}),
             market_state_snapshot=json.dumps({"label": "BALANCED", "composite_score": 60.0}),
             data_quality="FULL"

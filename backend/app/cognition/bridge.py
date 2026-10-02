@@ -30,6 +30,7 @@ from .observation.contracts import (
 )
 from .observation.adapters.m1_adapter import M1ReviewFactAdapter
 from .observation.builder import ObservationSnapshotBuilder
+from .guard import CognitionAdmissionGuard, CognitionAdmissionError
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +71,8 @@ class CognitionBridge:
             return existing_rec
 
         # 2. 准备确定性时钟
-        now = datetime.now()
-        clk = clock or DeterministicClock.frozen(now)
+        clk = clock or DeterministicClock.frozen(f"{market_date}T15:05:00.000+08:00")
+        now = clk.now()
 
         # 3. 抽取事实并装配不可变 ObservationSnapshot
         trace_id = f"bridge_m1_{market_date.replace('-', '')}"
@@ -104,6 +105,9 @@ class CognitionBridge:
             source_manifest=credentials,
             clock=clk
         )
+
+        # 3.5 执行 Phase 2A.6 准入前置防御 (Admission Guard: INVALID拒绝、关键事实缺失拒绝、时间倒挂拒绝)
+        CognitionAdmissionGuard.validate_snapshot(obs_snapshot)
 
         obs_json = obs_snapshot.model_dump_json()
 

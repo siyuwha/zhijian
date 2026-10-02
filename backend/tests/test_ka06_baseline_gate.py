@@ -7,8 +7,9 @@ def gate_engine():
 
 def test_baseline_gate_pass_on_perfect_metrics(gate_engine):
     """验证 KA-06 门禁：符合或优于黄金基线要求时放行 (PASS)"""
+    req_tests = gate_engine.manifest["metrics"]["total_tests_required"]
     candidate_metrics = {
-        "total_tests": 149, # 满足甚至优于基准 148
+        "total_tests": req_tests + 1,
         "failed_tests": 0,
         "error_tests": 0,
         "pass_rate": 1.0,
@@ -34,8 +35,9 @@ def test_baseline_gate_pass_on_perfect_metrics(gate_engine):
 
 def test_baseline_gate_reject_on_test_failure(gate_engine):
     """验证 KA-06 门禁：单测发生失败时必须刚性阻断 (FAIL)"""
+    req_tests = gate_engine.manifest["metrics"]["total_tests_required"]
     candidate_metrics = {
-        "total_tests": 148,
+        "total_tests": req_tests,
         "failed_tests": 1, # 出现 1 个失败
         "error_tests": 0,
         "pass_rate": 0.993,
@@ -59,8 +61,9 @@ def test_baseline_gate_reject_on_test_failure(gate_engine):
 
 def test_baseline_gate_reject_on_dropped_tests(gate_engine):
     """验证 KA-06 门禁：测试数量掉线（测试被误删/跳过）时必须刚性阻断 (FAIL)"""
+    req_tests = gate_engine.manifest["metrics"]["total_tests_required"]
     candidate_metrics = {
-        "total_tests": 140, # 缺失 8 项
+        "total_tests": req_tests - 8, # 缺失 8 项
         "failed_tests": 0,
         "error_tests": 0,
         "pass_rate": 1.0,
@@ -82,8 +85,9 @@ def test_baseline_gate_reject_on_dropped_tests(gate_engine):
 
 def test_baseline_gate_reject_on_missing_trigger_or_schema(gate_engine):
     """验证 KA-06 门禁：缺失 WORM 触发器或表结构时必须刚性阻断 (FAIL)"""
+    req_tests = gate_engine.manifest["metrics"]["total_tests_required"]
     candidate_metrics = {
-        "total_tests": 148,
+        "total_tests": req_tests,
         "failed_tests": 0,
         "error_tests": 0,
         "pass_rate": 1.0,
@@ -109,8 +113,9 @@ def test_baseline_gate_reject_on_missing_trigger_or_schema(gate_engine):
 
 def test_baseline_gate_reject_on_database_leak(gate_engine):
     """验证 KA-06 门禁：测试污染物理开发库时必须刚性阻断 (FAIL)"""
+    req_tests = gate_engine.manifest["metrics"]["total_tests_required"]
     candidate_metrics = {
-        "total_tests": 148,
+        "total_tests": req_tests,
         "failed_tests": 0,
         "error_tests": 0,
         "pass_rate": 1.0,
