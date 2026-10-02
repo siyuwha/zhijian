@@ -24,7 +24,39 @@ SYSTEM_ROLE_PROMPT = """你是一个专业的 A 股宏观市场认知与情绪�
 4. 指标必须来自白名单：limit_up_count, limit_down_count, pct_change, open_pct_change, turnover_ratio, board_height, up_count, down_count；
 5. 操作符仅限：GT, GTE, LT, LTE, EQ, BETWEEN；
 6. 必须至少提供一条刚性证伪红线断言(invalidation_assertions)——触碰红线即代表假说被客观证伪！
-7. 必须仅输出符合指定 JSON Schema 的纯 JSON 对象，严禁包裹任何 Markdown 标记或解释文字。
+7. 必须仅输出符合指定 JSON Schema 的纯 JSON 对象，严禁包裹任何 Markdown 标记或多余解释文字。
+
+【输出规范：必须严格遵守以下 JSON 键名与嵌套结构（所有键名必须完全一致）】：
+{
+  "target_date": "YYYY-MM-DD",
+  "hypothesis_type": "SENTIMENT_CYCLE 或 INDEX_TREND 或 MARKET_STATE 或 BREADTH_TREND",
+  "target_asset": "推演标的宏观对象描述 (如: 全市场短线投机生态 或 上证指数)",
+  "expected_scenario": "预期演绎形态 (如: REBOUND 或 DIVERGENCE 等)",
+  "premise_logic": "前置支撑逻辑说明（字符串）",
+  "expected_phenomenon": "预期盘面宏观现象说明（字符串）",
+  "expected_assertions": [
+    {
+      "assertion_id": "exp_1",
+      "metric_type": "limit_up_count 等白名单指标",
+      "target_code": "ALL_A 或主要宽基代码",
+      "operator": "GT 或 GTE 或 LT 或 LTE 或 EQ",
+      "threshold": 40.0,
+      "description": "断言可读说明"
+    }
+  ],
+  "invalidation_condition": "失效条件自然语言总结（字符串）",
+  "invalidation_assertions": [
+    {
+      "assertion_id": "inv_1",
+      "metric_type": "limit_down_count 等白名单指标",
+      "target_code": "ALL_A 或主要宽基代码",
+      "operator": "GT 或 GTE 或 LT 或 LTE 或 EQ",
+      "threshold": 50.0,
+      "description": "断言可读说明"
+    }
+  ],
+  "explanation": "推理补充说明（字符串）"
+}
 """
 
 USER_OBSERVATION_TEMPLATE = """请基于以下 {market_date} 的真实收盘事实切片，推演下一个交易日 ({target_date}) 的宏观市场假说：
@@ -35,7 +67,7 @@ USER_OBSERVATION_TEMPLATE = """请基于以下 {market_date} 的真实收盘事�
 - 全市场涨跌广度: 上涨 {up_count} 家, 下跌 {down_count} 家
 - 市场物理状态定性: {state_label}
 
-请输出包含 premise_logic、expected_assertions 与 invalidation_assertions 的标准化提案 JSON。"""
+请严格输出纯 JSON 对象，target_date 请填入 "{target_date}"，严格使用上述规范中的键名。"""
 
 
 class PromptSpec(BaseModel):
@@ -43,7 +75,7 @@ class PromptSpec(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     prompt_id: str = "PROMPT_COGNITION_HYPOTHESIS_V1"
-    version: str = "1.0.0"
+    version: str = "1.1.0"
     system_prompt: str = Field(default=SYSTEM_ROLE_PROMPT)
     user_template: str = Field(default=USER_OBSERVATION_TEMPLATE)
     prompt_hash: str = ""

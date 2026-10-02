@@ -1,0 +1,866 @@
+{
+  "metadata": {
+    "title": "Phase 2B.2 LLM Cognition Proposer Sandbox Trial Machine Evidence",
+    "start_time": "2026-10-02T13:42:29.472906+00:00",
+    "end_time": "2026-10-02T13:43:42.590930+00:00",
+    "mode": "REAL_LLM",
+    "model_metadata": {
+      "is_configured": true,
+      "base_url": "https://api.deepseek.com/v1",
+      "model": "deepseek-flash",
+      "timeout_seconds": 45.0,
+      "temperature": 0.2,
+      "max_retries": 2
+    },
+    "prompt_spec_version": "1.1.0",
+    "prompt_spec_hash": "25e406cffac0455b293df6a65f3ae5ec4e34528a83c97888abee6cd814fac411",
+    "database_source": "\\\\Fn-evo2-xh\\Docker\\AI-Trading-System\\data\\trading.db"
+  },
+  "verdict": "TRIAL-CONDITIONAL",
+  "metrics_summary": {
+    "total_proposals": 5,
+    "schema_compliant_count": 5,
+    "schema_compliance_rate": 1.0,
+    "validator_pass_count": 4,
+    "validator_pass_rate": 0.8,
+    "validator_reject_count": 1,
+    "vr_rule_counts": {
+      "VR-01": 0,
+      "VR-02": 0,
+      "VR-03": 0,
+      "VR-04": 0,
+      "VR-05": 0,
+      "VR-06": 0,
+      "VR-07": 1
+    },
+    "ast_compiled_count": 4,
+    "trading_keyword_violations": 1,
+    "future_leakage_violations": 0
+  },
+  "trial_records": [
+    {
+      "trial_id": "trial_001_2026-09-26",
+      "observation_date": "2026-09-26",
+      "target_date": "2026-09-28",
+      "observation_hash": "e16c50fa6c6a5fea735a688569d2068914824cc3e17b1651e8a7e882f8f009cc",
+      "prompt_spec_version": "1.1.0",
+      "prompt_spec_hash": "25e406cffac0455b293df6a65f3ae5ec4e34528a83c97888abee6cd814fac411",
+      "final_prompt_hash": "09d07306b73d43ed226464af9b55a27d2deef2c38216c7cedeb724bca5635fc1",
+      "model_provider": "DeepSeek / OpenAI Compatible",
+      "model_name": "deepseek-flash",
+      "request_timestamp": "2026-10-02T13:42:29.481106+00:00",
+      "raw_llm_response": "{\n  \"target_date\": \"2026-09-28\",\n  \"hypothesis_type\": \"SENTIMENT_CYCLE\",\n  \"target_asset\": \"全A短线投机情绪与主要宽基指数\",\n  \"expected_scenario\": \"REBOUND\",\n  \"premise_logic\": \"2026-09-26主要宽基指数普遍下跌，创业板指与科创50跌幅超过2%，但全市场涨停52家、跌停13家、连板高度5板、炸板率16.1%，说明指数级调整尚未引发短线情绪全面崩溃，局部承接与投机梯队仍在。因此下一交易日存在指数低开后弱势修复、情绪与指数分化的可能。\",\n  \"expected_phenomenon\": \"次日早盘主要宽基指数可能低开，随后跌幅收窄；全市场涨停家数维持在40家以上，跌停家数不显著放大，连板高度维持4板以上，但指数级别反弹力度有限，整体呈现弱势修复与结构分化并存的宏观状态。\",\n  \"expected_assertions\": [\n    {\n      \"assertion_id\": \"exp_1\",\n      \"metric_type\": \"limit_up_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 40.0,\n      \"description\": \"次日全市场涨停家数不低于40家，短线赚钱效应未完全退潮\"\n    },\n    {\n      \"assertion_id\": \"exp_2\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LTE\",\n      \"threshold\": 20.0,\n      \"description\": \"次日全市场跌停家数不超过20家，未出现恐慌性扩散\"\n    },\n    {\n      \"assertion_id\": \"exp_3\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000001\",\n      \"operator\": \"GTE\",\n      \"threshold\": -0.8,\n      \"description\": \"上证指数次日收盘跌幅不超过0.8%，呈现止跌修复\"\n    },\n    {\n      \"assertion_id\": \"exp_4\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sz399006\",\n      \"operator\": \"GTE\",\n      \"threshold\": -1.2,\n      \"description\": \"创业板指次日收盘跌幅不超过1.2%，成长端抛压缓和\"\n    },\n    {\n      \"assertion_id\": \"exp_5\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 4.0,\n      \"description\": \"全市场连板高度不低于4板，投机梯队未断档\"\n    }\n  ],\n  \"invalidation_condition\": \"若次日出现全市场跌停家数超过30家、上证指数收盘跌幅超过1.5%、创业板指收盘跌幅超过2.0%或连板高度低于3板中的任一情形，则视为弱势修复假说被客观证伪。\",\n  \"invalidation_assertions\": [\n    {\n      \"assertion_id\": \"inv_1\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GT\",\n      \"threshold\": 30.0,\n      \"description\": \"若全市场跌停家数超过30家，则恐慌扩散，假说被证伪\"\n    },\n    {\n      \"assertion_id\": \"inv_2\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000001\",\n      \"operator\": \"LT\",\n      \"threshold\": -1.5,\n      \"description\": \"若上证指数收盘跌幅超过1.5%，则止跌修复失败，假说被证伪\"\n    },\n    {\n      \"assertion_id\": \"inv_3\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sz399006\",\n      \"operator\": \"LT\",\n      \"threshold\": -2.0,\n      \"description\": \"若创业板指收盘跌幅超过2.0%，则成长端继续杀跌，假说被证伪\"\n    },\n    {\n      \"assertion_id\": \"inv_4\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LT\",\n      \"threshold\": 3.0,\n      \"description\": \"若全市场连板高度低于3板，则短线梯队断层，假说被证伪\"\n    }\n  ],\n  \"explanation\": \"今日主要宽基普跌，创业板与科创50跌幅较大，但涨停52家、跌停13家、连板高度5板、炸板率16.1%，显示指数调整尚未完全击穿短线情绪。因此推演下一交易日为指数低开后的弱势修复与分化格局，重点观察跌停扩散与连板高度是否维持。该假说仅描述宏观情绪与指数状态，不涉及个股与交易动作。\"\n}",
+      "json_parse_result": true,
+      "schema_compliance": {
+        "json_parsed": true,
+        "schema_compliant": true
+      },
+      "validator_result": "PASS",
+      "validation_errors": [],
+      "compiled_ast_hash": "43aa7be8d9079aa476460a18b771798271e040c28f50dd6a0cdaa34cd57f51df",
+      "compile_result": "SUCCESS",
+      "llm_proposed_thresholds": [
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_up_count",
+          "operator": "GTE",
+          "threshold": 40.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_down_count",
+          "operator": "LTE",
+          "threshold": 20.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "pct_change",
+          "operator": "GTE",
+          "threshold": -0.8,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "pct_change",
+          "operator": "GTE",
+          "threshold": -1.2,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "board_height",
+          "operator": "GTE",
+          "threshold": 4.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "limit_down_count",
+          "operator": "GT",
+          "threshold": 30.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "pct_change",
+          "operator": "LT",
+          "threshold": -1.5,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "pct_change",
+          "operator": "LT",
+          "threshold": -2.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "board_height",
+          "operator": "LT",
+          "threshold": 3.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        }
+      ],
+      "trading_boundary": {
+        "prohibited_words_found": [],
+        "zero_trading_intent": true
+      },
+      "ast_compilation": {
+        "is_compiled": true,
+        "ast_hash": "43aa7be8d9079aa476460a18b771798271e040c28f50dd6a0cdaa34cd57f51df",
+        "compiled_hypothesis": {
+          "target_date": "2026-09-28",
+          "created_date": "2026-09-26",
+          "hypothesis_type": "SENTIMENT_CYCLE",
+          "target_asset": "全A短线投机情绪与主要宽基指数",
+          "expected_scenario": "REBOUND",
+          "premise_logic": "2026-09-26主要宽基指数普遍下跌，创业板指与科创50跌幅超过2%，但全市场涨停52家、跌停13家、连板高度5板、炸板率16.1%，说明指数级调整尚未引发短线情绪全面崩溃，局部承接与投机梯队仍在。因此下一交易日存在指数低开后弱势修复、情绪与指数分化的可能。",
+          "expected_phenomenon": "次日早盘主要宽基指数可能低开，随后跌幅收窄；全市场涨停家数维持在40家以上，跌停家数不显著放大，连板高度维持4板以上，但指数级别反弹力度有限，整体呈现弱势修复与结构分化并存的宏观状态。",
+          "invalidation_condition": "若次日出现全市场跌停家数超过30家、上证指数收盘跌幅超过1.5%、创业板指收盘跌幅超过2.0%或连板高度低于3板中的任一情形，则视为弱势修复假说被客观证伪。",
+          "assertion_metrics": {
+            "expected_assertions": [
+              {
+                "assertion_id": "exp_1",
+                "metric_type": "limit_up_count",
+                "target_code": "ALL_A",
+                "operator": "GTE",
+                "threshold": 40.0,
+                "description": "次日全市场涨停家数不低于40家，短线赚钱效应未完全退潮"
+              },
+              {
+                "assertion_id": "exp_2",
+                "metric_type": "limit_down_count",
+                "target_code": "ALL_A",
+                "operator": "LTE",
+                "threshold": 20.0,
+                "description": "次日全市场跌停家数不超过20家，未出现恐慌性扩散"
+              },
+              {
+                "assertion_id": "exp_3",
+                "metric_type": "pct_change",
+                "target_code": "sh000001",
+                "operator": "GTE",
+                "threshold": -0.8,
+                "description": "上证指数次日收盘跌幅不超过0.8%，呈现止跌修复"
+              },
+              {
+                "assertion_id": "exp_4",
+                "metric_type": "pct_change",
+                "target_code": "sz399006",
+                "operator": "GTE",
+                "threshold": -1.2,
+                "description": "创业板指次日收盘跌幅不超过1.2%，成长端抛压缓和"
+              },
+              {
+                "assertion_id": "exp_5",
+                "metric_type": "board_height",
+                "target_code": "ALL_A",
+                "operator": "GTE",
+                "threshold": 4.0,
+                "description": "全市场连板高度不低于4板，投机梯队未断档"
+              }
+            ],
+            "invalidation_assertions": [
+              {
+                "assertion_id": "inv_1",
+                "metric_type": "limit_down_count",
+                "target_code": "ALL_A",
+                "operator": "GT",
+                "threshold": 30.0,
+                "description": "若全市场跌停家数超过30家，则恐慌扩散，假说被证伪"
+              },
+              {
+                "assertion_id": "inv_2",
+                "metric_type": "pct_change",
+                "target_code": "sh000001",
+                "operator": "LT",
+                "threshold": -1.5,
+                "description": "若上证指数收盘跌幅超过1.5%，则止跌修复失败，假说被证伪"
+              },
+              {
+                "assertion_id": "inv_3",
+                "metric_type": "pct_change",
+                "target_code": "sz399006",
+                "operator": "LT",
+                "threshold": -2.0,
+                "description": "若创业板指收盘跌幅超过2.0%，则成长端继续杀跌，假说被证伪"
+              },
+              {
+                "assertion_id": "inv_4",
+                "metric_type": "board_height",
+                "target_code": "ALL_A",
+                "operator": "LT",
+                "threshold": 3.0,
+                "description": "若全市场连板高度低于3板，则短线梯队断层，假说被证伪"
+              }
+            ]
+          }
+        }
+      },
+      "falsification_adjudication": {
+        "status": "ADJUDICATED",
+        "outcome": "FALSIFIED",
+        "falsification_triggered": true,
+        "details": "[FALSIFIED]: 证伪断言 'inv_3' 触发，假说被直接证伪短路"
+      }
+    },
+    {
+      "trial_id": "trial_002_2026-09-28",
+      "observation_date": "2026-09-28",
+      "target_date": "2026-09-29",
+      "observation_hash": "155f153d8add8ba9125d0d73da9903cdf6516bce467166eddea3643b3b574205",
+      "prompt_spec_version": "1.1.0",
+      "prompt_spec_hash": "25e406cffac0455b293df6a65f3ae5ec4e34528a83c97888abee6cd814fac411",
+      "final_prompt_hash": "3e3e0ec6750140434edd44a7f84bfc41b9cc5a206c35736e091accc397896919",
+      "model_provider": "DeepSeek / OpenAI Compatible",
+      "model_name": "deepseek-flash",
+      "request_timestamp": "2026-10-02T13:42:47.235063+00:00",
+      "raw_llm_response": "{\n  \"target_date\": \"2026-09-29\",\n  \"hypothesis_type\": \"SENTIMENT_CYCLE\",\n  \"target_asset\": \"全市场短线投机生态\",\n  \"expected_scenario\": \"OVERSOLD_REBOUND_ATTEMPT\",\n  \"premise_logic\": \"2026-09-28主要宽基指数同步深度下挫，创业板指与科创50跌幅均超过4%，跌停家数56家高于涨停家数33家，显示风险偏好快速收缩。但连板高度仍有5板，炸板率25.0%，说明局部赚钱效应尚未完全归零，次日存在空头动能边际衰减后的修复尝试可能。\",\n  \"expected_phenomenon\": \"次日若出现超跌修复尝试，全市场跌停家数应较56家收敛至50家以内，涨停家数应回升至40家以上，连板高度应维持在4板及以上，上证指数收盘跌幅应收窄至-0.5%以内，创业板指不应再出现超过3%的继续深跌。\",\n  \"expected_assertions\": [\n    {\n      \"assertion_id\": \"exp_1\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LTE\",\n      \"threshold\": 50.0,\n      \"description\": \"次日全市场跌停家数收敛至50家以内\"\n    },\n    {\n      \"assertion_id\": \"exp_2\",\n      \"metric_type\": \"limit_up_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 40.0,\n      \"description\": \"次日全市场涨停家数回升至40家以上\"\n    },\n    {\n      \"assertion_id\": \"exp_3\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 4.0,\n      \"description\": \"次日连板高度不低于4板\"\n    },\n    {\n      \"assertion_id\": \"exp_4\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000001\",\n      \"operator\": \"GTE\",\n      \"threshold\": -0.5,\n      \"description\": \"次日上证指数收盘跌幅不超过0.5%\"\n    },\n    {\n      \"assertion_id\": \"exp_5\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sz399006\",\n      \"operator\": \"GTE\",\n      \"threshold\": -3.0,\n      \"description\": \"次日创业板指收盘跌幅不超过3%\"\n    }\n  ],\n  \"invalidation_condition\": \"若次日跌停家数超过70家，或创业板指收盘跌幅超过3%，或连板高度跌破4板，则本超跌修复尝试假说被客观证伪。\",\n  \"invalidation_assertions\": [\n    {\n      \"assertion_id\": \"inv_1\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GT\",\n      \"threshold\": 70.0,\n      \"description\": \"次日全市场跌停家数超过70家，恐慌扩散，修复假说证伪\"\n    },\n    {\n      \"assertion_id\": \"inv_2\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sz399006\",\n      \"operator\": \"LT\",\n      \"threshold\": -3.0,\n      \"description\": \"次日创业板指收盘跌幅超过3%，成长端继续坍塌，修复假说证伪\"\n    },\n    {\n      \"assertion_id\": \"inv_3\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LT\",\n      \"threshold\": 4.0,\n      \"description\": \"次日连板高度跌破4板，短线生态进一步收缩，修复假说证伪\"\n    }\n  ],\n  \"explanation\": \"本假说仅对2026-09-29全市场宏观情绪与指数状态的可能演绎路径提出可证伪断言，不涉及任何个股推荐、买卖指令、加减仓建议或目标价。\"\n}",
+      "json_parse_result": true,
+      "schema_compliance": {
+        "json_parsed": true,
+        "schema_compliant": true
+      },
+      "validator_result": "REJECT",
+      "validation_errors": [
+        "VR-07_PROHIBITED_TRADING_ADVICE: 提案包含违规交易建议关键词 '减仓'，系统严禁个股买卖与预测指令"
+      ],
+      "compiled_ast_hash": null,
+      "compile_result": "SKIPPED_OR_FAILED",
+      "llm_proposed_thresholds": [
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_down_count",
+          "operator": "LTE",
+          "threshold": 50.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_up_count",
+          "operator": "GTE",
+          "threshold": 40.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "board_height",
+          "operator": "GTE",
+          "threshold": 4.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "pct_change",
+          "operator": "GTE",
+          "threshold": -0.5,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "pct_change",
+          "operator": "GTE",
+          "threshold": -3.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "limit_down_count",
+          "operator": "GT",
+          "threshold": 70.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "pct_change",
+          "operator": "LT",
+          "threshold": -3.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "board_height",
+          "operator": "LT",
+          "threshold": 4.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        }
+      ],
+      "trading_boundary": {
+        "prohibited_words_found": [
+          "减仓",
+          "目标价"
+        ],
+        "zero_trading_intent": false
+      },
+      "ast_compilation": {
+        "is_compiled": false,
+        "ast_hash": null,
+        "compiled_hypothesis": null
+      },
+      "falsification_adjudication": {
+        "status": "SKIPPED",
+        "outcome": null,
+        "details": "Validator not passed"
+      }
+    },
+    {
+      "trial_id": "trial_003_2026-09-29",
+      "observation_date": "2026-09-29",
+      "target_date": "2026-09-30",
+      "observation_hash": "51c38ace2e21f5fc2f24b16838634805bde40793f10df39d4cb7fcb11eca9f7e",
+      "prompt_spec_version": "1.1.0",
+      "prompt_spec_hash": "25e406cffac0455b293df6a65f3ae5ec4e34528a83c97888abee6cd814fac411",
+      "final_prompt_hash": "c72240e70da35e52c87d782fae0e964da6da2653779360435537b54ca90997c4",
+      "model_provider": "DeepSeek / OpenAI Compatible",
+      "model_name": "deepseek-flash",
+      "request_timestamp": "2026-10-02T13:43:00.965278+00:00",
+      "raw_llm_response": "{\n  \"target_date\": \"2026-09-30\",\n  \"hypothesis_type\": \"SENTIMENT_CYCLE\",\n  \"target_asset\": \"全A短线投机情绪周期\",\n  \"expected_scenario\": \"DIVERGENCE\",\n  \"premise_logic\": \"2026-09-29主要宽基指数温和收涨，科创50相对领涨；涨停57家、跌停10家、连板高度6板、炸板率12.3%，显示短线情绪偏暖但尚未进入全面亢奋。全市场涨跌广度数据为0，不作为核心推演依据。次日更可能进入高位分歧中的弱延续，即情绪惯性尚存，但涨停家数与连板高度较难继续大幅扩张。\",\n  \"expected_phenomenon\": \"次日市场或呈现高位分歧中的弱延续：早盘涨停溢价尚可，但午后分歧加大，涨停家数较57家温和回落但仍高于40家；连板高度维持5板及以上；跌停家数不显著放大；主要宽基指数窄幅震荡或小幅分化，科创50相对抗跌。\",\n  \"expected_assertions\": [\n    {\n      \"assertion_id\": \"exp_1\",\n      \"metric_type\": \"limit_up_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 40.0,\n      \"description\": \"次日全市场涨停家数不低于40家，短线赚钱效应未明显退潮\"\n    },\n    {\n      \"assertion_id\": \"exp_2\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 5.0,\n      \"description\": \"次日连板高度不低于5板，情绪高标未完全断层\"\n    },\n    {\n      \"assertion_id\": \"exp_3\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LTE\",\n      \"threshold\": 15.0,\n      \"description\": \"次日全市场跌停家数不超过15家，恐慌性亏钱效应可控\"\n    },\n    {\n      \"assertion_id\": \"exp_4\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000688\",\n      \"operator\": \"GTE\",\n      \"threshold\": -0.5,\n      \"description\": \"次日科创50单日涨跌幅不低于-0.5%，指数端维持韧性\"\n    }\n  ],\n  \"invalidation_condition\": \"若次日涨停家数显著萎缩至35家以下、跌停家数超过20家、连板高度跌破4板，或上证指数单日跌幅达到1%及以上，则高位分歧中的弱延续假说被客观证伪。\",\n  \"invalidation_assertions\": [\n    {\n      \"assertion_id\": \"inv_1\",\n      \"metric_type\": \"limit_up_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LT\",\n      \"threshold\": 35.0,\n      \"description\": \"若全市场涨停家数低于35家，短线情绪退潮，假说证伪\"\n    },\n    {\n      \"assertion_id\": \"inv_2\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GT\",\n      \"threshold\": 20.0,\n      \"description\": \"若全市场跌停家数超过20家，亏钱效应扩散，假说证伪\"\n    },\n    {\n      \"assertion_id\": \"inv_3\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LT\",\n      \"threshold\": 4.0,\n      \"description\": \"若连板高度跌破4板，高标断层，假说证伪\"\n    },\n    {\n      \"assertion_id\": \"inv_4\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000001\",\n      \"operator\": \"LTE\",\n      \"threshold\": -1.0,\n      \"description\": \"若上证指数单日跌幅达到或超过1%，系统性走弱，假说证伪\"\n    }\n  ],\n  \"explanation\": \"本假说仅基于9月29日收盘后的宏观情绪指标推演，不涉及个股推荐或交易指令。核心观察点为涨停家数、跌停家数、连板高度及主要宽基指数涨跌幅是否延续当前偏暖但分化的状态。若情绪指标全面走弱或系统性风险指标触发，则假说失效。\"\n}",
+      "json_parse_result": true,
+      "schema_compliance": {
+        "json_parsed": true,
+        "schema_compliant": true
+      },
+      "validator_result": "PASS",
+      "validation_errors": [],
+      "compiled_ast_hash": "96309485de765f3d7aa2f4a52214aacb395e3a2699abde7a73243d1bf6c60b84",
+      "compile_result": "SUCCESS",
+      "llm_proposed_thresholds": [
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_up_count",
+          "operator": "GTE",
+          "threshold": 40.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "board_height",
+          "operator": "GTE",
+          "threshold": 5.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_down_count",
+          "operator": "LTE",
+          "threshold": 15.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "pct_change",
+          "operator": "GTE",
+          "threshold": -0.5,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "limit_up_count",
+          "operator": "LT",
+          "threshold": 35.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "limit_down_count",
+          "operator": "GT",
+          "threshold": 20.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "board_height",
+          "operator": "LT",
+          "threshold": 4.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "pct_change",
+          "operator": "LTE",
+          "threshold": -1.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        }
+      ],
+      "trading_boundary": {
+        "prohibited_words_found": [],
+        "zero_trading_intent": true
+      },
+      "ast_compilation": {
+        "is_compiled": true,
+        "ast_hash": "96309485de765f3d7aa2f4a52214aacb395e3a2699abde7a73243d1bf6c60b84",
+        "compiled_hypothesis": {
+          "target_date": "2026-09-30",
+          "created_date": "2026-09-29",
+          "hypothesis_type": "SENTIMENT_CYCLE",
+          "target_asset": "全A短线投机情绪周期",
+          "expected_scenario": "DIVERGENCE",
+          "premise_logic": "2026-09-29主要宽基指数温和收涨，科创50相对领涨；涨停57家、跌停10家、连板高度6板、炸板率12.3%，显示短线情绪偏暖但尚未进入全面亢奋。全市场涨跌广度数据为0，不作为核心推演依据。次日更可能进入高位分歧中的弱延续，即情绪惯性尚存，但涨停家数与连板高度较难继续大幅扩张。",
+          "expected_phenomenon": "次日市场或呈现高位分歧中的弱延续：早盘涨停溢价尚可，但午后分歧加大，涨停家数较57家温和回落但仍高于40家；连板高度维持5板及以上；跌停家数不显著放大；主要宽基指数窄幅震荡或小幅分化，科创50相对抗跌。",
+          "invalidation_condition": "若次日涨停家数显著萎缩至35家以下、跌停家数超过20家、连板高度跌破4板，或上证指数单日跌幅达到1%及以上，则高位分歧中的弱延续假说被客观证伪。",
+          "assertion_metrics": {
+            "expected_assertions": [
+              {
+                "assertion_id": "exp_1",
+                "metric_type": "limit_up_count",
+                "target_code": "ALL_A",
+                "operator": "GTE",
+                "threshold": 40.0,
+                "description": "次日全市场涨停家数不低于40家，短线赚钱效应未明显退潮"
+              },
+              {
+                "assertion_id": "exp_2",
+                "metric_type": "board_height",
+                "target_code": "ALL_A",
+                "operator": "GTE",
+                "threshold": 5.0,
+                "description": "次日连板高度不低于5板，情绪高标未完全断层"
+              },
+              {
+                "assertion_id": "exp_3",
+                "metric_type": "limit_down_count",
+                "target_code": "ALL_A",
+                "operator": "LTE",
+                "threshold": 15.0,
+                "description": "次日全市场跌停家数不超过15家，恐慌性亏钱效应可控"
+              },
+              {
+                "assertion_id": "exp_4",
+                "metric_type": "pct_change",
+                "target_code": "sh000688",
+                "operator": "GTE",
+                "threshold": -0.5,
+                "description": "次日科创50单日涨跌幅不低于-0.5%，指数端维持韧性"
+              }
+            ],
+            "invalidation_assertions": [
+              {
+                "assertion_id": "inv_1",
+                "metric_type": "limit_up_count",
+                "target_code": "ALL_A",
+                "operator": "LT",
+                "threshold": 35.0,
+                "description": "若全市场涨停家数低于35家，短线情绪退潮，假说证伪"
+              },
+              {
+                "assertion_id": "inv_2",
+                "metric_type": "limit_down_count",
+                "target_code": "ALL_A",
+                "operator": "GT",
+                "threshold": 20.0,
+                "description": "若全市场跌停家数超过20家，亏钱效应扩散，假说证伪"
+              },
+              {
+                "assertion_id": "inv_3",
+                "metric_type": "board_height",
+                "target_code": "ALL_A",
+                "operator": "LT",
+                "threshold": 4.0,
+                "description": "若连板高度跌破4板，高标断层，假说证伪"
+              },
+              {
+                "assertion_id": "inv_4",
+                "metric_type": "pct_change",
+                "target_code": "sh000001",
+                "operator": "LTE",
+                "threshold": -1.0,
+                "description": "若上证指数单日跌幅达到或超过1%，系统性走弱，假说证伪"
+              }
+            ]
+          }
+        }
+      },
+      "falsification_adjudication": {
+        "status": "ADJUDICATED",
+        "outcome": "UNCONFIRMED",
+        "falsification_triggered": false,
+        "details": "[UNCONFIRMED]: 预期断言符合度 3/4 (逻辑=AND), 证伪断言均未触发"
+      }
+    },
+    {
+      "trial_id": "trial_004_2026-09-30",
+      "observation_date": "2026-09-30",
+      "target_date": "2026-10-01",
+      "observation_hash": "2b3f0175fc7e84ea72c8974cc5b85800144803597af6e112bbe9dcdb1bc1a21b",
+      "prompt_spec_version": "1.1.0",
+      "prompt_spec_hash": "25e406cffac0455b293df6a65f3ae5ec4e34528a83c97888abee6cd814fac411",
+      "final_prompt_hash": "777d71d83627ec9ebe709bd8dcbf20bf2005fd240d486b7c49d9f9531265420b",
+      "model_provider": "DeepSeek / OpenAI Compatible",
+      "model_name": "deepseek-flash",
+      "request_timestamp": "2026-10-02T13:43:13.195185+00:00",
+      "raw_llm_response": "{\n  \"target_date\": \"2026-10-01\",\n  \"hypothesis_type\": \"SENTIMENT_CYCLE\",\n  \"target_asset\": \"全A短线投机生态与主要宽基指数结构\",\n  \"expected_scenario\": \"DIVERGENCE\",\n  \"premise_logic\": \"今日涨停52家、跌停9家、连板高度7板、炸板率18.8%，显示短线封板意愿尚可且高位标杆仍在，但炸板率抬升说明分歧开始累积；宽基指数层面上证指数微涨0.31%，而科创50下跌2.51%，呈现大盘韧性与科技成长走弱的背离结构；全市场上涨与下跌家数均为0，广度数据缺失，因此以涨跌停结构、连板高度和指数相对强弱作为主要代理变量。\",\n  \"expected_phenomenon\": \"下一交易日更可能呈现指数分化震荡与短线情绪中高位分歧：涨停家数较今日回落但仍保持在活跃区间，连板高度不轻易断裂，跌停家数未显著扩散；上证指数相对抗跌，科创50等成长指数继续弱于主板，市场赚钱效应从高位连板向低位轮动切换。\",\n  \"expected_assertions\": [\n    {\n      \"assertion_id\": \"exp_1\",\n      \"metric_type\": \"limit_up_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 35.0,\n      \"description\": \"全A涨停家数不低于35家，短线投机生态未进入明显退潮。\"\n    },\n    {\n      \"assertion_id\": \"exp_2\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 5.0,\n      \"description\": \"连板高度不低于5板，高位情绪标杆未完全断裂。\"\n    },\n    {\n      \"assertion_id\": \"exp_3\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LTE\",\n      \"threshold\": 20.0,\n      \"description\": \"全A跌停家数不超过20家，恐慌性扩散未出现。\"\n    },\n    {\n      \"assertion_id\": \"exp_4\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000001\",\n      \"operator\": \"GTE\",\n      \"threshold\": -0.8,\n      \"description\": \"上证指数当日跌幅不超过0.8%，维持相对韧性特征。\"\n    },\n    {\n      \"assertion_id\": \"exp_5\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000688\",\n      \"operator\": \"LTE\",\n      \"threshold\": 0.5,\n      \"description\": \"科创50当日涨幅不超过0.5%，成长风格相对弱于主板的背离延续。\"\n    }\n  ],\n  \"invalidation_condition\": \"若下一交易日跌停家数显著扩散且连板高度快速断裂，或上证指数出现明显补跌，则当前中高位分歧震荡与主板相对韧性假说被证伪。\",\n  \"invalidation_assertions\": [\n    {\n      \"assertion_id\": \"inv_1\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GT\",\n      \"threshold\": 25.0,\n      \"description\": \"全A跌停家数超过25家，恐慌扩散，情绪结构假说证伪。\"\n    },\n    {\n      \"assertion_id\": \"inv_2\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LT\",\n      \"threshold\": 4.0,\n      \"description\": \"连板高度跌破4板，高位标杆断裂，情绪周期退潮确认。\"\n    },\n    {\n      \"assertion_id\": \"inv_3\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000001\",\n      \"operator\": \"LT\",\n      \"threshold\": -1.0,\n      \"description\": \"上证指数当日跌幅超过1%，主板相对韧性假说失效。\"\n    },\n    {\n      \"assertion_id\": \"inv_4\",\n      \"metric_type\": \"limit_up_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LT\",\n      \"threshold\": 25.0,\n      \"description\": \"全A涨停家数低于25家，短线活跃度骤降，假说证伪。\"\n    }\n  ],\n  \"explanation\": \"本假说以今日涨停52家、跌停9家、连板高度7板和炸板率18.8%为起点，认为短线情绪仍处于中高位但分歧加大；同时上证指数与科创50的强弱背离提示下一交易日更可能是指数分化而非全面退潮。若跌停扩散、连板高度断裂或上证明显补跌，则中高位分歧震荡假设被客观证伪。\"\n}",
+      "json_parse_result": true,
+      "schema_compliance": {
+        "json_parsed": true,
+        "schema_compliant": true
+      },
+      "validator_result": "PASS",
+      "validation_errors": [],
+      "compiled_ast_hash": "e2af50d228e4d0f9dcd8e7614c728d39be146fee25d21441df74ce1aed3f91da",
+      "compile_result": "SUCCESS",
+      "llm_proposed_thresholds": [
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_up_count",
+          "operator": "GTE",
+          "threshold": 35.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "board_height",
+          "operator": "GTE",
+          "threshold": 5.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_down_count",
+          "operator": "LTE",
+          "threshold": 20.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "pct_change",
+          "operator": "GTE",
+          "threshold": -0.8,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "pct_change",
+          "operator": "LTE",
+          "threshold": 0.5,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "limit_down_count",
+          "operator": "GT",
+          "threshold": 25.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "board_height",
+          "operator": "LT",
+          "threshold": 4.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "pct_change",
+          "operator": "LT",
+          "threshold": -1.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "limit_up_count",
+          "operator": "LT",
+          "threshold": 25.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        }
+      ],
+      "trading_boundary": {
+        "prohibited_words_found": [],
+        "zero_trading_intent": true
+      },
+      "ast_compilation": {
+        "is_compiled": true,
+        "ast_hash": "e2af50d228e4d0f9dcd8e7614c728d39be146fee25d21441df74ce1aed3f91da",
+        "compiled_hypothesis": {
+          "target_date": "2026-10-01",
+          "created_date": "2026-09-30",
+          "hypothesis_type": "SENTIMENT_CYCLE",
+          "target_asset": "全A短线投机生态与主要宽基指数结构",
+          "expected_scenario": "DIVERGENCE",
+          "premise_logic": "今日涨停52家、跌停9家、连板高度7板、炸板率18.8%，显示短线封板意愿尚可且高位标杆仍在，但炸板率抬升说明分歧开始累积；宽基指数层面上证指数微涨0.31%，而科创50下跌2.51%，呈现大盘韧性与科技成长走弱的背离结构；全市场上涨与下跌家数均为0，广度数据缺失，因此以涨跌停结构、连板高度和指数相对强弱作为主要代理变量。",
+          "expected_phenomenon": "下一交易日更可能呈现指数分化震荡与短线情绪中高位分歧：涨停家数较今日回落但仍保持在活跃区间，连板高度不轻易断裂，跌停家数未显著扩散；上证指数相对抗跌，科创50等成长指数继续弱于主板，市场赚钱效应从高位连板向低位轮动切换。",
+          "invalidation_condition": "若下一交易日跌停家数显著扩散且连板高度快速断裂，或上证指数出现明显补跌，则当前中高位分歧震荡与主板相对韧性假说被证伪。",
+          "assertion_metrics": {
+            "expected_assertions": [
+              {
+                "assertion_id": "exp_1",
+                "metric_type": "limit_up_count",
+                "target_code": "ALL_A",
+                "operator": "GTE",
+                "threshold": 35.0,
+                "description": "全A涨停家数不低于35家，短线投机生态未进入明显退潮。"
+              },
+              {
+                "assertion_id": "exp_2",
+                "metric_type": "board_height",
+                "target_code": "ALL_A",
+                "operator": "GTE",
+                "threshold": 5.0,
+                "description": "连板高度不低于5板，高位情绪标杆未完全断裂。"
+              },
+              {
+                "assertion_id": "exp_3",
+                "metric_type": "limit_down_count",
+                "target_code": "ALL_A",
+                "operator": "LTE",
+                "threshold": 20.0,
+                "description": "全A跌停家数不超过20家，恐慌性扩散未出现。"
+              },
+              {
+                "assertion_id": "exp_4",
+                "metric_type": "pct_change",
+                "target_code": "sh000001",
+                "operator": "GTE",
+                "threshold": -0.8,
+                "description": "上证指数当日跌幅不超过0.8%，维持相对韧性特征。"
+              },
+              {
+                "assertion_id": "exp_5",
+                "metric_type": "pct_change",
+                "target_code": "sh000688",
+                "operator": "LTE",
+                "threshold": 0.5,
+                "description": "科创50当日涨幅不超过0.5%，成长风格相对弱于主板的背离延续。"
+              }
+            ],
+            "invalidation_assertions": [
+              {
+                "assertion_id": "inv_1",
+                "metric_type": "limit_down_count",
+                "target_code": "ALL_A",
+                "operator": "GT",
+                "threshold": 25.0,
+                "description": "全A跌停家数超过25家，恐慌扩散，情绪结构假说证伪。"
+              },
+              {
+                "assertion_id": "inv_2",
+                "metric_type": "board_height",
+                "target_code": "ALL_A",
+                "operator": "LT",
+                "threshold": 4.0,
+                "description": "连板高度跌破4板，高位标杆断裂，情绪周期退潮确认。"
+              },
+              {
+                "assertion_id": "inv_3",
+                "metric_type": "pct_change",
+                "target_code": "sh000001",
+                "operator": "LT",
+                "threshold": -1.0,
+                "description": "上证指数当日跌幅超过1%，主板相对韧性假说失效。"
+              },
+              {
+                "assertion_id": "inv_4",
+                "metric_type": "limit_up_count",
+                "target_code": "ALL_A",
+                "operator": "LT",
+                "threshold": 25.0,
+                "description": "全A涨停家数低于25家，短线活跃度骤降，假说证伪。"
+              }
+            ]
+          }
+        }
+      },
+      "falsification_adjudication": {
+        "status": "ADJUDICATED",
+        "outcome": "CONFIRMED",
+        "falsification_triggered": false,
+        "details": "[CONFIRMED]: 预期断言符合度 5/5 (逻辑=AND), 证伪断言均未触发"
+      }
+    },
+    {
+      "trial_id": "trial_005_2026-10-01",
+      "observation_date": "2026-10-01",
+      "target_date": "2026-10-08",
+      "observation_hash": "5690f699f0e9f40e270e45cb1ff17775b36dcd9424688f236d7faa2e5fd881d2",
+      "prompt_spec_version": "1.1.0",
+      "prompt_spec_hash": "25e406cffac0455b293df6a65f3ae5ec4e34528a83c97888abee6cd814fac411",
+      "final_prompt_hash": "f12652bc0f727a1a52d129711f8234f6212ecaf9dcaf3dea936a77e3d8d4f319",
+      "model_provider": "DeepSeek / OpenAI Compatible",
+      "model_name": "deepseek-flash",
+      "request_timestamp": "2026-10-02T13:43:26.144185+00:00",
+      "raw_llm_response": "{\n  \"target_date\": \"2026-10-08\",\n  \"hypothesis_type\": \"SENTIMENT_CYCLE\",\n  \"target_asset\": \"全市场短线投机生态\",\n  \"expected_scenario\": \"DIVERGENCE\",\n  \"premise_logic\": \"上一交易日收盘涨停52家、跌停9家、连板高度7板，显示短线资金仍围绕高辨识度方向聚集，跌停数量未扩散；同时上证指数微涨而科创50明显下跌，说明成长权重承压。节后首日若外部冲击有限，短线情绪更可能先尝试修复并维持结构分化，而非全面退潮。\",\n  \"expected_phenomenon\": \"节后首日全A涨停家数维持在40家以上，跌停家数控制在15家以内，连板高度不低于5板，上证指数不出现超过1%的下跌；但创业板与科创50可能继续弱于上证，呈现指数与题材分化。\",\n  \"expected_assertions\": [\n    {\n      \"assertion_id\": \"exp_1\",\n      \"metric_type\": \"limit_up_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 40.0,\n      \"description\": \"全市场涨停家数不低于40家，短线情绪未明显退潮\"\n    },\n    {\n      \"assertion_id\": \"exp_2\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LTE\",\n      \"threshold\": 15.0,\n      \"description\": \"全市场跌停家数不高于15家，亏钱效应未系统性扩散\"\n    },\n    {\n      \"assertion_id\": \"exp_3\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GTE\",\n      \"threshold\": 5.0,\n      \"description\": \"连板高度不低于5板，高标空间未完全断裂\"\n    },\n    {\n      \"assertion_id\": \"exp_4\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000001\",\n      \"operator\": \"GTE\",\n      \"threshold\": -1.0,\n      \"description\": \"上证指数单日跌幅不超过1%，宏观指数层面未出现恐慌\"\n    }\n  ],\n  \"invalidation_condition\": \"若全市场跌停家数超过30家、连板高度跌破4板、涨停家数低于25家，或上证指数单日跌幅超过1.5%，则短线情绪修复与结构分化假说被客观证伪。\",\n  \"invalidation_assertions\": [\n    {\n      \"assertion_id\": \"inv_1\",\n      \"metric_type\": \"limit_down_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"GT\",\n      \"threshold\": 30.0,\n      \"description\": \"全市场跌停家数超过30家，亏钱效应系统性扩散\"\n    },\n    {\n      \"assertion_id\": \"inv_2\",\n      \"metric_type\": \"board_height\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LT\",\n      \"threshold\": 4.0,\n      \"description\": \"连板高度跌破4板，高标空间断裂\"\n    },\n    {\n      \"assertion_id\": \"inv_3\",\n      \"metric_type\": \"limit_up_count\",\n      \"target_code\": \"ALL_A\",\n      \"operator\": \"LT\",\n      \"threshold\": 25.0,\n      \"description\": \"全市场涨停家数低于25家，短线情绪明显退潮\"\n    },\n    {\n      \"assertion_id\": \"inv_4\",\n      \"metric_type\": \"pct_change\",\n      \"target_code\": \"sh000001\",\n      \"operator\": \"LT\",\n      \"threshold\": -1.5,\n      \"description\": \"上证指数单日跌幅超过1.5%，宏观指数支撑失效\"\n    }\n  ],\n  \"explanation\": \"该假说以节后首日短线情绪韧性为核心：上一交易日跌停少、连板高度仍高，说明投机生态未进入冰点；但科创50大跌与深创收跌提示成长权重承压，因此预期更可能是题材情绪修复与指数间分化并存，而非全面普涨或全面退潮。\"\n}",
+      "json_parse_result": true,
+      "schema_compliance": {
+        "json_parsed": true,
+        "schema_compliant": true
+      },
+      "validator_result": "PASS",
+      "validation_errors": [],
+      "compiled_ast_hash": "301cd491a9dda121f6a59d7926f77338e138904d1d9632de21a28efc7fee27f1",
+      "compile_result": "SUCCESS",
+      "llm_proposed_thresholds": [
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_up_count",
+          "operator": "GTE",
+          "threshold": 40.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "limit_down_count",
+          "operator": "LTE",
+          "threshold": 15.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "board_height",
+          "operator": "GTE",
+          "threshold": 5.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "EXPECTED",
+          "metric": "pct_change",
+          "operator": "GTE",
+          "threshold": -1.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "limit_down_count",
+          "operator": "GT",
+          "threshold": 30.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "board_height",
+          "operator": "LT",
+          "threshold": 4.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "limit_up_count",
+          "operator": "LT",
+          "threshold": 25.0,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        },
+        {
+          "kind": "INVALIDATION",
+          "metric": "pct_change",
+          "operator": "LT",
+          "threshold": -1.5,
+          "provenance": "LLM_SANDBOX_PROPOSED"
+        }
+      ],
+      "trading_boundary": {
+        "prohibited_words_found": [],
+        "zero_trading_intent": true
+      },
+      "ast_compilation": {
+        "is_compiled": true,
+        "ast_hash": "301cd491a9dda121f6a59d7926f77338e138904d1d9632de21a28efc7fee27f1",
+        "compiled_hypothesis": {
+          "target_date": "2026-10-08",
+          "created_date": "2026-10-01",
+          "hypothesis_type": "SENTIMENT_CYCLE",
+          "target_asset": "全市场短线投机生态",
+          "expected_scenario": "DIVERGENCE",
+          "premise_logic": "上一交易日收盘涨停52家、跌停9家、连板高度7板，显示短线资金仍围绕高辨识度方向聚集，跌停数量未扩散；同时上证指数微涨而科创50明显下跌，说明成长权重承压。节后首日若外部冲击有限，短线情绪更可能先尝试修复并维持结构分化，而非全面退潮。",
+          "expected_phenomenon": "节后首日全A涨停家数维持在40家以上，跌停家数控制在15家以内，连板高度不低于5板，上证指数不出现超过1%的下跌；但创业板与科创50可能继续弱于上证，呈现指数与题材分化。",
+          "invalidation_condition": "若全市场跌停家数超过30家、连板高度跌破4板、涨停家数低于25家，或上证指数单日跌幅超过1.5%，则短线情绪修复与结构分化假说被客观证伪。",
+          "assertion_metrics": {
+            "expected_assertions": [
+              {
+                "assertion_id": "exp_1",
+                "metric_type": "limit_up_count",
+                "target_code": "ALL_A",
+                "operator": "GTE",
+                "threshold": 40.0,
+                "description": "全市场涨停家数不低于40家，短线情绪未明显退潮"
+              },
+              {
+                "assertion_id": "exp_2",
+                "metric_type": "limit_down_count",
+                "target_code": "ALL_A",
+                "operator": "LTE",
+                "threshold": 15.0,
+                "description": "全市场跌停家数不高于15家，亏钱效应未系统性扩散"
+              },
+              {
+                "assertion_id": "exp_3",
+                "metric_type": "board_height",
+                "target_code": "ALL_A",
+                "operator": "GTE",
+                "threshold": 5.0,
+                "description": "连板高度不低于5板，高标空间未完全断裂"
+              },
+              {
+                "assertion_id": "exp_4",
+                "metric_type": "pct_change",
+                "target_code": "sh000001",
+                "operator": "GTE",
+                "threshold": -1.0,
+                "description": "上证指数单日跌幅不超过1%，宏观指数层面未出现恐慌"
+              }
+            ],
+            "invalidation_assertions": [
+              {
+                "assertion_id": "inv_1",
+                "metric_type": "limit_down_count",
+                "target_code": "ALL_A",
+                "operator": "GT",
+                "threshold": 30.0,
+                "description": "全市场跌停家数超过30家，亏钱效应系统性扩散"
+              },
+              {
+                "assertion_id": "inv_2",
+                "metric_type": "board_height",
+                "target_code": "ALL_A",
+                "operator": "LT",
+                "threshold": 4.0,
+                "description": "连板高度跌破4板，高标空间断裂"
+              },
+              {
+                "assertion_id": "inv_3",
+                "metric_type": "limit_up_count",
+                "target_code": "ALL_A",
+                "operator": "LT",
+                "threshold": 25.0,
+                "description": "全市场涨停家数低于25家，短线情绪明显退潮"
+              },
+              {
+                "assertion_id": "inv_4",
+                "metric_type": "pct_change",
+                "target_code": "sh000001",
+                "operator": "LT",
+                "threshold": -1.5,
+                "description": "上证指数单日跌幅超过1.5%，宏观指数支撑失效"
+              }
+            ]
+          }
+        }
+      },
+      "falsification_adjudication": {
+        "status": "PENDING_FUTURE_DATE",
+        "outcome": "PENDING",
+        "details": "Target date 2026-10-08 data not yet available in history DB"
+      }
+    }
+  ]
+}

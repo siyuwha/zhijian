@@ -178,7 +178,7 @@ class HypothesisServiceAdapter:
             hypothesis_id=hypo_id_str,
             cognition_id=f"cog_{hypo.created_date}",
             proposition=hypo.premise_logic or "未指定命题阐述",
-            premise_evidence=[hypo.target_asset, hypo.expected_scenario],
+            premise_evidence=[str(hypo.target_asset or "ALL_A"), str(hypo.expected_scenario or "GENERAL")],
             time_binding=hypo.target_date,
             assertion_logic="AND",
             expected_assertions=expected_assertions,
