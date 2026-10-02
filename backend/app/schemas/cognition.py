@@ -48,15 +48,15 @@ class WeeklyAuditResponse(BaseModel):
     empirical_observations: List[str]
 
 class MarketHypothesisCreate(BaseModel):
-    """创建跨日推演假说 Payload"""
+    """创建跨日推演假说 Payload (严格遵循 Phase 2B.1 认知契约，不做交易预测)"""
     target_date: str = Field(..., description="目标验证日期 YYYY-MM-DD")
-    hypothesis_type: Literal["INDEX_TREND", "SECTOR_LEADER", "SENTIMENT_CYCLE"] = Field("SECTOR_LEADER", description="假说类别")
-    target_asset: str = Field(..., description="推演标的名称或代码")
-    expected_scenario: Literal["ACCELERATION", "DIVERGENCE", "REBOUND", "ROTATION"] = Field("DIVERGENCE", description="预期演绎形态")
-    premise_logic: str = Field(..., description="前置支撑逻辑 (基于M1~M5)")
+    hypothesis_type: str = Field("SENTIMENT_CYCLE", description="假说类别：SENTIMENT_CYCLE / INDEX_TREND / MARKET_STATE / BREADTH_TREND")
+    target_asset: str = Field(..., description="推演标的宏观对象，如全市场短线情绪或主要宽基指数")
+    expected_scenario: str = Field("WEAK_CONSOLIDATION", description="预期演绎形态")
+    premise_logic: str = Field(..., description="前置支撑逻辑")
     expected_phenomenon: str = Field(..., description="预期可观测到的客观现象")
     invalidation_condition: str = Field(..., description="刚性证伪失效条件")
-    assertion_metrics: Optional[Dict[str, Any]] = Field(None, description="可选指标阈值 JSON，如 {'sh_open_pct_min': -0.5}")
+    assertion_metrics: Optional[Dict[str, Any]] = Field(None, description="收窄 AST 指标断言或阈值配置")
 
 class HypothesisVerificationResponse(BaseModel):
     """假说客观核对记录响应"""

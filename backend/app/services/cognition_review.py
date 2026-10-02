@@ -14,6 +14,7 @@ from ..models.cognition import (
     HypothesisVerification,
 )
 from ..models.report import DailyReview, AuctionReport
+from ..models.market import MarketDailySnapshot
 from ..schemas.cognition import (
     DiagnosisConfirmPayload,
     MarketHypothesisCreate,
@@ -523,26 +524,46 @@ class CognitionReviewService:
                 hypo.status = "VERIFYING"
 
         else:
-            # 抓取 15:30 收盘事实 (M1)
+            # 抓取 15:30 收盘事实 (M1) 与 物理快照 (MarketDailySnapshot)
             stmt_rev = select(DailyReview).where(DailyReview.date == hypo.target_date)
             rev_report = (await self.session.execute(stmt_rev)).scalars().first()
 
-            if not rev_report:
+            stmt_snap = select(MarketDailySnapshot).where(
+                and_(
+                    MarketDailySnapshot.date == hypo.target_date,
+                    MarketDailySnapshot.snapshot_type == "EOD_CLOSE",
+                )
+            )
+            snapshot = (await self.session.execute(stmt_snap)).scalars().first()
+
+            if not rev_report and not snapshot:
                 outcome = "INCONCLUSIVE"
                 deviation_analysis = f"目标交易日 {hypo.target_date} 暂无收盘复盘真实数据，客观无法终局判定。"
                 gap_summary = "收盘复盘数据缺失，标记为无法判定 (INCONCLUSIVE)"
                 data_snapshot = {"error": "CLOSE_DATA_NOT_FOUND"}
             else:
+                # 驱动 FalsificationEngine 证伪优先仲裁内核 (Phase 2B.1 契约)
+                from ..cognition.hypothesis.service_adapter import HypothesisServiceAdapter
+                adj_res = HypothesisServiceAdapter.adjudicate(hypo, rev_report, snapshot)
+
+                outcome = adj_res.outcome.value
+                deviation_analysis = adj_res.details
+                if adj_res.falsification_triggered:
+                    gap_summary = f"触碰反向证伪红线，假说被证伪 (FALSIFIED)"
+                elif adj_res.outcome.value == "CONFIRMED":
+                    gap_summary = f"全部断言吻合预期，假说证实 (CONFIRMED)"
+                elif adj_res.outcome.value == "INCONCLUSIVE":
+                    gap_summary = f"关键指标缺失，无法确证 (INCONCLUSIVE)"
+                else:
+                    gap_summary = f"预期指标未达标，未能确证 (UNCONFIRMED)"
+
                 data_snapshot = {
-                    "market_overview": rev_report.market_overview,
-                    "sector_analysis": rev_report.sector_analysis,
-                    "data_quality": rev_report.data_quality,
+                    "metrics_summary": adj_res.actual_metrics_summary,
+                    "falsification_triggered": adj_res.falsification_triggered,
+                    "target_date": hypo.target_date,
                 }
-                # 终局核对
-                # 检查失效条件
-                outcome = "CONFIRMED"
-                deviation_analysis = f"全天走势符合前置预期演绎形态 ({hypo.expected_scenario})，未触碰失效条件。"
-                gap_summary = "全天走势兑现预期，推演客观证实 (CONFIRMED)"
+                if rev_report:
+                    data_snapshot["data_quality"] = rev_report.data_quality
 
             hypo.status = "CLOSED"
 
