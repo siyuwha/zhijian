@@ -76,7 +76,8 @@ def test_trading_calendar_holiday_skipping():
     assert calendar.get_weekday_name("2026-09-28") == "周一"
     assert calendar.get_weekday_name("2026-09-27") == "周日"
     assert calendar.format_date_with_weekday("2026-09-30") == "2026-09-30 (周三)"
-    assert calendar.format_date_with_weekday("2026-10-01") == "2026-10-01 (周四)"
+    assert calendar.format_date_with_weekday("2026-10-01") == "2026-10-01 (周四·国庆休市)"
+    assert calendar.format_date_with_weekday("2026-09-26") == "2026-09-26 (周六·周末休市)"
 
 
 @pytest.mark.asyncio

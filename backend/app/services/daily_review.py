@@ -100,6 +100,25 @@ class DailyReviewService:
             except Exception:
                 pass
 
+        # 6.5 物理事实心跳双轨确权 (Market Heartbeat Dual-Track Gate)
+        # 依据几大核心指数物理撮合变动与全市场涨跌停非零特征，对当日交易真实性进行物理确权
+        from ..core.market_heartbeat import MarketHeartbeatDetector
+        heartbeat = MarketHeartbeatDetector.detect(
+            indices=index_data,
+            limit_up=limit_up_summary,
+            breadth=breadth_data,
+            target_date=today,
+        )
+        if not force and not heartbeat.is_active_trading_day:
+            reason_str = "；".join(heartbeat.reasons)
+            logger.warning(
+                f"Market heartbeat rejected daily review for {today}: {reason_str}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"日期 {today} 物理心跳确权失败（非交易日/休市）：{reason_str}。系统禁止生成收盘复盘。"
+            )
+
         # 7. 查找前一交易日复盘记录（提取昨日成交额与昨日涨停数，用于环比量能与连板晋级率）
         # 严格通过交易日历追溯前一有效交易日，杜绝非交易日（周末/假期）历史扰动
         prev_trade_date = calendar.prev_trading_day(today).strftime("%Y-%m-%d")
