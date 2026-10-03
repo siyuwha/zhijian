@@ -49,11 +49,32 @@ class LLMDriverAdapter:
         temperature: Optional[float] = None,
         max_retries: int = 2,
     ):
+        # 若未直接注入，主动动态搜索并重试加载候选 .env 配置文件
+        if not (api_key or os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")):
+            for _candidate_env in [
+                Path(__file__).resolve().parent.parent.parent / ".env",
+                Path(__file__).resolve().parent.parent.parent.parent / ".env",
+                Path("/app/app/.env"),
+                Path("/app/.env"),
+                Path("/app/data/.env"),
+            ]:
+                if _candidate_env.exists():
+                    load_dotenv(dotenv_path=_candidate_env, override=True)
+
+        try:
+            from ...config import settings
+            cfg_deepseek = getattr(settings, "DEEPSEEK_API_KEY", "")
+            cfg_llm = getattr(settings, "LLM_API_KEY", "")
+        except Exception:
+            cfg_deepseek, cfg_llm = "", ""
+
         # 优先读取显式参数，其次读取统一环境变量，最后回退至常用提供商环境变量
         self._api_key = (
             api_key
             or os.environ.get("LLM_API_KEY")
             or os.environ.get("DEEPSEEK_API_KEY")
+            or cfg_deepseek
+            or cfg_llm
             or os.environ.get("OPENAI_API_KEY")
             or os.environ.get("DASHSCOPE_API_KEY")
             or ""
