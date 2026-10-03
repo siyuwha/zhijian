@@ -919,7 +919,7 @@ class CognitionReviewService:
         if not driver.is_configured:
             raise HTTPException(
                 status_code=400,
-                detail="LLM API Key 尚未配置，无法执行真实 AI 假说推演。请在环境中设置 LLM_API_KEY。"
+                detail="LLM API Key 尚未配置，无法执行真实 AI 假说推演。请在 NAS 的 .env 或 Compose 环境变量中设置 LLM_API_KEY 或 DEEPSEEK_API_KEY。"
             )
 
         spec = PromptSpec.create_canonical()
