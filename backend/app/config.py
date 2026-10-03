@@ -12,8 +12,14 @@ class Settings(BaseSettings):
     DATABASE_URL: str = f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}"
     DEBUG: bool = True
 
+    LLM_API_KEY: str = ""
+    DEEPSEEK_API_KEY: str = ""
+    LLM_BASE_URL: str = "https://api.deepseek.com/v1"
+    LLM_MODEL: str = "deepseek-chat"
+
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
 

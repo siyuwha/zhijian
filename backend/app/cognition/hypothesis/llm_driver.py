@@ -15,11 +15,19 @@ import os
 import time
 import logging
 from typing import Dict, Any, Optional
+from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-# 预加载 .env (若存在且未在当前进程注入环境变量)，但保持 override=False
-load_dotenv(override=False)
+# 智能搜索并预加载候选 .env 配置文件 (容器内 /app/.env、工程根目录 .env 等)
+for _candidate_env in [
+    Path("/app/.env"),
+    Path("/app/backend/.env"),
+    Path(__file__).resolve().parent.parent.parent.parent / ".env",
+    Path(__file__).resolve().parent.parent.parent / ".env",
+]:
+    if _candidate_env.exists():
+        load_dotenv(dotenv_path=_candidate_env, override=False)
 
 logger = logging.getLogger("cognition.llm_driver")
 

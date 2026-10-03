@@ -12,6 +12,7 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./backend/app:/app/app
+      - ./.env:/app/.env:ro
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./data/trading.db
       - TZ=Asia/Shanghai
