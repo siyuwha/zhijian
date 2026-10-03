@@ -6,7 +6,7 @@ import pkg from "../../package.json";
  */
 export const APP_VERSION = `v${pkg.version}`;
 export const STAGE_NAME = "P2 生产运行版";
-export const BUILD_DATE = process.env.NEXT_PUBLIC_BUILD_DATE || "2026.09.29";
-export const GIT_COMMIT = process.env.NEXT_PUBLIC_GIT_COMMIT || "f7f955d";
+export const BUILD_DATE = process.env.NEXT_PUBLIC_BUILD_DATE || "2026.10.03";
+export const GIT_COMMIT = process.env.NEXT_PUBLIC_GIT_COMMIT || "9fdf70a";
 
 export const FULL_VERSION_STRING = `${APP_VERSION} (${GIT_COMMIT})`;
