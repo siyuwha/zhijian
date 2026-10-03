@@ -257,11 +257,15 @@ class M5IntradayFactAdapter(BaseFactAdapter):
                 "leader_stock": leader,
             })
 
+        # A股盘中交易时段物理截断：盘中事实事件时间严格钳制在收盘 15:00:00 之内
+        trading_close_time = "15:00:00"
+        effective_series_time = min(latest_time, trading_close_time) if len(latest_time) == 8 else trading_close_time
+
         t_ctx_series = FourDimensionalTime(
-            event_time=f"{date_str}T{latest_time}.000+08:00" if len(latest_time) == 8 else f"{date_str}T15:00:00.000+08:00",
+            event_time=f"{date_str}T{effective_series_time}.000+08:00",
             observed_time=clock.now_iso(),
             ingestion_time=clock.now_iso(),
-            effective_time=f"{date_str}T{latest_time}.000+08:00" if len(latest_time) == 8 else f"{date_str}T15:00:00.000+08:00",
+            effective_time=f"{date_str}T{effective_series_time}.000+08:00",
         )
         prov_series = Provenance(
             primary_source=source_name,
@@ -340,11 +344,14 @@ class M5IntradayFactAdapter(BaseFactAdapter):
                 "details": det,
             })
 
+        # A股盘中交易时段物理截断：盘中异动事件时间严格钳制在收盘 15:00:00 之内
+        effective_anomaly_time = min(latest_event_time, trading_close_time) if len(latest_event_time) == 8 else trading_close_time
+
         t_ctx_anomaly = FourDimensionalTime(
-            event_time=f"{date_str}T{latest_event_time}.000+08:00" if len(latest_event_time) == 8 else f"{date_str}T15:00:00.000+08:00",
+            event_time=f"{date_str}T{effective_anomaly_time}.000+08:00",
             observed_time=clock.now_iso(),
             ingestion_time=clock.now_iso(),
-            effective_time=f"{date_str}T{latest_event_time}.000+08:00" if len(latest_event_time) == 8 else f"{date_str}T15:00:00.000+08:00",
+            effective_time=f"{date_str}T{effective_anomaly_time}.000+08:00",
         )
         prov_anomaly = Provenance(
             primary_source=source_name,

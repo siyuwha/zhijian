@@ -7,7 +7,7 @@
         "breadth_available": false,
         "admission_passed": false,
         "admission_error_code": "REJECT_INVALID_QUALITY",
-        "admission_error_msg": "快照整体质量评定为 INVALID (snapshot_id=obs_628382a3f17e)，禁止入账污染主账本。",
+        "admission_error_msg": "快照整体质量评定为 INVALID (snapshot_id=obs_7c779174c516)，禁止入账污染主账本。",
         "record_id": null,
         "sequence_id": null,
         "record_hash": null,
@@ -21,7 +21,7 @@
         "breadth_available": false,
         "admission_passed": false,
         "admission_error_code": "REJECT_INVALID_QUALITY",
-        "admission_error_msg": "快照整体质量评定为 INVALID (snapshot_id=obs_1399cfff6064)，禁止入账污染主账本。",
+        "admission_error_msg": "快照整体质量评定为 INVALID (snapshot_id=obs_44e729db4b70)，禁止入账污染主账本。",
         "record_id": null,
         "sequence_id": null,
         "record_hash": null,
@@ -35,7 +35,7 @@
         "breadth_available": false,
         "admission_passed": false,
         "admission_error_code": "REJECT_INVALID_QUALITY",
-        "admission_error_msg": "快照整体质量评定为 INVALID (snapshot_id=obs_71dfa78adedb)，禁止入账污染主账本。",
+        "admission_error_msg": "快照整体质量评定为 INVALID (snapshot_id=obs_b2f07fe16647)，禁止入账污染主账本。",
         "record_id": null,
         "sequence_id": null,
         "record_hash": null,
@@ -52,10 +52,10 @@
         "admission_error_msg": null,
         "record_id": "cog_20260930_POST_CLOSE_0001",
         "sequence_id": 1,
-        "record_hash": "6b7df0a6e02cbda361b93f14afeb824f5b498562d245cd95fbc8c17a29a8ea0d",
+        "record_hash": "ecb09c8e98fbbb150f3342d6a7d944100aae7fa0ac0d4f9224bdb3c75086f497",
         "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
         "tail_sequence_id": 1,
-        "tail_record_hash": "6b7df0a6e02cbda361b93f14afeb824f5b498562d245cd95fbc8c17a29a8ea0d"
+        "tail_record_hash": "ecb09c8e98fbbb150f3342d6a7d944100aae7fa0ac0d4f9224bdb3c75086f497"
       },
       {
         "date": "2026-10-01",
@@ -66,10 +66,10 @@
         "admission_error_msg": null,
         "record_id": "cog_20261001_POST_CLOSE_0002",
         "sequence_id": 2,
-        "record_hash": "3ea4ab99935e66c1dfa1002e8f13495887277061791c9f8dfdf0b2fc8f021fbc",
-        "prev_hash": "6b7df0a6e02cbda361b93f14afeb824f5b498562d245cd95fbc8c17a29a8ea0d",
+        "record_hash": "ba766233c646e9c38030af7bb2e35c6ca2e77cc883e2937e9e172acec49c0e10",
+        "prev_hash": "ecb09c8e98fbbb150f3342d6a7d944100aae7fa0ac0d4f9224bdb3c75086f497",
         "tail_sequence_id": 2,
-        "tail_record_hash": "3ea4ab99935e66c1dfa1002e8f13495887277061791c9f8dfdf0b2fc8f021fbc"
+        "tail_record_hash": "ba766233c646e9c38030af7bb2e35c6ca2e77cc883e2937e9e172acec49c0e10"
       }
     ],
     "audit": {
@@ -77,13 +77,13 @@
       "total_records": 2,
       "head_sequence_id": 1,
       "tail_sequence_id": 2,
-      "tail_record_hash": "3ea4ab99935e66c1dfa1002e8f13495887277061791c9f8dfdf0b2fc8f021fbc",
+      "tail_record_hash": "ba766233c646e9c38030af7bb2e35c6ca2e77cc883e2937e9e172acec49c0e10",
       "error": null,
       "status": {
         "chain_id": "MAIN_LEDGER",
         "is_initialized": true,
         "tail_sequence_id": 2,
-        "tail_record_hash": "3ea4ab99935e66c1dfa1002e8f13495887277061791c9f8dfdf0b2fc8f021fbc",
+        "tail_record_hash": "ba766233c646e9c38030af7bb2e35c6ca2e77cc883e2937e9e172acec49c0e10",
         "total_records": 2,
         "is_state_synced": true,
         "updated_at": "2026-10-01T15:05:00",
@@ -102,10 +102,10 @@
         "admission_error_msg": null,
         "record_id": "cog_20260926_POST_CLOSE_0001",
         "sequence_id": 1,
-        "record_hash": "24ecf9f0b35fb57985fee5888e46f7e3647e634844963ee27e62b3f3d7506b76",
+        "record_hash": "ca58cefb64ea58ab4ef5f3848fe7f5b29429d37ec1fb754ed0b57e045f6d10dc",
         "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
         "tail_sequence_id": 1,
-        "tail_record_hash": "24ecf9f0b35fb57985fee5888e46f7e3647e634844963ee27e62b3f3d7506b76"
+        "tail_record_hash": "ca58cefb64ea58ab4ef5f3848fe7f5b29429d37ec1fb754ed0b57e045f6d10dc"
       },
       {
         "date": "2026-09-28",
@@ -116,10 +116,10 @@
         "admission_error_msg": null,
         "record_id": "cog_20260928_POST_CLOSE_0002",
         "sequence_id": 2,
-        "record_hash": "78bdf2deb9cea3ad5dd4d6ed72f3ae9e25a189b4e780a46525844fec28b8d86c",
-        "prev_hash": "24ecf9f0b35fb57985fee5888e46f7e3647e634844963ee27e62b3f3d7506b76",
+        "record_hash": "319e88d773aaa56cd374c00274e6c1e41d9c8dd4ced3f11595456703823faf12",
+        "prev_hash": "ca58cefb64ea58ab4ef5f3848fe7f5b29429d37ec1fb754ed0b57e045f6d10dc",
         "tail_sequence_id": 2,
-        "tail_record_hash": "78bdf2deb9cea3ad5dd4d6ed72f3ae9e25a189b4e780a46525844fec28b8d86c"
+        "tail_record_hash": "319e88d773aaa56cd374c00274e6c1e41d9c8dd4ced3f11595456703823faf12"
       },
       {
         "date": "2026-09-29",
@@ -130,10 +130,10 @@
         "admission_error_msg": null,
         "record_id": "cog_20260929_POST_CLOSE_0003",
         "sequence_id": 3,
-        "record_hash": "d8f075977aab212adb9bfc5800f63aef2349d05ff4f8cc317847407db8c48868",
-        "prev_hash": "78bdf2deb9cea3ad5dd4d6ed72f3ae9e25a189b4e780a46525844fec28b8d86c",
+        "record_hash": "1c7a65d07ed89dec6e196f77ae16732602afa4a3d94276dfbd43080dfebe0d5f",
+        "prev_hash": "319e88d773aaa56cd374c00274e6c1e41d9c8dd4ced3f11595456703823faf12",
         "tail_sequence_id": 3,
-        "tail_record_hash": "d8f075977aab212adb9bfc5800f63aef2349d05ff4f8cc317847407db8c48868"
+        "tail_record_hash": "1c7a65d07ed89dec6e196f77ae16732602afa4a3d94276dfbd43080dfebe0d5f"
       },
       {
         "date": "2026-09-30",
@@ -144,10 +144,10 @@
         "admission_error_msg": null,
         "record_id": "cog_20260930_POST_CLOSE_0004",
         "sequence_id": 4,
-        "record_hash": "ac4ec98c97ec1624200aee91619c804d27254ab5c220278aa901d38b45814865",
-        "prev_hash": "d8f075977aab212adb9bfc5800f63aef2349d05ff4f8cc317847407db8c48868",
+        "record_hash": "1d87e4da8592730ab7d38ff4f73a8d3526c072171c60554c0536bfc5ff62edde",
+        "prev_hash": "1c7a65d07ed89dec6e196f77ae16732602afa4a3d94276dfbd43080dfebe0d5f",
         "tail_sequence_id": 4,
-        "tail_record_hash": "ac4ec98c97ec1624200aee91619c804d27254ab5c220278aa901d38b45814865"
+        "tail_record_hash": "1d87e4da8592730ab7d38ff4f73a8d3526c072171c60554c0536bfc5ff62edde"
       },
       {
         "date": "2026-10-01",
@@ -158,10 +158,10 @@
         "admission_error_msg": null,
         "record_id": "cog_20261001_POST_CLOSE_0005",
         "sequence_id": 5,
-        "record_hash": "3cd12bae24cd58efa83b12ed5aa336a56b96cbebd6d6e4b351d564cd675226b0",
-        "prev_hash": "ac4ec98c97ec1624200aee91619c804d27254ab5c220278aa901d38b45814865",
+        "record_hash": "d0722f264d3f2fa889359b176b0fe502ed33a9c5ac008fa733bcd006044432fb",
+        "prev_hash": "1d87e4da8592730ab7d38ff4f73a8d3526c072171c60554c0536bfc5ff62edde",
         "tail_sequence_id": 5,
-        "tail_record_hash": "3cd12bae24cd58efa83b12ed5aa336a56b96cbebd6d6e4b351d564cd675226b0"
+        "tail_record_hash": "d0722f264d3f2fa889359b176b0fe502ed33a9c5ac008fa733bcd006044432fb"
       }
     ],
     "audit": {
@@ -169,13 +169,13 @@
       "total_records": 5,
       "head_sequence_id": 1,
       "tail_sequence_id": 5,
-      "tail_record_hash": "3cd12bae24cd58efa83b12ed5aa336a56b96cbebd6d6e4b351d564cd675226b0",
+      "tail_record_hash": "d0722f264d3f2fa889359b176b0fe502ed33a9c5ac008fa733bcd006044432fb",
       "error": null,
       "status": {
         "chain_id": "MAIN_LEDGER",
         "is_initialized": true,
         "tail_sequence_id": 5,
-        "tail_record_hash": "3cd12bae24cd58efa83b12ed5aa336a56b96cbebd6d6e4b351d564cd675226b0",
+        "tail_record_hash": "d0722f264d3f2fa889359b176b0fe502ed33a9c5ac008fa733bcd006044432fb",
         "total_records": 5,
         "is_state_synced": true,
         "updated_at": "2026-10-01T15:05:00",

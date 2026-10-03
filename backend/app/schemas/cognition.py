@@ -177,11 +177,39 @@ class YesterdayAdjudicationDTO(BaseModel):
     details: str = ""
     comparison_matrix: List[AdjudicationComparisonItem] = []
 
+from enum import Enum
+
+class SimulationIntentType(str, Enum):
+    OBSERVE_ONLY = "OBSERVE_ONLY"
+    SECTOR_FOCUS = "SECTOR_FOCUS"
+    POSITION_DEFENSE = "POSITION_DEFENSE"
+    LADDER_TRACKING = "LADDER_TRACKING"
+
+class SimulationIntentStatus(str, Enum):
+    PENDING_CONSUMPTION = "PENDING_CONSUMPTION"
+    CONSUMED = "CONSUMED"
+    REJECTED_BY_RISK = "REJECTED_BY_RISK"
+    EXPIRED = "EXPIRED"
+
+class SimulationIntent(BaseModel):
+    intent_id: str = Field(..., description="确定性指纹 ID (如 intent_20260930_001)")
+    market_date: str = Field(..., description="交易日 YYYY-MM-DD")
+    source_hypothesis_id: Optional[int] = Field(None, description="关联的认知假说 ID")
+    source_record_hash: Optional[str] = Field(None, description="关联的认知账本 Record Hash (可溯源防伪)")
+    intent_type: SimulationIntentType = Field(SimulationIntentType.OBSERVE_ONLY, description="意图类型")
+    target_entities: List[str] = Field(default_factory=list, description="标的或板块代码列表")
+    confidence: float = Field(0.5, description="置信度")
+    rationale: str = Field("", description="意图依据与扣手逻辑")
+    risk_boundary: Dict[str, Any] = Field(default_factory=dict, description="风控红线与容忍阈值")
+    status: SimulationIntentStatus = Field(SimulationIntentStatus.PENDING_CONSUMPTION, description="消费状态")
+    created_at: str = Field(..., description="生成时间 ISO-8601")
+
 class CognitionReviewLoopData(BaseModel):
     market_date: str
     today_facts: TodayFactsDTO
     today_hypothesis: Optional[TodayHypothesisDTO] = None
     yesterday_adjudication: Optional[YesterdayAdjudicationDTO] = None
+    simulation_intent: Optional[SimulationIntent] = None
 
 class CognitionReviewLoopResponse(BaseModel):
     code: int = 200
@@ -191,4 +219,5 @@ class CognitionReviewLoopResponse(BaseModel):
 class ProposeTodayHypothesisPayload(BaseModel):
     market_date: str
     target_date: Optional[str] = None
+
 

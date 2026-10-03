@@ -857,11 +857,21 @@ class CognitionReviewService:
                     comparison_matrix=comparison_matrix,
                 )
 
+        # 5. 预留 Cognition Output -> Simulation Intent 边界投影 (Phase 2B -> Phase 3 契约预留)
+        from ..cognition.simulation_gateway import CognitionSimulationGateway
+        sim_intent = CognitionSimulationGateway.project_intent(
+            market_date=market_date,
+            hypothesis=today_hypo,
+            record_hash=today_facts_dto.fact_snapshot_hash,
+            clock_now_iso=today_facts_dto.observation_timestamp,
+        )
+
         return CognitionReviewLoopData(
             market_date=market_date,
             today_facts=today_facts_dto,
             today_hypothesis=today_hypo_dto,
             yesterday_adjudication=yesterday_adjudication_dto,
+            simulation_intent=sim_intent,
         )
 
     async def propose_today_hypothesis(
