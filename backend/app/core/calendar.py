@@ -18,17 +18,37 @@ DEFAULT_HOLIDAYS = {
     "2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07",
 }
 
+WEEKDAYS_ZH = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
 class TradingCalendar:
     """
     A股交易日历基础实现
     - 基础判断：排除周六、周日
     - 扩展支持：法定节假日（中秋、国庆、春节等）自动休市判定
+    - 星期几解析与格式化支持
     """
 
     def __init__(self, custom_holidays: set[str] | None = None):
         self.holidays = set(DEFAULT_HOLIDAYS)
         if custom_holidays:
             self.holidays.update(custom_holidays)
+
+    def get_weekday_name(self, target_date: date | str | None = None) -> str:
+        """获取中文星期名称，如 '周一'、'周三'、'周日'"""
+        if target_date is None:
+            target_date = date.today()
+        elif isinstance(target_date, str):
+            target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+        return WEEKDAYS_ZH[target_date.weekday()]
+
+    def format_date_with_weekday(self, target_date: date | str | None = None) -> str:
+        """格式化为带星期几的日期字符串，如 '2026-09-30 (周三)'"""
+        if target_date is None:
+            target_date = date.today()
+        elif isinstance(target_date, str):
+            target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+        date_str = target_date.strftime("%Y-%m-%d")
+        return f"{date_str} ({WEEKDAYS_ZH[target_date.weekday()]})"
 
     def is_trading_day(self, target_date: date | str | None = None) -> bool:
         """判断是否为交易日（默认当前日期）"""

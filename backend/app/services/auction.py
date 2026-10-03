@@ -23,10 +23,11 @@ class AuctionService:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
 
         if not force and not calendar.is_trading_day(today):
-            logger.warning(f"Attempted to generate auction report on non-trading day: {today}")
+            wd = calendar.get_weekday_name(today)
+            logger.warning(f"Attempted to generate auction report on non-trading day: {today} ({wd})")
             raise HTTPException(
                 status_code=400,
-                detail=f"{today} 为非交易日（周末/法定节假日休市），系统禁止生成集合竞价报告。"
+                detail=f"{today} ({wd}) 为非交易日（周末/法定节假日休市），系统禁止生成集合竞价报告。"
             )
 
         # 检查是否已存在历史 09:25 集合竞价物理快照 (用于离线重放与自愈)
@@ -72,14 +73,16 @@ class AuctionService:
         if sh_amount_wan is not None and sz_amount_wan is not None:
             total_bidding_amount_yi = round((sh_amount_wan + sz_amount_wan) / 10000.0, 2)
 
-        # 2. 严格承接前日 M1.4 全天成交总额（作为分母，严格口径对称）
+        # 2. 严格承接前一交易日 M1.4 全天成交总额（作为分母，按交易日历对齐排除非交易日扰动）
+        prev_trade_date = calendar.prev_trading_day(today).strftime("%Y-%m-%d")
         stmt_prev = (
             select(DailyReview)
-            .where(DailyReview.date < today)
+            .where(DailyReview.date <= prev_trade_date)
             .order_by(DailyReview.date.desc())
-            .limit(1)
+            .limit(10)
         )
-        prev_review = (await self.session.execute(stmt_prev)).scalars().first()
+        prev_candidates = (await self.session.execute(stmt_prev)).scalars().all()
+        prev_review = next((r for r in prev_candidates if calendar.is_trading_day(r.date)), None)
 
         yesterday_total_amount_yi = None
         prev_pool: List[Dict[str, Any]] = []

@@ -883,8 +883,15 @@ class CognitionReviewService:
         if not today_rev:
             raise HTTPException(status_code=404, detail=f"未找到 {market_date} 的收盘复盘事实")
 
+        from ..core.calendar import calendar
+        if not calendar.is_trading_day(market_date):
+            wd = calendar.get_weekday_name(market_date)
+            raise HTTPException(
+                status_code=400,
+                detail=f"日期 {market_date} ({wd}) 为非交易日（休市），不提供复盘认知推演。"
+            )
+
         if not target_date:
-            from ..core.calendar import calendar
             target_date = calendar.next_trading_day(market_date).strftime("%Y-%m-%d")
 
         # 刚性时间因果防线：服务端强制校验 target_date > market_date，杜绝未来信息污染
@@ -892,6 +899,13 @@ class CognitionReviewService:
             raise HTTPException(
                 status_code=400,
                 detail=f"Temporal causality violation: target_date ({target_date}) must be strictly greater than market_date ({market_date})"
+            )
+
+        if not calendar.is_trading_day(target_date):
+            wd = calendar.get_weekday_name(target_date)
+            raise HTTPException(
+                status_code=400,
+                detail=f"目标验证日期 {target_date} ({wd}) 为非交易日（休市），推演验证目标必须为有效交易日。"
             )
 
         indices = json.loads(today_rev.market_overview) if today_rev.market_overview else []

@@ -30,6 +30,7 @@ import {
   AssertionDTO,
   AdjudicationComparisonItem
 } from '@/types/cognition';
+import { formatDateWithWeekday } from '@/lib/utils';
 
 interface CognitionLoopVisualizerProps {
   marketDate: string;
@@ -187,7 +188,7 @@ function TodayFactsCard({ facts, marketDate }: { facts: TodayFactsDTO; marketDat
               <CardTitle className="text-base text-slate-100">今日事实卡</CardTitle>
             </div>
             <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800/50">
-              {marketDate} 收盘
+              {formatDateWithWeekday(marketDate)} 收盘
             </span>
           </div>
           <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-1">
@@ -527,7 +528,7 @@ function TodayHypothesisCard({
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3 text-slate-400" />
-              目标验证日: {hypothesis.target_date}
+              目标验证日: {formatDateWithWeekday(hypothesis.target_date)}
             </span>
             <span>模型: {hypothesis.meta.model_name}</span>
           </div>
@@ -585,7 +586,7 @@ function YesterdayAdjudicationCard({
               <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400">昨日假说提出日</span>
-                  <span className="font-mono text-slate-200">{adjudication.created_date}</span>
+                  <span className="font-mono text-slate-200">{formatDateWithWeekday(adjudication.created_date)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400">假说类型</span>

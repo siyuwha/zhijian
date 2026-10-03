@@ -9,6 +9,7 @@ import {
   IndexOpenItem, 
   HighTierAuctionStock 
 } from '@/types/report';
+import { formatDateWithWeekday } from '@/lib/utils';
 import {
   ArrowLeft,
   Clock,
@@ -155,7 +156,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ date: 
             <div className="flex items-center gap-3">
               <Clock className="w-8 h-8 text-teal-400" />
               <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                M3 集合竞价观测全景 · {date}
+                M3 集合竞价观测全景 · {formatDateWithWeekday(date)}
               </h1>
             </div>
             <p className="text-xs md:text-sm text-slate-400">

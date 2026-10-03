@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { Position, TradeRecord, TradeStats, TradeRecordCreatePayload, ReversalTradeCreatePayload, TradeNoteCreatePayload, SecuritySearchResult } from '@/types/trading';
+import { formatDateWithWeekday } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   TrendingUp, 
@@ -1520,7 +1521,7 @@ export default function TradingPage() {
                   {/* 对撞的环境测量快照 */}
                   <div className="bg-slate-900/60 p-2.5 rounded border border-slate-800/80 mt-2">
                     <div className="text-[10px] text-slate-400 font-medium mb-1">
-                      当日市场客观测度 ({diagnosisData.market_d1_d6_snapshot.date || diagnosisData.date}):
+                      当日市场客观测度 ({formatDateWithWeekday(diagnosisData.market_d1_d6_snapshot.date || diagnosisData.date)}):
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="px-2 py-0.5 rounded bg-slate-800 text-teal-300 font-medium text-[11px] border border-slate-700">

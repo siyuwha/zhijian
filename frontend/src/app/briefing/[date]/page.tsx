@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { PremarketBriefingDetail, OvernightIndexItem, NewsDigestItem, TodayFocusItem } from '@/types/report';
+import { formatDateWithWeekday } from '@/lib/utils';
 import {
   ArrowLeft,
   RefreshCw,
@@ -186,7 +187,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
             <div className="flex items-center gap-3">
               <Sunrise className="w-8 h-8 text-amber-400" />
               <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                盘前全景简报 · {date}
+                盘前全景简报 · {formatDateWithWeekday(date)}
               </h1>
             </div>
             <p className="text-xs md:text-sm text-slate-400">
@@ -279,7 +280,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
               href={`/review/${yesterday_review_summary.date}`}
               className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition"
             >
-              查阅 {yesterday_review_summary.date} 收盘全景复盘
+              查阅 {formatDateWithWeekday(yesterday_review_summary.date)} 收盘全景复盘
               <ExternalLink className="w-3.5 h-3.5" />
             </Link>
           )}

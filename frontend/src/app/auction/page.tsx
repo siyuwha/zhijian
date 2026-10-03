@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { AuctionReportSummaryItem } from '@/types/report';
+import { formatDateWithWeekday } from '@/lib/utils';
 import { 
   RefreshCw, 
   Calendar, 
@@ -192,7 +193,7 @@ export default function AuctionPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5 text-base font-bold text-white group-hover:text-teal-300 transition">
                         <Calendar className="w-4 h-4 text-teal-400" />
-                        <span>{item.date} 集合竞价观测</span>
+                        <span>{formatDateWithWeekday(item.date)} 集合竞价观测</span>
                       </div>
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getEmotionBadgeStyle(

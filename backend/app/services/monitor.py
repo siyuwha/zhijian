@@ -195,9 +195,18 @@ class MonitorService:
         max_height = 0
 
         if self.session:
-            stmt = select(DailyReview).order_by(desc(DailyReview.date)).limit(1)
+            from ..core.calendar import calendar
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            prev_trade_date = calendar.prev_trading_day(today_str).strftime("%Y-%m-%d")
+            stmt = (
+                select(DailyReview)
+                .where(DailyReview.date <= prev_trade_date)
+                .order_by(desc(DailyReview.date))
+                .limit(10)
+            )
             res = await self.session.execute(stmt)
-            prev_review = res.scalar_one_or_none()
+            candidates = res.scalars().all()
+            prev_review = next((r for r in candidates if calendar.is_trading_day(r.date)), None)
             if prev_review and prev_review.report_content:
                 try:
                     import json

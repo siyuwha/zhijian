@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { DailyReviewDetail, SubDimensionState } from '@/types/report';
+import { formatDateWithWeekday, getWeekday } from '@/lib/utils';
 import {
   ArrowLeft,
   RefreshCw,
@@ -187,7 +188,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
     return (
       <div className="py-32 text-center space-y-3">
         <RefreshCw className="w-8 h-8 text-teal-400 animate-spin mx-auto" />
-        <p className="text-slate-400 text-sm">正在加载 {date} 复盘认知全景...</p>
+        <p className="text-slate-400 text-sm">正在加载 {formatDateWithWeekday(date)} 复盘认知全景...</p>
       </div>
     );
   }
@@ -231,7 +232,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
             <div className="flex items-center gap-2 mb-1">
               <Activity className="w-7 h-7 text-teal-400" />
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-                收盘认知复盘全景 · {date}
+                收盘认知复盘全景 · {formatDateWithWeekday(date)}
               </h1>
             </div>
             <p className="text-xs md:text-sm text-slate-400">
@@ -407,7 +408,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-teal-300">维度事实总览</h3>
               <p>
-                本交易日（{date}）全市场物理状态表征为【
+                本交易日（{formatDateWithWeekday(date)}）全市场物理状态表征为【
                 <span className="font-semibold text-white">{ms?.state_label || '未定义'}</span>
                 】。全市场上涨家数约 {d2?.metrics?.up_count ?? '--'} 家，下跌家数约{' '}
                 {d2?.metrics?.down_count ?? '--'} 家（涨跌家数比 {d2?.metrics?.up_down_ratio ?? '--'}）。
@@ -510,7 +511,9 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
               <form onSubmit={handleCreateHypo} className="space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-slate-400 mb-1">目标验证日期 (YYYY-MM-DD) *</label>
+                    <label className="block text-slate-400 mb-1">
+                      目标验证日期 (YYYY-MM-DD) * {newHypoForm.target_date && <span className="text-teal-400 font-mono">({getWeekday(newHypoForm.target_date)})</span>}
+                    </label>
                     <input
                       type="date"
                       required
@@ -667,7 +670,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
 
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-400 font-mono">
-                          目标验证日: <strong className="text-slate-200">{hypo.target_date}</strong>
+                          目标验证日: <strong className="text-slate-200">{formatDateWithWeekday(hypo.target_date)}</strong>
                         </span>
                         <span className={`text-[11px] px-2 py-0.5 rounded font-mono font-semibold uppercase ${
                           hypo.status === 'CLOSED'

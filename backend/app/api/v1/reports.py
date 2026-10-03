@@ -66,9 +66,9 @@ async def get_daily_review(date: str, db: AsyncSession = Depends(get_db)):
     }
 
 @router.post("/daily-review/generate")
-async def generate_daily_review(date: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+async def generate_daily_review(date: Optional[str] = None, force: bool = False, db: AsyncSession = Depends(get_db)):
     service = DailyReviewService(db)
-    review = await service.generate_review(date)
+    review = await service.generate_review(date, force=force)
     return {
         "code": 200,
         "message": "Review generated successfully",
@@ -124,9 +124,9 @@ async def get_premarket_briefing(date: str, db: AsyncSession = Depends(get_db)):
     }
 
 @router.post("/premarket/generate")
-async def generate_premarket_briefing(date: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+async def generate_premarket_briefing(date: Optional[str] = None, force: bool = False, db: AsyncSession = Depends(get_db)):
     service = PremarketService(db)
-    briefing = await service.generate_briefing(date)
+    briefing = await service.generate_briefing(date, force=force)
     return {
         "code": 200,
         "message": "Briefing generated successfully",
@@ -189,9 +189,9 @@ async def get_auction_report(date: str, db: AsyncSession = Depends(get_db)):
     }
 
 @router.post("/auction/generate")
-async def generate_auction_report(date: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+async def generate_auction_report(date: Optional[str] = None, force: bool = False, db: AsyncSession = Depends(get_db)):
     service = AuctionService(db)
-    report = await service.generate_auction_report(date)
+    report = await service.generate_auction_report(date, force=force)
     return {
         "code": 200,
         "message": "Auction report generated successfully",

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { PremarketBriefingSummaryItem, OvernightIndexItem } from '@/types/report';
+import { formatDateWithWeekday } from '@/lib/utils';
 import { 
   RefreshCw, 
   Calendar, 
@@ -170,7 +171,7 @@ export default function BriefingPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5 text-base font-bold text-white group-hover:text-amber-300 transition">
                         <Calendar className="w-4 h-4 text-amber-400" />
-                        <span>{item.date} 盘前简报</span>
+                        <span>{formatDateWithWeekday(item.date)} 盘前简报</span>
                       </div>
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStateBadgeStyle(

@@ -18,6 +18,7 @@ import {
 import { api } from "@/lib/api";
 import { IndexData } from "@/types/market";
 import { DailyReviewDetail, DailyReviewSummaryItem } from "@/types/report";
+import { formatDateWithWeekday } from "@/lib/utils";
 
 export default function Dashboard() {
   const [indices, setIndices] = useState<IndexData[]>([]);
@@ -171,7 +172,7 @@ export default function Dashboard() {
                 <ShieldCheck className="w-4 h-4 text-teal-400" />
                 最新收盘市场客观状态向量
               </CardTitle>
-              <span className="text-xs text-slate-500 font-mono">基准日: {reportDate}</span>
+              <span className="text-xs text-slate-500 font-mono">基准日: {reportDate !== "--" ? formatDateWithWeekday(reportDate) : "--"}</span>
             </div>
           </CardHeader>
           <CardContent className="pt-4 space-y-4">

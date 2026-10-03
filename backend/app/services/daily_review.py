@@ -26,10 +26,11 @@ class DailyReviewService:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
 
         if not force and not calendar.is_trading_day(today):
-            logger.warning(f"Attempted to generate daily review on non-trading day: {today}")
+            wd = calendar.get_weekday_name(today)
+            logger.warning(f"Attempted to generate daily review on non-trading day: {today} ({wd})")
             raise HTTPException(
                 status_code=400,
-                detail=f"{today} 为非交易日（周末/法定节假日休市），系统禁止生成收盘复盘。"
+                detail=f"{today} ({wd}) 为非交易日（周末/法定节假日休市），系统禁止生成收盘复盘。"
             )
 
         # 检查是否已存在历史离线物理快照 (用于离线重放与自愈)
@@ -100,8 +101,16 @@ class DailyReviewService:
                 pass
 
         # 7. 查找前一交易日复盘记录（提取昨日成交额与昨日涨停数，用于环比量能与连板晋级率）
-        prev_stmt = select(DailyReview).where(DailyReview.date < today).order_by(DailyReview.date.desc()).limit(1)
-        prev_review = (await self.session.execute(prev_stmt)).scalars().first()
+        # 严格通过交易日历追溯前一有效交易日，杜绝非交易日（周末/假期）历史扰动
+        prev_trade_date = calendar.prev_trading_day(today).strftime("%Y-%m-%d")
+        prev_stmt = (
+            select(DailyReview)
+            .where(DailyReview.date <= prev_trade_date)
+            .order_by(DailyReview.date.desc())
+            .limit(10)
+        )
+        prev_candidates = (await self.session.execute(prev_stmt)).scalars().all()
+        prev_review = next((r for r in prev_candidates if calendar.is_trading_day(r.date)), None)
         prev_total_amount = None
         prev_limit_up_count = None
         if prev_review and prev_review.market_overview:

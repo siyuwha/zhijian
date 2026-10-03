@@ -23,10 +23,11 @@ class PremarketService:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
 
         if not force and not calendar.is_trading_day(today):
-            logger.warning(f"Attempted to generate premarket briefing on non-trading day: {today}")
+            wd = calendar.get_weekday_name(today)
+            logger.warning(f"Attempted to generate premarket briefing on non-trading day: {today} ({wd})")
             raise HTTPException(
                 status_code=400,
-                detail=f"{today} 为非交易日（周末/法定节假日休市），系统禁止生成盘前简报。"
+                detail=f"{today} ({wd}) 为非交易日（周末/法定节假日休市），系统禁止生成盘前简报。"
             )
 
         # 1. 获取隔夜外盘
@@ -64,14 +65,16 @@ class PremarketService:
                 "source": "system",
             }]
 
-        # 3. 严格继承昨日 M1 纯净状态向量（防标量塌缩）
+        # 3. 严格继承前一交易日 M1 纯净状态向量（防标量塌缩，按交易日历对齐排除非交易日扰动）
+        prev_trade_date = calendar.prev_trading_day(today).strftime("%Y-%m-%d")
         stmt = (
             select(DailyReview)
-            .where(DailyReview.date < today)
+            .where(DailyReview.date <= prev_trade_date)
             .order_by(DailyReview.date.desc())
-            .limit(1)
+            .limit(10)
         )
-        prev_review = (await self.session.execute(stmt)).scalars().first()
+        prev_candidates = (await self.session.execute(stmt)).scalars().all()
+        prev_review = next((r for r in prev_candidates if calendar.is_trading_day(r.date)), None)
 
         prev_summary_dict: Dict[str, Any] = {
             "date": None,

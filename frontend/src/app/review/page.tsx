@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { DailyReviewSummaryItem } from '@/types/report';
+import { formatDateWithWeekday } from '@/lib/utils';
 import { RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, Activity, HelpCircle } from 'lucide-react';
 
 export default function ReviewPage() {
@@ -182,7 +183,7 @@ export default function ReviewPage() {
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-1.5 text-base font-semibold text-white">
                           <Calendar className="w-4 h-4 text-teal-400" />
-                          <span>{item.date}</span>
+                          <span>{formatDateWithWeekday(item.date)}</span>
                         </div>
 
                         {/* 物理状态刻度标签 */}

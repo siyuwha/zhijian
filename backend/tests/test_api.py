@@ -26,7 +26,7 @@ async def test_backend_core_flows():
         assert r_cog.status_code == 200
 
         # 4. Generate Review (M1)
-        r_rev = await client.post("/api/v1/reports/daily-review/generate")
+        r_rev = await client.post("/api/v1/reports/daily-review/generate?force=true")
         assert r_rev.status_code == 200
         gen_data = r_rev.json()
         assert gen_data["code"] == 200
@@ -57,7 +57,7 @@ async def test_backend_core_flows():
         assert "tail_extremes" in d3_data["sub_domains"]
 
         # 7. Generate Premarket Briefing (M2)
-        r_pre = await client.post("/api/v1/reports/premarket/generate")
+        r_pre = await client.post("/api/v1/reports/premarket/generate?force=true")
         assert r_pre.status_code == 200
         pre_gen_data = r_pre.json()
         assert pre_gen_data["code"] == 200
@@ -100,7 +100,7 @@ async def test_backend_core_flows():
             assert focus_item["dimension"] in ["竞价量能", "高标溢价", "尾部极端", "外盘扰动"]
 
         # 11. Generate Auction Report (M3)
-        r_auc = await client.post("/api/v1/reports/auction/generate")
+        r_auc = await client.post("/api/v1/reports/auction/generate?force=true")
         assert r_auc.status_code == 200
         auc_gen_data = r_auc.json()
         assert auc_gen_data["code"] == 200
