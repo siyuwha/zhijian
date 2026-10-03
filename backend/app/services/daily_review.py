@@ -189,6 +189,10 @@ class DailyReviewService:
             "title": f"{today} A股收盘认知复盘",
             "indices": index_data,
             "limit_up": limit_up_summary,
+            "breadth": breadth_data,
+            "micro_cap": micro_data,
+            "external_risk": ext_data,
+            "high_tier": high_tier_data,
             "market_state": {
                 "composite_score": market_state.composite_score,
                 "state_label": market_state.state_label,
@@ -202,9 +206,12 @@ class DailyReviewService:
         stmt = select(DailyReview).where(DailyReview.date == today)
         existing = (await self.session.execute(stmt)).scalars().first()
 
+        sector_summary = json.dumps(limit_up_summary.get("top_reasons", []), ensure_ascii=False) if isinstance(limit_up_summary, dict) else None
+
         if existing:
             existing.market_overview = json.dumps(index_data, ensure_ascii=False)
             existing.limit_up_analysis = json.dumps(limit_up_summary, ensure_ascii=False)
+            existing.sector_analysis = sector_summary
             existing.market_state_id = cog_record.id
             existing.report_content = json.dumps(review_data, ensure_ascii=False)
             existing.data_quality = market_state.data_quality.value
@@ -214,6 +221,7 @@ class DailyReviewService:
                 date=today,
                 market_overview=json.dumps(index_data, ensure_ascii=False),
                 limit_up_analysis=json.dumps(limit_up_summary, ensure_ascii=False),
+                sector_analysis=sector_summary,
                 market_state_id=cog_record.id,
                 report_content=json.dumps(review_data, ensure_ascii=False),
                 data_quality=market_state.data_quality.value

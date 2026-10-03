@@ -8,8 +8,9 @@ from .base import BaseFactAdapter
 from .m1_adapter import M1ReviewFactAdapter
 from .m2_adapter import M2PremarketFactAdapter
 from .m4_adapter import M4AuctionFactAdapter
-from .m5_adapter import M5SettlementFactAdapter
+from .m5_adapter import M5SettlementFactAdapter, M5IntradayFactAdapter
 from .s4_adapter import S4NewsFactAdapter
+from .relation_adapter import StockSectorRelationAdapter
 
 __all__ = [
     "BaseFactAdapter",
@@ -17,5 +18,7 @@ __all__ = [
     "M2PremarketFactAdapter",
     "M4AuctionFactAdapter",
     "M5SettlementFactAdapter",
+    "M5IntradayFactAdapter",
     "S4NewsFactAdapter",
+    "StockSectorRelationAdapter",
 ]

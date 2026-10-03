@@ -287,6 +287,7 @@ class HypothesisServiceAdapter:
 
         limit_up_count = float(lu_dict.get("total_count", 0) or 0)
         limit_down_count = float(lu_dict.get("limit_down_count", 0) or 0)
+        max_height = float(lu_dict.get("max_height", 0) or lu_dict.get("max_board_height", 0) or 0)
 
         # 3. 提取市场广度事实
         breadth_dict = {}
@@ -309,15 +310,51 @@ class HypothesisServiceAdapter:
             "limit_down_count": limit_down_count,
             "up_count": up_count,
             "down_count": down_count,
-            "board_height": float(lu_dict.get("max_height", 0) or 0),
+            "board_height": max_height,
         })
+
+        # 5. 提取真实涨停个股、连板高标与板块映射事实
+        ladder_stocks = []
+        sector_stocks = []
+        raw_items = lu_dict.get("items") if lu_dict.get("items") is not None else lu_dict.get("pool", [])
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+            c = str(item.get("code") or item.get("symbol") or "").replace("s_", "")
+            if not c:
+                continue
+            n = str(item.get("name") or c)
+            h = int(item.get("lbc") or item.get("height") or item.get("board_count", 1))
+            sec = str(item.get("sector") or item.get("hybk") or "")
+            reasons = item.get("reasons") or ([item["reason_type"]] if item.get("reason_type") else [])
+            is_highest = (h == int(max_height) and max_height > 0)
+            st_dict = {
+                "code": c,
+                "symbol": c,
+                "name": n,
+                "pct_change": 10.0 if not (c.startswith("30") or c.startswith("68")) else 20.0,
+                "open_pct_change": 0.0,
+                "board_height": h,
+                "sector": sec,
+                "sector_code": sec,
+                "reasons": reasons,
+                "is_highest_board": is_highest,
+            }
+            stocks.append(st_dict)
+            sector_stocks.append(st_dict)
+            if h >= 2 or is_highest:
+                ladder_stocks.append(st_dict)
 
         return {
             "date": target_date,
             "status": "AVAILABLE",
             "stocks": stocks,
+            "all_stocks": stocks,
+            "ladder_stocks": ladder_stocks,
+            "sector_stocks": sector_stocks,
             "limit_up_count": limit_up_count,
             "limit_down_count": limit_down_count,
+            "max_board_height": max_height,
         }
 
     @classmethod

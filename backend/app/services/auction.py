@@ -89,9 +89,11 @@ class AuctionService:
 
         if prev_review and prev_review.limit_up_analysis:
             try:
-                lu = json.loads(prev_review.limit_up_analysis)
-                prev_pool = lu.get("pool", [])
-                max_board_height = lu.get("max_height") or lu.get("max_board_height", 0)
+                lu = json.loads(prev_review.limit_up_analysis) if isinstance(prev_review.limit_up_analysis, str) else prev_review.limit_up_analysis
+                prev_pool = lu.get("items") if lu.get("items") is not None else lu.get("pool", [])
+                max_board_height = int(lu.get("max_height") or lu.get("max_board_height", 0))
+                if not max_board_height and prev_pool:
+                    max_board_height = max([int(s.get("lbc") or s.get("height") or s.get("board_count", 1)) for s in prev_pool if isinstance(s, dict)], default=0)
             except Exception as e:
                 logger.warning(f"解析前日涨停梯队失败: {e}")
 
@@ -116,9 +118,15 @@ class AuctionService:
         # 3. 昨日高标梯队 09:25 开盘快照与生态统计
         stock_codes = []
         for s in prev_pool[:30]:
-            code = s.get("code") or s.get("symbol")
+            if isinstance(s, dict):
+                code = s.get("code") or s.get("symbol")
+            elif isinstance(s, str):
+                code = s
+            else:
+                code = None
             if code:
-                stock_codes.append(code)
+                clean_code = str(code).replace("s_", "")
+                stock_codes.append(clean_code)
 
         stock_quotes: List[Dict[str, Any]] = []
         if stock_codes:
@@ -136,13 +144,16 @@ class AuctionService:
         max_board_info = None
         extreme_stocks = []
 
-        # 寻找前日最高空间板股票 (兼容 lbc 与 board_count 键名)
+        # 寻找前日最高空间板股票 (兼容 lbc、height 与 board_count 键名)
         highest_stock_code = None
         for s in prev_pool:
-            s_height = s.get("lbc") or s.get("board_count", 0)
-            if s_height == max_board_height and max_board_height > 0:
-                highest_stock_code = s.get("code") or s.get("symbol")
-                break
+            if isinstance(s, dict):
+                s_height = int(s.get("lbc") or s.get("height") or s.get("board_count", 0))
+                if s_height == max_board_height and max_board_height > 0:
+                    raw_c = s.get("code") or s.get("symbol")
+                    if raw_c:
+                        highest_stock_code = str(raw_c).replace("s_", "")
+                    break
 
         for sq in stock_quotes:
             op = sq.get("open_pct")
@@ -209,6 +220,7 @@ class AuctionService:
             "low_open_count": low_open_count,
             "high_open_ratio": high_open_ratio,
             "avg_premium_pct": avg_premium_pct,
+            "avg_premium": avg_premium_pct,
             "max_board_info": max_board_info,
             "extreme_stocks": extreme_stocks[:8],
         }

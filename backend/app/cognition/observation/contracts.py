@@ -50,12 +50,16 @@ class FactType(str, Enum):
     NEWS_BULLETIN = "NEWS_BULLETIN"          # 财经滚动快讯
     OVERNIGHT_MACRO = "OVERNIGHT_MACRO"      # 隔夜外盘与宏观
     SETTLEMENT_PRICE = "SETTLEMENT_PRICE"    # 个股历史结算收盘价
+    INTRADAY_SERIES = "INTRADAY_SERIES"      # 盘中5分钟宏观时序
+    INTRADAY_ANOMALY = "INTRADAY_ANOMALY"    # 盘中异动相变事件
+    STOCK_SECTOR_MAP = "STOCK_SECTOR_MAP"    # 股票与板块题材映射
 
 
 class CognitionStage(str, Enum):
     """推演业务阶段枚举"""
     PRE_MARKET = "PRE_MARKET"                # 盘前推演
     MORNING_AUCTION = "MORNING_AUCTION"      # 早盘竞价 (09:15-09:30)
+    INTRADAY = "INTRADAY"                    # 盘中连续监控 (09:30-15:00)
     MIDDAY = "MIDDAY"                        # 午间复盘
     POST_CLOSE = "POST_CLOSE"                # 盘后复盘 (15:00)
     NIGHT_REVIEW = "NIGHT_REVIEW"            # 夜盘总评
@@ -213,6 +217,27 @@ DEFAULT_FACT_CONTRACTS: Dict[FactType, FactContract] = {
         allow_empty=False,
         empty_semantic="DISALLOWED",
         allow_stale_reference=True,           # 结算价允许读取本地昨日历史缓存作为计算基准
+    ),
+    FactType.INTRADAY_SERIES: FactContract(
+        fact_type=FactType.INTRADAY_SERIES,
+        is_critical=False,
+        allow_empty=True,
+        empty_semantic="EMPTY_SET",           # 盘前或初始时刻无5分钟切片为空集合
+        allow_stale_reference=False,
+    ),
+    FactType.INTRADAY_ANOMALY: FactContract(
+        fact_type=FactType.INTRADAY_ANOMALY,
+        is_critical=False,
+        allow_empty=True,
+        empty_semantic="EMPTY_SET",           # 盘中无异常事件时为空集合
+        allow_stale_reference=False,
+    ),
+    FactType.STOCK_SECTOR_MAP: FactContract(
+        fact_type=FactType.STOCK_SECTOR_MAP,
+        is_critical=False,
+        allow_empty=True,
+        empty_semantic="EMPTY_SET",           # 样本池为空时为空集合
+        allow_stale_reference=False,
     ),
 }
 

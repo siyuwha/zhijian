@@ -16,8 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.cognition_v2 import CognitionRecord, CognitionChainState
-from ..models.report import DailyReview
-from ..models.market import MarketDailySnapshot
+from ..models.report import DailyReview, AuctionReport
+from ..models.market import MarketDailySnapshot, IntradayMarketSnapshot, IntradayAnomalyEvent
 from .chain_state import DEFAULT_CHAIN_ID, GENESIS_PREVIOUS_HASH, ensure_genesis_chain_state
 from .hash_chain import compute_payload_hash, compute_record_hash
 from .jcs import hash_jcs
@@ -28,7 +28,12 @@ from .observation.contracts import (
     CognitionStage,
     SourceCredential,
 )
-from .observation.adapters.m1_adapter import M1ReviewFactAdapter
+from .observation.adapters import (
+    M1ReviewFactAdapter,
+    M4AuctionFactAdapter,
+    M5IntradayFactAdapter,
+    StockSectorRelationAdapter,
+)
 from .observation.builder import ObservationSnapshotBuilder
 from .guard import CognitionAdmissionGuard, CognitionAdmissionError
 
@@ -48,6 +53,9 @@ class CognitionBridge:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.adapter = M1ReviewFactAdapter()
+        self.m4_adapter = M4AuctionFactAdapter()
+        self.m5_adapter = M5IntradayFactAdapter()
+        self.relation_adapter = StockSectorRelationAdapter()
 
     async def record_daily_review(
         self,
@@ -75,17 +83,14 @@ class CognitionBridge:
         now = clk.now()
 
         # 3. 抽取事实并装配不可变 ObservationSnapshot
-        trace_id = f"bridge_m1_{market_date.replace('-', '')}"
+        trace_id = f"bridge_{market_date.replace('-', '')}"
+        
+        # 3.1 M1 盘后复盘核心事实 (四宽基指数、全市场广度、涨停池)
         facts = self.adapter.extract_facts(
             raw_data=snapshot,
             clock=clk,
-            trace_id=trace_id,
+            trace_id=f"{trace_id}_m1",
             market_date=market_date
-        )
-
-        obs_window = ObservationWindow(
-            window_start=f"{market_date}T09:15:00.000+08:00",
-            window_end=f"{market_date}T15:00:00.000+08:00"
         )
 
         credentials = [
@@ -96,6 +101,89 @@ class CognitionBridge:
                 records_count=len(facts)
             )
         ]
+
+        # 3.2 M4 早盘集合竞价事实 (若存在 AuctionReport)
+        stmt_auc = select(AuctionReport).where(AuctionReport.date == market_date)
+        auc_rep = (await self.session.execute(stmt_auc)).scalars().first()
+        if auc_rep:
+            try:
+                auc_facts = self.m4_adapter.extract_facts(
+                    raw_data=auc_rep,
+                    clock=clk,
+                    trace_id=f"{trace_id}_m4",
+                    market_date=market_date
+                )
+                facts.extend(auc_facts)
+                credentials.append(
+                    SourceCredential(
+                        source_name="auction_report",
+                        fetch_status="SUCCESS",
+                        latency_ms=0.0,
+                        records_count=len(auc_facts)
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"CognitionBridge: M4 事实抽取跳过: {e}")
+
+        # 3.3 M5 盘中宏观分时与异动相变事件事实 (若存在)
+        stmt_snaps = (
+            select(IntradayMarketSnapshot)
+            .where(IntradayMarketSnapshot.date == market_date)
+            .order_by(IntradayMarketSnapshot.minute_index.asc())
+        )
+        snaps = (await self.session.execute(stmt_snaps)).scalars().all()
+
+        stmt_evts = (
+            select(IntradayAnomalyEvent)
+            .where(IntradayAnomalyEvent.date == market_date)
+            .order_by(IntradayAnomalyEvent.minute_index.asc())
+        )
+        evts = (await self.session.execute(stmt_evts)).scalars().all()
+
+        if snaps or evts:
+            try:
+                m5_facts = self.m5_adapter.extract_facts(
+                    raw_data={"date": market_date, "snapshots": snaps, "events": evts},
+                    clock=clk,
+                    trace_id=f"{trace_id}_m5",
+                    market_date=market_date
+                )
+                facts.extend(m5_facts)
+                credentials.append(
+                    SourceCredential(
+                        source_name="intraday_monitor",
+                        fetch_status="SUCCESS",
+                        latency_ms=0.0,
+                        records_count=len(m5_facts)
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"CognitionBridge: M5 事实抽取跳过: {e}")
+
+        # 3.4 股票与板块题材客观映射事实
+        try:
+            rel_facts = self.relation_adapter.extract_facts(
+                raw_data=review or snapshot,
+                clock=clk,
+                trace_id=f"{trace_id}_rel",
+                market_date=market_date
+            )
+            facts.extend(rel_facts)
+            credentials.append(
+                SourceCredential(
+                    source_name="stock_sector_mapper",
+                    fetch_status="SUCCESS",
+                    latency_ms=0.0,
+                    records_count=len(rel_facts)
+                )
+            )
+        except Exception as e:
+            logger.warning(f"CognitionBridge: 股票板块关系映射抽取跳过: {e}")
+
+        obs_window = ObservationWindow(
+            window_start=f"{market_date}T09:15:00.000+08:00",
+            window_end=f"{market_date}T15:00:00.000+08:00"
+        )
 
         obs_snapshot = ObservationSnapshotBuilder.build(
             market_date=market_date,

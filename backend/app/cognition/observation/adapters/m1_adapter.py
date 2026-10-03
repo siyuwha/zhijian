@@ -66,13 +66,27 @@ class M1ReviewFactAdapter(BaseFactAdapter):
                 indices_raw = getattr(raw_data, "market_overview", None)
                 limit_up_raw = getattr(raw_data, "limit_up_analysis", None)
                 market_state_raw = getattr(raw_data, "report_content", None)
+                if market_state_raw:
+                    try:
+                        rep_content = json.loads(market_state_raw) if isinstance(market_state_raw, str) else market_state_raw
+                        if isinstance(rep_content, dict) and "breadth" in rep_content:
+                            breadth_raw = rep_content.get("breadth")
+                    except Exception:
+                        pass
         elif isinstance(raw_data, dict):
             date_str = date_str or raw_data.get("date")
             rec_id = str(raw_data.get("id", "dict_001"))
-            indices_raw = raw_data.get("indices") or raw_data.get("indices_snapshot")
+            indices_raw = raw_data.get("indices") or raw_data.get("indices_snapshot") or raw_data.get("market_overview")
             breadth_raw = raw_data.get("breadth") or raw_data.get("breadth_snapshot")
-            limit_up_raw = raw_data.get("limit_up") or raw_data.get("limit_up_snapshot")
-            market_state_raw = raw_data.get("market_state") or raw_data.get("market_state_snapshot")
+            limit_up_raw = raw_data.get("limit_up") or raw_data.get("limit_up_snapshot") or raw_data.get("limit_up_analysis")
+            market_state_raw = raw_data.get("market_state") or raw_data.get("market_state_snapshot") or raw_data.get("report_content")
+            if not breadth_raw and raw_data.get("report_content"):
+                try:
+                    rep_content = json.loads(raw_data["report_content"]) if isinstance(raw_data["report_content"], str) else raw_data["report_content"]
+                    if isinstance(rep_content, dict) and "breadth" in rep_content:
+                        breadth_raw = rep_content.get("breadth")
+                except Exception:
+                    pass
             source_name = raw_data.get("source", "m1_review")
 
         date_str = date_str or clock.now_iso()[:10]
@@ -210,9 +224,40 @@ class M1ReviewFactAdapter(BaseFactAdapter):
             lu_dict = limit_up_raw
 
         if lu_dict:
-            pool = lu_dict.get("pool", [])
+            raw_pool = lu_dict.get("items") if lu_dict.get("items") is not None else lu_dict.get("pool", [])
             max_height = lu_dict.get("max_board_height") or lu_dict.get("max_height", 0)
-            status = FactStatus.AVAILABLE if len(pool) > 0 else FactStatus.EMPTY
+
+            # 规范化 pool 项
+            pool = []
+            for item in raw_pool:
+                if isinstance(item, dict):
+                    c = str(item.get("code", "")).replace("s_", "")
+                    n = str(item.get("name", c))
+                    h = int(item.get("lbc") or item.get("height") or 1)
+                    norm_item: Dict[str, Any] = {
+                        "code": c,
+                        "name": n,
+                        "height": h,
+                    }
+                    sec = item.get("sector") or item.get("hybk", "")
+                    if sec:
+                        norm_item["sector"] = sec
+                    reasons = item.get("reasons") or ([item["reason_type"]] if item.get("reason_type") else [])
+                    if reasons:
+                        norm_item["reasons"] = reasons
+                    lu_type = item.get("limit_up_type") or ("FIRST_LIMIT" if h == 1 else "CONTINUED")
+                    if lu_type:
+                        norm_item["limit_up_type"] = lu_type
+                    if item.get("fbt") is not None:
+                        norm_item["fbt"] = item.get("fbt")
+                    pool.append(norm_item)
+                elif isinstance(item, str):
+                    pool.append({"code": item, "name": item, "height": 1})
+
+            total_count = lu_dict.get("total_count")
+            limit_up_count = int(total_count) if total_count is not None else len(pool)
+
+            status = FactStatus.AVAILABLE if (len(pool) > 0 or limit_up_count > 0) else FactStatus.EMPTY
             facts.append(
                 self.create_fact_item(
                     fact_key="limit_up.pool",
@@ -223,7 +268,7 @@ class M1ReviewFactAdapter(BaseFactAdapter):
                     source=source_name,
                     source_record_id=rec_id,
                     payload={
-                        "limit_up_count": len(pool),
+                        "limit_up_count": limit_up_count,
                         "max_board_height": max_height,
                         "pool": pool,
                     },

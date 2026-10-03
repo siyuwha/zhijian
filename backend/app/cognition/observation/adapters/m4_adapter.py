@@ -185,19 +185,45 @@ class M4AuctionFactAdapter(BaseFactAdapter):
             parsed_high = high_open_raw
 
         if parsed_high:
+            tested_count = int(parsed_high.get("tested_count", 0)) if parsed_high.get("tested_count") is not None else 0
+            ratio = parsed_high.get("high_open_ratio")
+            avg_prem = parsed_high.get("avg_premium_pct") if parsed_high.get("avg_premium_pct") is not None else parsed_high.get("avg_premium")
+            max_board_str = parsed_high.get("max_board_str")
+            high_open_cnt = int(parsed_high.get("high_open_count", 0)) if parsed_high.get("high_open_count") is not None else 0
+            low_open_cnt = int(parsed_high.get("low_open_count", 0)) if parsed_high.get("low_open_count") is not None else 0
+            one_word_up = int(parsed_high.get("one_word_up_count", 0)) if parsed_high.get("one_word_up_count") is not None else 0
+            one_word_down = int(parsed_high.get("one_word_down_count", 0)) if parsed_high.get("one_word_down_count") is not None else 0
+            max_board_info = parsed_high.get("max_board_info")
+            extreme_stocks = parsed_high.get("extreme_stocks", [])
+
+            # 区分空状态与可用状态
+            if tested_count > 0 or (ratio is not None and ratio > 0) or (avg_prem is not None and avg_prem != 0):
+                status = FactStatus.AVAILABLE
+            elif tested_count == 0 and ratio is None and avg_prem is None:
+                status = FactStatus.EMPTY
+            else:
+                status = FactStatus.AVAILABLE
+
             facts.append(
                 self.create_fact_item(
                     fact_key="auction.high_open_stats",
                     fact_type=FactType.HIGH_TIER_STAT,
                     time_context=t_ctx,
-                    status=FactStatus.AVAILABLE,
+                    status=status,
                     freshness=Freshness.REALTIME,
                     source=source_name,
                     source_record_id=rec_id,
                     payload={
-                        "high_open_ratio": parsed_high.get("high_open_ratio"),
-                        "avg_premium": parsed_high.get("avg_premium"),
-                        "max_board_str": parsed_high.get("max_board_str"),
+                        "high_open_ratio": ratio,
+                        "avg_premium": avg_prem,
+                        "max_board_str": max_board_str or ("无昨日连板标的" if tested_count == 0 else ""),
+                        "tested_count": tested_count,
+                        "high_open_count": high_open_cnt,
+                        "low_open_count": low_open_cnt,
+                        "one_word_up_count": one_word_up,
+                        "one_word_down_count": one_word_down,
+                        "max_board_info": max_board_info,
+                        "extreme_stocks": extreme_stocks,
                     },
                     provenance=prov,
                     clock=clock,
@@ -213,7 +239,18 @@ class M4AuctionFactAdapter(BaseFactAdapter):
                     freshness=Freshness.REALTIME,
                     source=source_name,
                     source_record_id=rec_id,
-                    payload={"high_open_ratio": 0.0, "avg_premium": 0.0, "max_board_str": "无昨日连板标的"},
+                    payload={
+                        "high_open_ratio": 0.0,
+                        "avg_premium": 0.0,
+                        "max_board_str": "无昨日连板标的",
+                        "tested_count": 0,
+                        "high_open_count": 0,
+                        "low_open_count": 0,
+                        "one_word_up_count": 0,
+                        "one_word_down_count": 0,
+                        "max_board_info": None,
+                        "extreme_stocks": [],
+                    },
                     provenance=prov,
                     clock=clock,
                 )
