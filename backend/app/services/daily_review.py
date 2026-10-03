@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Optional
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException
+from ..core.calendar import calendar
 from ..data.service import DataService
 from ..cognition.market_state import market_state_computer
 from ..cognition.interfaces import CognitionInput
@@ -20,8 +22,15 @@ class DailyReviewService:
         self.session = session
         self.data_service = DataService(session)
 
-    async def generate_review(self, date_str: Optional[str] = None) -> DailyReview:
+    async def generate_review(self, date_str: Optional[str] = None, force: bool = False) -> DailyReview:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
+
+        if not force and not calendar.is_trading_day(today):
+            logger.warning(f"Attempted to generate daily review on non-trading day: {today}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"{today} 为非交易日（周末/法定节假日休市），系统禁止生成收盘复盘。"
+            )
 
         # 检查是否已存在历史离线物理快照 (用于离线重放与自愈)
         snap_stmt = select(MarketDailySnapshot).where(

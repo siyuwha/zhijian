@@ -27,11 +27,20 @@ export default function ReviewPage() {
     }
   };
 
+  const [isWeekend, setIsWeekend] = useState(false);
+
   useEffect(() => {
     fetchReviews();
+    const day = new Date().getDay();
+    setIsWeekend(day === 0 || day === 6);
   }, []);
 
   const handleGenerateToday = async () => {
+    const day = new Date().getDay();
+    if (day === 0 || day === 6) {
+      setError("今日为周末非交易日（休市），A股无盘面事实，系统禁止生成收盘复盘。");
+      return;
+    }
     try {
       setGenerating(true);
       setError(null);
@@ -114,10 +123,15 @@ export default function ReviewPage() {
         <button
           onClick={handleGenerateToday}
           disabled={generating}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-teal-600 hover:bg-teal-500 text-white shadow-lg shadow-teal-900/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
+            isWeekend
+              ? 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+              : 'bg-teal-600 hover:bg-teal-500 text-white shadow-teal-900/30'
+          }`}
+          title={isWeekend ? '周末非交易日休市' : '抓取并计算今日收盘客观复盘'}
         >
           <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
-          {generating ? '正在抓取计算...' : '一键生成今日复盘'}
+          {generating ? '正在抓取计算...' : isWeekend ? '今日休市 (非交易日)' : '一键生成今日复盘'}
         </button>
       </div>
 

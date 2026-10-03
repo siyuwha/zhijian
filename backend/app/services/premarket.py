@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException
+from ..core.calendar import calendar
 from ..data.service import DataService
 from ..models.report import PremarketBriefing, DailyReview
 from ..models.market import MarketNews
@@ -17,8 +19,15 @@ class PremarketService:
         self.session = session
         self.data_service = DataService(session)
 
-    async def generate_briefing(self, date_str: Optional[str] = None) -> PremarketBriefing:
+    async def generate_briefing(self, date_str: Optional[str] = None, force: bool = False) -> PremarketBriefing:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
+
+        if not force and not calendar.is_trading_day(today):
+            logger.warning(f"Attempted to generate premarket briefing on non-trading day: {today}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"{today} 为非交易日（周末/法定节假日休市），系统禁止生成盘前简报。"
+            )
 
         # 1. 获取隔夜外盘
         overnight_res = await self.data_service.get_overnight_data()

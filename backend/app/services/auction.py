@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException
+from ..core.calendar import calendar
 from ..data.service import DataService
 from ..models.report import AuctionReport, DailyReview
 from ..models.market import MarketDailySnapshot
@@ -17,8 +19,15 @@ class AuctionService:
         self.session = session
         self.data_service = DataService(session)
 
-    async def generate_auction_report(self, date_str: Optional[str] = None) -> AuctionReport:
+    async def generate_auction_report(self, date_str: Optional[str] = None, force: bool = False) -> AuctionReport:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
+
+        if not force and not calendar.is_trading_day(today):
+            logger.warning(f"Attempted to generate auction report on non-trading day: {today}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"{today} 为非交易日（周末/法定节假日休市），系统禁止生成集合竞价报告。"
+            )
 
         # 检查是否已存在历史 09:25 集合竞价物理快照 (用于离线重放与自愈)
         snap_stmt = select(MarketDailySnapshot).where(

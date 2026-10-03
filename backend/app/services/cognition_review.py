@@ -884,9 +884,8 @@ class CognitionReviewService:
             raise HTTPException(status_code=404, detail=f"未找到 {market_date} 的收盘复盘事实")
 
         if not target_date:
-            cur_dt = datetime.strptime(market_date, "%Y-%m-%d")
-            offset = 3 if cur_dt.weekday() == 4 else (2 if cur_dt.weekday() == 5 else 1)
-            target_date = (cur_dt + timedelta(days=offset)).strftime("%Y-%m-%d")
+            from ..core.calendar import calendar
+            target_date = calendar.next_trading_day(market_date).strftime("%Y-%m-%d")
 
         # 刚性时间因果防线：服务端强制校验 target_date > market_date，杜绝未来信息污染
         if target_date <= market_date:
