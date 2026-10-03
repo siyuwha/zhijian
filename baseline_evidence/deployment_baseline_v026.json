@@ -1,0 +1,66 @@
+{
+  "baseline_id": "BASE-DEPLOY-20261003-V026",
+  "created_at": "2026-10-03T22:02:48+08:00",
+  "author": "Antigravity & Architect",
+  "description": "v0.2.0 -> v0.2.6 生产环境平滑升级与回滚基线 (Deployment Baseline)",
+  "upgrade_metadata": {
+    "previous_application_version": "v0.2.0",
+    "previous_commit": "f012efe",
+    "target_application_version": "v0.2.6",
+    "target_commit": "83f0d58",
+    "migration_revision": "d440da877b6a_p2_track_a_and_cognition_phase2a_baseline",
+    "migration_command": "alembic upgrade head"
+  },
+  "schema_diff": {
+    "previous_table_count": 25,
+    "target_table_count": 32,
+    "new_tables": [
+      "market_daily_snapshot",
+      "cognition_chain_state",
+      "cognition_diff_report",
+      "cognition_prompt_spec",
+      "cognition_record",
+      "market_settlement_cache",
+      "alembic_version"
+    ]
+  },
+  "worm_hardening": {
+    "triggers_count": 5,
+    "triggers": [
+      "trg_cognition_chain_state_no_delete",
+      "trg_cognition_prompt_spec_no_update",
+      "trg_cognition_prompt_spec_no_delete",
+      "trg_cognition_record_no_update",
+      "trg_cognition_record_no_delete"
+    ],
+    "genesis_anchor": {
+      "chain_id": "MAIN_LEDGER",
+      "tail_sequence_id": 0,
+      "tail_record_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "initialized_at": "2026-10-03 13:59:43"
+    }
+  },
+  "forensic_evidence": {
+    "permanent_rollback_backup": {
+      "filename": "trading.db.bak_v020",
+      "relative_path": "data/trading.db.bak_v020",
+      "nas_physical_path": "\\\\Fn-evo2-xh\\Docker\\AI-Trading-System\\data\\trading.db.bak_v020",
+      "size_bytes": 1191936,
+      "sha256": "1696f280b8b09afba4b43c31d2ffd4cd33b99403dbe40583dae413d103e66313",
+      "preservation_policy": "PERMANENT_IMMUTABLE_ROLLBACK_EVIDENCE"
+    },
+    "upgraded_production_database": {
+      "filename": "trading.db",
+      "relative_path": "data/trading.db",
+      "nas_physical_path": "\\\\Fn-evo2-xh\\Docker\\AI-Trading-System\\data\\trading.db",
+      "size_bytes": 1302528,
+      "sha256": "8911955495981d59286d5b560c8d47a3d644d42a7b35a240c3a70b5742480e45",
+      "pragma_integrity_check": "ok"
+    }
+  },
+  "preservation_policy_rules": [
+    "trading.db.bak_v020 严禁删除，作为 v0.2.0 -> v0.2.6 永久生产回滚与基线对比物证",
+    "未来每次生产版本升级必须强制先创建以旧版本号命名的冷备份 (如 trading.db.bak_v026)",
+    "未来所有生产认知复盘与推演样本均以此 Deployment Baseline 作为溯源基准"
+  ]
+}
