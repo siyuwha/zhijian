@@ -34,6 +34,7 @@ out/
 logs/
 !baseline_evidence/*.log
 *.db
+*.bak*
 /data/
 /backend/data/
 

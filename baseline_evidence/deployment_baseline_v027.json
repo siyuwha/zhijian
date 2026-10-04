@@ -1,0 +1,49 @@
+{
+  "baseline_id": "BASE-DEPLOY-20261004-V027",
+  "created_at": "2026-10-04T15:39:30+08:00",
+  "author": "Antigravity & Architect",
+  "description": "v0.2.7 物理事实心跳探测动态判定与防污染加固基线 (Deployment Baseline)",
+  "preservation_mandate": "最高董事会最高指令：v0.2.7 做好永久冷备份与多重固化保存，短期内严禁删除或覆盖",
+  "upgrade_metadata": {
+    "previous_application_version": "v0.2.6",
+    "target_application_version": "v0.2.7",
+    "target_commit": "7d2f1a5",
+    "git_tag": "v0.2.7",
+    "archive_branch": "release/v0.2.7",
+    "features_hardened": [
+      "物理事实心跳动态探测器 (MarketHeartbeatDetector)",
+      "镜象测试 (The Mirror Test) 确权休市返回 200 MARKET_CLOSED",
+      "归零测试 (The Zero Test) 确权休市返回 200 MARKET_CLOSED",
+      "零掩盖真实报警原则 (真实网络超时/5xx 坚决保留 502)",
+      "收盘复盘与集合竞价防脏数据落库守卫",
+      "盘前简报外围隔夜与快讯全息独立运行",
+      "63号技术设计单：a-stock-data 上游事实底盘扩容 Wave 1 最终核准"
+    ]
+  },
+  "forensic_evidence": {
+    "v027_production_cold_backup": {
+      "filename": "trading.db.bak_v027",
+      "relative_path": "data/trading.db.bak_v027",
+      "nas_physical_path": "\\\\Fn-evo2-xh\\Docker\\AI-Trading-System\\data\\trading.db.bak_v027",
+      "local_evidence_path": "baseline_evidence/trading.db.bak_v027",
+      "size_bytes": 1433600,
+      "sha256": "80FB0A3BDF9134E311FAA6192BF6376DE96575304747ABF112CEC489FEC10485",
+      "preservation_policy": "PERMANENT_IMMUTABLE_PRESERVATION_MANDATE"
+    },
+    "v020_genesis_rollback_backup": {
+      "filename": "trading.db.bak_v020",
+      "relative_path": "data/trading.db.bak_v020",
+      "nas_physical_path": "\\\\Fn-evo2-xh\\Docker\\AI-Trading-System\\data\\trading.db.bak_v020",
+      "size_bytes": 1191936,
+      "sha256": "1696f280b8b09afba4b43c31d2ffd4cd33b99403dbe40583dae413d103e66313",
+      "preservation_policy": "PERMANENT_IMMUTABLE_ROLLBACK_EVIDENCE"
+    }
+  },
+  "invariants_compliance": {
+    "zero_mock_placeholder": true,
+    "disaster_recovery_synced": true,
+    "worm_ledger_integrity": true,
+    "total_automated_tests": 218,
+    "test_pass_rate": "100%"
+  }
+}
