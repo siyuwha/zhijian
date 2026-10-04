@@ -171,6 +171,38 @@ def test_heartbeat_total_data_missing():
     assert any("全维度市场物理数据完全缺失" in r for r in result.reasons)
 
 
+def test_heartbeat_prev_close_mirror():
+    """测试场景二：通信正常，但核心指数点位与前一交易日收盘绝对镜像 (The Mirror Test)"""
+    prev_indices = [
+        {"code": "sh000001", "name": "上证指数", "price": 3336.50, "amount_wan": 45000000.0},
+        {"code": "sz399001", "name": "深证成指", "price": 10550.20, "amount_wan": 60000000.0},
+        {"code": "sz399006", "name": "创业板指", "price": 2180.10, "amount_wan": 25000000.0},
+    ]
+    # 周末或节假日，行情源通信正常200，但数据直接返回上周五收盘点位
+    cur_indices = [
+        {"code": "sh000001", "name": "上证指数", "price": 3336.50, "amount_wan": 45000000.0},
+        {"code": "sz399001", "name": "深证成指", "price": 10550.20, "amount_wan": 60000000.0},
+        {"code": "sz399006", "name": "创业板指", "price": 2180.10, "amount_wan": 25000000.0},
+    ]
+    limit_up = {"total_count": 0, "limit_down_count": 0}
+
+    result = MarketHeartbeatDetector.detect(
+        indices=cur_indices,
+        limit_up=limit_up,
+        breadth=None,
+        prev_indices=prev_indices,
+        prev_date="2026-09-30",
+        target_date="2026-10-04",
+    )
+
+    assert result.is_active_trading_day is False
+    assert result.status == "MARKET_CLOSED"
+    assert result.confirm_type == "PREV_CLOSE_MIRROR"
+    assert result.confidence == 1.0
+    assert result.last_active_date == "2026-09-30"
+    assert any("前一交易日" in r for r in result.reasons)
+
+
 @pytest_asyncio.fixture
 async def test_session():
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
@@ -183,18 +215,19 @@ async def test_session():
 
 
 @pytest.mark.asyncio
-async def test_daily_review_service_heartbeat_gate_blocks_generation(test_session: AsyncSession):
+async def test_daily_review_service_heartbeat_gate_confirms_closure(test_session: AsyncSession):
     """
     端到端集成测试：
-    验证即便日历通过了初筛（例如假定某个工作日），但底层抓取到的物理数据归零（休市无心跳），
-    DailyReviewService 必须触发 400 异常拒绝生成复盘！
+    验证当物理心跳确权为休市状态（归零或前日镜像）时：
+    DailyReviewService 绝不随意抛出 400 报警错误，而是优雅返回 None，确权休市无警报！
     """
     service = DailyReviewService(test_session)
 
     # Mock DataService 返回成交额与涨跌停全归零的休市数据
     mock_data_service = AsyncMock()
     mock_data_service.get_market_indices.return_value = AsyncMock(
-        data=[{"code": "sh000001", "name": "上证指数", "price": 3300.0, "amount_wan": 0.0}]
+        data=[{"code": "sh000001", "name": "上证指数", "price": 3300.0, "amount_wan": 0.0}],
+        quality=None,
     )
     mock_data_service.get_limit_up_pool.return_value = AsyncMock(
         data={"total_count": 0, "limit_down_count": 0}
@@ -202,16 +235,82 @@ async def test_daily_review_service_heartbeat_gate_blocks_generation(test_sessio
     mock_data_service.get_market_breadth.return_value = AsyncMock(
         data={"up_count": 0, "down_count": 0}
     )
-    mock_data_service.get_micro_cap_history.return_value = AsyncMock(data={})
+    mock_data_service.get_micro_cap_quote.return_value = AsyncMock(data={})
     mock_data_service.get_external_risk.return_value = AsyncMock(data={})
     mock_data_service.get_high_tier_performance.return_value = AsyncMock(data={})
 
     service.data_service = mock_data_service
 
-    # 2026-09-30 是真实周三，日历通过，但物理心跳全归零
+    # 2026-09-30 是测试日期，物理心跳确权休市
+    res = await service.generate_review("2026-09-30", force=False)
+    assert res is None
+    assert service.last_heartbeat is not None
+    assert service.last_heartbeat.is_active_trading_day is False
+    assert service.last_heartbeat.status == "MARKET_CLOSED"
+
+
+@pytest.mark.asyncio
+async def test_daily_review_service_real_error_raises_502(test_session: AsyncSession):
+    """
+    严禁掩盖真实错误原则测试：
+    如果行情数据源发生真实网络故障 (DataQuality.FAILED)，
+    系统必须严肃抛出 HTTP 502 异常，坚决不伪装成休市！
+    """
+    from app.data.capabilities import DataQuality, DataResult
+
+    service = DailyReviewService(test_session)
+    mock_data_service = AsyncMock()
+    mock_data_service.get_index_quotes.return_value = DataResult(
+        data=None,
+        quality=DataQuality.FAILED,
+        provider="sina",
+        error_message="Connection to Sina/Tencent API timed out (504)"
+    )
+    mock_data_service.get_limit_up_pool.return_value = AsyncMock(data={})
+    mock_data_service.get_market_breadth.return_value = AsyncMock(data={})
+
+    service.data_service = mock_data_service
+
     with pytest.raises(HTTPException) as exc_info:
         await service.generate_review("2026-09-30", force=False)
 
-    assert exc_info.value.status_code == 400
-    assert "物理心跳确权失败" in exc_info.value.detail
-    assert "涨跌停家数全为0" in exc_info.value.detail
+    assert exc_info.value.status_code == 502
+    assert "行情数据源通信异常" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_auction_service_heartbeat_confirms_closure_and_real_error_raises_502(test_session: AsyncSession):
+    """
+    集合竞价测试：
+    1. 真实故障抛出 502
+    2. 物理确认为休市返回 None
+    """
+    from app.services.auction import AuctionService
+    from app.data.capabilities import DataQuality, DataResult
+
+    service = AuctionService(test_session)
+
+    # 1. 真实网络故障
+    mock_data_service = AsyncMock()
+    mock_data_service.get_index_quotes.return_value = DataResult(
+        data=None,
+        quality=DataQuality.FAILED,
+        provider="sina",
+        error_message="Gateway timeout"
+    )
+    service.data_service = mock_data_service
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.generate_auction_report("2026-10-04", force=False)
+    assert exc_info.value.status_code == 502
+
+    # 2. 物理数据确认为休市（点位为0或归零）
+    mock_data_service.get_index_quotes.return_value = DataResult(
+        data=[{"code": "sh000001", "name": "上证指数", "price": 0.0, "amount_wan": 0.0}],
+        quality=DataQuality.FULL,
+        provider="sina"
+    )
+    res = await service.generate_auction_report("2026-10-04", force=False)
+    assert res is None
+    assert service.last_heartbeat is not None
+    assert service.last_heartbeat.is_active_trading_day is False

@@ -9,6 +9,8 @@ from ..core.calendar import calendar
 from ..data.service import DataService
 from ..cognition.market_state import market_state_computer
 from ..cognition.interfaces import CognitionInput
+from ..data.capabilities import DataQuality
+from ..core.market_heartbeat import MarketHeartbeatDetector, MarketHeartbeatResult
 from ..models.report import DailyReview
 from ..models.cognition import CognitionMarketState
 from ..models.market import MarketDailySnapshot
@@ -21,17 +23,10 @@ class DailyReviewService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.data_service = DataService(session)
+        self.last_heartbeat: Optional[MarketHeartbeatResult] = None
 
-    async def generate_review(self, date_str: Optional[str] = None, force: bool = False) -> DailyReview:
+    async def generate_review(self, date_str: Optional[str] = None, force: bool = False) -> Optional[DailyReview]:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
-
-        if not force and not calendar.is_trading_day(today):
-            wd = calendar.get_weekday_name(today)
-            logger.warning(f"Attempted to generate daily review on non-trading day: {today} ({wd})")
-            raise HTTPException(
-                status_code=400,
-                detail=f"{today} ({wd}) 为非交易日（周末/法定节假日休市），系统禁止生成收盘复盘。"
-            )
 
         # 检查是否已存在历史离线物理快照 (用于离线重放与自愈)
         snap_stmt = select(MarketDailySnapshot).where(
@@ -43,37 +38,104 @@ class DailyReviewService:
         # 1. 采集主要指数数据 (D1 / D6)
         indices = ["s_sh000001", "s_sz399001", "s_sz399006", "s_sh000688"]
         index_res = await self.data_service.get_index_quotes(indices)
-        index_data = index_res.data or []
 
-        # 离线自愈判定：若外部数据源返回空且本地存在历史快照，则自愈加载物理事实
-        if not index_data and existing_snapshot and existing_snapshot.indices_snapshot:
+        # 严肃真实错误守卫：绝不掩盖网络/上游服务真实故障！
+        if index_res.quality == DataQuality.FAILED and not existing_snapshot:
+            logger.error(f"行情数据源通信异常: {index_res.error_message}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"行情数据源通信异常: {index_res.error_message or '无法获取核心大盘指数行情'}"
+            )
+
+        is_today = (datetime.now().strftime("%Y-%m-%d") == today)
+        if not is_today and existing_snapshot and existing_snapshot.indices_snapshot:
             try:
                 index_data = json.loads(existing_snapshot.indices_snapshot)
-                logger.info(f"Self-healed index observation from MarketDailySnapshot for {today}")
+                logger.info(f"Loaded index observation from MarketDailySnapshot for replay/historical date {today}")
             except Exception:
-                pass
+                index_data = index_res.data or []
+        else:
+            index_data = index_res.data or []
+            if not index_data and existing_snapshot and existing_snapshot.indices_snapshot:
+                try:
+                    index_data = json.loads(existing_snapshot.indices_snapshot)
+                    logger.info(f"Self-healed index observation from MarketDailySnapshot for {today}")
+                except Exception:
+                    pass
 
         # 2. 采集涨停池与情绪数据 (D2 / D3)
         limit_up_res = await self.data_service.get_limit_up_pool(today)
-        limit_up_summary = limit_up_res.data or {}
-        if not limit_up_summary and existing_snapshot and existing_snapshot.limit_up_snapshot:
+        if not is_today and existing_snapshot and existing_snapshot.limit_up_snapshot:
             try:
                 limit_up_summary = json.loads(existing_snapshot.limit_up_snapshot)
-                logger.info(f"Self-healed limit up observation from MarketDailySnapshot for {today}")
             except Exception:
-                pass
+                limit_up_summary = limit_up_res.data or {}
+        else:
+            limit_up_summary = limit_up_res.data or {}
+            if not limit_up_summary and existing_snapshot and existing_snapshot.limit_up_snapshot:
+                try:
+                    limit_up_summary = json.loads(existing_snapshot.limit_up_snapshot)
+                    logger.info(f"Self-healed limit up observation from MarketDailySnapshot for {today}")
+                except Exception:
+                    pass
 
         # 3. 采集全市场广度 (D2)
         breadth_res = await self.data_service.get_market_breadth()
-        breadth_data = breadth_res.data or {}
-        if not breadth_data and existing_snapshot and existing_snapshot.breadth_snapshot:
+        if not is_today and existing_snapshot and existing_snapshot.breadth_snapshot:
             try:
                 breadth_data = json.loads(existing_snapshot.breadth_snapshot)
-                logger.info(f"Self-healed market breadth observation from MarketDailySnapshot for {today}")
             except Exception:
-                pass
+                breadth_data = breadth_res.data or {}
+        else:
+            breadth_data = breadth_res.data or {}
+            if not breadth_data and existing_snapshot and existing_snapshot.breadth_snapshot:
+                try:
+                    breadth_data = json.loads(existing_snapshot.breadth_snapshot)
+                    logger.info(f"Self-healed market breadth observation from MarketDailySnapshot for {today}")
+                except Exception:
+                    pass
 
-        # 4. 采集微盘股风格代理数据 (D4)
+        # 4. 获取数据库中最近一个有效交易日的归档收盘快照（作为前日镜像比对基准）
+        prev_stmt = (
+            select(DailyReview)
+            .where(DailyReview.date < today)
+            .order_by(DailyReview.date.desc())
+            .limit(5)
+        )
+        prev_candidates = (await self.session.execute(prev_stmt)).scalars().all()
+        prev_review = next((r for r in prev_candidates if calendar.is_trading_day(r.date)), None)
+        prev_indices = []
+        prev_date = None
+        if prev_review:
+            prev_date = prev_review.date
+            if prev_review.market_overview:
+                try:
+                    prev_indices = json.loads(prev_review.market_overview)
+                except Exception:
+                    pass
+
+        # 5. 物理事实心跳动态确权 (Market Heartbeat Dynamic Detection)
+        # 场景二优先（前日收盘绝对镜像），场景一兜底（量能与极端博弈归零）
+        heartbeat = MarketHeartbeatDetector.detect(
+            indices=index_data,
+            limit_up=limit_up_summary,
+            breadth=breadth_data,
+            prev_indices=prev_indices,
+            prev_date=prev_date,
+            target_date=today,
+        )
+        self.last_heartbeat = heartbeat
+
+        # 若未开启强制模式且物理确权为休市状态：不报错误警报，正常返回 None（不污染历史数据库）
+        if not force and not heartbeat.is_active_trading_day:
+            reason_str = "；".join(heartbeat.reasons)
+            logger.info(
+                f"Market heartbeat confirmed non-trading day/closed for {today}: {reason_str}"
+            )
+            return None
+
+        # 6. 若物理确权为真实交易日，继续采集微盘股、外部风险与高标表现
+        # 6.1 采集微盘股风格代理数据 (D4)
         micro_res = await self.data_service.get_micro_cap_quote()
         micro_data = micro_res.data or {}
         if not micro_data and existing_snapshot and existing_snapshot.micro_cap_snapshot:
@@ -82,7 +144,7 @@ class DailyReviewService:
             except Exception:
                 pass
 
-        # 5. 采集外部风险与A50 (D5)
+        # 6.2 采集外部风险与A50 (D5)
         ext_res = await self.data_service.get_external_risk()
         ext_data = ext_res.data or {}
         if not ext_data and existing_snapshot and existing_snapshot.external_risk_snapshot:
@@ -91,7 +153,7 @@ class DailyReviewService:
             except Exception:
                 pass
 
-        # 6. 采集高位股/连板承接表现 (D3)
+        # 6.3 采集高位股/连板承接表现 (D3)
         high_tier_res = await self.data_service.get_high_tier_performance()
         high_tier_data = high_tier_res.data or {}
         if not high_tier_data and existing_snapshot and existing_snapshot.high_tier_snapshot:
@@ -99,25 +161,6 @@ class DailyReviewService:
                 high_tier_data = json.loads(existing_snapshot.high_tier_snapshot)
             except Exception:
                 pass
-
-        # 6.5 物理事实心跳双轨确权 (Market Heartbeat Dual-Track Gate)
-        # 依据几大核心指数物理撮合变动与全市场涨跌停非零特征，对当日交易真实性进行物理确权
-        from ..core.market_heartbeat import MarketHeartbeatDetector
-        heartbeat = MarketHeartbeatDetector.detect(
-            indices=index_data,
-            limit_up=limit_up_summary,
-            breadth=breadth_data,
-            target_date=today,
-        )
-        if not force and not heartbeat.is_active_trading_day:
-            reason_str = "；".join(heartbeat.reasons)
-            logger.warning(
-                f"Market heartbeat rejected daily review for {today}: {reason_str}"
-            )
-            raise HTTPException(
-                status_code=400,
-                detail=f"日期 {today} 物理心跳确权失败（非交易日/休市）：{reason_str}。系统禁止生成收盘复盘。"
-            )
 
         # 7. 查找前一交易日复盘记录（提取昨日成交额与昨日涨停数，用于环比量能与连板晋级率）
         # 严格通过交易日历追溯前一有效交易日，杜绝非交易日（周末/假期）历史扰动

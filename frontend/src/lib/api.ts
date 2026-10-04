@@ -34,19 +34,30 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
   });
 
   if (!response.ok) {
-    let errorDetail = response.statusText;
+    let errorDetail = '';
     try {
       const errJson = await response.json();
       if (errJson) {
-        errorDetail = errJson.detail || errJson.message || response.statusText;
+        errorDetail = errJson.detail || errJson.message || '';
         if (typeof errorDetail === 'object') {
           errorDetail = JSON.stringify(errorDetail);
         }
       }
     } catch {
-      // fallback to statusText
+      // fallback
     }
-    throw new Error(errorDetail || `API Error: ${response.statusText}`);
+    if (!errorDetail || errorDetail === response.statusText) {
+      if (response.status === 400) {
+        errorDetail = `请求参数有误或触发交易日防线拦截 (400 Bad Request)`;
+      } else if (response.status === 404) {
+        errorDetail = `未找到对应数据 (404 Not Found)`;
+      } else if (response.status === 500) {
+        errorDetail = `后端服务内部错误 (500 Internal Server Error)`;
+      } else {
+        errorDetail = `请求失败 (${response.status}: ${response.statusText || '未知错误'})`;
+      }
+    }
+    throw new Error(errorDetail);
   }
 
   const data: ApiResponse<T> = await response.json();

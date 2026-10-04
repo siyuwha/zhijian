@@ -31,10 +31,23 @@ export const HOLIDAY_LABELS: Record<string, string> = {
   // 国庆节
   "2026-10-01": "国庆休市",
   "2026-10-02": "国庆休市",
+  "2026-10-03": "国庆休市",
+  "2026-10-04": "国庆休市",
   "2026-10-05": "国庆休市",
   "2026-10-06": "国庆休市",
   "2026-10-07": "国庆休市",
 };
+
+/**
+ * 获取本地当前日期的 YYYY-MM-DD 字符串（避免 UTC 跨时区偏差）
+ */
+export function getTodayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 /**
  * 判断是否为交易日（排除周末与A股法定休市日）

@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { DailyReviewSummaryItem } from '@/types/report';
 import { formatDateWithWeekday } from '@/lib/utils';
-import { RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, Activity, HelpCircle } from 'lucide-react';
+import { RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, Activity, HelpCircle, Info } from 'lucide-react';
 
 export default function ReviewPage() {
   const [reviews, setReviews] = useState<DailyReviewSummaryItem[]>([]);
@@ -28,27 +28,28 @@ export default function ReviewPage() {
     }
   };
 
-  const [isWeekend, setIsWeekend] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReviews();
-    const day = new Date().getDay();
-    setIsWeekend(day === 0 || day === 6);
   }, []);
 
   const handleGenerateToday = async () => {
-    const day = new Date().getDay();
-    if (day === 0 || day === 6) {
-      setError("今日为周末非交易日（休市），A股无盘面事实，系统禁止生成收盘复盘。");
-      return;
-    }
     try {
       setGenerating(true);
       setError(null);
-      await api.generateDailyReview();
-      await fetchReviews();
+      setNotice(null);
+      const res: any = await api.generateDailyReview();
+      if (res && (res.status === 'MARKET_CLOSED' || res.market_status === 'CLOSED')) {
+        setNotice(res.message || '数据通信正常：大盘点位与前一交易日收盘一致，物理确认为休市状态。');
+        setLastActiveDate(res.last_active_date || res.data?.last_active_date || null);
+      } else {
+        await fetchReviews();
+      }
     } catch (err: any) {
       console.error('生成复盘失败:', err);
+      // 严肃真实错误守卫：网络超时/服务不可用真实报错！
       setError(err.message || '生成今日复盘失败');
     } finally {
       setGenerating(false);
@@ -124,17 +125,37 @@ export default function ReviewPage() {
         <button
           onClick={handleGenerateToday}
           disabled={generating}
-          className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-            isWeekend
-              ? 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-              : 'bg-teal-600 hover:bg-teal-500 text-white shadow-teal-900/30'
-          }`}
-          title={isWeekend ? '周末非交易日休市' : '抓取并计算今日收盘客观复盘'}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-900/30"
+          title="抓取并计算今日收盘客观复盘"
         >
           <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
-          {generating ? '正在抓取计算...' : isWeekend ? '今日休市 (非交易日)' : '一键生成今日复盘'}
+          {generating ? '正在抓取计算...' : '一键生成今日复盘'}
         </button>
       </div>
+
+      {/* 物理确权休市状态通知（通信正常、物理事实确认为休市，不作为错误报警） */}
+      {notice && (
+        <div className="p-4 rounded-xl bg-cyan-950/40 border border-cyan-800/80 text-cyan-200 text-sm space-y-2">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1">
+              <div className="font-semibold text-cyan-300">市场休市确权通知</div>
+              <p className="text-cyan-200/90 leading-relaxed">{notice}</p>
+              {lastActiveDate && (
+                <div className="pt-1">
+                  <Link
+                    href={`/review/${lastActiveDate}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 underline underline-offset-4"
+                  >
+                    查看最近有效交易日（{formatDateWithWeekday(lastActiveDate)}）复盘
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 错误提示 */}
       {error && (

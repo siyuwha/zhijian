@@ -25,26 +25,26 @@ async def test_session():
 
 
 @pytest.mark.asyncio
-async def test_daily_review_rejects_non_trading_day(test_session: AsyncSession):
-    """测试周末 (2026-10-03) 与国庆法定假日 (2026-10-01) 严禁生成收盘复盘"""
+async def test_daily_review_gracefully_closes_on_non_trading_day(test_session: AsyncSession):
+    """测试周末 (2026-10-03) 与国庆法定假日 (2026-10-01) 物理心跳动态确权休市，优雅返回 None 而非抛出 400 报警错误"""
     service = DailyReviewService(test_session)
 
     # 1. 周末
-    with pytest.raises(HTTPException) as exc_info:
-        await service.generate_review("2026-10-03")
-    assert exc_info.value.status_code == 400
-    assert "非交易日" in exc_info.value.detail
+    res_weekend = await service.generate_review("2026-10-03")
+    assert res_weekend is None
+    assert service.last_heartbeat is not None
+    assert service.last_heartbeat.is_active_trading_day is False
 
     # 2. 国庆法定假日
-    with pytest.raises(HTTPException) as exc_info:
-        await service.generate_review("2026-10-01")
-    assert exc_info.value.status_code == 400
-    assert "非交易日" in exc_info.value.detail
+    res_holiday = await service.generate_review("2026-10-01")
+    assert res_holiday is None
+    assert service.last_heartbeat is not None
+    assert service.last_heartbeat.is_active_trading_day is False
 
 
 @pytest.mark.asyncio
 async def test_premarket_rejects_non_trading_day(test_session: AsyncSession):
-    """测试非交易日严禁生成盘前简报"""
+    """测试非交易日严禁生成盘前简报（盘前简报暂保持原状日历防御）"""
     service = PremarketService(test_session)
     with pytest.raises(HTTPException) as exc_info:
         await service.generate_briefing("2026-10-03")
@@ -53,13 +53,13 @@ async def test_premarket_rejects_non_trading_day(test_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_auction_rejects_non_trading_day(test_session: AsyncSession):
-    """测试非交易日严禁生成竞价报告"""
+async def test_auction_gracefully_closes_on_non_trading_day(test_session: AsyncSession):
+    """测试非交易日集合竞价物理确认为休市，优雅返回 None 而非抛出 400 报警错误"""
     service = AuctionService(test_session)
-    with pytest.raises(HTTPException) as exc_info:
-        await service.generate_auction_report("2026-10-03")
-    assert exc_info.value.status_code == 400
-    assert "非交易日" in exc_info.value.detail
+    res = await service.generate_auction_report("2026-10-03")
+    assert res is None
+    assert service.last_heartbeat is not None
+    assert service.last_heartbeat.is_active_trading_day is False
 
 
 def test_trading_calendar_holiday_skipping():

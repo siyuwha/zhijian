@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from ..core.calendar import calendar
 from ..data.service import DataService
+from ..data.capabilities import DataQuality
+from ..core.market_heartbeat import MarketHeartbeatDetector, MarketHeartbeatResult
 from ..models.report import AuctionReport, DailyReview
 from ..models.market import MarketDailySnapshot
 
@@ -18,17 +20,10 @@ class AuctionService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.data_service = DataService(session)
+        self.last_heartbeat: Optional[MarketHeartbeatResult] = None
 
-    async def generate_auction_report(self, date_str: Optional[str] = None, force: bool = False) -> AuctionReport:
+    async def generate_auction_report(self, date_str: Optional[str] = None, force: bool = False) -> Optional[AuctionReport]:
         today = date_str or datetime.now().strftime("%Y-%m-%d")
-
-        if not force and not calendar.is_trading_day(today):
-            wd = calendar.get_weekday_name(today)
-            logger.warning(f"Attempted to generate auction report on non-trading day: {today} ({wd})")
-            raise HTTPException(
-                status_code=400,
-                detail=f"{today} ({wd}) 为非交易日（周末/法定节假日休市），系统禁止生成集合竞价报告。"
-            )
 
         # 检查是否已存在历史 09:25 集合竞价物理快照 (用于离线重放与自愈)
         snap_stmt = select(MarketDailySnapshot).where(
@@ -58,7 +53,50 @@ class AuctionService:
                 quotes = index_res.data or []
         else:
             index_res = await self.data_service.get_index_quotes(index_codes)
+            # 严肃真实错误守卫：绝不掩盖网络/上游服务真实故障！
+            if index_res.quality == DataQuality.FAILED and not existing_auction_snapshot:
+                logger.error(f"集合竞价行情数据源通信异常: {index_res.error_message}")
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"行情数据源通信异常: {index_res.error_message or '无法获取开盘指数数据'}"
+                )
             quotes = index_res.data or []
+
+        # 2. 获取数据库中最近一个有效交易日的归档收盘快照（作为前日镜像比对基准）
+        prev_stmt = (
+            select(DailyReview)
+            .where(DailyReview.date < today)
+            .order_by(DailyReview.date.desc())
+            .limit(5)
+        )
+        prev_candidates = (await self.session.execute(prev_stmt)).scalars().all()
+        prev_review = next((r for r in prev_candidates if calendar.is_trading_day(r.date)), None)
+        prev_indices = []
+        prev_date = None
+        if prev_review:
+            prev_date = prev_review.date
+            if prev_review.market_overview:
+                try:
+                    prev_indices = json.loads(prev_review.market_overview)
+                except Exception:
+                    pass
+
+        # 3. 物理事实心跳动态确权 (Market Heartbeat Dynamic Detection)
+        heartbeat = MarketHeartbeatDetector.detect(
+            indices=quotes,
+            prev_indices=prev_indices,
+            prev_date=prev_date,
+            target_date=today,
+        )
+        self.last_heartbeat = heartbeat
+
+        # 若未开启强制模式且物理确权为休市状态：不报错误警报，正常返回 None（不污染历史数据库）
+        if not force and not heartbeat.is_active_trading_day:
+            reason_str = "；".join(heartbeat.reasons)
+            logger.info(
+                f"Auction market heartbeat confirmed non-trading day/closed for {today}: {reason_str}"
+            )
+            return None
 
         sh_amount_wan = None
         sz_amount_wan = None

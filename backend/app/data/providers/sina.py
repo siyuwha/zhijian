@@ -49,12 +49,13 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
 
     async def get_index_quotes(self, codes: List[str]) -> DataResult:
         """
-        获取指数行情 (如 s_sh000001, s_sz399001, s_sz399006, s_sh000688)
+        获取指数行情 (如 sh000001, sz399001, sz399006, sh000688)
+        优先使用完整行情解析真实撮合日期 trade_date 与昨收价 pre_close
         """
         try:
-            # 确保代码以 s_ 为前缀（简版行情）
-            formatted_codes = [c if c.startswith("s_") else f"s_{c}" for c in codes]
-            url = f"http://hq.sinajs.cn/list={','.join(formatted_codes)}"
+            # 统一转为标准代码 (如 sh000001)
+            raw_codes = [c.replace("s_", "") for c in codes]
+            url = f"http://hq.sinajs.cn/list={','.join(raw_codes)}"
 
             async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                 resp = await client.get(url, headers=self.HEADERS)
@@ -70,13 +71,16 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                 if not val_str:
                     continue
                 parts = val_str.split(",")
-                if len(parts) >= 6:
-                    # 指数名, 现价, 涨跌额, 涨跌幅, 成交量(手), 成交额(万元)
+                if len(parts) >= 30:
+                    # 完整指数格式: name(0), open(1), pre_close(2), price(3), high(4), low(5), ..., volume(8), amount(9), ..., date(30), time(31)
                     name = parts[0]
-                    price = float(parts[1]) if len(parts) > 1 and parts[1] != "" else None
-                    change = float(parts[2]) if len(parts) > 2 and parts[2] != "" else None
-                    pct_change = float(parts[3]) if len(parts) > 3 and parts[3] != "" else None
-                    amount = float(parts[5]) if len(parts) > 5 and parts[5] != "" else None # 万元
+                    price = float(parts[3]) if len(parts) > 3 and parts[3] != "" else None
+                    pre_close = float(parts[2]) if len(parts) > 2 and parts[2] != "" else None
+                    amount_yuan = float(parts[9]) if len(parts) > 9 and parts[9] != "" else None
+                    trade_date = parts[30].strip() if len(parts) > 30 else None
+                    change = (price - pre_close) if (price is not None and pre_close is not None) else None
+                    pct_change = ((change / pre_close) * 100) if (change is not None and pre_close and pre_close > 0) else None
+                    amount_wan = (amount_yuan / 10000.0) if amount_yuan is not None else None
 
                     if price is not None and price > 0:
                         quotes.append({
@@ -84,6 +88,28 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                             "symbol": code,
                             "name": name,
                             "price": round(price, 2),
+                            "pre_close": round(pre_close, 2) if pre_close is not None else None,
+                            "change": round(change, 2) if change is not None else None,
+                            "pct_change": round(pct_change, 2) if pct_change is not None else None,
+                            "amount_wan": round(amount_wan, 2) if amount_wan is not None else None,
+                            "trade_date": trade_date,
+                        })
+                elif len(parts) >= 6:
+                    # 兼容简版格式 s_sh000001: name(0), price(1), change(2), pct_change(3), volume(4), amount(5)
+                    name = parts[0]
+                    price = float(parts[1]) if len(parts) > 1 and parts[1] != "" else None
+                    change = float(parts[2]) if len(parts) > 2 and parts[2] != "" else None
+                    pct_change = float(parts[3]) if len(parts) > 3 and parts[3] != "" else None
+                    amount = float(parts[5]) if len(parts) > 5 and parts[5] != "" else None
+                    pre_close = (price - change) if (price is not None and change is not None) else None
+
+                    if price is not None and price > 0:
+                        quotes.append({
+                            "code": code,
+                            "symbol": code,
+                            "name": name,
+                            "price": round(price, 2),
+                            "pre_close": round(pre_close, 2) if pre_close is not None else None,
                             "change": round(change, 2) if change is not None else None,
                             "pct_change": round(pct_change, 2) if pct_change is not None else None,
                             "amount_wan": round(amount, 2) if amount is not None else None,
@@ -91,7 +117,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
 
             return DataResult(
                 data=quotes,
-                quality=DataQuality.FULL if len(quotes) == len(codes) else DataQuality.PARTIAL,
+                quality=DataQuality.FULL if len(quotes) >= len(codes) else DataQuality.PARTIAL,
                 provider=self.name
             )
         except Exception as e:

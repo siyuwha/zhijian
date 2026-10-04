@@ -69,10 +69,33 @@ async def get_daily_review(date: str, db: AsyncSession = Depends(get_db)):
 async def generate_daily_review(date: Optional[str] = None, force: bool = False, db: AsyncSession = Depends(get_db)):
     service = DailyReviewService(db)
     review = await service.generate_review(date, force=force)
+    if review is None:
+        hb = service.last_heartbeat
+        reason_str = "；".join(hb.reasons) if hb else "市场处于休市状态"
+        msg = f"数据源通信正常：物理心跳确认为休市状态（{reason_str}），无需生成复盘。"
+        return {
+            "code": 200,
+            "status": "MARKET_CLOSED",
+            "message": msg,
+            "data": {
+                "status": "MARKET_CLOSED",
+                "market_status": "CLOSED",
+                "message": msg,
+                "target_date": date or datetime.now().strftime("%Y-%m-%d"),
+                "last_active_date": hb.last_active_date if hb else None,
+                "confirm_type": hb.confirm_type if hb else "CLOSED",
+                "reasons": hb.reasons if hb else []
+            }
+        }
     return {
         "code": 200,
+        "status": "SUCCESS",
         "message": "Review generated successfully",
-        "date": review.date
+        "date": review.date,
+        "data": {
+            "id": review.id,
+            "date": review.date
+        }
     }
 
 @router.get("/premarket")
@@ -192,10 +215,33 @@ async def get_auction_report(date: str, db: AsyncSession = Depends(get_db)):
 async def generate_auction_report(date: Optional[str] = None, force: bool = False, db: AsyncSession = Depends(get_db)):
     service = AuctionService(db)
     report = await service.generate_auction_report(date, force=force)
+    if report is None:
+        hb = service.last_heartbeat
+        reason_str = "；".join(hb.reasons) if hb else "集合竞价无物理撮合"
+        msg = f"数据源通信正常：集合竞价物理确认为休市状态（{reason_str}），无需生成竞价报告。"
+        return {
+            "code": 200,
+            "status": "MARKET_CLOSED",
+            "message": msg,
+            "data": {
+                "status": "MARKET_CLOSED",
+                "market_status": "CLOSED",
+                "message": msg,
+                "target_date": date or datetime.now().strftime("%Y-%m-%d"),
+                "last_active_date": hb.last_active_date if hb else None,
+                "confirm_type": hb.confirm_type if hb else "CLOSED",
+                "reasons": hb.reasons if hb else []
+            }
+        }
     return {
         "code": 200,
+        "status": "SUCCESS",
         "message": "Auction report generated successfully",
-        "date": report.date
+        "date": report.date,
+        "data": {
+            "id": report.id,
+            "date": report.date
+        }
     }
 
 

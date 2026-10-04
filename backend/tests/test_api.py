@@ -163,6 +163,21 @@ async def test_backend_core_flows():
         for forbidden in ["买入", "卖出", "加仓", "建仓", "清仓", "打板建议", "主力吸筹", "止损点"]:
             assert forbidden not in all_mon_text
 
+        # 19. M1 收盘复盘在休市日探测：返回 200 MARKET_CLOSED 且不报警
+        r_rev_closed = await client.post("/api/v1/reports/daily-review/generate?date=2026-10-03")
+        assert r_rev_closed.status_code == 200
+        closed_data = r_rev_closed.json()
+        assert closed_data["status"] == "MARKET_CLOSED"
+        assert closed_data["data"]["status"] == "MARKET_CLOSED"
+        assert "物理心跳确认为休市状态" in closed_data["message"]
+
+        # 20. M3 集合竞价在休市日探测：返回 200 MARKET_CLOSED 且不报警
+        r_auc_closed = await client.post("/api/v1/reports/auction/generate?date=2026-10-03")
+        assert r_auc_closed.status_code == 200
+        auc_data = r_auc_closed.json()
+        assert auc_data["status"] == "MARKET_CLOSED"
+        assert auc_data["data"]["status"] == "MARKET_CLOSED"
+
 if __name__ == "__main__":
     asyncio.run(test_backend_core_flows())
     print("All backend tests passed!")

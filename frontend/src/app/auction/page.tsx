@@ -15,7 +15,8 @@ import {
   Sparkles, 
   AlertCircle,
   Activity,
-  Layers
+  Layers,
+  Info
 } from 'lucide-react';
 
 export default function AuctionPage() {
@@ -23,6 +24,8 @@ export default function AuctionPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
 
   const fetchReports = async () => {
     try {
@@ -46,10 +49,17 @@ export default function AuctionPage() {
     try {
       setGenerating(true);
       setError(null);
-      await api.generateAuctionReport();
-      await fetchReports();
+      setNotice(null);
+      const res: any = await api.generateAuctionReport();
+      if (res && (res.status === 'MARKET_CLOSED' || res.market_status === 'CLOSED')) {
+        setNotice(res.message || '数据通信正常：集合竞价物理确认为休市状态，无需生成竞价报告。');
+        setLastActiveDate(res.last_active_date || res.data?.last_active_date || null);
+      } else {
+        await fetchReports();
+      }
     } catch (err: any) {
       console.error('生成集合竞价报告失败:', err);
+      // 严肃真实错误守卫：网络超时/服务不可用真实报错！
       setError(err.message || '生成今日竞价报告失败');
     } finally {
       setGenerating(false);
@@ -136,12 +146,37 @@ export default function AuctionPage() {
             onClick={handleGenerateToday}
             disabled={generating || loading}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-sm font-semibold shadow-lg shadow-teal-500/20 transition disabled:opacity-50"
+            title="生成今日竞价报告"
           >
             <Sparkles className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
             {generating ? '生成中...' : '生成今日竞价报告'}
           </button>
         </div>
       </div>
+
+      {/* 物理确权休市状态通知（通信正常、物理事实确认为休市，不作为错误报警） */}
+      {notice && (
+        <div className="p-4 rounded-xl bg-cyan-950/40 border border-cyan-800/80 text-cyan-200 text-sm space-y-2">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1">
+              <div className="font-semibold text-cyan-300">集合竞价休市确权通知</div>
+              <p className="text-cyan-200/90 leading-relaxed">{notice}</p>
+              {lastActiveDate && (
+                <div className="pt-1">
+                  <Link
+                    href={`/auction/${lastActiveDate}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 underline underline-offset-4"
+                  >
+                    查看最近有效交易日（{formatDateWithWeekday(lastActiveDate)}）竞价记录
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 错误提示 */}
       {error && (
