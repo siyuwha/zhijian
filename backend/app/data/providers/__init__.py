@@ -45,4 +45,10 @@ def init_providers():
     # 证券主数据模糊搜索
     registry.register("security_search", "eastmoney", east, is_primary=True)
 
+    # 交易所严重异常波动监管异动事实 (Wave 1: em_price_anomaly)
+    registry.register("price_anomaly", "eastmoney", east, is_primary=True)
+
+    # 个股概念与行业板块归属 (Wave 1: eastmoney_concept_blocks)
+    registry.register("concept_blocks", "eastmoney", east, is_primary=True)
+
 init_providers()

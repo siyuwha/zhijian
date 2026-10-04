@@ -306,3 +306,18 @@ class SecuritySearchCapability(ABC):
     async def search_security(self, query: str, limit: int = 10) -> DataResult:
         """根据代码、中文简称或拼音首字母模糊搜索证券"""
         pass
+
+class PriceAnomalyCapability(ABC):
+    """交易所规则异动池能力 (Wave 1: em_price_anomaly)"""
+    @abstractmethod
+    async def get_price_anomaly(self, page_size: int = 200, page_no: int = 1) -> DataResult:
+        """获取日内严重异常波动监管异动事实"""
+        pass
+
+class ConceptBlocksCapability(ABC):
+    """个股概念与行业板块归属能力 (Wave 1: eastmoney_concept_blocks)"""
+    @abstractmethod
+    async def get_concept_blocks(self, code: str) -> DataResult:
+        """获取标的归属的三维板块映射集"""
+        pass
+

@@ -35,6 +35,8 @@ class DataService:
         "sector": 60.0,
         "capital_flow": 30.0,
         "security_search": 300.0,
+        "price_anomaly": 60.0,
+        "concept_blocks": 300.0,
     }
 
     # 全局内存快照缓存与最后已知有效快照 (Last Known Good Snapshot)
@@ -208,3 +210,9 @@ class DataService:
 
     async def search_securities(self, query: str, limit: int = 10) -> DataResult:
         return await self._execute_pipeline("security_search", "search_security", query, limit)
+
+    async def get_price_anomaly(self, page_size: int = 200, page_no: int = 1) -> DataResult:
+        return await self._execute_pipeline("price_anomaly", "get_price_anomaly", page_size, page_no)
+
+    async def get_concept_blocks(self, code: str) -> DataResult:
+        return await self._execute_pipeline("concept_blocks", "get_concept_blocks", code)

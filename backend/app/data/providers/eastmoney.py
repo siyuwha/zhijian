@@ -14,11 +14,23 @@ from ..capabilities import (
     MicroCapCapability,
     HighTierPerformanceCapability,
     SecuritySearchCapability,
+    PriceAnomalyCapability,
+    ConceptBlocksCapability,
 )
+from ...core.canonical_fact import MarketAnomalyFact, BlockMappingFact
+from ...core.block_registry import BlockRegistry
 
 logger = logging.getLogger(__name__)
 
-class EastmoneyProvider(BaseProvider, MarketBreadthCapability, MicroCapCapability, HighTierPerformanceCapability, SecuritySearchCapability):
+class EastmoneyProvider(
+    BaseProvider,
+    MarketBreadthCapability,
+    MicroCapCapability,
+    HighTierPerformanceCapability,
+    SecuritySearchCapability,
+    PriceAnomalyCapability,
+    ConceptBlocksCapability,
+):
     """
     东方财富全市场广度、风格及高标数据适配器
     满足 P0-2 生产级防爆与状态明确化要求：
@@ -550,3 +562,276 @@ class EastmoneyProvider(BaseProvider, MarketBreadthCapability, MicroCapCapabilit
                 provider=self.name,
                 error_message=str(e)
             )
+
+    async def get_price_anomaly(self, page_size: int = 200, page_no: int = 1) -> DataResult:
+        """
+        获取交易所严重异常波动监管异动事实 (Wave 1: em_price_anomaly)
+        数据源：Eastmoney dycalchis.eastmoney.com/price-anomaly/list
+        返回：规范化 MarketAnomalyFact 列表字典
+        特性：
+        1. 幂等 Canonical Fact ID: ANOM:{trade_date}:{symbol}:R{rule_id}
+        2. 显式 Provenance: EASTMONEY_COMPUTED_RULE_MATCH (DERIVED_COMMERCIAL_MATCH)
+        3. 纠偏科创板 s=5 (STAR)
+        4. 12 规则代码严密映射与未知规则优雅降级
+        """
+        try:
+            url = "https://dycalchis.eastmoney.com/price-anomaly/list"
+            params = {
+                "team": "h5",
+                "product": "EastMoney",
+                "client": "WAP",
+                "version": "9001",
+                "name": "WAP",
+                "user": "123",
+                "pageSize": str(page_size),
+                "pageNo": str(page_no),
+            }
+            headers = {
+                **self.HEADERS,
+                "Referer": "https://vipmoney.eastmoney.com/",
+            }
+            async with httpx.AsyncClient(timeout=8.0, trust_env=False, follow_redirects=True) as client:
+                resp = await client.get(url, params=params, headers=headers)
+                raw_json, status, err_msg = self._safe_parse_json(resp)
+
+            if status != DataStatus.AVAILABLE or raw_json is None:
+                return DataResult(
+                    data=[],
+                    quality=DataQuality.UNAVAILABLE,
+                    status=status,
+                    error_code=ProviderErrorCode.EMPTY_PAYLOAD if status == DataStatus.EMPTY else ProviderErrorCode.HTTP_ERROR,
+                    provider=self.name,
+                    error_message=err_msg,
+                )
+
+            # 校验业务响应码 (0 为成功)
+            if raw_json.get("result") != 0:
+                msg = raw_json.get("message") or raw_json.get("msg") or f"Eastmoney error code: {raw_json.get('result')}"
+                return DataResult(
+                    data=[],
+                    quality=DataQuality.UNAVAILABLE,
+                    status=DataStatus.EMPTY,
+                    error_code=ProviderErrorCode.EMPTY_PAYLOAD,
+                    provider=self.name,
+                    error_message=msg,
+                )
+
+            # 兼容 root.date 或 data.date
+            trade_date_raw = raw_json.get("date")
+            raw_data_field = raw_json.get("data")
+            if isinstance(raw_data_field, list):
+                raw_list = raw_data_field
+            elif isinstance(raw_data_field, dict):
+                raw_list = raw_data_field.get("list", []) or []
+                if not trade_date_raw:
+                    trade_date_raw = raw_data_field.get("date")
+            else:
+                raw_list = []
+
+            trade_date = str(trade_date_raw or "")
+            facts: List[Dict[str, Any]] = []
+            for item in raw_list:
+                symbol = str(item.get("c", "")).strip()
+                name = str(item.get("n", "")).strip()
+                if not symbol:
+                    continue
+
+                # 交易所判定: 1 -> SH, 0 -> SZ / BJ
+                raw_m = item.get("m")
+                if raw_m == 1 or symbol.startswith(("6", "9", "5")):
+                    exchange = "SH"
+                elif symbol.startswith(("8", "4", "92")):
+                    exchange = "BJ"
+                else:
+                    exchange = "SZ"
+
+                # 板块判定 (关键: 修复 s=5 为 STAR 科创板)
+                raw_s = item.get("s")
+                if raw_s == 5 or symbol.startswith("688"):
+                    board_type = "STAR"
+                elif raw_s == 4 or symbol.startswith("30"):
+                    board_type = "GEM"
+                elif raw_s == 8 or symbol.startswith(("8", "4", "92")):
+                    board_type = "BSE"
+                elif raw_s == 1:
+                    board_type = "MAIN"
+                else:
+                    if symbol.startswith("688"):
+                        board_type = "STAR"
+                    elif symbol.startswith("30"):
+                        board_type = "GEM"
+                    elif symbol.startswith(("8", "4", "92")):
+                        board_type = "BSE"
+                    else:
+                        board_type = "MAIN"
+
+                rule_id = int(item.get("e", 0))
+                dev_val = item.get("x")
+                deviation_pct = float(dev_val) if dev_val is not None else None
+                win_val = item.get("d")
+                window_days = int(win_val) if win_val is not None else None
+                day_chg = item.get("a")
+                day_change_pct = float(day_chg) if day_chg is not None else None
+                status_flag = int(item.get("o", 0))
+
+                fact = MarketAnomalyFact.create(
+                    trade_date=trade_date,
+                    symbol=symbol,
+                    name=name,
+                    exchange=exchange,
+                    board_type=board_type,
+                    rule_id=rule_id,
+                    deviation_pct=deviation_pct,
+                    window_days=window_days,
+                    day_change_pct=day_change_pct,
+                    status_flag=status_flag,
+                )
+                facts.append(fact.to_dict())
+
+            return DataResult(
+                data=facts,
+                quality=DataQuality.FULL if facts else DataQuality.FULL,
+                status=DataStatus.AVAILABLE if facts else DataStatus.EMPTY,
+                provider=self.name,
+            )
+        except httpx.TimeoutException as te:
+            logger.warning(f"Eastmoney get_price_anomaly timeout: {te}")
+            return DataResult(
+                data=[],
+                quality=DataQuality.UNAVAILABLE,
+                status=DataStatus.TIMEOUT,
+                error_code=ProviderErrorCode.TIMEOUT,
+                provider=self.name,
+                error_message=f"Eastmoney price anomaly timeout (>8s): {te}",
+            )
+        except Exception as e:
+            logger.warning(f"Eastmoney get_price_anomaly failed: {e}")
+            return DataResult(
+                data=[],
+                quality=DataQuality.FAILED,
+                status=DataStatus.ERROR,
+                error_code=ProviderErrorCode.CONNECTION_ERROR,
+                provider=self.name,
+                error_message=str(e),
+            )
+
+    async def get_concept_blocks(self, code: str) -> DataResult:
+        """
+        获取标的归属的三维板块映射集 (Wave 1: eastmoney_concept_blocks)
+        数据源：Eastmoney push2.eastmoney.com/api/qt/slist/get
+        执行：
+        1. 代码规整与市场代码判定 (SH=1, SZ/BJ=0)
+        2. BlockRegistry 三维分类打标 (INDUSTRY / CONCEPT / REGION)
+        3. 机械统计噪音清洗 (过滤 昨日连板、富时罗素等)
+        4. 幂等 Canonical Fact ID: BLOCK_MAP:{symbol}:{block_code}
+        """
+        if not code or not str(code).strip():
+            return DataResult(data=[], quality=DataQuality.FULL, status=DataStatus.AVAILABLE, provider=self.name)
+
+        clean_code = str(code).strip().lower()
+        if clean_code.startswith(("sh", "sz", "bj")):
+            prefix = clean_code[:2]
+            clean_code = clean_code[2:]
+            market_id = "1" if prefix == "sh" else "0"
+        elif "." in clean_code:
+            parts = clean_code.split(".", 1)
+            if parts[0] in ("0", "1"):
+                market_id = parts[0]
+                clean_code = parts[1]
+            else:
+                clean_code = parts[0]
+                market_id = "1" if clean_code.startswith(("6", "9", "5")) else "0"
+        else:
+            market_id = "1" if clean_code.startswith(("6", "9", "5")) else "0"
+
+        secid = f"{market_id}.{clean_code}"
+
+        try:
+            url = "https://push2.eastmoney.com/api/qt/slist/get"
+            params = {
+                "fltt": "2",
+                "invt": "2",
+                "secid": secid,
+                "spt": "3",
+                "pi": "0",
+                "pz": "200",
+                "po": "1",
+                "fields": "f12,f14,f3,f128,f140,f141",
+            }
+            async with httpx.AsyncClient(timeout=8.0, trust_env=False, follow_redirects=True) as client:
+                resp = await client.get(url, params=params, headers=self.HEADERS)
+                raw_json, status, err_msg = self._safe_parse_json(resp)
+
+            if status != DataStatus.AVAILABLE or raw_json is None:
+                return DataResult(
+                    data=[],
+                    quality=DataQuality.UNAVAILABLE,
+                    status=status,
+                    error_code=ProviderErrorCode.EMPTY_PAYLOAD if status == DataStatus.EMPTY else ProviderErrorCode.HTTP_ERROR,
+                    provider=self.name,
+                    error_message=err_msg,
+                )
+
+            data_obj = raw_json.get("data") or {}
+            diff_obj = data_obj.get("diff", [])
+            if isinstance(diff_obj, dict):
+                raw_items = list(diff_obj.values())
+            elif isinstance(diff_obj, list):
+                raw_items = diff_obj
+            else:
+                raw_items = []
+
+            facts: List[Dict[str, Any]] = []
+            for item in raw_items:
+                b_code = str(item.get("f12", "")).strip()
+                b_name = str(item.get("f14", "")).strip()
+                if not b_name:
+                    continue
+
+                category = BlockRegistry.categorize(b_name, b_code)
+                if category == "FILTERED_NOISE":
+                    continue
+
+                f3_val = item.get("f3")
+                chg_pct = float(f3_val) if f3_val is not None and f3_val != "-" else None
+                leader_n = item.get("f128")
+                leader_s = item.get("f140")
+
+                fact = BlockMappingFact.create(
+                    symbol=clean_code,
+                    block_code=b_code,
+                    block_name=b_name,
+                    category=category,
+                    block_change_pct=chg_pct,
+                    leader_name=str(leader_n) if leader_n else None,
+                    leader_symbol=str(leader_s) if leader_s else None,
+                )
+                facts.append(fact.to_dict())
+
+            return DataResult(
+                data=facts,
+                quality=DataQuality.FULL if facts else DataQuality.FULL,
+                status=DataStatus.AVAILABLE if facts else DataStatus.EMPTY,
+                provider=self.name,
+            )
+        except httpx.TimeoutException as te:
+            logger.warning(f"Eastmoney get_concept_blocks timeout for '{code}': {te}")
+            return DataResult(
+                data=[],
+                quality=DataQuality.UNAVAILABLE,
+                status=DataStatus.TIMEOUT,
+                error_code=ProviderErrorCode.TIMEOUT,
+                provider=self.name,
+                error_message=f"Eastmoney concept blocks timeout (>8s): {te}",
+            )
+        except Exception as e:
+            logger.warning(f"Eastmoney get_concept_blocks failed for '{code}': {e}")
+            return DataResult(
+                data=[],
+                quality=DataQuality.FAILED,
+                status=DataStatus.ERROR,
+                error_code=ProviderErrorCode.CONNECTION_ERROR,
+                provider=self.name,
+                error_message=str(e),
+            )
+
