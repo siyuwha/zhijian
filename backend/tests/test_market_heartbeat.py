@@ -314,3 +314,45 @@ async def test_auction_service_heartbeat_confirms_closure_and_real_error_raises_
     assert res is None
     assert service.last_heartbeat is not None
     assert service.last_heartbeat.is_active_trading_day is False
+
+
+@pytest.mark.asyncio
+async def test_api_reports_closure_response(test_session: AsyncSession):
+    """
+    测试 API 端点 generate_daily_review 与 generate_auction_report 在休市时的 HTTP 200 返回结构
+    """
+    from app.api.v1.reports import generate_daily_review, generate_auction_report
+    from app.core.market_heartbeat import MarketHeartbeatResult
+
+    fake_hb = MarketHeartbeatResult(
+        is_active_trading_day=False,
+        status="MARKET_CLOSED",
+        confirm_type="PREV_CLOSE_MIRROR",
+        confidence=1.0,
+        reasons=["行情交易日与前一交易日完全一致"],
+        last_active_date="2026-09-30"
+    )
+
+    mock_rev_service = AsyncMock()
+    mock_rev_service.generate_review.return_value = None
+    mock_rev_service.last_heartbeat = fake_hb
+
+    with patch("app.api.v1.reports.DailyReviewService", return_value=mock_rev_service):
+        resp = await generate_daily_review(date=None, force=False, db=test_session)
+        assert resp["code"] == 200
+        assert resp["status"] == "MARKET_CLOSED"
+        assert resp["data"]["last_active_date"] == "2026-09-30"
+        assert "target_date" in resp["data"]
+
+    mock_auc_service = AsyncMock()
+    mock_auc_service.generate_auction_report.return_value = None
+    mock_auc_service.last_heartbeat = fake_hb
+
+    with patch("app.api.v1.reports.AuctionService", return_value=mock_auc_service):
+        resp = await generate_auction_report(date=None, force=False, db=test_session)
+        assert resp["code"] == 200
+        assert resp["status"] == "MARKET_CLOSED"
+        assert resp["data"]["last_active_date"] == "2026-09-30"
+        assert "target_date" in resp["data"]
+
+
