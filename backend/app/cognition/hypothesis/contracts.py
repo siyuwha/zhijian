@@ -27,6 +27,9 @@ class MetricType(str, Enum):
     SEAL_AMOUNT_RATIO = "seal_amount_ratio"   # 封单金额占成交比
     PRICE = "price"                           # 价格
     BOARD_HEIGHT = "board_height"             # 连板高度
+    LEADER_OPEN_PCT = "leader_open_pct"       # 龙头次日开盘溢价 (%)
+    SECTOR_CHANGE_PCT = "sector_change_pct"   # 板块涨跌幅 (%)
+
 
 
 class UniverseType(str, Enum):
@@ -82,6 +85,18 @@ class HypothesisOutcome(str, Enum):
     UNCONFIRMED = "UNCONFIRMED"               # 未能确证（未触发证伪但预期未达标）
     INCONCLUSIVE = "INCONCLUSIVE"             # 证据不足无法裁决（关键指标缺失）
     PENDING = "PENDING"                       # 待验证（尚未到验证时点）
+
+
+class HypothesisType(str, Enum):
+    """
+    假说类型枚举（Phase 2C 条件解封白名单）
+    上位依据：SPEC-COGNITION-PHASE2C-20261005-V1.1 (第4节)
+    """
+    MACRO_BROAD_INDEX = "MACRO_BROAD_INDEX"       # 宏观宽基假说
+    ALL_A_AGGREGATE = "ALL_A_AGGREGATE"           # 全A情绪假说
+    INITIAL_OUTBREAK = "INITIAL_OUTBREAK"         # 题材首发/脉冲爆发 (Pillar 1+2+3)
+    SECTOR_ROTATION = "SECTOR_ROTATION"           # 板块主线轮动 (Pillar 1+2+3+4)
+
 
 
 # 白名单过滤字段定义（严禁非法字段）
@@ -181,6 +196,9 @@ class MarketHypothesisDefinition(BaseModel):
     assertion_logic: str = "AND"              # 多断言合成逻辑 (AND / OR)
     expected_assertions: List[MetricAssertion]# 预期发生的断言清单
     invalidation_assertions: List[MetricAssertion] # 证伪断言清单（证伪优先）
+    hypothesis_type: Optional[str] = None     # 假说分类（INITIAL_OUTBREAK / SECTOR_ROTATION 等）
+    observation_time: Optional[str] = None    # 物理事实快照观察时间
+    hypothesis_generated_time: Optional[str] = None # 假说生成时点
     hypothesis_hash: str = ""
 
     def to_canonical_dict(self) -> Dict[str, Any]:
@@ -193,7 +211,7 @@ class MarketHypothesisDefinition(BaseModel):
             [a.to_canonical_dict() for a in self.invalidation_assertions],
             key=lambda x: str(x.get("assertion_id", "")),
         )
-        return {
+        d = {
             "assertion_logic": self.assertion_logic,
             "cognition_id": self.cognition_id,
             "expected_assertions": sorted_expected,
@@ -203,6 +221,13 @@ class MarketHypothesisDefinition(BaseModel):
             "proposition": self.proposition,
             "time_binding": self.time_binding,
         }
+        if self.hypothesis_type is not None:
+            d["hypothesis_type"] = self.hypothesis_type
+        if self.observation_time is not None:
+            d["observation_time"] = self.observation_time
+        if self.hypothesis_generated_time is not None:
+            d["hypothesis_generated_time"] = self.hypothesis_generated_time
+        return d
 
 
 class HypothesisSetProjection(BaseModel):
@@ -241,4 +266,6 @@ class HypothesisRuntimeState(BaseModel):
     actual_data_snapshot: Optional[Dict[str, Any]] = None
     verification_outcome: Optional[HypothesisOutcome] = None
     verification_execute_time: Optional[str] = None
+    evaluation_time: Optional[str] = None     # 事后反事实求值时间戳 (锁定次日 15:05:00)
     gap_summary: Optional[str] = None
+

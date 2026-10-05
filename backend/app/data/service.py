@@ -39,6 +39,13 @@ class DataService:
         "concept_blocks": 300.0,
     }
 
+    # 业务能力硬超时配置 (毫秒)
+    CAPABILITY_TIMEOUTS: Dict[str, int] = {
+        "concept_blocks": 15000,
+        "price_anomaly": 15000,
+        "settlement": 10000,
+    }
+
     # 全局内存快照缓存与最后已知有效快照 (Last Known Good Snapshot)
     _CACHE: Dict[str, Tuple[float, DataResult]] = {}
     _LAST_GOOD_CACHE: Dict[str, DataResult] = {}
@@ -148,11 +155,13 @@ class DataService:
                 # -----------------------------------------------------
                 t_start = time.perf_counter()
                 last_good = self._LAST_GOOD_CACHE.get(cache_key)
+                timeout_ms = self.CAPABILITY_TIMEOUTS.get(capability, 5000)
                 result = await registry.execute_with_fallback(
                     capability,
                     method,
                     *args,
                     last_good_cache=last_good,
+                    timeout_ms=timeout_ms,
                     **kwargs,
                 )
                 duration_ms = int((time.perf_counter() - t_start) * 1000)

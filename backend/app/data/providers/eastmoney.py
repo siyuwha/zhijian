@@ -746,92 +746,108 @@ class EastmoneyProvider(
 
         secid = f"{market_id}.{clean_code}"
 
-        try:
-            url = "https://push2.eastmoney.com/api/qt/slist/get"
-            params = {
-                "fltt": "2",
-                "invt": "2",
-                "secid": secid,
-                "spt": "3",
-                "pi": "0",
-                "pz": "200",
-                "po": "1",
-                "fields": "f12,f14,f3,f128,f140,f141",
-            }
-            async with httpx.AsyncClient(timeout=8.0, trust_env=False, follow_redirects=True) as client:
-                resp = await client.get(url, params=params, headers=self.HEADERS)
-                raw_json, status, err_msg = self._safe_parse_json(resp)
+        for attempt in range(3):
+            try:
+                url = "https://push2.eastmoney.com/api/qt/slist/get"
+                params = {
+                    "fltt": "2",
+                    "invt": "2",
+                    "secid": secid,
+                    "spt": "3",
+                    "pi": "0",
+                    "pz": "200",
+                    "po": "1",
+                    "fields": "f12,f14,f3,f128,f140,f141",
+                }
+                async with httpx.AsyncClient(timeout=12.0, trust_env=False, follow_redirects=True) as client:
+                    resp = await client.get(url, params=params, headers=self.HEADERS)
+                    raw_json, status, err_msg = self._safe_parse_json(resp)
 
-            if status != DataStatus.AVAILABLE or raw_json is None:
+                if status == DataStatus.AVAILABLE and raw_json is not None:
+                    break
+                if attempt == 2:
+                    return DataResult(
+                        data=[],
+                        quality=DataQuality.UNAVAILABLE,
+                        status=status,
+                        error_code=ProviderErrorCode.EMPTY_PAYLOAD if status == DataStatus.EMPTY else ProviderErrorCode.HTTP_ERROR,
+                        provider=self.name,
+                        error_message=err_msg,
+                    )
+                await asyncio.sleep(0.3)
+            except (httpx.TimeoutException, httpx.NetworkError) as e:
+                if attempt == 2:
+                    logger.warning(f"Eastmoney get_concept_blocks timeout for '{code}': {e}")
+                    return DataResult(
+                        data=[],
+                        quality=DataQuality.UNAVAILABLE,
+                        status=DataStatus.TIMEOUT,
+                        error_code=ProviderErrorCode.TIMEOUT,
+                        provider=self.name,
+                        error_message=f"Eastmoney concept blocks timeout (>12s): {e}",
+                    )
+                await asyncio.sleep(0.5)
+            except Exception as e:
+                logger.warning(f"Eastmoney get_concept_blocks failed for '{code}': {e}")
                 return DataResult(
                     data=[],
-                    quality=DataQuality.UNAVAILABLE,
-                    status=status,
-                    error_code=ProviderErrorCode.EMPTY_PAYLOAD if status == DataStatus.EMPTY else ProviderErrorCode.HTTP_ERROR,
+                    quality=DataQuality.FAILED,
+                    status=DataStatus.ERROR,
+                    error_code=ProviderErrorCode.CONNECTION_ERROR,
                     provider=self.name,
-                    error_message=err_msg,
+                    error_message=str(e),
                 )
 
-            data_obj = raw_json.get("data") or {}
-            diff_obj = data_obj.get("diff", [])
-            if isinstance(diff_obj, dict):
-                raw_items = list(diff_obj.values())
-            elif isinstance(diff_obj, list):
-                raw_items = diff_obj
-            else:
-                raw_items = []
-
-            facts: List[Dict[str, Any]] = []
-            for item in raw_items:
-                b_code = str(item.get("f12", "")).strip()
-                b_name = str(item.get("f14", "")).strip()
-                if not b_name:
-                    continue
-
-                category = BlockRegistry.categorize(b_name, b_code)
-                if category == "FILTERED_NOISE":
-                    continue
-
-                f3_val = item.get("f3")
-                chg_pct = float(f3_val) if f3_val is not None and f3_val != "-" else None
-                leader_n = item.get("f128")
-                leader_s = item.get("f140")
-
-                fact = BlockMappingFact.create(
-                    symbol=clean_code,
-                    block_code=b_code,
-                    block_name=b_name,
-                    category=category,
-                    block_change_pct=chg_pct,
-                    leader_name=str(leader_n) if leader_n else None,
-                    leader_symbol=str(leader_s) if leader_s else None,
-                )
-                facts.append(fact.to_dict())
-
-            return DataResult(
-                data=facts,
-                quality=DataQuality.FULL if facts else DataQuality.FULL,
-                status=DataStatus.AVAILABLE if facts else DataStatus.EMPTY,
-                provider=self.name,
-            )
-        except httpx.TimeoutException as te:
-            logger.warning(f"Eastmoney get_concept_blocks timeout for '{code}': {te}")
+        if not raw_json:
             return DataResult(
                 data=[],
                 quality=DataQuality.UNAVAILABLE,
-                status=DataStatus.TIMEOUT,
-                error_code=ProviderErrorCode.TIMEOUT,
+                status=DataStatus.EMPTY,
+                error_code=ProviderErrorCode.EMPTY_PAYLOAD,
                 provider=self.name,
-                error_message=f"Eastmoney concept blocks timeout (>8s): {te}",
+                error_message="Empty raw json after retries",
             )
-        except Exception as e:
-            logger.warning(f"Eastmoney get_concept_blocks failed for '{code}': {e}")
-            return DataResult(
-                data=[],
-                quality=DataQuality.FAILED,
-                status=DataStatus.ERROR,
-                error_code=ProviderErrorCode.CONNECTION_ERROR,
-                provider=self.name,
-                error_message=str(e),
+
+        data_obj = raw_json.get("data") or {}
+        diff_obj = data_obj.get("diff", [])
+        if isinstance(diff_obj, dict):
+            raw_items = list(diff_obj.values())
+        elif isinstance(diff_obj, list):
+            raw_items = diff_obj
+        else:
+            raw_items = []
+
+        facts: List[Dict[str, Any]] = []
+        for item in raw_items:
+            b_code = str(item.get("f12", "")).strip()
+            b_name = str(item.get("f14", "")).strip()
+            if not b_name:
+                continue
+
+            category = BlockRegistry.categorize(b_name, b_code)
+            if category == "FILTERED_NOISE":
+                continue
+
+            f3_val = item.get("f3")
+            chg_pct = float(f3_val) if f3_val is not None and f3_val != "-" else None
+            leader_n = item.get("f128")
+            leader_s = item.get("f140")
+
+            fact = BlockMappingFact.create(
+                symbol=clean_code,
+                block_code=b_code,
+                block_name=b_name,
+                category=category,
+                block_change_pct=chg_pct,
+                leader_name=str(leader_n) if leader_n else None,
+                leader_symbol=str(leader_s) if leader_s else None,
             )
+            facts.append(fact.to_dict())
+
+        return DataResult(
+            data=facts,
+            quality=DataQuality.FULL if facts else DataQuality.FULL,
+            status=DataStatus.AVAILABLE if facts else DataStatus.EMPTY,
+            provider=self.name,
+        )
 

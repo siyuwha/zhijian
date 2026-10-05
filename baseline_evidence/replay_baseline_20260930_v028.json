@@ -1,0 +1,26 @@
+{
+  "phase": "Phase 2C.1",
+  "baseline_name": "Wave 1 Production Replay Baseline (2026-09-30)",
+  "verified_date": "2026-09-30",
+  "verified_at": "2026-10-05T19:55:00+08:00",
+  "commit": "3f90cfd",
+  "version": "v0.2.8",
+  "snapshot_id": "obs_20260930_replay_v028",
+  "snapshot_fingerprint": "69007803223d8510221df4808d12de0c493909ff05ba32efe5d81e05537b203b",
+  "facts_summary": {
+    "total_facts_assembled": 28,
+    "anomaly_facts_count": 9,
+    "block_facts_count": 21,
+    "industry_count": 4,
+    "concept_count": 16,
+    "region_isolated_count": 1
+  },
+  "invariants_verified": [
+    "STAR_MARKET_S5_CORRECTION_VERIFIED",
+    "REGION_ISOLATION_VERIFIED",
+    "NOISE_FILTER_VERIFIED",
+    "CANONICAL_FACT_ID_DETERMINISTIC",
+    "JCS_RFC8785_FINGERPRINT_ORDER_INVARIANT"
+  ],
+  "gate_status": "PASS"
+}

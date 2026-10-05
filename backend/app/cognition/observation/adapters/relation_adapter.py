@@ -43,11 +43,25 @@ class StockSectorRelationAdapter(BaseFactAdapter):
         items_raw = []
         top_reasons_raw = []
 
+        anomaly_facts_raw = []
+        block_facts_raw = []
+
         if hasattr(raw_data, "__table__"):
             # DailyReview 或 MarketDailySnapshot 模型
             rec_id = str(getattr(raw_data, "id", "db_row"))
             date_str = date_str or getattr(raw_data, "date", None)
             source_name = f"{getattr(raw_data, '__tablename__', 'model')}:relation"
+
+            # 提取 market_state_snapshot 中的 Wave 1 物理事实
+            mss_raw = getattr(raw_data, "market_state_snapshot", None)
+            if mss_raw:
+                try:
+                    mss_dict = json.loads(mss_raw) if isinstance(mss_raw, str) else mss_raw
+                    if isinstance(mss_dict, dict):
+                        anomaly_facts_raw = mss_dict.get("anomaly_facts", [])
+                        block_facts_raw = mss_dict.get("block_mapping_facts", [])
+                except Exception:
+                    pass
 
             # 优先从 limit_up_analysis 或 limit_up_snapshot 提取
             lu_raw = getattr(raw_data, "limit_up_analysis", None) or getattr(raw_data, "limit_up_snapshot", None)
@@ -74,6 +88,9 @@ class StockSectorRelationAdapter(BaseFactAdapter):
             date_str = date_str or raw_data.get("date")
             rec_id = str(raw_data.get("id", "dict_relation"))
             source_name = raw_data.get("source", "stock_sector_mapper")
+
+            anomaly_facts_raw = raw_data.get("anomaly_facts", [])
+            block_facts_raw = raw_data.get("block_mapping_facts", [])
 
             if "items" in raw_data:
                 items_raw = raw_data["items"]
@@ -204,4 +221,62 @@ class StockSectorRelationAdapter(BaseFactAdapter):
             )
         )
 
+        # Wave 1 异动事实抽取 (ANOM:*)
+        if anomaly_facts_raw:
+            anom_dict = {}
+            for af in anomaly_facts_raw:
+                if isinstance(af, dict) and af.get("canonical_fact_id"):
+                    cid = af["canonical_fact_id"]
+                    if cid not in anom_dict or af.get("status_flag", 0) > anom_dict[cid].get("status_flag", 0):
+                        anom_dict[cid] = af
+            for af in anom_dict.values():
+                sym = af.get("symbol", "")
+                rid = af.get("rule_id", "0")
+                facts.append(
+                    self.create_fact_item(
+                        fact_key=f"anomaly.{sym}.R{rid}",
+                        fact_type=FactType.INTRADAY_ANOMALY,
+                        time_context=t_ctx,
+                        status=FactStatus.AVAILABLE,
+                        freshness=Freshness.REALTIME,
+                        source="eastmoney_price_anomaly",
+                        source_record_id=af["canonical_fact_id"],
+                        payload=af,
+                        provenance=Provenance(
+                            primary_source="EASTMONEY_COMPUTED_RULE_MATCH",
+                            trace_id=trace_id,
+                        ),
+                        clock=clock,
+                    )
+                )
+
+        # Wave 1 板块映射事实抽取 (BLOCK_MAP:*)
+        if block_facts_raw:
+            block_dict = {}
+            for bf in block_facts_raw:
+                if isinstance(bf, dict) and bf.get("canonical_fact_id"):
+                    cid = bf["canonical_fact_id"]
+                    block_dict[cid] = bf
+            for bf in block_dict.values():
+                sym = bf.get("symbol", "")
+                bcode = bf.get("block_code", "")
+                facts.append(
+                    self.create_fact_item(
+                        fact_key=f"block_map.{sym}.{bcode}",
+                        fact_type=FactType.STOCK_SECTOR_MAP,
+                        time_context=t_ctx,
+                        status=FactStatus.AVAILABLE,
+                        freshness=Freshness.REALTIME,
+                        source="eastmoney_concept_blocks",
+                        source_record_id=bf["canonical_fact_id"],
+                        payload=bf,
+                        provenance=Provenance(
+                            primary_source="EASTMONEY_SLIST_MAPPING",
+                            trace_id=trace_id,
+                        ),
+                        clock=clock,
+                    )
+                )
+
         return facts
+

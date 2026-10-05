@@ -357,3 +357,44 @@ class EffectiveInferenceInput(BaseModel):
             "stale_facts": self.stale_facts,
             "suppressed_facts": self.suppressed_facts,
         }
+
+
+class EvidenceGateResult(BaseModel):
+    """
+    板块证据门禁判定报告（不可变值对象）
+    上位依据：SPEC-COGNITION-PHASE2C-20261005-V1.1 (第6节)
+    """
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    sector_code: str
+    sector_name: str
+    category: str                       # "INDUSTRY" | "CONCEPT"
+    gate_status: str                    # "ADMITTED" | "REJECTED"
+    admitted_hypothesis_type: str       # "INITIAL_OUTBREAK" | "SECTOR_ROTATION" | "NONE"
+
+    # 四维事实支柱状态
+    pillar_membership: FactStatus       # AVAILABLE / MISSING
+    pillar_breadth: FactStatus          # AVAILABLE / MISSING / EMPTY
+    pillar_leadership: FactStatus       # AVAILABLE / MISSING / EMPTY
+    pillar_persistence: FactStatus      # AVAILABLE / MISSING / EMPTY
+
+    rejection_reasons: List[str]
+    evaluated_at: str
+    evidence_fingerprint: str = ""      # JCS SHA-256 证据指纹
+
+    def canonical_dict(self) -> Dict[str, Any]:
+        """按 RFC 8785 规则提取规范化字典（排除自身指纹字段）"""
+        return {
+            "admitted_hypothesis_type": self.admitted_hypothesis_type,
+            "category": self.category,
+            "evaluated_at": self.evaluated_at,
+            "gate_status": self.gate_status,
+            "pillar_breadth": self.pillar_breadth.value,
+            "pillar_leadership": self.pillar_leadership.value,
+            "pillar_membership": self.pillar_membership.value,
+            "pillar_persistence": self.pillar_persistence.value,
+            "rejection_reasons": sorted(self.rejection_reasons),
+            "sector_code": self.sector_code,
+            "sector_name": self.sector_name,
+        }
+

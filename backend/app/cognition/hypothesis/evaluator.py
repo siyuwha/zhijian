@@ -70,7 +70,24 @@ class AssertionEvaluator:
             )
 
         # 3. 提取候选标的池 (Universe Selection)
-        raw_items = cls._extract_universe(assertion.selector.universe_type, observation_data)
+        if assertion.selector.universe_type == UniverseType.SECTOR:
+            # 刚性防御：如果板块数据在客观快照中为 None 或缺失 (P1-8 补丁)
+            if "sector_stocks" not in observation_data or observation_data.get("sector_stocks") is None:
+                return cls._handle_missing_data(
+                    assertion,
+                    details="SECTOR_DATA_MISSING_FROM_OBSERVATION",
+                )
+            raw_items = observation_data["sector_stocks"]
+            if len(raw_items) == 0:
+                # 刚性防御：如果板块数据集合为空集
+                # 若断言是在验证价格/涨跌/龙头表现，严禁返回 0.0，必须挂起为 INCONCLUSIVE！
+                if assertion.metric in ("leader_open_pct", "sector_change_pct", "board_height", "open_pct_change", "pct_change", "price") or assertion.aggregation != AggregationType.COUNT:
+                    return cls._handle_missing_data(
+                        assertion,
+                        details="EMPTY_UNIVERSE_CANNOT_EVALUATE_PERFORMANCE",
+                    )
+        else:
+            raw_items = cls._extract_universe(assertion.selector.universe_type, observation_data)
 
         # 4. 执行单层平铺条件过滤 (StructuredFilter Evaluation)
         filtered_items = cls._apply_filter(assertion.selector, raw_items)
@@ -78,6 +95,13 @@ class AssertionEvaluator:
 
         # 5. 针对标的集合为空时的空语义处理 (Empty Set Handling)
         if matched_count == 0:
+            if assertion.selector.universe_type == UniverseType.SECTOR and (
+                assertion.metric in ("leader_open_pct", "sector_change_pct", "board_height", "open_pct_change", "pct_change", "price") or assertion.aggregation != AggregationType.COUNT
+            ):
+                return cls._handle_missing_data(
+                    assertion,
+                    details=f"SECTOR_UNIVERSE_EMPTY_FOR_METRIC_{assertion.metric}",
+                )
             if assertion.aggregation == AggregationType.COUNT:
                 # 计数函数聚合空集合输出合法 0.0
                 actual_val = 0.0
@@ -179,7 +203,7 @@ class AssertionEvaluator:
             all_s = observation_data.get("stocks", [])
             return [s for s in all_s if s.get("board_height", 0) >= 2 or s.get("is_highest_board") is True]
         elif universe == UniverseType.SECTOR:
-            return observation_data.get("sector_stocks", observation_data.get("stocks", []))
+            return observation_data.get("sector_stocks", [])
         elif universe == UniverseType.CUSTOM_LIST:
             return observation_data.get("custom_stocks", observation_data.get("stocks", []))
         return []

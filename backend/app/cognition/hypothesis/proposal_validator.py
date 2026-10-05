@@ -20,12 +20,14 @@ from .contracts import (
 )
 from ...schemas.cognition import MarketHypothesisCreate
 
-# 允许的假说类型白名单
+# 允许的假说类型白名单 (Phase 2C 解封 INITIAL_OUTBREAK 与 SECTOR_ROTATION)
 ALLOWED_HYPOTHESIS_TYPES = {
     "SENTIMENT_CYCLE",
     "INDEX_TREND",
     "MARKET_STATE",
     "BREADTH_TREND",
+    "INITIAL_OUTBREAK",
+    "SECTOR_ROTATION",
 }
 
 # 允许的标的代码白名单 (全A宏观聚合 + 四大核心宽基，严禁个股代码)
@@ -47,6 +49,8 @@ ALLOWED_METRIC_TYPES = {
     MetricType.BOARD_HEIGHT.value,
     "up_count",
     "down_count",
+    "leader_open_pct",
+    "sector_change_pct",
 }
 
 # 允许的操作符
@@ -158,12 +162,22 @@ class ProposalValidator:
 
         all_nodes = proposal.expected_assertions + proposal.invalidation_assertions
         for node in all_nodes:
-            if node.target_code not in ALLOWED_TARGET_CODES:
-                return ProposalValidationResult(
-                    is_valid=False,
-                    error_code="VR-02_ILLEGAL_TARGET_CODE",
-                    error_detail=f"断言标的代码 '{node.target_code}' 不在宏观白名单中 (严禁个股): {sorted(ALLOWED_TARGET_CODES)}",
-                )
+            if proposal.hypothesis_type in ("INITIAL_OUTBREAK", "SECTOR_ROTATION"):
+                # 板块假说允许合规板块代码 (以 BK 开头或 SECTOR) 或宏观白名单
+                is_sector_code = node.target_code.startswith("BK") or node.target_code in ("SECTOR", "ALL_A")
+                if not is_sector_code and node.target_code not in ALLOWED_TARGET_CODES:
+                    return ProposalValidationResult(
+                        is_valid=False,
+                        error_code="VR-02_ILLEGAL_TARGET_CODE",
+                        error_detail=f"板块假说标的代码 '{node.target_code}' 不合法 (必须为 BK*、SECTOR 或宏观白名单)",
+                    )
+            else:
+                if node.target_code not in ALLOWED_TARGET_CODES:
+                    return ProposalValidationResult(
+                        is_valid=False,
+                        error_code="VR-02_ILLEGAL_TARGET_CODE",
+                        error_detail=f"断言标的代码 '{node.target_code}' 不在宏观白名单中 (严禁个股): {sorted(ALLOWED_TARGET_CODES)}",
+                    )
 
         # ---------------------------------------------------------------------
         # VR-03: 指标白名单校验

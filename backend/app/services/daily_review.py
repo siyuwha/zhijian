@@ -162,6 +162,78 @@ class DailyReviewService:
             except Exception:
                 pass
 
+        # 6.4 采集 Wave 1 物理事实：日内严重异常波动与板块映射 (P1-5 补丁正向推送 target_stocks)
+        anom_res = await self.data_service.get_price_anomaly(page_size=200)
+        anom_facts = anom_res.data or []
+
+        # 确定 target_stocks = DailyAnomalyList ∪ LimitUpPool.items (零 Cognition 反向驱动)
+        anom_symbols = {
+            str(item.get("symbol", "")).replace("s_", "")[-6:]
+            for item in anom_facts if item.get("symbol")
+        }
+        lu_items = limit_up_summary.get("items", []) if isinstance(limit_up_summary, dict) else []
+        lu_symbols = {
+            str(item.get("code") or item.get("symbol") or "").replace("s_", "")[-6:]
+            for item in lu_items if (item.get("code") or item.get("symbol"))
+        }
+        target_stocks = sorted(list(anom_symbols | lu_symbols))
+
+        # 正向推送抓取板块映射 (BlockMappingFact)
+        sector_mapping = {}
+        all_block_facts = []
+        if is_today or not existing_snapshot:
+            for stock_code in target_stocks[:50]:  # 受控预算抽取核心标的
+                blocks_res = await self.data_service.get_concept_blocks(stock_code)
+                for b_fact in (blocks_res.data or []):
+                    all_block_facts.append(b_fact)
+                    b_code = b_fact.get("block_code")
+                    b_name = b_fact.get("block_name")
+                    b_cat = b_fact.get("category")
+                    if b_code and b_name:
+                        if b_code not in sector_mapping:
+                            sector_mapping[b_code] = {
+                                "name": b_name,
+                                "category": b_cat,
+                                "stocks": []
+                            }
+                        sector_mapping[b_code]["stocks"].append({
+                            "symbol": stock_code,
+                            "name": b_fact.get("symbol", stock_code)
+                        })
+        else:
+            if existing_snapshot and existing_snapshot.market_state_snapshot:
+                try:
+                    ex_mss = json.loads(existing_snapshot.market_state_snapshot)
+                    if isinstance(ex_mss, dict):
+                        all_block_facts = ex_mss.get("block_mapping_facts", [])
+                        for b_fact in all_block_facts:
+                            b_code = b_fact.get("block_code")
+                            b_name = b_fact.get("block_name")
+                            b_cat = b_fact.get("category")
+                            if b_code and b_name:
+                                if b_code not in sector_mapping:
+                                    sector_mapping[b_code] = {
+                                        "name": b_name,
+                                        "category": b_cat,
+                                        "stocks": []
+                                    }
+                                sector_mapping[b_code]["stocks"].append({
+                                    "symbol": b_fact.get("symbol", ""),
+                                    "name": b_fact.get("symbol", "")
+                                })
+                except Exception:
+                    pass
+
+        # 6.5 结构化板块证据门禁判定 (EvidenceGatedEvaluator)
+        from ..cognition.observation.evidence_gate import EvidenceGatedEvaluator
+        sector_evidence_gates = EvidenceGatedEvaluator.evaluate_all_sectors(
+            sector_mapping=sector_mapping,
+            limit_up_items=lu_items,
+            anomaly_facts=anom_facts,
+            evaluated_at=f"{today}T15:35:00.000+08:00",
+        )
+        sector_gates_dump = [g.model_dump() for g in sector_evidence_gates]
+
         # 7. 查找前一交易日复盘记录（提取昨日成交额与昨日涨停数，用于环比量能与连板晋级率）
         # 严格通过交易日历追溯前一有效交易日，杜绝非交易日（周末/假期）历史扰动
         prev_trade_date = calendar.prev_trading_day(today).strftime("%Y-%m-%d")
@@ -198,6 +270,9 @@ class DailyReviewService:
             "high_tier": high_tier_data,
             "prev_total_amount": prev_total_amount,
             "prev_limit_up_count": prev_limit_up_count,
+            "anomaly_facts": anom_facts,
+            "block_mapping_facts": all_block_facts,
+            "sector_evidence_gates": sector_gates_dump,
         }
 
         # 7. 调用 Cognition Layer 接口计算结构化分层 Market State (M1.4 V1)
@@ -229,6 +304,12 @@ class DailyReviewService:
         )
         existing_snapshot = (await self.session.execute(snap_stmt)).scalars().first()
 
+        market_state_snapshot_payload = dict(dimensions_dump)
+        market_state_snapshot_payload["sector_evidence_gates"] = sector_gates_dump
+        market_state_snapshot_payload["anomaly_facts"] = anom_facts
+        market_state_snapshot_payload["block_mapping_facts"] = all_block_facts
+        market_state_snapshot_json = json.dumps(market_state_snapshot_payload, ensure_ascii=False)
+
         source_status_dict = {
             "indices": str(getattr(index_res, "status", "UNKNOWN")),
             "limit_up": str(getattr(limit_up_res, "status", "UNKNOWN")),
@@ -236,6 +317,8 @@ class DailyReviewService:
             "micro_cap": str(getattr(micro_res, "status", "UNKNOWN")),
             "external_risk": str(getattr(ext_res, "status", "UNKNOWN")),
             "high_tier": str(getattr(high_tier_res, "status", "UNKNOWN")),
+            "price_anomaly": str(getattr(anom_res, "status", "UNKNOWN")),
+            "concept_blocks": "AVAILABLE" if all_block_facts else "EMPTY",
         }
 
         if existing_snapshot:
@@ -245,7 +328,7 @@ class DailyReviewService:
             existing_snapshot.micro_cap_snapshot = json.dumps(micro_data, ensure_ascii=False)
             existing_snapshot.external_risk_snapshot = json.dumps(ext_data, ensure_ascii=False)
             existing_snapshot.high_tier_snapshot = json.dumps(high_tier_data, ensure_ascii=False)
-            existing_snapshot.market_state_snapshot = json.dumps(dimensions_dump, ensure_ascii=False)
+            existing_snapshot.market_state_snapshot = market_state_snapshot_json
             existing_snapshot.data_quality = market_state.data_quality.value
             existing_snapshot.source_status = json.dumps(source_status_dict, ensure_ascii=False)
         else:
@@ -258,7 +341,7 @@ class DailyReviewService:
                 micro_cap_snapshot=json.dumps(micro_data, ensure_ascii=False),
                 external_risk_snapshot=json.dumps(ext_data, ensure_ascii=False),
                 high_tier_snapshot=json.dumps(high_tier_data, ensure_ascii=False),
-                market_state_snapshot=json.dumps(dimensions_dump, ensure_ascii=False),
+                market_state_snapshot=market_state_snapshot_json,
                 data_quality=market_state.data_quality.value,
                 source_status=json.dumps(source_status_dict, ensure_ascii=False),
             )
@@ -273,6 +356,7 @@ class DailyReviewService:
             "micro_cap": micro_data,
             "external_risk": ext_data,
             "high_tier": high_tier_data,
+            "sector_evidence_gates": sector_gates_dump,
             "market_state": {
                 "composite_score": market_state.composite_score,
                 "state_label": market_state.state_label,
