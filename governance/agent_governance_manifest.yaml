@@ -121,3 +121,12 @@ contamination_defense:
     - "EXPECTED_CHECK"
     - "HASH"
     - "STATUS"
+
+rule_g_ctx_11_attestation_and_canary:
+  enabled: true
+  policy: "Runtime Isolation Attestation + Canary Cross-Context Attack Defense"
+  canary_prefix: "CANARY-SECRET"
+  action_on_foreign_canary: "BLOCK_AND_RAISE_CANARY_ATTACK_ERROR"
+  attestation_required_for_level2: true
+  attestation_hash_algorithm: "SHA-256"
+

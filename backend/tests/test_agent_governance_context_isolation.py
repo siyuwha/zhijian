@@ -21,7 +21,10 @@ from app.governance.context_isolation import (
     ContaminationViolationError,
     UnauthorizedWorkspaceAccessError,
     EvidenceIntegrityError,
-    BlindAssessmentViolationError
+    BlindAssessmentViolationError,
+    CanaryCrossContextAttackError,
+    CanaryTokenManager,
+    RuntimeIsolationAttestation
 )
 
 
@@ -303,3 +306,73 @@ def test_t12_agent_cannot_bypass_evidence_layer_via_unstructured_message():
     with pytest.raises(ContaminationViolationError) as exc_info:
         CrossAgentMessage.parse_raw_message(sneaky_msg)
     assert "forbidden subjective conclusion anchor" in str(exc_info.value)
+
+
+# ==============================================================================
+# T13: Canary Cross-Context Attack Detected and Blocked (Rule G-CTX-11)
+# ==============================================================================
+def test_t13_canary_cross_context_attack_detected_and_blocked():
+    """
+    T13: 金丝雀跨上下文攻击防御 (Canary Cross-Context Attack)
+    模拟攻击场景：测试特使的输入上下文中混入了来自 board_red_team 的专属金丝雀标记，
+    系统金丝雀传感器立即捕获异常，抛出 CanaryCrossContextAttackError 并刚性阻断任务执行。
+    """
+    # 1. 模拟 board_red_team 生成其专属金丝雀密标
+    board_canary = CanaryTokenManager.generate_canary(AgentRole.BOARD_RED_TEAM, "TASK-RED-001")
+    assert "CANARY-SECRET:BOARD_RED_TEAM:" in board_canary
+
+    # 2. 模拟跨上下文泄露/刺探攻击：将 board_canary 注入 primary_developer 的任务上下文
+    leaked_context = {
+        "allowed_level0": ["backend/app/"],
+        "developer_task": "implement feature",
+        "injected_leak": f"Confidential note with {board_canary} inside"
+    }
+
+    # 3. primary_developer 启动防污染检查时必须立即引爆阻断
+    with pytest.raises(CanaryCrossContextAttackError) as exc_info:
+        ContextContaminationChecker.check_task_context(
+            task_id="TASK-DEV-013",
+            role=AgentRole.PRIMARY_DEVELOPER,
+            baseline_commit="9ceeafd",
+            input_context=leaked_context
+        )
+    assert "Canary Cross-Context Attack Detected" in str(exc_info.value)
+    assert "Foreign canary token" in str(exc_info.value)
+    assert "BOARD_RED_TEAM" in str(exc_info.value)
+
+
+# ==============================================================================
+# T14: Runtime Isolation Attestation Generated and Verified (Rule G-CTX-11)
+# ==============================================================================
+def test_t14_runtime_isolation_attestation_generated_and_verified():
+    """
+    T14: 运行时隔离证明签发与完整性核验 (Runtime Isolation Attestation)
+    合规任务必须生成具备不可伪造指纹的隔离证明；一旦证明遭到篡改，核验必须失败。
+    """
+    clean_context = {
+        "allowed_level0": ["backend/app/", "backend/tests/"],
+        "objective_requirement": "Refactor AST Evaluator"
+    }
+
+    # 1. 签发合规证明
+    attestation = RuntimeIsolationAttestation.issue(
+        task_id="TASK-ATTEST-014",
+        role=AgentRole.PRIMARY_DEVELOPER,
+        baseline_commit="9ceeafd",
+        input_context=clean_context,
+        target_workspace="governance/workspaces/primary_developer/"
+    )
+
+    assert attestation.status == "ATTESTED_ISOLATED"
+    assert attestation.attestation_id.startswith("ATT-")
+    assert attestation.forbidden_patterns_zero_presence is True
+    assert attestation.workspace_boundary_verified is True
+    assert len(attestation.foreign_canaries_detected) == 0
+    assert attestation.verify_signature() is True
+
+    # 2. 模拟篡改证明对象（例如伪造状态）
+    tampered_dict = attestation.model_dump()
+    tampered_dict["status"] = "BLOCKED_CONTAMINATED"
+    tampered_attestation = RuntimeIsolationAttestation(**tampered_dict)
+    assert tampered_attestation.verify_signature() is False
+

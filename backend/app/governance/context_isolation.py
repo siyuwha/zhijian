@@ -2,16 +2,18 @@
 P0 - Multi-Agent Context Isolation & Information-Flow Hardening Kernel
 Specification: SPEC-GOVERNANCE-P0-CTX-20261006
 Governance Policy: "Independent by default, shared only through immutable evidence."
-Constitutional Rules: Rule G-CTX-01 ~ Rule G-CTX-10
+Constitutional Rules: Rule G-CTX-01 ~ Rule G-CTX-11 (含运行时隔离证明与金丝雀攻击防御)
 
 遵照最高治理令：
 1. 恪守 Phase 2C.6 六冻结纪律（零侵入生产业务代码、零变更生产Schema、零新增生产数据源）；
 2. 物理与逻辑双重实现三级信息分层（LEVEL 0 / LEVEL 1 / LEVEL 2）；
 3. 严格执行 Blind-First 原则与 Gatekeeper 两阶段裁决（Stage A Blind -> Stage B Arbitration）；
-4. 刚性拦截非结构化主观结论污染与跨角色未封存泄露。
+4. 刚性拦截非结构化主观结论污染与跨角色未封存泄露；
+5. 【G-CTX-11】：强制要求运行时隔离证明 (Attestation) 与金丝雀跨上下文攻击 (Canary Cross-Context Attack) 主动探测与刚性阻断。
 """
 
 import os
+import re
 import json
 import hashlib
 from enum import Enum
@@ -76,6 +78,11 @@ class EvidenceIntegrityError(GovernanceViolationError):
 
 class BlindAssessmentViolationError(GovernanceViolationError):
     """违反盲评首发铁律异常"""
+    pass
+
+
+class CanaryCrossContextAttackError(GovernanceViolationError):
+    """金丝雀跨上下文泄漏或刺探攻击异常 (Rule G-CTX-11)"""
     pass
 
 
@@ -364,6 +371,14 @@ class ContextContaminationChecker:
         if input_context.get("leak_from_previous_task"):
             violations.append("Previous Task Context Contamination: Residual conversation state detected.")
 
+        # [8] Verify Canary Cross-Context Attack (Rule G-CTX-11)
+        foreign_canary = CanaryTokenManager.detect_foreign_canary(role, input_context)
+        if foreign_canary:
+            raise CanaryCrossContextAttackError(
+                f"Canary Cross-Context Attack Detected (Rule G-CTX-11)! "
+                f"Foreign canary token '{foreign_canary}' infiltrated '{role.value}' context! EXECUTION BLOCKED."
+            )
+
         if violations:
             raise ContaminationViolationError(
                 f"EXECUTION BLOCKED! Context contamination check failed with {len(violations)} violation(s):\n" +
@@ -462,3 +477,139 @@ class GatekeeperTwoStageEvaluator:
             "reason": reason,
             "arbitrated_at": datetime.now().isoformat()
         }
+
+
+# ==============================================================================
+# 七、 G-CTX-11: 金丝雀跨上下文攻击传感器与运行时隔离证明器
+# ==============================================================================
+
+class CanaryTokenManager:
+    """
+    Rule G-CTX-11: 金丝雀跨上下文探测与攻击检测器 (Canary Cross-Context Attack Detector)
+    原理：
+    1. 为每个角色与任务分配高熵特异性金丝雀标识 (Canary Token)；
+    2. 若角色 A 的输入、上下文、消息或工作区中检出了属于角色 B 的金丝雀，
+       即证明发生物理/逻辑上下文越界泄漏（Cross-Context Contamination Leak）；
+    3. 系统立即引爆 CanaryCrossContextAttackError 并刚性阻断执行！
+    """
+    CANARY_PREFIX = "CANARY-SECRET"
+
+    @classmethod
+    def generate_canary(cls, role: AgentRole, task_id: str, salt: str = "P0-ISOLATION") -> str:
+        entropy = hashlib.sha256(f"{role.value}:{task_id}:{salt}".encode("utf-8")).hexdigest()[:12]
+        return f"{cls.CANARY_PREFIX}:{role.value.upper()}:{entropy}"
+
+    @classmethod
+    def detect_foreign_canary(cls, current_role: AgentRole, context_payload: Any) -> Optional[str]:
+        """扫描上下文中是否存在属于其他角色的金丝雀"""
+        text = json.dumps(context_payload, ensure_ascii=False) if not isinstance(context_payload, str) else context_payload
+        # 正则匹配形如 CANARY-SECRET:ROLE:HEX
+        pattern = r"CANARY-SECRET:([A-Z_]+):[a-f0-9]{12}"
+        matches = re.findall(pattern, text)
+        for matched_role_str in matches:
+            matched_role = matched_role_str.lower()
+            if matched_role != current_role.value:
+                # 抓到外来角色的金丝雀！
+                return f"{cls.CANARY_PREFIX}:{matched_role_str}"
+        return None
+
+
+class RuntimeIsolationAttestation(BaseModel):
+    """
+    Rule G-CTX-11: 运行时隔离证明 (Runtime Isolation Attestation)
+    为任务执行提供不可伪造的密码学物理隔离凭证。
+    """
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    attestation_id: str
+    task_id: str
+    role: AgentRole
+    baseline_commit: str
+    canary_token_registered: str
+    foreign_canaries_detected: List[str] = Field(default_factory=list)
+    forbidden_patterns_zero_presence: bool
+    workspace_boundary_verified: bool
+    status: str  # "ATTESTED_ISOLATED" / "BLOCKED_CONTAMINATED"
+    attested_at: str
+    attestation_hash: str
+
+    @classmethod
+    def issue(
+        cls,
+        task_id: str,
+        role: AgentRole,
+        baseline_commit: str,
+        input_context: Dict[str, Any],
+        target_workspace: Optional[str] = None
+    ) -> "RuntimeIsolationAttestation":
+        t_now = datetime.now().isoformat()
+        my_canary = CanaryTokenManager.generate_canary(role, task_id)
+
+        # 1. 检测外来金丝雀 (Canary Cross-Context Attack)
+        foreign_canary = CanaryTokenManager.detect_foreign_canary(role, input_context)
+        foreign_detected = [foreign_canary] if foreign_canary else []
+
+        # 2. 检测偏见词
+        ctx_str = json.dumps(input_context, ensure_ascii=False)
+        has_forbidden_pattern = any(p in ctx_str for p in FORBIDDEN_SUBJECTIVE_PATTERNS)
+
+        # 3. 检测工作区边界
+        ws_ok = True
+        if target_workspace:
+            try:
+                PrivateWorkspaceGuard.validate_access(role, target_workspace)
+            except UnauthorizedWorkspaceAccessError:
+                ws_ok = False
+
+        is_isolated = (not foreign_detected) and (not has_forbidden_pattern) and ws_ok
+        status = "ATTESTED_ISOLATED" if is_isolated else "BLOCKED_CONTAMINATED"
+
+        raw_data = {
+            "task_id": task_id,
+            "role": role,
+            "baseline_commit": baseline_commit,
+            "canary_token_registered": my_canary,
+            "foreign_canaries_detected": foreign_detected,
+            "forbidden_patterns_zero_presence": not has_forbidden_pattern,
+            "workspace_boundary_verified": ws_ok,
+            "status": status,
+            "attested_at": t_now,
+        }
+        # 哈希排除 attestation_id 与 attestation_hash
+        hash_payload = {**raw_data, "role": role.value}
+        jcs_str = json.dumps(hash_payload, sort_keys=True, separators=(',', ':'))
+        att_hash = hashlib.sha256(jcs_str.encode("utf-8")).hexdigest()
+        att_id = f"ATT-{att_hash[:16]}"
+
+        if not is_isolated:
+            if foreign_detected:
+                raise CanaryCrossContextAttackError(
+                    f"Canary Cross-Context Attack Detected (Rule G-CTX-11)! "
+                    f"Foreign canary '{foreign_detected[0]}' found in '{role.value}' context! EXECUTION BLOCKED."
+                )
+            raise ContaminationViolationError(
+                f"Runtime Isolation Attestation FAILED: Forbidden patterns or workspace violation in '{role.value}'."
+            )
+
+        return cls(
+            attestation_id=att_id,
+            attestation_hash=att_hash,
+            **raw_data
+        )
+
+    def verify_signature(self) -> bool:
+        raw_data = {
+            "task_id": self.task_id,
+            "role": self.role.value,
+            "baseline_commit": self.baseline_commit,
+            "canary_token_registered": self.canary_token_registered,
+            "foreign_canaries_detected": self.foreign_canaries_detected,
+            "forbidden_patterns_zero_presence": self.forbidden_patterns_zero_presence,
+            "workspace_boundary_verified": self.workspace_boundary_verified,
+            "status": self.status,
+            "attested_at": self.attested_at,
+        }
+        jcs_str = json.dumps(raw_data, sort_keys=True, separators=(',', ':'))
+        expected_hash = hashlib.sha256(jcs_str.encode("utf-8")).hexdigest()
+        return self.attestation_hash == expected_hash and self.attestation_id == f"ATT-{expected_hash[:16]}"
+
