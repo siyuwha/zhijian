@@ -1,0 +1,123 @@
+# Agent Governance Manifest
+# Specification: P0 Multi-Agent Context Isolation & Information-Flow Hardening
+# Policy: Independent by default, shared only through immutable evidence.
+# Baseline Version: v0.2.8 (Commit #9ceeafd)
+
+version: "1.0.0"
+governance_constitution_ref: "开发文档/67-Agent-Governance-Constitution-多Agent认知隔离与受控证据汇交宪章.md"
+frozen_baseline_commit: "9ceeafd"
+
+information_tiers:
+  level_0:
+    name: "Objective Baseline"
+    description: "客观事实与已批准基线（生产代码、文档、Schema、测试、Git历史），全员只读准入"
+    allowed_paths:
+      - "backend/app/"
+      - "backend/tests/"
+      - "backend/migrations/"
+      - "frontend/src/"
+      - "开发文档/"
+      - "baseline_evidence/"
+    strict_rule: "只能包含客观工程事实与落盘代码，严禁包含 Agent 的未审计主观判断"
+
+  level_1:
+    name: "Private Working Space"
+    description: "各 Agent 私有思考草稿、未封存审计结论与攻击计划，默认严禁跨角色读取"
+    base_dir: "governance/workspaces/"
+    cross_read_allowed: false
+
+  level_2:
+    name: "Immutable Evidence"
+    description: "经哈希指纹封存的不可变证据账本，跨 Agent 共享与质量仲裁的唯一法定合法渠道"
+    store_dir: "governance/evidence/"
+    immutability_enforced: true
+
+roles:
+  primary_developer:
+    role_id: "primary_developer"
+    display_name: "架构与主开发实施首席工程师"
+    runtime_capabilities:
+      antigravity_write_tools: true
+      antigravity_subagent_tools: false
+      antigravity_mcp_tools: false
+    permissions:
+      write_production_code: true
+      read_level0: true
+      private_workspace_path: "governance/workspaces/primary_developer/"
+      read_other_private_workspace: false
+      read_unsealed_evidence: false
+      publish_sealed_evidence: true
+      blind_assessment_required: false
+
+  board_red_team:
+    role_id: "board_red_team"
+    display_name: "最高董事会独立红队审查首席架构师"
+    runtime_capabilities:
+      antigravity_write_tools: false
+      antigravity_subagent_tools: false
+      antigravity_mcp_tools: false
+    permissions:
+      write_production_code: false
+      read_level0: true
+      private_workspace_path: "governance/workspaces/board_red_team/"
+      read_other_private_workspace: false
+      read_unsealed_evidence: false
+      publish_sealed_evidence: true
+      blind_assessment_required: false
+
+  red_team_tester:
+    role_id: "red_team_tester"
+    display_name: "独立红队破坏性测试特使"
+    runtime_capabilities:
+      antigravity_write_tools: false
+      antigravity_subagent_tools: false
+      antigravity_mcp_tools: false
+    permissions:
+      write_production_code: false
+      read_level0: true
+      private_workspace_path: "governance/workspaces/red_team_tester/"
+      read_other_private_workspace: false
+      read_unsealed_evidence: false
+      publish_sealed_evidence: true
+      blind_assessment_required: false
+
+  quality_gatekeeper:
+    role_id: "quality_gatekeeper"
+    display_name: "独立质量闸门裁判特使"
+    runtime_capabilities:
+      antigravity_write_tools: false
+      antigravity_subagent_tools: false
+      antigravity_mcp_tools: false
+    permissions:
+      write_production_code: false
+      read_level0: true
+      private_workspace_path: "governance/workspaces/quality_gatekeeper/"
+      read_other_private_workspace: false
+      read_unsealed_evidence: false
+      read_sealed_evidence: true
+      blind_assessment_required: true
+
+contamination_defense:
+  forbidden_message_patterns:
+    - "我已经检查过了"
+    - "这个应该没问题"
+    - "你重点检查"
+    - "问题已经修复"
+    - "我认为可以 PASS"
+    - "大概率没问题"
+    - "只剩"
+    - "其他地方不用看"
+    - "基本没问题"
+    - "直接放行"
+  action_on_forbidden: "BLOCK_AND_RAISE_CONTAMINATION_ERROR"
+  required_message_fields:
+    - "TASK_ID"
+    - "ARTIFACT_ID"
+    - "BASELINE_COMMIT"
+    - "QUESTION_ID"
+    - "EVIDENCE_ID"
+    - "OBJECTIVE_FACT"
+    - "REPRODUCTION_COMMAND"
+    - "EXPECTED_CHECK"
+    - "HASH"
+    - "STATUS"
