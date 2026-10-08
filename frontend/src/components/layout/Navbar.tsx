@@ -9,6 +9,7 @@ import { APP_VERSION, STAGE_NAME, GIT_COMMIT } from "@/config/version";
 
 const navItems = [
   { name: "总览", href: "/", icon: Home },
+  { name: "驾驶舱", href: "/cockpit", icon: Compass },
   { name: "复盘", href: "/review", icon: FileText },
   { name: "简报", href: "/briefing", icon: Newspaper },
   { name: "竞价", href: "/auction", icon: Clock },

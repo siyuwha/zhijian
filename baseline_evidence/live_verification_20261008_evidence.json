@@ -1,0 +1,165 @@
+{
+  "protocol_id": "SPEC-VERIFICATION-PHASE2C6-20261005",
+  "verification_date": "2026-10-08",
+  "execution_stage": "Phase 2C.6 首个真实交易日实弹验证",
+  "timestamp": "2026-10-08T19:49:43.301577",
+  "version": "v0.2.8",
+  "environment": "Production Live Market Tape",
+  "physical_snapshot": {
+    "id": 3,
+    "date": "2026-10-08",
+    "snapshot_type": "EOD_CLOSE",
+    "data_quality": "PARTIAL",
+    "source_status": {
+      "indices": "DataStatus.AVAILABLE",
+      "limit_up": "DataStatus.AVAILABLE",
+      "breadth": "DataStatus.EMPTY",
+      "micro_cap": "DataStatus.EMPTY",
+      "external_risk": "DataStatus.AVAILABLE",
+      "high_tier": "DataStatus.EMPTY",
+      "price_anomaly": "DataStatus.AVAILABLE",
+      "concept_blocks": "AVAILABLE"
+    },
+    "content_hash": "86d121f1e84b2eac7ed66d9b4e3129545c9bdbe2db3eb352fe88122338d166ac"
+  },
+  "daily_review": {
+    "id": 1,
+    "date": "2026-10-08",
+    "market_state_id": 2,
+    "data_quality": "PARTIAL",
+    "indices_count": 4,
+    "limit_up_total": 43,
+    "limit_up_max_height": 8,
+    "first_limit_count": 33,
+    "continued_limit_count": 10,
+    "broken_limit_count": 32,
+    "limit_down_count": 13
+  },
+  "wave1_facts": {
+    "anomaly_facts_count": 11,
+    "block_mapping_facts_count": 573,
+    "sample_anomalies": [
+      {
+        "canonical_fact_id": "ANOM:2026-10-08:600825:R1",
+        "trade_date": "2026-10-08",
+        "symbol": "600825",
+        "name": "新华传媒",
+        "exchange": "SH",
+        "board_type": "MAIN",
+        "rule_id": 1,
+        "rule_name": "主板连续10个交易日内4次出现同向异常波动",
+        "deviation_pct": 10.84,
+        "window_days": 1,
+        "day_change_pct": 10.05,
+        "status_flag": 2,
+        "provenance": "EASTMONEY_COMPUTED_RULE_MATCH",
+        "provenance_tier": "DERIVED_COMMERCIAL_MATCH"
+      },
+      {
+        "canonical_fact_id": "ANOM:2026-10-08:688175:R4",
+        "trade_date": "2026-10-08",
+        "symbol": "688175",
+        "name": "高凌信息",
+        "exchange": "SH",
+        "board_type": "STAR",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 80.09,
+        "window_days": 9,
+        "day_change_pct": 6.73,
+        "status_flag": 2,
+        "provenance": "EASTMONEY_COMPUTED_RULE_MATCH",
+        "provenance_tier": "DERIVED_COMMERCIAL_MATCH"
+      },
+      {
+        "canonical_fact_id": "ANOM:2026-10-08:301560:R4",
+        "trade_date": "2026-10-08",
+        "symbol": "301560",
+        "name": "众捷股份",
+        "exchange": "SZ",
+        "board_type": "GEM",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 71.02,
+        "window_days": 9,
+        "day_change_pct": 1.08,
+        "status_flag": 2,
+        "provenance": "EASTMONEY_COMPUTED_RULE_MATCH",
+        "provenance_tier": "DERIVED_COMMERCIAL_MATCH"
+      },
+      {
+        "canonical_fact_id": "ANOM:2026-10-08:688137:R6",
+        "trade_date": "2026-10-08",
+        "symbol": "688137",
+        "name": "近岸蛋白",
+        "exchange": "SH",
+        "board_type": "STAR",
+        "rule_id": 6,
+        "rule_name": "连续三十个交易日内日收盘价涨跌幅偏离值累计达到+200%",
+        "deviation_pct": 153.48,
+        "window_days": 17,
+        "day_change_pct": -6.48,
+        "status_flag": 2,
+        "provenance": "EASTMONEY_COMPUTED_RULE_MATCH",
+        "provenance_tier": "DERIVED_COMMERCIAL_MATCH"
+      },
+      {
+        "canonical_fact_id": "ANOM:2026-10-08:301190:R4",
+        "trade_date": "2026-10-08",
+        "symbol": "301190",
+        "name": "善水科技",
+        "exchange": "SZ",
+        "board_type": "GEM",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 102.08,
+        "window_days": 6,
+        "day_change_pct": 9.99,
+        "status_flag": 1,
+        "provenance": "EASTMONEY_COMPUTED_RULE_MATCH",
+        "provenance_tier": "DERIVED_COMMERCIAL_MATCH"
+      }
+    ]
+  },
+  "evidence_gates_audit": {
+    "total_sectors_evaluated": 287,
+    "admitted_count": 251,
+    "initial_outbreak_count": 165,
+    "sector_rotation_count": 86,
+    "rejected_count": 36,
+    "first_board_persistence_violations": 0,
+    "region_noise_isolation_verified": true
+  },
+  "counterfactual_experiment": {
+    "pipe_a_with_wave1_admitted": 251,
+    "pipe_b_without_wave1_admitted": 0,
+    "decision_delta": {
+      "delta_facts": 584,
+      "delta_relations": 573,
+      "delta_hypotheses": 251,
+      "delta_initial_outbreak": 165,
+      "delta_sector_rotation": 86
+    },
+    "e4_counterfactual_collapse": "VERIFIED (100% collapsed to 0 without Wave 1)",
+    "e5_no_evidence_no_claim": "VERIFIED (Zero false claims)"
+  },
+  "admission_guard_behavior": {
+    "event": "Cognition Admission Violation [REJECT_INVALID_QUALITY]",
+    "cause": "Eastmoney upstream market_breadth returned HTTP 502, triggering Critical Fact defense",
+    "result": "Dirty ledger pollution rigidly intercepted (100% compliant with Popper discipline)"
+  },
+  "board_12_layer_verdict": {
+    "physical_fact": "PASS",
+    "evidence": "PASS",
+    "membership": "PASS",
+    "breadth": "PARTIAL (Upstream 502 observed & quarantined)",
+    "leadership": "PASS",
+    "persistence": "PASS (Zero first-board leak)",
+    "hypothesis": "PASS (Locked to Outbreak & Rotation)",
+    "falsification": "PASS (AST guards active)",
+    "cognition": "PASS (+251 structural hypotheses)",
+    "attribution": "PASS (Delta counterfactual confirmed)",
+    "integrity": "PASS (WORM storage & SHA256 hashed)",
+    "release": "NOT YET (Hard blocked pending next phase gate)"
+  }
+}

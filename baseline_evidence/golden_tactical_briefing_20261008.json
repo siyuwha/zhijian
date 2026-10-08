@@ -1,0 +1,28 @@
+{
+  "schema_version": "2D.3-TACTICAL-BRIEFING-V1",
+  "producer_version": "CANONICAL_TACTICAL_BRIEFING_ENGINE-V1",
+  "trade_date": "2026-10-08",
+  "generated_at": "2026-10-09T03:00:00Z",
+  "market_state_label": "高位剧烈分化期",
+  "tactical_briefing_text": "【大势定调】沪深两市真实总成交额为 16821.09 亿元（沪市 8111.83 亿元，深市含创业板 8709.26 亿元）。全市场微观状态标定为【高位剧烈分化期】（判定置信度 90%）。【主线与梯队】核心做多战场呈现结构分化：第一主线为【央国企改革】（龙头【新华传媒】8B，涨停 12 家），第二主线为【电力设备】（龙头【时代万恒】4B）。全市场最高连板高度标杆为 8B【新华传媒】。【风险与负反馈】盘面微观亏钱效应显著：日内真实炸板率高达 42.67%，收盘跌停 13 家；交易所严重异常波动重点监控标的达 11 家，高位分化与监管降温压制明显。【明日推演与防守红线】次日竞价重点观察空间标杆【新华传媒】溢价承接力与主线标杆【新华传媒】竞价分歧度。核心证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。",
+  "key_battlegrounds": [
+    "央国企改革 (龙头【新华传媒】8B, 涨停 12 家)",
+    "电力设备 (龙头【时代万恒】4B, 涨停 9 家)",
+    "固态电池 (龙头【上海洗霸】3B, 涨停 5 家)"
+  ],
+  "risk_warnings": [
+    "日内真实炸板率高达 42.67%",
+    "全市场收盘跌停家数达 13 家",
+    "交易所严重异常波动重点监控标的达 11 家"
+  ],
+  "next_day_observation_posts": [
+    "最高空间标杆【新华传媒】(8B) 次日竞价承接力与溢价表现",
+    "主线核心标杆【新华传媒】次日开盘流动性与分歧度",
+    "防守证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位"
+  ],
+  "is_fallback_mode": true,
+  "fallback_reason": "Golden Baseline Fixture Verification",
+  "safety_audit_passed": true,
+  "source_context_fingerprint": "2996e40fc832a8fd2865f15979f2ea1d03e73a0d99d6e940fb8414afef84313a",
+  "briefing_fingerprint": "42268a682c3db4cd958946e0925c5eb6f409a567be6dd6686829ec31b052cf26"
+}

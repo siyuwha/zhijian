@@ -1,0 +1,783 @@
+{
+  "schema_version": "2D.3-NARRATIVE-CONTEXT-V1",
+  "producer_version": "CANONICAL_NARRATIVE_CONTEXT_EXTRACTOR-V1",
+  "trade_date": "2026-10-08",
+  "extracted_at": "2026-10-09T02:45:00Z",
+  "source_snapshot_fingerprint": "80cb8e02acbcc1079b39b59f35af4bd252ce6f39c5a48064a6726d089ea58f22",
+  "fact_layer": {
+    "layer_type": "FACT",
+    "turnover": {
+      "total_turnover_yi": 16821.09,
+      "sh_amount_yi": 8111.83,
+      "sz_total_amount_yi": 8709.26,
+      "chinext_slice_yi": 4227.55,
+      "chinext_ratio_in_sz": 0.4854,
+      "accounting_rule": "深市成交额在统计范畴内已包含创业板，沪深两市总成交额 = SH + SZ，严禁将创业板再次累加！"
+    },
+    "indices": [
+      {
+        "symbol": "sh000001",
+        "name": "上证指数",
+        "current_price": 3811.9,
+        "pre_close": 3842.19,
+        "change_val": -30.29,
+        "pct_change": -0.79,
+        "amount_yi": 8111.83,
+        "trade_date": "2026-10-08",
+        "envelope": {
+          "source": "SINA_HQ_STREAM",
+          "observed_time": "2026-10-08T15:05:00.000+08:00",
+          "quality": "FULL",
+          "is_degraded": false,
+          "degradation_reason": null
+        }
+      },
+      {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "current_price": 12620.9,
+        "pre_close": 12887.62,
+        "change_val": -266.72,
+        "pct_change": -2.07,
+        "amount_yi": 8709.26,
+        "trade_date": "2026-10-08",
+        "envelope": {
+          "source": "SINA_HQ_STREAM",
+          "observed_time": "2026-10-08T15:05:00.000+08:00",
+          "quality": "FULL",
+          "is_degraded": false,
+          "degradation_reason": null
+        }
+      },
+      {
+        "symbol": "sz399006",
+        "name": "创业板指",
+        "current_price": 3036.66,
+        "pre_close": 3135.28,
+        "change_val": -98.62,
+        "pct_change": -3.15,
+        "amount_yi": 4227.55,
+        "trade_date": "2026-10-08",
+        "envelope": {
+          "source": "SINA_HQ_STREAM",
+          "observed_time": "2026-10-08T15:05:00.000+08:00",
+          "quality": "FULL",
+          "is_degraded": false,
+          "degradation_reason": null
+        }
+      },
+      {
+        "symbol": "sh000688",
+        "name": "科创50",
+        "current_price": 1456.32,
+        "pre_close": 1530.01,
+        "change_val": -73.68,
+        "pct_change": -4.82,
+        "amount_yi": 823.98,
+        "trade_date": "2026-10-08",
+        "envelope": {
+          "source": "SINA_HQ_STREAM",
+          "observed_time": "2026-10-08T15:05:00.000+08:00",
+          "quality": "FULL",
+          "is_degraded": false,
+          "degradation_reason": null
+        }
+      }
+    ],
+    "ladder": {
+      "max_height": 8,
+      "space_leader": {
+        "security_id": "600825.SH",
+        "stock_code": "600825",
+        "canonical_name": "新华传媒",
+        "exchange": "SH"
+      },
+      "tiers": [
+        {
+          "height": 8,
+          "count": 1,
+          "is_space_leader": true,
+          "stocks": [
+            {
+              "security_id": "600825.SH",
+              "stock_code": "600825",
+              "canonical_name": "新华传媒",
+              "exchange": "SH"
+            }
+          ]
+        },
+        {
+          "height": 4,
+          "count": 2,
+          "is_space_leader": false,
+          "stocks": [
+            {
+              "security_id": "002242.SZ",
+              "stock_code": "002242",
+              "canonical_name": "九阳股份",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "600241.SH",
+              "stock_code": "600241",
+              "canonical_name": "时代万恒",
+              "exchange": "SH"
+            }
+          ]
+        },
+        {
+          "height": 3,
+          "count": 4,
+          "is_space_leader": false,
+          "stocks": [
+            {
+              "security_id": "002058.SZ",
+              "stock_code": "002058",
+              "canonical_name": "紫竹高科",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "605303.SH",
+              "stock_code": "605303",
+              "canonical_name": "园林股份",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "002866.SZ",
+              "stock_code": "002866",
+              "canonical_name": "传艺科技",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "603200.SH",
+              "stock_code": "603200",
+              "canonical_name": "上海洗霸",
+              "exchange": "SH"
+            }
+          ]
+        },
+        {
+          "height": 2,
+          "count": 3,
+          "is_space_leader": false,
+          "stocks": [
+            {
+              "security_id": "600663.SH",
+              "stock_code": "600663",
+              "canonical_name": "陆家嘴",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "603928.SH",
+              "stock_code": "603928",
+              "canonical_name": "兴业股份",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "603906.SH",
+              "stock_code": "603906",
+              "canonical_name": "龙蟠科技",
+              "exchange": "SH"
+            }
+          ]
+        },
+        {
+          "height": 1,
+          "count": 33,
+          "is_space_leader": false,
+          "stocks": [
+            {
+              "security_id": "600812.SH",
+              "stock_code": "600812",
+              "canonical_name": "华北制药",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "002687.SZ",
+              "stock_code": "002687",
+              "canonical_name": "乔治白",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "600513.SH",
+              "stock_code": "600513",
+              "canonical_name": "联环药业",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "002951.SZ",
+              "stock_code": "002951",
+              "canonical_name": "金时科技",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "600026.SH",
+              "stock_code": "600026",
+              "canonical_name": "中远海能",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "600617.SH",
+              "stock_code": "600617",
+              "canonical_name": "国新能源",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "300522.SZ",
+              "stock_code": "300522",
+              "canonical_name": "世名科技",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "002733.SZ",
+              "stock_code": "002733",
+              "canonical_name": "雄韬股份",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "002774.SZ",
+              "stock_code": "002774",
+              "canonical_name": "快意电梯",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "603863.SH",
+              "stock_code": "603863",
+              "canonical_name": "松炀资源",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "301697.SZ",
+              "stock_code": "301697",
+              "canonical_name": "贝特利",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "002565.SZ",
+              "stock_code": "002565",
+              "canonical_name": "顺灏股份",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "603137.SH",
+              "stock_code": "603137",
+              "canonical_name": "恒尚节能",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "605378.SH",
+              "stock_code": "605378",
+              "canonical_name": "野马电池",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "002805.SZ",
+              "stock_code": "002805",
+              "canonical_name": "丰元股份",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "605298.SH",
+              "stock_code": "605298",
+              "canonical_name": "必得科技",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "601975.SH",
+              "stock_code": "601975",
+              "canonical_name": "招商南油",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "002869.SZ",
+              "stock_code": "002869",
+              "canonical_name": "金溢科技",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "001300.SZ",
+              "stock_code": "001300",
+              "canonical_name": "三柏硕",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "600408.SH",
+              "stock_code": "600408",
+              "canonical_name": "安泰集团",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "600722.SH",
+              "stock_code": "600722",
+              "canonical_name": "金牛化工",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "601956.SH",
+              "stock_code": "601956",
+              "canonical_name": "东贝集团",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "603073.SH",
+              "stock_code": "603073",
+              "canonical_name": "彩蝶实业",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "001336.SZ",
+              "stock_code": "001336",
+              "canonical_name": "楚环科技",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "920627.BJ",
+              "stock_code": "920627",
+              "canonical_name": "力王股份",
+              "exchange": "BJ"
+            },
+            {
+              "security_id": "600310.SH",
+              "stock_code": "600310",
+              "canonical_name": "广西能源",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "600400.SH",
+              "stock_code": "600400",
+              "canonical_name": "红豆股份",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "000869.SZ",
+              "stock_code": "000869",
+              "canonical_name": "张  裕Ａ",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "300530.SZ",
+              "stock_code": "300530",
+              "canonical_name": "领湃科技",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "688196.SH",
+              "stock_code": "688196",
+              "canonical_name": "卓越新能",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "603788.SH",
+              "stock_code": "603788",
+              "canonical_name": "宁波高发",
+              "exchange": "SH"
+            },
+            {
+              "security_id": "002702.SZ",
+              "stock_code": "002702",
+              "canonical_name": "海欣食品",
+              "exchange": "SZ"
+            },
+            {
+              "security_id": "002490.SZ",
+              "stock_code": "002490",
+              "canonical_name": "山东墨龙",
+              "exchange": "SZ"
+            }
+          ]
+        }
+      ]
+    },
+    "sentiment_counts": {
+      "limit_up_count": 43,
+      "limit_down_count": 13,
+      "touched_limit_total_count": 75,
+      "broken_limit_count": 32
+    },
+    "regulatory": {
+      "total_anomaly_count": 11,
+      "anomaly_stocks": [
+        {
+          "security_id": "600825.SH",
+          "stock_code": "600825",
+          "canonical_name": "新华传媒",
+          "exchange": "SH"
+        },
+        {
+          "security_id": "688175.SH",
+          "stock_code": "688175",
+          "canonical_name": "高凌信息",
+          "exchange": "SH"
+        },
+        {
+          "security_id": "301560.SZ",
+          "stock_code": "301560",
+          "canonical_name": "众捷股份",
+          "exchange": "SZ"
+        },
+        {
+          "security_id": "688137.SH",
+          "stock_code": "688137",
+          "canonical_name": "近岸蛋白",
+          "exchange": "SH"
+        },
+        {
+          "security_id": "301190.SZ",
+          "stock_code": "301190",
+          "canonical_name": "善水科技",
+          "exchange": "SZ"
+        },
+        {
+          "security_id": "600825.SH",
+          "stock_code": "600825",
+          "canonical_name": "新华传媒",
+          "exchange": "SH"
+        },
+        {
+          "security_id": "688137.SH",
+          "stock_code": "688137",
+          "canonical_name": "近岸蛋白",
+          "exchange": "SH"
+        },
+        {
+          "security_id": "688175.SH",
+          "stock_code": "688175",
+          "canonical_name": "高凌信息",
+          "exchange": "SH"
+        },
+        {
+          "security_id": "301560.SZ",
+          "stock_code": "301560",
+          "canonical_name": "众捷股份",
+          "exchange": "SZ"
+        },
+        {
+          "security_id": "688185.SH",
+          "stock_code": "688185",
+          "canonical_name": "康希诺",
+          "exchange": "SH"
+        },
+        {
+          "security_id": "688265.SH",
+          "stock_code": "688265",
+          "canonical_name": "南模生物",
+          "exchange": "SH"
+        }
+      ],
+      "space_leader_has_warning": true
+    }
+  },
+  "derived_layer": {
+    "layer_type": "DERIVED",
+    "broken_limit_ratio": 0.4267,
+    "extreme_loss_ratio": 0.6,
+    "turnover_change_ratio": null,
+    "breadth_status": "UNAVAILABLE",
+    "breadth_message": "东财上游 push2 全市场广度接口通信故障 (HTTP 502)",
+    "state_features": {
+      "index_vector": {
+        "total_turnover_yi": 16821.09,
+        "turnover_change_ratio": null,
+        "dispersion_pct": 4.03,
+        "star_divergence_pct": -4.03
+      },
+      "ladder_vector": {
+        "max_ladder_height": 8,
+        "limit_up_count": 43,
+        "limit_down_count": 13,
+        "leader_ratio": 0.1628
+      },
+      "risk_vector": {
+        "broken_limit_ratio": 0.4267,
+        "broken_limit_count": 32,
+        "extreme_loss_ratio": 0.6
+      },
+      "regulatory_vector": {
+        "anomaly_count": 11,
+        "has_leader_warning": true
+      }
+    }
+  },
+  "cognition_layer": {
+    "layer_type": "COGNITION",
+    "market_state": {
+      "primary_state": "HIGH_DIVERGENCE_TOPPING",
+      "state_display_name": "高位剧烈分化期",
+      "state_confidence": 0.9,
+      "driving_factors": [
+        "指数极度分化 (离散度 4.03%)，权重与题材背离",
+        "炸板率高达 42.67% 且跌停 13 家，短线博弈极端极化",
+        "最高连板达 8B (最高8B新华传媒)，高位博弈激烈",
+        "共 11 只标的触发严重异动商业规则，高位降温压力剧增"
+      ],
+      "transition_signal": null,
+      "deterministic_summary": "指数高位剧烈分化 (科创50重挫-4.82%)，两市真实成交额维持 1.68 万亿高位；短线极端博弈 (最高8B新华传媒/连板10家)，但炸板率高达 42.67% 且跌停13家，做多主线聚焦于【央国企改革】与【电力设备】，跟风标的面临时冲高回落大面风险。"
+    },
+    "candidate_mainlines": [
+      {
+        "rank": 1,
+        "sector_name": "央国企改革",
+        "sector_code": "BK0683",
+        "structural_role": "CORE_MAINLINE",
+        "thematic_tier": "TIER_1_CORE",
+        "market_narrative": "央国企改革 (全市场空间高度标杆)",
+        "leader_identity": {
+          "security_id": "600825.SH",
+          "stock_code": "600825",
+          "canonical_name": "新华传媒",
+          "exchange": "SH"
+        },
+        "leader_height": 8,
+        "limit_up_count": 12,
+        "ladder_distribution": {
+          "1B": 9,
+          "8B": 1,
+          "2B": 1,
+          "4B": 1
+        },
+        "supporting_evidence": [
+          "最高连板标杆引领: 新华传媒 (8B)",
+          "板块内涨停共振 12 家，覆盖高度阶梯 4 层",
+          "具有底层首板横向扩散动能 (9 只首板)"
+        ],
+        "counter_evidence": [
+          "龙头 新华传媒 触发严重异常波动商业规则撮合，面临特停降温风险",
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 新华传媒 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "新华传媒",
+            "新华传媒"
+          ]
+        },
+        "shared_evidence_notes": [
+          "与【电力设备】重叠 2 只标的 (重叠度 22.2%)",
+          "与【储能概念】重叠 2 只标的 (重叠度 28.6%)"
+        ]
+      },
+      {
+        "rank": 2,
+        "sector_name": "电力设备",
+        "sector_code": "BK1200",
+        "structural_role": "CORE_MAINLINE",
+        "thematic_tier": "TIER_1_CORE",
+        "market_narrative": "电池 / 锂电池产业链",
+        "leader_identity": {
+          "security_id": "600241.SH",
+          "stock_code": "600241",
+          "canonical_name": "时代万恒",
+          "exchange": "SH"
+        },
+        "leader_height": 4,
+        "limit_up_count": 9,
+        "ladder_distribution": {
+          "3B": 1,
+          "1B": 6,
+          "4B": 1,
+          "2B": 1
+        },
+        "supporting_evidence": [
+          "【交易叙事穿透】9只涨停标的全部属于锂电/正负极/电解质/设备产业链，底层行业容器为电力设备，主线实盘定性为【电池 / 锂电池产业链】 (4B 时代万恒引领)",
+          "最高连板标杆引领: 时代万恒 (4B)",
+          "板块内涨停共振 9 家，覆盖高度阶梯 4 层",
+          "具有底层首板横向扩散动能 (6 只首板)"
+        ],
+        "counter_evidence": [
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 时代万恒 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "时代万恒",
+            "金时科技"
+          ]
+        },
+        "shared_evidence_notes": [
+          "与【央国企改革】重叠 2 只标的 (重叠度 22.2%)",
+          "与【固态电池】重叠 3 只标的 (重叠度 60.0%)",
+          "与【储能概念】重叠 4 只标的 (重叠度 57.1%)"
+        ]
+      },
+      {
+        "rank": 3,
+        "sector_name": "固态电池",
+        "sector_code": "BK0968",
+        "structural_role": "CORE_MAINLINE",
+        "thematic_tier": "TIER_1_CORE",
+        "market_narrative": "固态电池 (前沿技术催化)",
+        "leader_identity": {
+          "security_id": "603200.SH",
+          "stock_code": "603200",
+          "canonical_name": "上海洗霸",
+          "exchange": "SH"
+        },
+        "leader_height": 3,
+        "limit_up_count": 5,
+        "ladder_distribution": {
+          "1B": 2,
+          "3B": 2,
+          "2B": 1
+        },
+        "supporting_evidence": [
+          "最高连板标杆引领: 上海洗霸 (3B)",
+          "板块内涨停共振 5 家，覆盖高度阶梯 3 层",
+          "具有底层首板横向扩散动能 (2 只首板)",
+          "具备高辨识度科技前沿催化剂属性 (细分题材辨识度保护)"
+        ],
+        "counter_evidence": [
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 上海洗霸 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "上海洗霸",
+            "传艺科技"
+          ]
+        },
+        "shared_evidence_notes": [
+          "与【电力设备】重叠 3 只标的 (重叠度 60.0%)",
+          "与【储能概念】重叠 3 只标的 (重叠度 60.0%)"
+        ]
+      },
+      {
+        "rank": 4,
+        "sector_name": "储能概念",
+        "sector_code": "BK0989",
+        "structural_role": "CORE_MAINLINE",
+        "thematic_tier": "TIER_1_CORE",
+        "market_narrative": "储能 (锂电协同衍生应用)",
+        "leader_identity": {
+          "security_id": "002866.SZ",
+          "stock_code": "002866",
+          "canonical_name": "传艺科技",
+          "exchange": "SZ"
+        },
+        "leader_height": 3,
+        "limit_up_count": 7,
+        "ladder_distribution": {
+          "1B": 5,
+          "3B": 1,
+          "2B": 1
+        },
+        "supporting_evidence": [
+          "最高连板标杆引领: 传艺科技 (3B)",
+          "板块内涨停共振 7 家，覆盖高度阶梯 3 层",
+          "具有底层首板横向扩散动能 (5 只首板)"
+        ],
+        "counter_evidence": [
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 传艺科技 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "传艺科技",
+            "世名科技"
+          ]
+        },
+        "shared_evidence_notes": [
+          "与【央国企改革】重叠 2 只标的 (重叠度 28.6%)",
+          "与【电力设备】重叠 4 只标的 (重叠度 57.1%)",
+          "与【固态电池】重叠 3 只标的 (重叠度 60.0%)"
+        ]
+      },
+      {
+        "rank": 5,
+        "sector_name": "家用电器",
+        "sector_code": "BK0456",
+        "structural_role": "WEAK_ROTATION_OR_ISOLATED",
+        "thematic_tier": "TIER_3_WEAK_OR_ISOLATED",
+        "market_narrative": "家用电器 (孤立高标弱轮动)",
+        "leader_identity": {
+          "security_id": "002242.SZ",
+          "stock_code": "002242",
+          "canonical_name": "九阳股份",
+          "exchange": "SZ"
+        },
+        "leader_height": 4,
+        "limit_up_count": 2,
+        "ladder_distribution": {
+          "4B": 1,
+          "1B": 1
+        },
+        "supporting_evidence": [
+          "最高连板标杆引领: 九阳股份 (4B)",
+          "板块内涨停共振 2 家，覆盖高度阶梯 2 层"
+        ],
+        "counter_evidence": [
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险",
+          "【中军断层警告】板块内仅 2 只涨停，缺乏群体合力，属于孤立高标博弈"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 九阳股份 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "九阳股份",
+            "东贝集团"
+          ]
+        },
+        "shared_evidence_notes": []
+      }
+    ],
+    "provisional_disclaimer": "PROVISIONAL / 实验性认知绑定：L3 认知推断仅供交易员复盘交叉核验，非确定性物理事实"
+  },
+  "speech_boundary": {
+    "allowed_claim_types": [
+      "MACRO_TURNOVER_DIVERGENCE",
+      "LADDER_STRUCTURE_AND_SPACE",
+      "CORE_MAINLINE_EVIDENCE",
+      "BLEEDING_AND_NEGATIVE_FEEDBACK",
+      "REGULATORY_ANOMALY_WARNING",
+      "NEXT_DAY_FALSIFICATION_BOUNDARY"
+    ],
+    "forbidden_claim_types": [
+      "DIRECT_TRADING_DIRECTIVE",
+      "UNVERIFIED_PRICE_TARGET",
+      "UNAUTHENTICATED_SECURITY_IDENTITY",
+      "COGNITION_TO_FACT_PROMOTION",
+      "REDUNDANT_DOUBLE_COUNT_CLAIMS",
+      "SECONDARY_MAINLINE_RERANKING"
+    ],
+    "required_evidence_anchors": [
+      "EVID:TURNOVER:16821.09YI",
+      "EVID:BROKEN_RATIO:42.67%",
+      "EVID:LIMIT_DOWN:13",
+      "EVID:MAX_HEIGHT:8B",
+      "EVID:SPACE_LEADER:600825:新华传媒",
+      "EVID:MAINLINE:1:央国企改革 (全市场空间高度标杆):新华传媒:8B",
+      "EVID:MAINLINE:2:电池 / 锂电池产业链:时代万恒:4B",
+      "EVID:MAINLINE:3:固态电池 (前沿技术催化):上海洗霸:3B"
+    ],
+    "falsification_rules_to_monitor": [
+      "【央国企改革】核心标杆 新华传媒 次日竞价大幅低开或开盘破位",
+      "【央国企改革】板块内首板晋级率全部归零且无新增首板承接",
+      "【央国企改革】板块内炸板率超过 50% 出现群体踩踏",
+      "【电力设备】核心标杆 时代万恒 次日竞价大幅低开或开盘破位",
+      "【电力设备】板块内首板晋级率全部归零且无新增首板承接",
+      "【电力设备】板块内炸板率超过 50% 出现群体踩踏",
+      "【固态电池】核心标杆 上海洗霸 次日竞价大幅低开或开盘破位",
+      "【固态电池】板块内首板晋级率全部归零且无新增首板承接",
+      "【固态电池】板块内炸板率超过 50% 出现群体踩踏"
+    ]
+  },
+  "context_fingerprint": "2996e40fc832a8fd2865f15979f2ea1d03e73a0d99d6e940fb8414afef84313a"
+}

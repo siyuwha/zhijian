@@ -60,12 +60,15 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
     throw new Error(errorDetail);
   }
 
-  const data: ApiResponse<T> = await response.json();
-  if (data.code !== 200 && (data as any).status !== 'ok') {
-    throw new Error(data.message || 'Unknown API Error');
+  const data: any = await response.json();
+  if (data && typeof data === 'object' && 'code' in data) {
+    if (data.code !== 200 && data.status !== 'ok') {
+      throw new Error(data.message || 'Unknown API Error');
+    }
+    return data.data !== undefined ? data.data : data;
   }
 
-  return data.data !== undefined ? data.data : (data as unknown as T);
+  return data as T;
 }
 
 export const api = {
@@ -209,4 +212,15 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 };
+
+// =========================================================================
+// Phase 2D.0 / 2D.1: Canonical Market Truth & Cognition 统一信封消费接口
+// =========================================================================
+export const canonicalAPI = {
+  getCanonicalMarketSnapshot: (date: string) =>
+    fetchAPI<import('@/types/canonical').CanonicalMarketSnapshot>(`/canonical/market-snapshot/${date}`),
+  getTacticalBriefing: (date: string) =>
+    fetchAPI<import('@/types/canonical').TacticalBriefingReport>(`/canonical/tactical-briefing/${date}`),
+};
+
 

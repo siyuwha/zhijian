@@ -1,0 +1,1194 @@
+{
+  "snapshot_version": "2D.0-CANONICAL-V2",
+  "trade_date": "2026-10-08",
+  "generated_at": "2026-10-08T15:05:00.000+08:00",
+  "truth": {
+    "schema_version": "2D.0-TRUTH-V1",
+    "producer": "CANONICAL_MARKET_SERVICE",
+    "trade_date": "2026-10-08",
+    "generated_at": "2026-10-08T15:05:00.000+08:00",
+    "indices": [
+      {
+        "symbol": "sh000001",
+        "name": "上证指数",
+        "current_price": 3811.9,
+        "pre_close": 3842.19,
+        "change_val": -30.29,
+        "pct_change": -0.79,
+        "amount_yi": 8111.83,
+        "trade_date": "2026-10-08",
+        "envelope": {
+          "source": "SINA_HQ_STREAM",
+          "observed_time": "2026-10-08T15:05:00.000+08:00",
+          "quality": "FULL",
+          "is_degraded": false,
+          "degradation_reason": null
+        }
+      },
+      {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "current_price": 12620.9,
+        "pre_close": 12887.62,
+        "change_val": -266.72,
+        "pct_change": -2.07,
+        "amount_yi": 8709.26,
+        "trade_date": "2026-10-08",
+        "envelope": {
+          "source": "SINA_HQ_STREAM",
+          "observed_time": "2026-10-08T15:05:00.000+08:00",
+          "quality": "FULL",
+          "is_degraded": false,
+          "degradation_reason": null
+        }
+      },
+      {
+        "symbol": "sz399006",
+        "name": "创业板指",
+        "current_price": 3036.66,
+        "pre_close": 3135.28,
+        "change_val": -98.62,
+        "pct_change": -3.15,
+        "amount_yi": 4227.55,
+        "trade_date": "2026-10-08",
+        "envelope": {
+          "source": "SINA_HQ_STREAM",
+          "observed_time": "2026-10-08T15:05:00.000+08:00",
+          "quality": "FULL",
+          "is_degraded": false,
+          "degradation_reason": null
+        }
+      },
+      {
+        "symbol": "sh000688",
+        "name": "科创50",
+        "current_price": 1456.32,
+        "pre_close": 1530.01,
+        "change_val": -73.68,
+        "pct_change": -4.82,
+        "amount_yi": 823.98,
+        "trade_date": "2026-10-08",
+        "envelope": {
+          "source": "SINA_HQ_STREAM",
+          "observed_time": "2026-10-08T15:05:00.000+08:00",
+          "quality": "FULL",
+          "is_degraded": false,
+          "degradation_reason": null
+        }
+      }
+    ],
+    "turnover": {
+      "trade_date": "2026-10-08",
+      "sh_amount_yi": 8111.830964,
+      "sz_total_amount_yi": 8709.256454,
+      "chinext_slice_amount_yi": 4227.549728,
+      "chinext_ratio_in_sz": 0.4854,
+      "bse_amount_yi": 0.0,
+      "two_markets_total_yi": 16821.09,
+      "all_markets_total_yi": 16821.09,
+      "envelope": {
+        "source": "INTERNAL_CANONICAL_AGGREGATE",
+        "observed_time": "2026-10-08T15:05:00.000+08:00",
+        "quality": "FULL",
+        "is_degraded": false,
+        "degradation_reason": null
+      }
+    },
+    "sentiment_bounds": {
+      "trade_date": "2026-10-08",
+      "limit_up_count": 43,
+      "broken_limit_count": 32,
+      "touched_limit_total_count": 75,
+      "broken_limit_ratio": 0.4267,
+      "limit_down_count": 13,
+      "max_ladder_height": 8,
+      "universe_criteria": {
+        "include_st_stocks": true,
+        "include_chinext_star": true,
+        "include_bse_30cm": true,
+        "exclude_ipo_unlimited": true
+      },
+      "envelope": {
+        "source": "TONGHUASHUN_LIMIT_UP",
+        "observed_time": "2026-10-08T15:05:00.000+08:00",
+        "quality": "FULL",
+        "is_degraded": false,
+        "degradation_reason": null
+      }
+    },
+    "regulatory_anomalies": [
+      {
+        "symbol": "600825",
+        "name": "新华传媒",
+        "rule_id": 1,
+        "rule_name": "主板连续10个交易日内4次出现同向异常波动",
+        "deviation_pct": 10.84,
+        "status_flag": 2,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "688175",
+        "name": "高凌信息",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 80.09,
+        "status_flag": 2,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "301560",
+        "name": "众捷股份",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 71.02,
+        "status_flag": 2,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "688137",
+        "name": "近岸蛋白",
+        "rule_id": 6,
+        "rule_name": "连续三十个交易日内日收盘价涨跌幅偏离值累计达到+200%",
+        "deviation_pct": 153.48,
+        "status_flag": 2,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "301190",
+        "name": "善水科技",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 102.08,
+        "status_flag": 1,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "600825",
+        "name": "新华传媒",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 117.06,
+        "status_flag": 1,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "688137",
+        "name": "近岸蛋白",
+        "rule_id": 6,
+        "rule_name": "连续三十个交易日内日收盘价涨跌幅偏离值累计达到+200%",
+        "deviation_pct": 179.38,
+        "status_flag": 0,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "688175",
+        "name": "高凌信息",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 87.61,
+        "status_flag": 0,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "301560",
+        "name": "众捷股份",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 75.81,
+        "status_flag": 0,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "688185",
+        "name": "康希诺",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 64.54,
+        "status_flag": 0,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      },
+      {
+        "symbol": "688265",
+        "name": "南模生物",
+        "rule_id": 4,
+        "rule_name": "连续十个交易日内日收盘价涨跌幅偏离值累计达到+100%",
+        "deviation_pct": 63.63,
+        "status_flag": 0,
+        "provenance_nature": "EASTMONEY_COMPUTED_RULE_MATCH"
+      }
+    ],
+    "ladder_tree": [
+      {
+        "height": 8,
+        "stocks_count": 1,
+        "stocks": [
+          {
+            "code": "600825",
+            "name": "新华传媒",
+            "security_id": "600825.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 8,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "09:25:00",
+            "last_limit_time": null,
+            "reason_type": "出版",
+            "order_amount_wan": null
+          }
+        ],
+        "is_space_leader": true
+      },
+      {
+        "height": 4,
+        "stocks_count": 2,
+        "stocks": [
+          {
+            "code": "002242",
+            "name": "九阳股份",
+            "security_id": "002242.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 4,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "09:25:00",
+            "last_limit_time": null,
+            "reason_type": "小家电",
+            "order_amount_wan": null
+          },
+          {
+            "code": "600241",
+            "name": "时代万恒",
+            "security_id": "600241.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 4,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "09:31:42",
+            "last_limit_time": null,
+            "reason_type": "电池",
+            "order_amount_wan": null
+          }
+        ],
+        "is_space_leader": false
+      },
+      {
+        "height": 3,
+        "stocks_count": 4,
+        "stocks": [
+          {
+            "code": "002058",
+            "name": "紫竹高科",
+            "security_id": "002058.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 3,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "09:25:00",
+            "last_limit_time": null,
+            "reason_type": "电池",
+            "order_amount_wan": null
+          },
+          {
+            "code": "605303",
+            "name": "园林股份",
+            "security_id": "605303.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 3,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "09:25:02",
+            "last_limit_time": null,
+            "reason_type": "基础建设",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002866",
+            "name": "传艺科技",
+            "security_id": "002866.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 3,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "09:35:06",
+            "last_limit_time": null,
+            "reason_type": "消费电子",
+            "order_amount_wan": null
+          },
+          {
+            "code": "603200",
+            "name": "上海洗霸",
+            "security_id": "603200.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 3,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "10:05:56",
+            "last_limit_time": null,
+            "reason_type": "环境治理",
+            "order_amount_wan": null
+          }
+        ],
+        "is_space_leader": false
+      },
+      {
+        "height": 2,
+        "stocks_count": 3,
+        "stocks": [
+          {
+            "code": "600663",
+            "name": "陆家嘴",
+            "security_id": "600663.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 2,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "09:30:22",
+            "last_limit_time": null,
+            "reason_type": "房地产开",
+            "order_amount_wan": null
+          },
+          {
+            "code": "603928",
+            "name": "兴业股份",
+            "security_id": "603928.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 2,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "09:36:27",
+            "last_limit_time": null,
+            "reason_type": "塑料",
+            "order_amount_wan": null
+          },
+          {
+            "code": "603906",
+            "name": "龙蟠科技",
+            "security_id": "603906.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 2,
+            "limit_up_type": "CONTINUED",
+            "first_limit_time": "13:13:09",
+            "last_limit_time": null,
+            "reason_type": "电池",
+            "order_amount_wan": null
+          }
+        ],
+        "is_space_leader": false
+      },
+      {
+        "height": 1,
+        "stocks_count": 33,
+        "stocks": [
+          {
+            "code": "600812",
+            "name": "华北制药",
+            "security_id": "600812.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:25:00",
+            "last_limit_time": null,
+            "reason_type": "化学制药",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002687",
+            "name": "乔治白",
+            "security_id": "002687.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:30:21",
+            "last_limit_time": null,
+            "reason_type": "服装家纺",
+            "order_amount_wan": null
+          },
+          {
+            "code": "600513",
+            "name": "联环药业",
+            "security_id": "600513.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:30:28",
+            "last_limit_time": null,
+            "reason_type": "化学制药",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002951",
+            "name": "金时科技",
+            "security_id": "002951.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:31:06",
+            "last_limit_time": null,
+            "reason_type": "其他电源",
+            "order_amount_wan": null
+          },
+          {
+            "code": "600026",
+            "name": "中远海能",
+            "security_id": "600026.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:31:29",
+            "last_limit_time": null,
+            "reason_type": "航运港口",
+            "order_amount_wan": null
+          },
+          {
+            "code": "600617",
+            "name": "国新能源",
+            "security_id": "600617.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:31:37",
+            "last_limit_time": null,
+            "reason_type": "燃气Ⅱ",
+            "order_amount_wan": null
+          },
+          {
+            "code": "300522",
+            "name": "世名科技",
+            "security_id": "300522.SZ",
+            "board_type": "GEM",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:33:51",
+            "last_limit_time": null,
+            "reason_type": "化学制品",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002733",
+            "name": "雄韬股份",
+            "security_id": "002733.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:34:03",
+            "last_limit_time": null,
+            "reason_type": "电池",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002774",
+            "name": "快意电梯",
+            "security_id": "002774.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:35:48",
+            "last_limit_time": null,
+            "reason_type": "专用设备",
+            "order_amount_wan": null
+          },
+          {
+            "code": "603863",
+            "name": "松炀资源",
+            "security_id": "603863.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:37:05",
+            "last_limit_time": null,
+            "reason_type": "造纸",
+            "order_amount_wan": null
+          },
+          {
+            "code": "301697",
+            "name": "贝特利",
+            "security_id": "301697.SZ",
+            "board_type": "GEM",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:38:15",
+            "last_limit_time": null,
+            "reason_type": "光伏设备",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002565",
+            "name": "顺灏股份",
+            "security_id": "002565.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:40:24",
+            "last_limit_time": null,
+            "reason_type": "包装印刷",
+            "order_amount_wan": null
+          },
+          {
+            "code": "603137",
+            "name": "恒尚节能",
+            "security_id": "603137.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:40:45",
+            "last_limit_time": null,
+            "reason_type": "装修装饰",
+            "order_amount_wan": null
+          },
+          {
+            "code": "605378",
+            "name": "野马电池",
+            "security_id": "605378.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:41:15",
+            "last_limit_time": null,
+            "reason_type": "电池",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002805",
+            "name": "丰元股份",
+            "security_id": "002805.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:41:18",
+            "last_limit_time": null,
+            "reason_type": "电池",
+            "order_amount_wan": null
+          },
+          {
+            "code": "605298",
+            "name": "必得科技",
+            "security_id": "605298.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:43:33",
+            "last_limit_time": null,
+            "reason_type": "轨交设备",
+            "order_amount_wan": null
+          },
+          {
+            "code": "601975",
+            "name": "招商南油",
+            "security_id": "601975.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:44:01",
+            "last_limit_time": null,
+            "reason_type": "航运港口",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002869",
+            "name": "金溢科技",
+            "security_id": "002869.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:44:57",
+            "last_limit_time": null,
+            "reason_type": "计算机设",
+            "order_amount_wan": null
+          },
+          {
+            "code": "001300",
+            "name": "三柏硕",
+            "security_id": "001300.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:45:30",
+            "last_limit_time": null,
+            "reason_type": "文娱用品",
+            "order_amount_wan": null
+          },
+          {
+            "code": "600408",
+            "name": "安泰集团",
+            "security_id": "600408.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:46:07",
+            "last_limit_time": null,
+            "reason_type": "焦炭Ⅱ",
+            "order_amount_wan": null
+          },
+          {
+            "code": "600722",
+            "name": "金牛化工",
+            "security_id": "600722.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:46:29",
+            "last_limit_time": null,
+            "reason_type": "化学原料",
+            "order_amount_wan": null
+          },
+          {
+            "code": "601956",
+            "name": "东贝集团",
+            "security_id": "601956.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:49:37",
+            "last_limit_time": null,
+            "reason_type": "家电零部",
+            "order_amount_wan": null
+          },
+          {
+            "code": "603073",
+            "name": "彩蝶实业",
+            "security_id": "603073.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "09:59:02",
+            "last_limit_time": null,
+            "reason_type": "化学纤维",
+            "order_amount_wan": null
+          },
+          {
+            "code": "001336",
+            "name": "楚环科技",
+            "security_id": "001336.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "10:00:36",
+            "last_limit_time": null,
+            "reason_type": "环保设备",
+            "order_amount_wan": null
+          },
+          {
+            "code": "920627",
+            "name": "力王股份",
+            "security_id": "920627.BJ",
+            "board_type": "BSE",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "10:06:44",
+            "last_limit_time": null,
+            "reason_type": "电池",
+            "order_amount_wan": null
+          },
+          {
+            "code": "600310",
+            "name": "广西能源",
+            "security_id": "600310.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "10:17:31",
+            "last_limit_time": null,
+            "reason_type": "电力",
+            "order_amount_wan": null
+          },
+          {
+            "code": "600400",
+            "name": "红豆股份",
+            "security_id": "600400.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "10:38:39",
+            "last_limit_time": null,
+            "reason_type": "服装家纺",
+            "order_amount_wan": null
+          },
+          {
+            "code": "000869",
+            "name": "张  裕Ａ",
+            "security_id": "000869.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "10:43:00",
+            "last_limit_time": null,
+            "reason_type": "非白酒",
+            "order_amount_wan": null
+          },
+          {
+            "code": "300530",
+            "name": "领湃科技",
+            "security_id": "300530.SZ",
+            "board_type": "GEM",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "11:00:15",
+            "last_limit_time": null,
+            "reason_type": "电池",
+            "order_amount_wan": null
+          },
+          {
+            "code": "688196",
+            "name": "卓越新能",
+            "security_id": "688196.SH",
+            "board_type": "STAR",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "11:00:46",
+            "last_limit_time": null,
+            "reason_type": "化学制品",
+            "order_amount_wan": null
+          },
+          {
+            "code": "603788",
+            "name": "宁波高发",
+            "security_id": "603788.SH",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "13:04:32",
+            "last_limit_time": null,
+            "reason_type": "汽车零部",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002702",
+            "name": "海欣食品",
+            "security_id": "002702.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "13:31:06",
+            "last_limit_time": null,
+            "reason_type": "食品加工",
+            "order_amount_wan": null
+          },
+          {
+            "code": "002490",
+            "name": "山东墨龙",
+            "security_id": "002490.SZ",
+            "board_type": "MAIN",
+            "continuous_board_count": 1,
+            "limit_up_type": "FIRST_LIMIT",
+            "first_limit_time": "14:27:30",
+            "last_limit_time": null,
+            "reason_type": "专用设备",
+            "order_amount_wan": null
+          }
+        ],
+        "is_space_leader": false
+      }
+    ],
+    "cross_section_breadth_status": "UNAVAILABLE",
+    "cross_section_breadth_detail": {
+      "message": "东财上游 push2 全市场广度接口通信故障 (HTTP 502)",
+      "heuristic_warning": "横截面缺失，但微观涨停池 (43:13) 与炸板率 (42.67%) 显示盘面处于极高分歧期"
+    },
+    "provenance": {
+      "source": "INTERNAL_CANONICAL_AGGREGATE",
+      "observed_time": "2026-10-08T15:05:00.000+08:00",
+      "quality": "FULL",
+      "is_degraded": false,
+      "degradation_reason": null
+    },
+    "truth_fingerprint": "7556ed6e558cb978e58634196f38f997e864e6e54240a6f400eed3ddf3cac348"
+  },
+  "cognition": {
+    "schema_version": "2D.0-COGNITION-V1",
+    "producer": "COGNITION_ELIGIBILITY_ENGINE",
+    "trade_date": "2026-10-08",
+    "generated_at": "2026-10-08T15:05:00.000+08:00",
+    "mainlines": [
+      {
+        "rank": 1,
+        "sector_code": "BK0683",
+        "sector_name": "央国企改革",
+        "semantic_type": "CONCEPT",
+        "constituency": {
+          "leader_code": "600825",
+          "leader_name": "新华传媒",
+          "leader_security_id": "600825.SH",
+          "leader_height": 8,
+          "limit_up_count": 12,
+          "ladder_distribution": {
+            "1B": 9,
+            "8B": 1,
+            "2B": 1,
+            "4B": 1
+          },
+          "first_board_diffusion_count": 9,
+          "constituent_symbols": [
+            "华北制药",
+            "新华传媒",
+            "陆家嘴",
+            "联环药业",
+            "中远海能",
+            "国新能源",
+            "时代万恒",
+            "招商南油",
+            "金牛化工",
+            "广西能源",
+            "领湃科技",
+            "山东墨龙"
+          ]
+        },
+        "supporting_evidence": [
+          "最高连板标杆引领: 新华传媒 (8B)",
+          "板块内涨停共振 12 家，覆盖高度阶梯 4 层",
+          "具有底层首板横向扩散动能 (9 只首板)"
+        ],
+        "counter_evidence": [
+          "龙头 新华传媒 触发严重异常波动商业规则撮合，面临特停降温风险",
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 新华传媒 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "新华传媒",
+            "新华传媒"
+          ]
+        },
+        "structural_role": "CORE_MAINLINE",
+        "thematic_tier": "TIER_1_CORE",
+        "is_thematic_frontier": false,
+        "shared_evidence_affiliates": [
+          {
+            "target_sector_name": "电力设备",
+            "target_sector_code": "BK1200",
+            "overlap_stocks_count": 2,
+            "shared_evidence_ratio": 0.2222,
+            "relationship": "PARENT_INDUSTRY",
+            "audit_note": "与【电力设备】共享 2 只涨停标的 (重叠度 22.2%)，属于同源资金簇，防止证据双重计入"
+          },
+          {
+            "target_sector_name": "储能概念",
+            "target_sector_code": "BK0989",
+            "overlap_stocks_count": 2,
+            "shared_evidence_ratio": 0.2857,
+            "relationship": "CO_DRIVER_AFFILIATE",
+            "audit_note": "与【储能概念】共享 2 只涨停标的 (重叠度 28.6%)，属于同源资金簇，防止证据双重计入"
+          }
+        ],
+        "conviction_summary": "形成 8B 梯队引领，跨越 4 个梯队深度，成分涨停共振 12 家，确立市场核心主线。",
+        "market_narrative": "央国企改革 (全市场空间高度标杆)",
+        "static_taxonomy_name": "央国企改革 (BK0683)",
+        "subtheme_catalysts": []
+      },
+      {
+        "rank": 2,
+        "sector_code": "BK1200",
+        "sector_name": "电力设备",
+        "semantic_type": "INDUSTRY",
+        "constituency": {
+          "leader_code": "600241",
+          "leader_name": "时代万恒",
+          "leader_security_id": "600241.SH",
+          "leader_height": 4,
+          "limit_up_count": 9,
+          "ladder_distribution": {
+            "3B": 1,
+            "1B": 6,
+            "4B": 1,
+            "2B": 1
+          },
+          "first_board_diffusion_count": 6,
+          "constituent_symbols": [
+            "紫竹高科",
+            "金时科技",
+            "时代万恒",
+            "雄韬股份",
+            "贝特利",
+            "野马电池",
+            "丰元股份",
+            "领湃科技",
+            "龙蟠科技"
+          ]
+        },
+        "supporting_evidence": [
+          "【交易叙事穿透】9只涨停标的全部属于锂电/正负极/电解质/设备产业链，底层行业容器为电力设备，主线实盘定性为【电池 / 锂电池产业链】 (4B 时代万恒引领)",
+          "最高连板标杆引领: 时代万恒 (4B)",
+          "板块内涨停共振 9 家，覆盖高度阶梯 4 层",
+          "具有底层首板横向扩散动能 (6 只首板)"
+        ],
+        "counter_evidence": [
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 时代万恒 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "时代万恒",
+            "金时科技"
+          ]
+        },
+        "structural_role": "CORE_MAINLINE",
+        "thematic_tier": "TIER_1_CORE",
+        "is_thematic_frontier": false,
+        "shared_evidence_affiliates": [
+          {
+            "target_sector_name": "央国企改革",
+            "target_sector_code": "BK0683",
+            "overlap_stocks_count": 2,
+            "shared_evidence_ratio": 0.2222,
+            "relationship": "CO_DRIVER_AFFILIATE",
+            "audit_note": "与【央国企改革】共享 2 只涨停标的 (重叠度 22.2%)，属于同源资金簇，防止证据双重计入"
+          },
+          {
+            "target_sector_name": "固态电池",
+            "target_sector_code": "BK0968",
+            "overlap_stocks_count": 3,
+            "shared_evidence_ratio": 0.6,
+            "relationship": "SUBTHEME_CATALYST",
+            "audit_note": "与【固态电池】共享 3 只涨停标的 (重叠度 60.0%)，属于同源资金簇，防止证据双重计入"
+          },
+          {
+            "target_sector_name": "储能概念",
+            "target_sector_code": "BK0989",
+            "overlap_stocks_count": 4,
+            "shared_evidence_ratio": 0.5714,
+            "relationship": "CO_DRIVER_AFFILIATE",
+            "audit_note": "与【储能概念】共享 4 只涨停标的 (重叠度 57.1%)，属于同源资金簇，防止证据双重计入"
+          }
+        ],
+        "conviction_summary": "形成 4B 梯队引领，跨越 4 个梯队深度，成分涨停共振 9 家，确立市场核心主线。",
+        "market_narrative": "电池 / 锂电池产业链",
+        "static_taxonomy_name": "电力设备 (BK1200)",
+        "subtheme_catalysts": [
+          {
+            "sector_name": "固态电池",
+            "sector_code": "BK0968",
+            "catalyst_leader": "传艺科技",
+            "catalyst_height": 3,
+            "stocks_count": 5,
+            "thematic_role": "FRONTIER_TECH_CATALYST",
+            "overlap_ratio_with_master": 0.6
+          }
+        ]
+      },
+      {
+        "rank": 3,
+        "sector_code": "BK0968",
+        "sector_name": "固态电池",
+        "semantic_type": "CONCEPT",
+        "constituency": {
+          "leader_code": "603200",
+          "leader_name": "上海洗霸",
+          "leader_security_id": "603200.SH",
+          "leader_height": 3,
+          "limit_up_count": 5,
+          "ladder_distribution": {
+            "1B": 2,
+            "3B": 2,
+            "2B": 1
+          },
+          "first_board_diffusion_count": 2,
+          "constituent_symbols": [
+            "雄韬股份",
+            "传艺科技",
+            "丰元股份",
+            "上海洗霸",
+            "龙蟠科技"
+          ]
+        },
+        "supporting_evidence": [
+          "最高连板标杆引领: 上海洗霸 (3B)",
+          "板块内涨停共振 5 家，覆盖高度阶梯 3 层",
+          "具有底层首板横向扩散动能 (2 只首板)",
+          "具备高辨识度科技前沿催化剂属性 (细分题材辨识度保护)"
+        ],
+        "counter_evidence": [
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 上海洗霸 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "上海洗霸",
+            "传艺科技"
+          ]
+        },
+        "structural_role": "CORE_MAINLINE",
+        "thematic_tier": "TIER_1_CORE",
+        "is_thematic_frontier": true,
+        "shared_evidence_affiliates": [
+          {
+            "target_sector_name": "电力设备",
+            "target_sector_code": "BK1200",
+            "overlap_stocks_count": 3,
+            "shared_evidence_ratio": 0.6,
+            "relationship": "PARENT_INDUSTRY",
+            "audit_note": "与【电力设备】共享 3 只涨停标的 (重叠度 60.0%)，属于同源资金簇，防止证据双重计入"
+          },
+          {
+            "target_sector_name": "储能概念",
+            "target_sector_code": "BK0989",
+            "overlap_stocks_count": 3,
+            "shared_evidence_ratio": 0.6,
+            "relationship": "CO_DRIVER_AFFILIATE",
+            "audit_note": "与【储能概念】共享 3 只涨停标的 (重叠度 60.0%)，属于同源资金簇，防止证据双重计入"
+          }
+        ],
+        "conviction_summary": "形成 3B 梯队引领，跨越 3 个梯队深度，成分涨停共振 5 家，确立市场核心主线。",
+        "market_narrative": "固态电池 (前沿技术催化)",
+        "static_taxonomy_name": "固态电池 (BK0968)",
+        "subtheme_catalysts": []
+      },
+      {
+        "rank": 4,
+        "sector_code": "BK0989",
+        "sector_name": "储能概念",
+        "semantic_type": "CONCEPT",
+        "constituency": {
+          "leader_code": "002866",
+          "leader_name": "传艺科技",
+          "leader_security_id": "002866.SZ",
+          "leader_height": 3,
+          "limit_up_count": 7,
+          "ladder_distribution": {
+            "1B": 5,
+            "3B": 1,
+            "2B": 1
+          },
+          "first_board_diffusion_count": 5,
+          "constituent_symbols": [
+            "金时科技",
+            "世名科技",
+            "雄韬股份",
+            "传艺科技",
+            "广西能源",
+            "领湃科技",
+            "龙蟠科技"
+          ]
+        },
+        "supporting_evidence": [
+          "最高连板标杆引领: 传艺科技 (3B)",
+          "板块内涨停共振 7 家，覆盖高度阶梯 3 层",
+          "具有底层首板横向扩散动能 (5 只首板)"
+        ],
+        "counter_evidence": [
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 传艺科技 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "传艺科技",
+            "世名科技"
+          ]
+        },
+        "structural_role": "CORE_MAINLINE",
+        "thematic_tier": "TIER_1_CORE",
+        "is_thematic_frontier": false,
+        "shared_evidence_affiliates": [
+          {
+            "target_sector_name": "央国企改革",
+            "target_sector_code": "BK0683",
+            "overlap_stocks_count": 2,
+            "shared_evidence_ratio": 0.2857,
+            "relationship": "CO_DRIVER_AFFILIATE",
+            "audit_note": "与【央国企改革】共享 2 只涨停标的 (重叠度 28.6%)，属于同源资金簇，防止证据双重计入"
+          },
+          {
+            "target_sector_name": "电力设备",
+            "target_sector_code": "BK1200",
+            "overlap_stocks_count": 4,
+            "shared_evidence_ratio": 0.5714,
+            "relationship": "PARENT_INDUSTRY",
+            "audit_note": "与【电力设备】共享 4 只涨停标的 (重叠度 57.1%)，属于同源资金簇，防止证据双重计入"
+          },
+          {
+            "target_sector_name": "固态电池",
+            "target_sector_code": "BK0968",
+            "overlap_stocks_count": 3,
+            "shared_evidence_ratio": 0.6,
+            "relationship": "SUBTHEME_CATALYST",
+            "audit_note": "与【固态电池】共享 3 只涨停标的 (重叠度 60.0%)，属于同源资金簇，防止证据双重计入"
+          }
+        ],
+        "conviction_summary": "形成 3B 梯队引领，跨越 3 个梯队深度，成分涨停共振 7 家，确立市场核心主线。",
+        "market_narrative": "储能 (锂电协同衍生应用)",
+        "static_taxonomy_name": "储能概念 (BK0989)",
+        "subtheme_catalysts": []
+      },
+      {
+        "rank": 5,
+        "sector_code": "BK0456",
+        "sector_name": "家用电器",
+        "semantic_type": "CONCEPT",
+        "constituency": {
+          "leader_code": "002242",
+          "leader_name": "九阳股份",
+          "leader_security_id": "002242.SZ",
+          "leader_height": 4,
+          "limit_up_count": 2,
+          "ladder_distribution": {
+            "4B": 1,
+            "1B": 1
+          },
+          "first_board_diffusion_count": 1,
+          "constituent_symbols": [
+            "九阳股份",
+            "东贝集团"
+          ]
+        },
+        "supporting_evidence": [
+          "最高连板标杆引领: 九阳股份 (4B)",
+          "板块内涨停共振 2 家，覆盖高度阶梯 2 层"
+        ],
+        "counter_evidence": [
+          "全市场炸板率高达 42.67%，板块跟风标的面临大幅冲高回落大面风险",
+          "【中军断层警告】板块内仅 2 只涨停，缺乏群体合力，属于孤立高标博弈"
+        ],
+        "falsification_condition": {
+          "invalidation_rules": [
+            "核心标杆 九阳股份 次日竞价大幅低开或开盘破位",
+            "板块内首板晋级率全部归零且无新增首板承接",
+            "板块内炸板率超过 50% 出现群体踩踏"
+          ],
+          "critical_observation_symbols": [
+            "九阳股份",
+            "东贝集团"
+          ]
+        },
+        "structural_role": "WEAK_ROTATION_OR_ISOLATED",
+        "thematic_tier": "TIER_3_WEAK_OR_ISOLATED",
+        "is_thematic_frontier": false,
+        "shared_evidence_affiliates": [],
+        "conviction_summary": "仅有孤立高标 (九阳股份 4B) 与零星跟风 (共2只)，中军严重断层，属于典型的孤立高标弱轮动，严禁列入核心做多主线。",
+        "market_narrative": "家用电器 (孤立高标弱轮动)",
+        "static_taxonomy_name": "家用电器 (BK0456)",
+        "subtheme_catalysts": []
+      }
+    ],
+    "lineage_accounting": {
+      "total_raw_evaluated": 287,
+      "admission_rejected_count": 36,
+      "admission_admitted_count": 251,
+      "excluded_meta_tags_count": 30,
+      "excluded_regions_count": 8,
+      "solitary_leader_noise_count": 32,
+      "pulse_noise_count": 147,
+      "deduplicated_clusters_count": 14,
+      "eligible_candidates_count": 20,
+      "top_mainlines_count": 5,
+      "folded_eligible_remainder_count": 15,
+      "is_mathematically_closed": true,
+      "lineage_formula": "287 Raw = 36 Rejected + 251 Admitted; 251 Admitted = 30 MetaTags + 8 Regions + 32 SolitaryLeader + 147 PulseNoise + 14 Deduplicated + 20 Eligible; 20 Eligible = 5 TopMainlines + 15 FoldedRemainder"
+    },
+    "market_state_summary": "指数高位剧烈分化 (科创50重挫-4.82%)，两市真实成交额维持 1.68 万亿高位；短线极端博弈 (最高8B新华传媒/连板10家)，但炸板率高达 42.67% 且跌停13家，做多主线聚焦于【央国企改革】与【新能源电池链】，跟风标的面临时冲高回落大面风险。",
+    "provisional_disclaimer": "PROVISIONAL / 实验性认知绑定：L3 认知推断仅供交易员复盘交叉核验，非确定性物理事实",
+    "provenance": {
+      "source": "COGNITION_ELIGIBILITY_ENGINE",
+      "observed_time": "2026-10-08T15:05:00.000+08:00",
+      "quality": "FULL",
+      "is_degraded": false,
+      "degradation_reason": null
+    },
+    "cognition_fingerprint": "91251707fb8440603369084b6ec3e293facf70ab9372f70f7f5ceb344a3fd85d"
+  },
+  "envelope_fingerprint": "0bda52992c73f5a9c47eb7e03850748d850fa8b2f7f185735dd758e418ae43b4"
+}
