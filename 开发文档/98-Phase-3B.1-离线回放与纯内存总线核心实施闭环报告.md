@@ -78,12 +78,21 @@
 本次验收执行了跨 Phase 2D、Phase 2E、Phase 3A（含勘误）及 Phase 3B.1 的全量回归测试：
 - **涉及测试文件**：16 套测试套件
 - **门禁总数**：**141 / 141 项全部通过 (100% 绿灯)**
-- **总耗时**：`14.60s`
+- **总耗时**：`13.08s`
 - **前端类型编译**：`cd frontend; npm exec tsc -- --noEmit` -> 退出码 0，耗时 2.0s，0 错误、0 警告。
 
 ---
 
-## 三、 证据链与物理哈希归档索引
+## 三、 四权分立独立特使审核裁决大盘
+
+| 治理机构 | 裁决性质 | 核心审查范围 | 终审结论 | 关键案卷 / 哈希 |
+| :--- | :--- | :--- | :--- | :--- |
+| **质量闸门特使**<br>(`quality_gatekeeper`) | 终审仲裁 | 对照“9 大工程铁律”全项合规审查；核对 Commit 基线、NAS 灾备一致性、数据库物理只读与无死代码。 | **APPROVED<br>(全票放行)** | `quality_gate_verdict_phase3b1.md`<br>（准予结项封存） |
+| **独立红队特使**<br>(`red_team_tester`) | 对抗穿透 | 执行 8 大破坏性对抗攻击：<br>1. 双重签名破损与 HMAC 篡改雪崩攻击 (55.08% 比特翻转率，100% 阻断)<br>2. 去重键非法字符注入与 DLQ 隔离 (5 组注入模式 100% 拦截)<br>3. RingBuffer 极端满载与 CRITICAL 保护 (1,350 条满载，150 条 CRITICAL 100% 保留)<br>4. 乱序到达与超龄滞后精准打标 (`is_out_of_order=True`, `is_stale=True`)<br>5. Merkle 哈希链日志篡改毫秒级捕获 (`line_hash mismatch`)<br>6. 20 线程 200 次并发风暴与 180s 冷却幂等抑制 (1 次 ACTIVE, 199 次 COOLDOWN)<br>7. DLQ 毒丸隔离与快照重启无损恢复 (20 条快照 100% 恢复)<br>8. SQLite 物理数据库零业务写入 (32 张表，Mutations = 0) | **PASS<br>(全面通过)** | `RED_TEAM_PHASE_3B1_INDEPENDENT_AUDIT_REPORT.md`<br>破坏凭证 SHA-256:<br>`a08f933559120db711eebefd83d54851cddda4cf0c4ab0414f1d520dd418c7e9` |
+
+---
+
+## 四、 证据链与物理哈希归档索引
 
 | 证据项 | 物理存储路径 | 核心特征 / 哈希 |
 | :--- | :--- | :--- |
@@ -92,18 +101,22 @@
 | **Phase 3B 技术设计单** | `开发文档/97-Phase-3B-盘中多源告警通知总线与受控防御编排技术设计单.md` | *(DOC-98 基线，含红队 4 项加固准则)* |
 | **Phase 3B.1 闭环报告** | `开发文档/98-Phase-3B.1-离线回放与纯内存总线核心实施闭环报告.md` | *(DOC-99 闭环报告)* |
 | **Phase 3B.1 门禁测试套件** | `backend/tests/test_phase3b1_alert_bus_gates.py` | *(8/8 门禁全绿通过)* |
+| **Phase 3B.1 自动化验证脚本** | `backend/scripts/audit_phase3b1_alert_bus_verification.py` | *(7 大场景直穿物理数据库端到端验证)* |
+| **Phase 3B.1 官方基线证据包** | `baseline_evidence/audit_phase3b1_alert_bus_evidence.json` | `8c165a86eb05c0a02ba5d642a905a6ac2918f8e67886e616b7c281f6138198e3` |
+| **Phase 3B.1 红队对抗凭证包** | `scratch/red_team_phase3b1_adversarial_evidence.json` | `a08f933559120db711eebefd83d54851cddda4cf0c4ab0414f1d520dd418c7e9` |
 
 ---
 
-## 四、 最高董事会呈请与后续工作建议
+## 五、 最高董事会呈请与后续工作建议
 
 1. **核准 Phase 3B.1 结项归档**：
-   确认 Phase 3B.1 纯内存总线核心、回放验证、哈希链审计与 8 大门禁全部达标；
+   确认 Phase 3B.1 纯内存总线核心、回放验证、哈希链审计与 8 大门禁全部达标，质量闸门全票 APPROVED，独立红队全项 PASS；
 2. **生产环境全量放行纪律**：
    继续严格维持 **【生产全量放行 HOLD / FROZEN】** 红线。本阶段成果纯粹为纯内存总线核心与离线回放，系统仍严禁直接下发交易买卖指令，亦未启用任何外部网络通知通道；
 3. **Phase 3B.2 启动请示**：
-   请求最高董事会在独立红队与质量闸门完成 Phase 3B.1 复核后，审议签发 **【Phase 3B.2：安全分发通道与只读 WebSocket 集成】** 准入令。
+   请求最高董事会正式签发 **【Phase 3B.2：安全分发通道与只读 WebSocket 集成】** 准入令，进入受控分发与通道集成阶段。
 
 ---
 *呈报人：研发中枢特使 (Main Dev / Planner)*  
 *呈报日期：2026-10-09*
+
