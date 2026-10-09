@@ -17,6 +17,7 @@ Phase 2D.3-B: Briefing Safety Guard Service
 import re
 from datetime import datetime
 from typing import List, Dict, Optional, Set, Any
+from decimal import Decimal, ROUND_HALF_UP
 
 from backend.app.schemas.narrative_context import NarrativeContextContract
 from backend.app.schemas.tactical_briefing import (
@@ -25,6 +26,22 @@ from backend.app.schemas.tactical_briefing import (
 )
 from backend.app.schemas.canonical_market import CanonicalSecurityIdentity
 from backend.app.services.canonical_market_service import CanonicalSecurityMasterRegistry
+
+
+def canonical_round_decimal(val: float | int | str | Decimal, precision: int = 2) -> Decimal:
+    """
+    确定性四舍五入算法 (ROUND_HALF_UP, 严格规避 Python float banker's rounding ties-to-even 漂移)
+    """
+    if isinstance(val, (float, int)):
+        val_str = f"{val:.8f}".rstrip("0").rstrip(".") if isinstance(val, float) else str(val)
+        d = Decimal(val_str)
+    elif isinstance(val, Decimal):
+        d = val
+    else:
+        d = Decimal(str(val).strip())
+    target = Decimal("10") ** (-precision) if precision > 0 else Decimal("1")
+    return d.quantize(target, rounding=ROUND_HALF_UP)
+
 
 
 # 绝对禁止出现的 L5 交易指令与主观操作引导词汇 (含显式指令、隐蔽式变相诱导与行为劝诫指令)
@@ -157,14 +174,14 @@ class BriefingSafetyGuard:
         )
 
     # -------------------------------------------------------------------------
-    # 审查项 1: 数字保真度审查 (Numerical Fidelity - Canonical Value Matching)
+    # 审查项 1: 数字保真度审查 (Numerical Fidelity - Decimal Canonical Matching)
     # -------------------------------------------------------------------------
     def _check_numerical_fidelity(
         self, text: str, context: NarrativeContextContract
     ) -> List[str]:
         violations: List[str] = []
 
-        # 1.1 总成交额规范化解析与字段级精确匹配 (P0-2 & P0-4 Canonical Value Matching)
+        # 1.1 总成交额规范化解析与字段级精确匹配 (Decimal Canonical Matching)
         turnover_patterns = [
             r'(?:两市|沪深两市)?(?:真实)?(?:总成交额|总成交|成交额|成交金额)[^，。；\n]{0,10}?([0-9]+(?:\.[0-9]+)?)\s*(万亿元|万亿|亿元|亿)',
             r'([0-9]+(?:\.[0-9]+)?)\s*(万亿元|万亿|亿元|亿)[^，。；\n]{0,10}?(?:的总成交|成交额)',
@@ -173,85 +190,155 @@ class BriefingSafetyGuard:
         for pat in turnover_patterns:
             matches = re.finditer(pat, text)
             for m in matches:
+                # 排除沪市/深市前缀防止误匹配
+                start_idx = max(0, m.start() - 6)
+                prefix_context = text[start_idx:m.start()]
+                if "沪市" in prefix_context or "深市" in prefix_context:
+                    continue
+
                 raw_num_str = m.group(1)
-                raw_num = float(raw_num_str)
                 unit = m.group(2)
-
-                # 单位归一化换算为 亿元
-                if "万亿" in unit:
-                    norm_val = raw_num * 10000.0
-                else:
-                    norm_val = raw_num
-
-                abs_diff = abs(norm_val - true_turnover)
                 is_valid = False
 
-                if abs_diff <= 0.01:
-                    is_valid = True
-                elif "万亿" in unit:
-                    # 对于万亿单位，若有效四舍五入到4位小数 (如 1.6821万亿 = 16821.0亿，偏差0.09亿 <= 0.5亿)
-                    if abs(norm_val - round(true_turnover, 0)) <= 0.5:
+                if "万亿" in unit:
+                    norm_val = Decimal(raw_num_str) * Decimal('10000')
+                    true_dec = canonical_round_decimal(true_turnover, 2)
+                    abs_diff = abs(norm_val - true_dec)
+                    # 对于万亿单位，必须具有足够精度 (有效误差 <= 0.5 亿元)
+                    if abs_diff <= Decimal('0.5'):
                         is_valid = True
+                    diff_report = f"{abs_diff}亿"
                 else:
-                    # 对于亿单位
-                    if "." in raw_num_str:
-                        dec_places = len(raw_num_str.split(".")[1])
-                        if dec_places == 1:
-                            if abs(norm_val - round(true_turnover, 1)) <= 0.01:
-                                is_valid = True
-                        elif dec_places == 2:
-                            if abs_diff <= 0.01:
-                                is_valid = True
-                    else:
-                        # 纯整数
-                        if abs(norm_val - round(true_turnover, 0)) <= 0.01:
-                            is_valid = True
+                    raw_dec = Decimal(raw_num_str)
+                    dec_places = len(raw_num_str.split(".")[1]) if "." in raw_num_str else 0
+                    expected_dec = canonical_round_decimal(true_turnover, dec_places)
+                    abs_diff = abs(raw_dec - expected_dec)
+                    if raw_dec == expected_dec:
+                        is_valid = True
+                    diff_report = f"{abs_diff}亿"
 
                 if not is_valid:
                     violations.append(
-                        f"NumericalFidelityViolation: Total turnover '{raw_num_str} {unit}' (normalized: {norm_val:.2f}亿) "
+                        f"NumericalFidelityViolation: Total turnover '{raw_num_str} {unit}' (normalized: {norm_val if '万亿' in unit else raw_dec:.2f}亿) "
                         f"diverges from true fact '{true_turnover:.2f}亿' "
-                        f"(violates canonical value matching, divergence: {abs_diff:.2f}亿 beyond canonical rounding boundary)"
+                        f"(violates canonical value matching, divergence: {diff_report} beyond canonical rounding boundary)"
                     )
 
-        # 1.2 炸板率规范化解析与字段级精确匹配 (P0-2 & P0-4 Canonical Value Matching)
+        # 1.2 沪深两市分市场成交额规范化解析 (Decimal Canonical Matching)
+        sh_patterns = [
+            r'沪市\s*(?:成交额|成交金额|成交|为|达)?\s*([0-9]+(?:\.[0-9]+)?)\s*(万亿元|万亿|亿元|亿)',
+        ]
+        true_sh = context.fact_layer.turnover.sh_amount_yi  # 8111.83
+        for pat in sh_patterns:
+            for m in re.finditer(pat, text):
+                raw_num_str = m.group(1)
+                unit = m.group(2)
+                is_valid = False
+                if "万亿" in unit:
+                    norm_val = Decimal(raw_num_str) * Decimal('10000')
+                    true_dec = canonical_round_decimal(true_sh, 2)
+                    if abs(norm_val - true_dec) <= Decimal('0.5'):
+                        is_valid = True
+                else:
+                    raw_dec = Decimal(raw_num_str)
+                    dec_places = len(raw_num_str.split(".")[1]) if "." in raw_num_str else 0
+                    expected_dec = canonical_round_decimal(true_sh, dec_places)
+                    if raw_dec == expected_dec:
+                        is_valid = True
+                if not is_valid:
+                    violations.append(
+                        f"NumericalFidelityViolation: SH turnover '{raw_num_str} {unit}' "
+                        f"diverges from true fact '{true_sh:.2f}亿'"
+                    )
+
+        sz_patterns = [
+            r'深市(?:含创业板)?\s*(?:成交额|成交金额|成交|为|达)?\s*([0-9]+(?:\.[0-9]+)?)\s*(万亿元|万亿|亿元|亿)',
+        ]
+        true_sz = context.fact_layer.turnover.sz_total_amount_yi  # 8709.26
+        for pat in sz_patterns:
+            for m in re.finditer(pat, text):
+                raw_num_str = m.group(1)
+                unit = m.group(2)
+                is_valid = False
+                if "万亿" in unit:
+                    norm_val = Decimal(raw_num_str) * Decimal('10000')
+                    true_dec = canonical_round_decimal(true_sz, 2)
+                    if abs(norm_val - true_dec) <= Decimal('0.5'):
+                        is_valid = True
+                else:
+                    raw_dec = Decimal(raw_num_str)
+                    dec_places = len(raw_num_str.split(".")[1]) if "." in raw_num_str else 0
+                    expected_dec = canonical_round_decimal(true_sz, dec_places)
+                    if raw_dec == expected_dec:
+                        is_valid = True
+                if not is_valid:
+                    violations.append(
+                        f"NumericalFidelityViolation: SZ turnover '{raw_num_str} {unit}' "
+                        f"diverges from true fact '{true_sz:.2f}亿'"
+                    )
+
+        # 1.3 炸板率规范化解析与字段级精确匹配 (ROUND_HALF_UP Canonical Matching)
         broken_patterns = [
             r'(?:真实)?炸板率[^，。；\n]{0,10}?([0-9]+(?:\.[0-9]+)?)\s*%',
             r'([0-9]+(?:\.[0-9]+)?)\s*%[^，。；\n]{0,10}?(?:真实)?炸板率',
         ]
         true_broken_pct = context.derived_layer.broken_limit_ratio * 100  # 42.67
         for pat in broken_patterns:
-            matches = re.finditer(pat, text)
-            for m in matches:
+            for m in re.finditer(pat, text):
                 raw_pct_str = m.group(1)
-                val = float(raw_pct_str)
-                is_valid = False
-                abs_diff = abs(val - true_broken_pct)
-                if abs_diff <= 0.01:
-                    is_valid = True
-                elif "." in raw_pct_str:
-                    dec_places = len(raw_pct_str.split(".")[1])
-                    if dec_places == 1 and abs(val - round(true_broken_pct, 1)) <= 0.01:
-                        is_valid = True
-                else:
-                    if abs(val - round(true_broken_pct, 0)) <= 0.01:
-                        is_valid = True
-
-                if not is_valid:
+                raw_dec = Decimal(raw_pct_str)
+                dec_places = len(raw_pct_str.split(".")[1]) if "." in raw_pct_str else 0
+                expected_dec = canonical_round_decimal(true_broken_pct, dec_places)
+                if raw_dec != expected_dec:
                     violations.append(
                         f"NumericalFidelityViolation: Broken limit ratio '{raw_pct_str}%' diverges from derived fact "
                         f"'{true_broken_pct:.2f}%' (violates canonical value matching)"
                     )
 
-        # 1.3 空间最高板高度强离散校验 (精确等于整数)
+        # 1.4 极值亏损率规范化解析 (ROUND_HALF_UP Canonical Matching)
+        loss_patterns = [
+            r'极值亏损率[^，。；\n]{0,10}?([0-9]+(?:\.[0-9]+)?)\s*%',
+            r'([0-9]+(?:\.[0-9]+)?)\s*%[^，。；\n]{0,10}?极值亏损率',
+        ]
+        true_loss_pct = context.derived_layer.extreme_loss_ratio * 100  # 60.0
+        for pat in loss_patterns:
+            for m in re.finditer(pat, text):
+                raw_pct_str = m.group(1)
+                raw_dec = Decimal(raw_pct_str)
+                dec_places = len(raw_pct_str.split(".")[1]) if "." in raw_pct_str else 0
+                expected_dec = canonical_round_decimal(true_loss_pct, dec_places)
+                if raw_dec != expected_dec:
+                    violations.append(
+                        f"NumericalFidelityViolation: Extreme loss ratio '{raw_pct_str}%' diverges from derived fact "
+                        f"'{true_loss_pct:.2f}%'"
+                    )
+
+        # 1.5 指数极差离散度规范化解析 (ROUND_HALF_UP Canonical Matching)
+        disp_patterns = [
+            r'(?:指数)?(?:极差)?离散度[^，。；\n]{0,10}?([0-9]+(?:\.[0-9]+)?)\s*%',
+            r'([0-9]+(?:\.[0-9]+)?)\s*%[^，。；\n]{0,10}?(?:指数)?(?:极差)?离散度',
+        ]
+        true_disp_pct = context.derived_layer.state_features.index_vector.dispersion_pct  # 4.03
+        for pat in disp_patterns:
+            for m in re.finditer(pat, text):
+                raw_pct_str = m.group(1)
+                raw_dec = Decimal(raw_pct_str)
+                dec_places = len(raw_pct_str.split(".")[1]) if "." in raw_pct_str else 0
+                expected_dec = canonical_round_decimal(true_disp_pct, dec_places)
+                if raw_dec != expected_dec:
+                    violations.append(
+                        f"NumericalFidelityViolation: Index dispersion '{raw_pct_str}%' diverges from derived fact "
+                        f"'{true_disp_pct:.2f}%'"
+                    )
+
+        # 1.6 空间最高板高度强离散校验 (精确等于整数)
         space_leader_patterns = [
-            r'(?:最高空间标杆|空间标杆|高度标杆|全市场最高板|最高板)[^，。；\n]{0,15}?([0-9]+)\s*(?:连板|板|B)',
+            r'(?:最高空间标杆|空间标杆|高度标杆|全市场最高连板高度标杆为|全市场最高板|最高连板|最高板)[^，。；\n]{0,20}?([0-9]+)\s*(?:连板|板|B)',
             r'([0-9]+)\s*(?:连板|板|B)[^，。；\n]{0,15}?(?:最高空间标杆|空间标杆|高度标杆)',
         ]
         true_max_height = context.fact_layer.ladder.max_height
         for pat in space_leader_patterns:
-            matches = re.finditer(pat, text)
-            for m in matches:
+            for m in re.finditer(pat, text):
                 val = int(m.group(1))
                 if val != true_max_height:
                     violations.append(
@@ -259,15 +346,27 @@ class BriefingSafetyGuard:
                         f"'{true_max_height}B'"
                     )
 
-        # 1.4 全市场收盘跌停家数强离散校验 (精确等于整数)
+        # 1.7 全市场涨停家数强离散校验 (全市场维度)
+        full_limit_up_patterns = [
+            r'(?:全市场|两市|共计|共有|共)(?:收盘|封死)?涨停[^，。；\n]{0,10}?([0-9]+)\s*(?:只|家)',
+        ]
+        true_limit_up = context.fact_layer.sentiment_counts.limit_up_count  # 43
+        for pat in full_limit_up_patterns:
+            for m in re.finditer(pat, text):
+                val = int(m.group(1))
+                if val != true_limit_up:
+                    violations.append(
+                        f"NumericalFidelityViolation: Full market limit up count '{val}' diverges from true fact '{true_limit_up}'"
+                    )
+
+        # 1.8 全市场收盘跌停家数强离散校验 (精确等于整数)
         down_patterns = [
             r'(?:收盘)?跌停[^，。；\n]{0,10}?([0-9]+)\s*(?:只|家)',
             r'([0-9]+)\s*(?:只|家)[^，。；\n]{0,10}?(?:收盘)?跌停',
         ]
         true_down = context.fact_layer.sentiment_counts.limit_down_count
         for pat in down_patterns:
-            matches = re.finditer(pat, text)
-            for m in matches:
+            for m in re.finditer(pat, text):
                 val = int(m.group(1))
                 if val != true_down:
                     violations.append(
@@ -275,20 +374,44 @@ class BriefingSafetyGuard:
                         f"'{true_down}'"
                     )
 
-        # 1.5 商业数据商异动规则撮合标的数强离散校验 (P0-3 语义纠偏与整数匹配)
+        # 1.9 商业数据商异动规则撮合标的数强离散校验 (P0-3 语义纠偏与整数匹配)
         reg_patterns = [
             r'(?:商业数据商异动规则撮合|异动规则撮合|严重异常波动|监管异动|商业规则监控)[^，。；\n]{0,20}?([0-9]+)\s*(?:只|家)',
             r'([0-9]+)\s*(?:只|家)[^，。；\n]{0,10}?(?:商业数据商异动规则撮合|异动规则撮合|严重异常波动|监管异动|商业规则监控)',
         ]
         true_anomaly = context.fact_layer.regulatory.total_anomaly_count
         for pat in reg_patterns:
-            matches = re.finditer(pat, text)
-            for m in matches:
+            for m in re.finditer(pat, text):
                 val = int(m.group(1))
                 if val != true_anomaly:
                     violations.append(
                         f"NumericalFidelityViolation: Regulatory anomaly count '{val}' diverges from true fact "
                         f"'{true_anomaly}' (commercial anomaly rule match count)"
+                    )
+
+        # 1.10 核心主线龙头高度与成分涨停家数校验
+        for ml in context.cognition_layer.candidate_mainlines:
+            leader_name = ml.leader_identity.canonical_name
+            # 龙头高度校验: 龙头【新华传媒】8B
+            leader_h_patterns = [
+                rf'【{leader_name}】[^。；\n]{{0,10}}?([0-9]+)\s*(?:连板|板|B)',
+                rf'([0-9]+)\s*(?:连板|板|B)[^。；\n]{{0,10}}?【{leader_name}】',
+            ]
+            for l_pat in leader_h_patterns:
+                for lm in re.finditer(l_pat, text):
+                    val = int(lm.group(1))
+                    if val != ml.leader_height:
+                        violations.append(
+                            f"NumericalFidelityViolation: Leader '{leader_name}' height '{val}B' diverges from true fact '{ml.leader_height}B'"
+                        )
+            # 主线涨停家数校验: 【央国企改革】...涨停 12 家
+            sector_name = ml.sector_name
+            sector_cnt_pat = rf'【{sector_name}】[^。；\n]{{0,50}}?涨停\s*([0-9]+)\s*(?:只|家)'
+            for sm in re.finditer(sector_cnt_pat, text):
+                val = int(sm.group(1))
+                if val != ml.limit_up_count:
+                    violations.append(
+                        f"NumericalFidelityViolation: Sector '{sector_name}' limit up count '{val}' diverges from fact '{ml.limit_up_count}'"
                     )
 
         return violations

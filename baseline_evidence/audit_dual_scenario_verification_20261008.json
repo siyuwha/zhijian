@@ -1,0 +1,41 @@
+{
+  "scenario_1_offending": {
+    "candidate_input_text": "【大势定调】沪深两市真实总成交额为 16821.09 亿元（沪市 8111.83 亿元，深市含创业板 8709.26 亿元）。全市场微观状态标定为【高位剧烈分化期】（判定置信度 90%）。【主线与梯队】核心做多战场呈现结构分化：第一主线为【央国企改革】（龙头【新华传媒】8B，涨停 12 家），第二主线为【电力设备】（龙头【时代万恒】4B）。全市场最高连板高度标杆为 8B【新华传媒】。【风险与负反馈】盘面微观亏钱效应显著：日内真实炸板率高达 42.67%，收盘跌停 13 家；商业数据商异动规则撮合标的达 11 家，高位分化与规则降温压制明显。【明日推演与防守红线】次日竞价重点观察空间标杆【新华传媒】溢价承接力与主线标杆【新华传媒】竞价分歧度。核心证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 防守红线：高位分化加速段杜绝逆势博弈，严守核心龙头竞价承接红线。",
+    "injected_violation_phrase": "防守红线：高位分化加速段杜绝逆势博弈，严守核心龙头竞价承接红线。",
+    "guard_audit_result": {
+      "passed": false,
+      "violations": [
+        "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '杜绝逆势博弈'",
+        "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '严守核心龙头竞价承接红线'",
+        "IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '杜绝逆势'",
+        "IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '严守核心龙头竞价承接'"
+      ]
+    },
+    "api_output_report": {
+      "trace_id": "TRACE-20261008-AUDIT-SCENE-1-OFFENDING",
+      "is_fallback_mode": true,
+      "fallback_reason": "Candidate intercepted by Safety Guard: IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '杜绝逆势博弈'; IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '严守核心龙头竞价承接红线'; IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '杜绝逆势'; IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '严守核心龙头竞价承接'",
+      "safety_audit_passed": true,
+      "briefing_fingerprint": "0ed3c65ebc65b03eca03c88944716936f8510c7fae2aa6f486c3b1ec0dddee01",
+      "final_delivered_text": "【大势定调】沪深两市真实总成交额为 16821.09 亿元（沪市 8111.83 亿元，深市含创业板 8709.26 亿元）。全市场微观状态标定为【高位剧烈分化期】（判定置信度 90%）。【主线与梯队】核心做多战场呈现结构分化：第一主线为【央国企改革】（龙头【新华传媒】8B，涨停 12 家），第二主线为【电力设备】（龙头【时代万恒】4B）。全市场最高连板高度标杆为 8B【新华传媒】。【风险与负反馈】盘面微观亏钱效应显著：日内真实炸板率高达 42.67%，收盘跌停 13 家；商业数据商异动规则撮合标的达 11 家，高位分化与规则降温压制明显。【明日推演与防守红线】次日竞价重点观察空间标杆【新华传媒】溢价承接力与主线标杆【新华传媒】竞价分歧度。核心证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。"
+    },
+    "audit_verdict": "HARD_BLOCKED_AND_SAFELY_DEGRADED_PASS"
+  },
+  "scenario_2_compliant": {
+    "candidate_input_text": "【大势定调】沪深两市真实总成交额为 16821.09 亿元（沪市 8111.83 亿元，深市含创业板 8709.26 亿元）。全市场微观状态标定为【高位剧烈分化期】（判定置信度 90%）。【主线与梯队】核心做多战场呈现结构分化：第一主线为【央国企改革】（龙头【新华传媒】8B，涨停 12 家），第二主线为【电力设备】（龙头【时代万恒】4B）。全市场最高连板高度标杆为 8B【新华传媒】。【风险与负反馈】盘面微观亏钱效应显著：日内真实炸板率高达 42.67%，收盘跌停 13 家；商业数据商异动规则撮合标的达 11 家，高位分化与规则降温压制明显。【明日推演与防守红线】次日竞价重点观察空间标杆【新华传媒】溢价承接力与主线标杆【新华传媒】竞价分歧度。核心证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 防守红线：市场处于高位分化加速段，逆势博弈面临显著微观亏损风险；核心标杆若开盘失守竞价承接位，将触发主线结构性走弱与逻辑证伪。",
+    "compliant_phrase": "防守红线：市场处于高位分化加速段，逆势博弈面临显著微观亏损风险；核心标杆若开盘失守竞价承接位，将触发主线结构性走弱与逻辑证伪。",
+    "guard_audit_result": {
+      "passed": true,
+      "violations": []
+    },
+    "api_output_report": {
+      "trace_id": "TRACE-20261008-AUDIT-SCENE-2-COMPLIANT",
+      "is_fallback_mode": false,
+      "fallback_reason": null,
+      "safety_audit_passed": true,
+      "briefing_fingerprint": "4dd984d0b69345949dc567a9dae608c4a24a94aba4b33544571120ecdd6fc1ac",
+      "final_delivered_text": "【大势定调】沪深两市真实总成交额为 16821.09 亿元（沪市 8111.83 亿元，深市含创业板 8709.26 亿元）。全市场微观状态标定为【高位剧烈分化期】（判定置信度 90%）。【主线与梯队】核心做多战场呈现结构分化：第一主线为【央国企改革】（龙头【新华传媒】8B，涨停 12 家），第二主线为【电力设备】（龙头【时代万恒】4B）。全市场最高连板高度标杆为 8B【新华传媒】。【风险与负反馈】盘面微观亏钱效应显著：日内真实炸板率高达 42.67%，收盘跌停 13 家；商业数据商异动规则撮合标的达 11 家，高位分化与规则降温压制明显。【明日推演与防守红线】次日竞价重点观察空间标杆【新华传媒】溢价承接力与主线标杆【新华传媒】竞价分歧度。核心证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 防守红线：市场处于高位分化加速段，逆势博弈面临显著微观亏损风险；核心标杆若开盘失守竞价承接位，将触发主线结构性走弱与逻辑证伪。"
+    },
+    "audit_verdict": "CLEAN_PASS_WITHOUT_FALSE_POSITIVE"
+  }
+}

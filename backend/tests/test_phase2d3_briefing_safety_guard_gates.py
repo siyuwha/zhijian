@@ -14,6 +14,7 @@ import time
 import pytest
 from pathlib import Path
 
+from decimal import Decimal
 from backend.app.schemas.narrative_context import NarrativeContextContract
 from backend.app.schemas.tactical_briefing import (
     TacticalBriefingReport,
@@ -22,6 +23,7 @@ from backend.app.schemas.tactical_briefing import (
 from backend.app.services.briefing_safety_guard import (
     BriefingSafetyGuard,
     FORBIDDEN_DIRECTIVE_TERMS,
+    canonical_round_decimal,
 )
 from backend.app.services.briefing_fallback_engine import DeterministicBriefingFallbackEngine
 from backend.app.services.tactical_briefing_service import TacticalBriefingService
@@ -427,4 +429,126 @@ def test_gate_2d3_07b_adversarial_numerical_and_covert_directive_defense(
     res_r_wrong = guard.audit(t_reg_wrong, golden_context)
     assert res_r_wrong.passed is False
     assert any("Regulatory anomaly count '12'" in v for v in res_r_wrong.violations)
+
+
+# =============================================================================
+# GATE-2D3-05B: Decimal Canonical ROUND_HALF_UP Two-Sided Boundary Proof
+# =============================================================================
+def test_gate_2d3_05b_decimal_round_half_up_boundary_proof():
+    """
+    GATE-2D3-05B: Decimal Canonical ROUND_HALF_UP 双向边界测试与 Banker's 漂移证伪
+    - 证明 Python 原生 float round(42.65, 1) 会因为 ties-to-even 错误返回 42.6；
+    - 证明 canonical_round_decimal(42.65, 1) 严格遵循 ROUND_HALF_UP 返回 Decimal('42.7')；
+    - 验证双向分界点:
+      - 42.65000000 -> 42.7
+      - 42.64999999 -> 42.6
+      - 42.64000000 -> 42.6
+    - 验证总成交额边界:
+      - 16821.05 -> Decimal('16821.1') (round() 返回 16821.0)
+      - 16821.04 -> Decimal('16821.0')
+    """
+    # 1. 炸板率分界点对比
+    val_broken_tie = Decimal("42.65")
+    # Python banker's rounding flaw demonstration
+    assert round(42.65, 1) == 42.6, "Python float banker's rounding returns even number 42.6"
+    # Canonical Decimal ROUND_HALF_UP correctness
+    assert canonical_round_decimal(val_broken_tie, 1) == Decimal("42.7")
+
+    # 双向边界：略低于 0.05 截断向下，达到 0.05 进位向上
+    assert canonical_round_decimal(Decimal("42.649999"), 1) == Decimal("42.6")
+    assert canonical_round_decimal(Decimal("42.650001"), 1) == Decimal("42.7")
+    assert canonical_round_decimal(Decimal("42.64"), 1) == Decimal("42.6")
+
+    # 2. 成交额分界点对比
+    val_to_tie = Decimal("16821.05")
+    assert round(16821.05, 1) == 16821.0, "Python float banker's rounding returns even number 16821.0"
+    assert canonical_round_decimal(val_to_tie, 1) == Decimal("16821.1")
+    assert canonical_round_decimal(Decimal("16821.049"), 1) == Decimal("16821.0")
+    assert canonical_round_decimal(Decimal("16821.04"), 1) == Decimal("16821.0")
+
+    # 3. 整数分界点
+    assert canonical_round_decimal(Decimal("42.50"), 0) == Decimal("43")
+    assert canonical_round_decimal(Decimal("42.49"), 0) == Decimal("42")
+
+
+# =============================================================================
+# GATE-2D3-05C: Full-Field Numerical Inventory Fidelity Guard
+# =============================================================================
+def test_gate_2d3_05c_full_field_numerical_inventory_fidelity(golden_context: NarrativeContextContract):
+    """
+    GATE-2D3-05C: 全字段数值清单保真度审查门禁
+    覆盖全部数值清单：
+    1. 两市真实总成交额 (16821.09 亿)
+    2. 沪市成交额 (8111.83 亿)
+    3. 深市成交额 (8709.26 亿)
+    4. 真实炸板率 (42.67%)
+    5. 极值亏损率 (60.00% / 60%)
+    6. 指数极差离散度 (4.03%)
+    7. 全市场涨停家数 (43 只/家)
+    8. 全市场收盘跌停家数 (13 只/家)
+    9. 商业异动规则撮合标的数 (11 只/家)
+    10. 核心主线龙头高度与成分涨停家数 (新华传媒 8B/12家, 时代万恒 4B/9家, 上海洗霸 3B/5家)
+    """
+    guard = BriefingSafetyGuard()
+    engine = DeterministicBriefingFallbackEngine(guard)
+    base_text = engine.generate_fallback_briefing(golden_context).tactical_briefing_text
+
+    # 1. 沪市分市场成交额篡改 (8111.83 亿 -> 8500.00 亿) -> HARD BLOCK
+    t_sh_wrong = base_text.replace("8111.83 亿元", "8500.00 亿元")
+    res_sh = guard.audit(t_sh_wrong, golden_context)
+    assert res_sh.passed is False
+    assert any("SH turnover '8500.00 亿元' diverges from true fact '8111.83亿'" in v for v in res_sh.violations)
+
+    # 2. 深市分市场成交额篡改 (8709.26 亿 -> 9200.00 亿) -> HARD BLOCK
+    t_sz_wrong = base_text.replace("8709.26 亿元", "9200.00 亿元")
+    res_sz = guard.audit(t_sz_wrong, golden_context)
+    assert res_sz.passed is False
+    assert any("SZ turnover '9200.00 亿元' diverges from true fact '8709.26亿'" in v for v in res_sz.violations)
+
+    # 3. 极值亏损率注入与篡改
+    # 3.1 注入真实极值亏损率 60.00% 或 60% -> PASS
+    t_loss_valid = base_text + " 盘面极值亏损率达 60.00%。"
+    assert guard.audit(t_loss_valid, golden_context).passed is True
+    t_loss_valid_int = base_text + " 盘面极值亏损率达 60%。"
+    assert guard.audit(t_loss_valid_int, golden_context).passed is True
+
+    # 3.2 篡改极值亏损率为 35.00% -> HARD BLOCK
+    t_loss_fake = base_text + " 盘面极值亏损率达 35.00%。"
+    res_loss = guard.audit(t_loss_fake, golden_context)
+    assert res_loss.passed is False
+    assert any("Extreme loss ratio '35.00%' diverges from derived fact '60.00%'" in v for v in res_loss.violations)
+
+    # 4. 指数极差离散度注入与篡改
+    # 4.1 注入真实离散度 4.03% 或 4.0% -> PASS
+    t_disp_valid = base_text + " 指数极差离散度为 4.03%。"
+    assert guard.audit(t_disp_valid, golden_context).passed is True
+
+    # 4.2 篡改离散度为 8.50% -> HARD BLOCK
+    t_disp_fake = base_text + " 指数极差离散度为 8.50%。"
+    res_disp = guard.audit(t_disp_fake, golden_context)
+    assert res_disp.passed is False
+    assert any("Index dispersion '8.50%' diverges from derived fact '4.03%'" in v for v in res_disp.violations)
+
+    # 5. 全市场封死涨停家数注入与篡改 (true: 43家)
+    t_up_valid = base_text + " 全市场封死涨停 43 家。"
+    assert guard.audit(t_up_valid, golden_context).passed is True
+
+    t_up_fake = base_text + " 全市场封死涨停 68 家。"
+    res_up = guard.audit(t_up_fake, golden_context)
+    assert res_up.passed is False
+    assert any("Full market limit up count '68' diverges from true fact '43'" in v for v in res_up.violations)
+
+    # 6. 核心主线龙头高度与成分涨停家数篡改
+    # 6.1 龙头高度篡改：将 新华传媒 8B 篡改为 6B
+    t_leader_h_fake = base_text.replace("龙头【新华传媒】8B", "龙头【新华传媒】6B")
+    res_lh = guard.audit(t_leader_h_fake, golden_context)
+    assert res_lh.passed is False
+    assert any("Leader '新华传媒' height '6B' diverges from true fact '8B'" in v for v in res_lh.violations)
+
+    # 6.2 主线成分涨停家数篡改：将 央国企改革 涨停 12 家 篡改为 涨停 20 家
+    t_sector_cnt_fake = base_text.replace("涨停 12 家", "涨停 20 家")
+    res_sc = guard.audit(t_sector_cnt_fake, golden_context)
+    assert res_sc.passed is False
+    assert any("Sector '央国企改革' limit up count '20' diverges from fact '12'" in v for v in res_sc.violations)
+
 

@@ -209,13 +209,7 @@ async def run_unified_e2e_trace():
             "passed": audit_res.passed,
             "violations": audit_res.violations,
         },
-        "node_5_api": {
-            "trace_id": briefing_report.trace_id,
-            "source_snapshot_hash": briefing_report.source_snapshot_hash,
-            "briefing_fingerprint": briefing_report.briefing_fingerprint,
-            "is_fallback_mode": briefing_report.is_fallback_mode,
-            "final_text": briefing_report.tactical_briefing_text,
-        },
+        "node_5_api": briefing_report.model_dump(mode="json"),
         "node_6_dom": dom_elements,
     }
 
