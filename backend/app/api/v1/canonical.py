@@ -6,6 +6,7 @@ GET /api/v1/canonical/market-snapshot/{date}
 """
 
 import logging
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.database import get_db
@@ -129,5 +130,71 @@ async def get_auction_falsification(
         raise HTTPException(
             status_code=502,
             detail={"error_code": "ERR_UPSTREAM_AUCTION_UNAVAILABLE", "message": str(e)},
+        )
+
+
+# =========================================================================
+# Phase 3A.3: 盘中波普尔证伪与认知偏离实时告警 REST API
+# =========================================================================
+from ...schemas.intraday_drift_verdict import IntradayDriftVerdict
+from ...services.intraday_drift_service import IntradayDriftService
+from ...services.intraday_safety_guard import IntradaySafetyInterceptionError
+from ...services.intraday_drift_comparator import CausalTemporalViolationError as IntradayCausalViolationError
+
+ENABLE_PHASE3A_INTRADAY_API = os.getenv("ENABLE_PHASE3A_INTRADAY_API", "true").lower() == "true"
+
+
+@router.get("/intraday-drift/{date}", response_model=IntradayDriftVerdict)
+async def get_intraday_drift_verdict(
+    date: str,
+    time: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取指定日期及时间窗口的盘中波普尔认知偏离对账单 (Phase 3A.3)
+    纯只读、确定性、不可伪造，强制流经 IntradaySafetyGuard 拦截审查
+    """
+    if not ENABLE_PHASE3A_INTRADAY_API:
+        raise HTTPException(
+            status_code=503,
+            detail={"error_code": "ERR_FEATURE_FLAG_DISABLED", "message": "Phase 3A intraday API is currently disabled"},
+        )
+
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        raise HTTPException(
+            status_code=400,
+            detail={"error_code": "ERR_INVALID_DATE_FORMAT", "message": f"Date '{date}' is invalid, must be YYYY-MM-DD"},
+        )
+
+    if time and not re.match(r"^\d{2}:\d{2}(:\d{2})?$", time):
+        raise HTTPException(
+            status_code=400,
+            detail={"error_code": "ERR_INVALID_TIME_FORMAT", "message": f"Time '{time}' is invalid, must be HH:MM or HH:MM:SS"},
+        )
+
+    try:
+        service = IntradayDriftService(db)
+        verdict = await service.get_or_compute_verdict(trade_date=date, snapshot_time=time)
+        return verdict
+    except IntradayCausalViolationError as e:
+        raise HTTPException(
+            status_code=422,
+            detail={"error_code": "ERR_CAUSAL_TEMPORAL_VIOLATION", "message": str(e)},
+        )
+    except IntradaySafetyInterceptionError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=e.to_safe_error_detail(),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail={"error_code": "ERR_BASE_DATA_NOT_FOUND", "message": str(e)},
+        )
+    except Exception as e:
+        logger.error(f"[CANONICAL INTRADAY ERROR] {type(e)}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=502,
+            detail={"error_code": "ERR_UPSTREAM_INTRADAY_UNAVAILABLE", "message": str(e)},
         )
 

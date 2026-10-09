@@ -1,0 +1,73 @@
+{
+  "audit_phase": "Phase 3A.3",
+  "description": "盘中安全守卫与只读 REST API 基准核验",
+  "scenarios": {
+    "scenario_1_real_penetration": {
+      "status_code": 200,
+      "verdict_id": "VERDICT-2026-10-09-INTRADAY-15bec484",
+      "trade_date": "2026-10-09",
+      "stage": "STAGE_2_MORNING",
+      "overall_drift_state": "NORMAL",
+      "verdict_fingerprint": "6f47bc324d0563dcd0c07543e3e1458e03378746a5a359c7f637a4a35a10d7b0",
+      "assertions_count": 4,
+      "boundaries_count": 1,
+      "safety_audit_passed": true
+    },
+    "scenario_2_space_leader_critical_kill": {
+      "verdict_id": "VERDICT-2026-10-09-INTRADAY-f9fa6c7e",
+      "overall_drift_state": "CRITICAL_BREACH",
+      "detected_drift_events": [
+        "SPACE_LEADER_COLLAPSE",
+        "LIQUIDITY_FLASH_DRY"
+      ],
+      "verdict_fingerprint": "1c31e98aa763d34421599402e494c2dcd132d52fe97c9a5e53cbee049acfaf5d",
+      "safety_audit_passed": true
+    },
+    "scenario_3_safety_guard_interception": {
+      "intercepted": true,
+      "safe_error_payload": {
+        "error_code": "ERR_INTRADAY_SAFETY_INTERCEPTION",
+        "message": "Intraday verdict failed security & compliance guard.",
+        "trace_id": "TRACE-2026-10-08-TO-2026-10-09-INTRADAY-f9fa6c7e",
+        "audited_at": "2026-10-09T18:47:44+08:00",
+        "violations_count": 2
+      },
+      "zero_leak_verified": true
+    },
+    "scenario_4_non_trading_day": {
+      "status_code": 200,
+      "overall_drift_state": "INCONCLUSIVE",
+      "inconclusive_reason": "MARKET_CLOSED",
+      "evaluated_at": "2026-10-11T10:30:00+08:00",
+      "verdict_fingerprint": "08445faea38088eab08ab91f9521575ab7f2865940454d4d08159705a2f15f37"
+    },
+    "scenario_5_concurrency_idempotence": {
+      "concurrent_count": 10,
+      "distinct_body_hashes": 1,
+      "common_body_hash": "3b22013e2744cee7a8fae8e6b8e16b16485646dca0ea12db5a7918b9ad98367b",
+      "status_codes": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ]
+    },
+    "scenario_6_physical_readonly": {
+      "uri": "file:D:\\项目库\\AI认知复盘交易系统\\data\\trading.db?mode=ro",
+      "write_denied": true,
+      "denial_error": "attempt to write a readonly database"
+    },
+    "scenario_7_avalanche_effect": {
+      "fp_original": "1c31e98aa763d34421599402e494c2dcd132d52fe97c9a5e53cbee049acfaf5d",
+      "fp_tampered": "28d46c2d3ecbff40f29ed29089b0b5e10f76a25a3507a021ac3e077c2f1fe6a1",
+      "hamming_distance_bits": 142,
+      "avalanche_ratio": "55.47%"
+    }
+  }
+}
