@@ -339,3 +339,157 @@ def test_gate_3b1_08_database_readonly_isolation():
 
     for t in tables:
         assert counts_before[t] == counts_after[t], f"Table {t} mutated from {counts_before[t]} to {counts_after[t]}!"
+
+
+# ==============================================================================
+# GATE-3B1-09: 关键告警极端满载、配额溢出与零静默丢弃证明
+# ==============================================================================
+def test_gate_3b1_09_critical_saturation_and_zero_silent_drop():
+    """GATE-3B1-09: 验证 CRITICAL 满载、配额突破、混合淘汰与 DLQ 满载下的零静默丢弃与全量可度量性"""
+    # 1. 缓冲区测试：容量 20，CRITICAL 配额 5
+    ring = AlertRingBuffer(capacity=20, critical_reservation_quota=5)
+    evaluator = AlertEvaluator(ring_buffer=ring, cooldown_seconds=0.0)
+
+    # 先注入 10 个 CRITICAL 告警 (突破了 5 个配额，只要容量未满均允许容纳)
+    for i in range(10):
+        v_crit = build_mock_verdict(time_str=f"10:{i:02d}:00", state=DriftStateEnum.CRITICAL_BREACH)
+        evaluator.evaluate_and_publish(v_crit)
+
+    metrics = ring.get_metrics()
+    assert metrics["size"] == 10
+    assert metrics["current_critical_count"] == 10
+    assert metrics["total_overflow_drops"] == 0
+
+    # 再注入 10 个 INFO 告警填满缓冲区到 20 条
+    for i in range(10, 20):
+        v_info = build_mock_verdict(time_str=f"10:{i:02d}:00", state=DriftStateEnum.NORMAL, events=[])
+        evaluator.evaluate_and_publish(v_info)
+
+    assert ring.size() == 20
+    assert ring.get_metrics()["current_non_critical_count"] == 10
+
+    # 满载下再注入 5 个 CRITICAL 告警：应优先淘汰最旧的 INFO，既有 CRITICAL 必须 100% 保留
+    for i in range(20, 25):
+        v_crit_extra = build_mock_verdict(time_str=f"10:{i:02d}:00", state=DriftStateEnum.CRITICAL_BREACH)
+        evaluator.evaluate_and_publish(v_crit_extra)
+
+    metrics2 = ring.get_metrics()
+    assert metrics2["size"] == 20
+    assert metrics2["current_critical_count"] == 15
+    assert metrics2["current_non_critical_count"] == 5
+    assert metrics2["total_overflow_drops"] == 5
+    assert metrics2["critical_protected_drops"] == 0
+    assert metrics2["non_critical_drops"] == 5
+
+    # 继续注入 10 个 CRITICAL 告警：淘汰剩余 5 个 INFO，并进一步淘汰最旧的 5 个 CRITICAL
+    for i in range(25, 35):
+        v_crit_extra2 = build_mock_verdict(time_str=f"10:{i:02d}:00", state=DriftStateEnum.CRITICAL_BREACH)
+        evaluator.evaluate_and_publish(v_crit_extra2)
+
+    metrics3 = ring.get_metrics()
+    assert metrics3["size"] == 20
+    assert metrics3["current_critical_count"] == 20
+    assert metrics3["current_non_critical_count"] == 0
+    assert metrics3["total_overflow_drops"] == 15
+    assert metrics3["non_critical_drops"] == 10
+    assert metrics3["critical_protected_drops"] == 5
+    assert metrics3["total_overflow_drops"] == metrics3["non_critical_drops"] + metrics3["critical_protected_drops"]
+
+    # 2. DLQ 满载测试：容量 10，注入 15 个毒丸载荷
+    dlq = AlertDeadLetterQueue(capacity=10)
+    for i in range(15):
+        dlq.push({"corrupt_id": i}, f"Poison pill #{i}")
+
+    dlq_metrics = dlq.get_metrics()
+    assert dlq_metrics["capacity"] == 10
+    assert dlq_metrics["current_size"] == 10
+    assert dlq_metrics["total_dropped_count"] == 5
+
+
+# ==============================================================================
+# GATE-3B1-10: 密码学信任边界、密钥轮转与日志截断防御测试
+# ==============================================================================
+def test_gate_3b1_10_crypto_trust_boundary_and_truncation_defense():
+    """GATE-3B1-10: 验证 HMAC 密钥轮转、外部可信锚点、日志尾部截断捕获与快照验签"""
+    verdict = build_mock_verdict()
+    evaluator = AlertEvaluator(cooldown_seconds=0.0)
+    _, event, _ = evaluator.evaluate_and_publish(verdict)
+    assert event is not None
+
+    # 使用当前密钥验签
+    assert event.verify_signatures() is True
+
+    # 模拟攻击者使用错误或过期密钥验签
+    assert event.verify_signatures(secret_key="WRONG_EXPIRED_KEY_9999") is False
+
+    # 日志追加与外部锚点校验
+    log_dir = os.path.join(TEST_LOG_DIR, "crypto_gate_test")
+    os.makedirs(log_dir, exist_ok=True)
+    logger = AlertAuditLogger(log_dir=log_dir)
+
+    line_hashes = []
+    for i in range(5):
+        v = build_mock_verdict(time_str=f"10:{i:02d}:00")
+        _, ev, _ = evaluator.evaluate_and_publish(v)
+        lh = logger.append_event(ev)
+        line_hashes.append(lh)
+
+    log_file = os.path.join(log_dir, f"alert_audit_{verdict.trade_date}.jsonl")
+    closing_anchor = line_hashes[-1]
+
+    # 完整性校验：带外部锚点与期望行数
+    ok, count, err = AlertAuditLogger.verify_audit_log_integrity(
+        log_file,
+        expected_closing_hash=closing_anchor,
+        expected_line_count=5,
+    )
+    assert ok is True
+    assert count == 5
+    assert err is None
+
+    # 模拟尾部截断攻击 (攻击者删除了最后 2 行)
+    with open(log_file, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    with open(log_file, "w", encoding="utf-8") as f:
+        f.writelines(lines[:3])
+
+    # 再次使用原锚点校验，断言精准捕获截断
+    ok_trunc, count_trunc, err_trunc = AlertAuditLogger.verify_audit_log_integrity(
+        log_file,
+        expected_closing_hash=closing_anchor,
+        expected_line_count=5,
+    )
+    assert ok_trunc is False
+    assert "truncation" in err_trunc.lower()
+
+
+# ==============================================================================
+# GATE-3B1-11: 未来时戳、时钟漂移与负数据年龄精准打标测试
+# ==============================================================================
+def test_gate_3b1_11_future_timestamps_and_clock_skew():
+    """GATE-3B1-11: 验证时钟倒流/超前、未来时戳、负数据年龄保护与回放时钟隔离"""
+    evaluator = AlertEvaluator(cooldown_seconds=0.0)
+
+    # 场景 1: 客户端时钟滞后 / 判定来自未来 (T_observed > T_requested)
+    v_future = build_mock_verdict(time_str="10:35:00")
+    t_client_lag = datetime.fromisoformat("2026-10-09T10:30:00+08:00")
+
+    state, ev_future, _ = evaluator.evaluate_and_publish(v_future, request_timestamp=t_client_lag)
+    assert state == AlertLifecycleStateEnum.ACTIVE
+    assert ev_future is not None
+
+    # 数据年龄保护机制：不可为负，安全钳位于 0.0，并在 detail_facts 显式记录时钟漂移
+    assert ev_future.data_age_seconds == 0.0
+    assert ev_future.detail_facts["is_future_skew"] is True
+    assert ev_future.detail_facts["raw_data_age_seconds"] == -300.0
+
+    # 场景 2: 确定性历史回放时钟注入测试
+    t_replay = datetime.fromisoformat("2026-10-09T10:36:00+08:00")
+    state_r, ev_replay, _ = evaluator.evaluate_and_publish(v_future, request_timestamp=t_replay)
+    assert state_r == AlertLifecycleStateEnum.ACTIVE
+    assert ev_replay is not None
+    assert ev_replay.data_age_seconds == 60.0
+    assert ev_replay.detail_facts["is_future_skew"] is False
+    assert ev_replay.is_stale is False
+

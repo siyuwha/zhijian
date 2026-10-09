@@ -12,6 +12,7 @@ Phase 3B.1: Canonical Drift Alert Event Schema Contract
 - 严格携带四维时间戳与物理数据年龄 (data_age_seconds)。
 """
 
+import os
 import re
 import hmac
 import hashlib
@@ -22,6 +23,13 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 from backend.app.schemas.canonical_intraday import IntradayStageEnum
 from backend.app.cognition.jcs import hash_jcs
+
+DEFAULT_ALERT_BUS_SECRET = "INTRADAY_ALERT_BUS_SECRET_20261009"
+
+
+def get_active_secret_key() -> str:
+    """获取当前处于激活状态的 HMAC 签名密钥 (支持环境变量注入与运行时轮转)"""
+    return os.environ.get("ALERT_BUS_SECRET_KEY", DEFAULT_ALERT_BUS_SECRET)
 
 
 class AlertSeverityEnum(str, Enum):
@@ -102,14 +110,17 @@ class CanonicalDriftAlertEvent(BaseModel):
         return hash_jcs(clean)
 
     @classmethod
-    def compute_origin_signature(cls, content_hash: str, secret_key: str = "INTRADAY_ALERT_BUS_SECRET_20261009") -> str:
-        """基于可信源端密钥生成 HMAC-SHA256 数字签名"""
-        return hmac.new(secret_key.encode("utf-8"), content_hash.encode("utf-8"), hashlib.sha256).hexdigest()
+    def compute_origin_signature(cls, content_hash: str, secret_key: Optional[str] = None) -> str:
+        """基于可信源端密钥生成 HMAC-SHA256 数字签名 (默认使用当前激活密钥)"""
+        key = secret_key or get_active_secret_key()
+        return hmac.new(key.encode("utf-8"), content_hash.encode("utf-8"), hashlib.sha256).hexdigest()
 
-    def verify_signatures(self, secret_key: str = "INTRADAY_ALERT_BUS_SECRET_20261009") -> bool:
+    def verify_signatures(self, secret_key: Optional[str] = None) -> bool:
         """双重校验内容防伪哈希与数字签名"""
         expected_hash = self.compute_content_hash(self.model_dump())
         if self.content_hash != expected_hash:
             return False
-        expected_sig = self.compute_origin_signature(self.content_hash, secret_key)
+        key = secret_key or get_active_secret_key()
+        expected_sig = self.compute_origin_signature(self.content_hash, key)
         return hmac.compare_digest(self.origin_signature, expected_sig)
+

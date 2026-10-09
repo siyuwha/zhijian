@@ -1,12 +1,12 @@
 {
   "audit_phase": "Phase 3B.1",
   "description": "离线回放与纯内存总线核心基准核验",
-  "timestamp_utc": "2026-10-09T13:03:45.640710+00:00",
+  "timestamp_utc": "2026-10-09T13:38:20.290187+00:00",
   "scenarios": {
     "scenario_1_dual_signatures": {
       "status": "PASS",
-      "content_hash": "2e17f57b985e02774ecf89c62ae57496c73ed6ce3a1dcf7a6998c3272e93602f",
-      "origin_signature": "30bfd08584cb8f33ba824614cd9588bd5003ba1ef1709dc2413f0bae8ff45c48",
+      "content_hash": "af18fd048353f6e831c60de0845cef478e59399fe8411f18c0490caba748d067",
+      "origin_signature": "12c390a7897f652adbc23dcf99480127a630a4d56e08e894356db4aa196d6183",
       "data_age_seconds": 60.0,
       "signature_verified": true
     },
@@ -40,14 +40,88 @@
       "status": "PASS",
       "log_path": "logs/alert_bus_test/alert_audit_2026-10-09.jsonl",
       "verified_lines": 1,
-      "line_hash": "2ca9c99a3b76b46d6daccb36c692e5d6715317b98f9536d8a651fa7200ac662b",
+      "line_hash": "8cd85d8707582c1a5668965a0c38b39e71312298ffe6c97e1ce62cb118bce4ad",
       "integrity_verified": true
     },
     "scenario_7_database_immutability": {
       "status": "PASS",
-      "monitored_tables": 32,
+      "table_decomposition": {
+        "total_tables_count": 32,
+        "total_tables_note": "所有 SQLite 物理表 (32张，含系统内部表 sqlite_sequence)",
+        "user_tables_count": 31,
+        "user_tables_note": "用户定义业务与诊断表 (31张，排除 sqlite_sequence)",
+        "core_business_tables_count": 30,
+        "core_business_tables_note": "纯核心业务表 (30张，排除 sqlite_sequence 与 data_quality_log 遥测表)"
+      },
+      "all_monitored_tables": [
+        "market_index_daily",
+        "market_limit_up_daily",
+        "market_limit_up_summary",
+        "market_news",
+        "cognition_market_state",
+        "premarket_briefing",
+        "auction_report",
+        "strategy",
+        "sim_account",
+        "data_quality_log",
+        "task_log",
+        "system_config",
+        "daily_review",
+        "selection_result",
+        "sim_trade",
+        "sim_position",
+        "selection_candidate",
+        "trade_record",
+        "sqlite_sequence",
+        "position",
+        "trade_note",
+        "intraday_market_snapshot",
+        "intraday_anomaly_event",
+        "cognitive_trade_diagnosis",
+        "market_hypothesis",
+        "hypothesis_verification",
+        "cognition_record",
+        "cognition_chain_state",
+        "cognition_prompt_spec",
+        "cognition_diff_report",
+        "market_settlement_cache",
+        "market_daily_snapshot"
+      ],
       "mutations_count": 0,
       "zero_write_verified": true
+    },
+    "scenario_8_saturation_and_dlq": {
+      "status": "PASS",
+      "ring_buffer_metrics": {
+        "capacity": 20,
+        "size": 20,
+        "current_size": 20,
+        "critical_reservation_quota": 5,
+        "current_critical_count": 20,
+        "current_non_critical_count": 0,
+        "total_overflow_drops": 15,
+        "critical_protected_drops": 5,
+        "non_critical_drops": 10
+      },
+      "dlq_metrics": {
+        "capacity": 5,
+        "size": 5,
+        "current_size": 5,
+        "total_dropped_count": 3
+      },
+      "zero_silent_drop_verified": true
+    },
+    "scenario_9_crypto_truncation": {
+      "status": "PASS",
+      "expected_closing_hash": "25f99c60d350cb01dda2dc79829784597bac44fc0a2d2e68a5c412532ae91764",
+      "truncation_caught": true,
+      "truncation_error": "Log truncation detected: expected 4 lines, found 2"
+    },
+    "scenario_10_future_timestamps": {
+      "status": "PASS",
+      "data_age_clamped": 0.0,
+      "is_future_skew": true,
+      "raw_data_age_seconds": -300.0
     }
   }
 }

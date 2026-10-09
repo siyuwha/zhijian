@@ -126,9 +126,11 @@ class AlertEvaluator:
             now_tz = datetime.now(timezone(timedelta(hours=8)))
             t_req = request_timestamp or now_tz
 
-            # 1. 解析时戳与数据年龄
+            # 1. 解析时戳与数据年龄 (含未来时戳/时钟漂移检测)
             t_obs = datetime.fromisoformat(f"{verdict.trade_date}T{verdict.evaluated_at.split('T')[1]}")
-            data_age = max(0.0, (t_req - t_obs).total_seconds())
+            raw_age = (t_req - t_obs).total_seconds()
+            is_future_skew = raw_age < 0.0
+            data_age = max(0.0, raw_age)
             is_stale = data_age > 180.0
 
             # 2. 乱序检测
@@ -201,6 +203,8 @@ class AlertEvaluator:
                     "elapsed_trading_minutes": verdict.elapsed_trading_minutes,
                     "assertion_count": len(verdict.assertion_results),
                     "occurrence_count": count,
+                    "is_future_skew": is_future_skew,
+                    "raw_data_age_seconds": raw_age,
                 },
                 "preservation_boundaries": verdict.preservation_boundaries,
                 "is_out_of_order": is_out_of_order,

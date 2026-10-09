@@ -225,19 +225,117 @@ def run_verification() -> Dict[str, Any]:
         import shutil
         shutil.rmtree(log_dir, ignore_errors=True)
 
-    # 7. Physical DB Read-Only Check
-    print("\n[Scenario 7] Physical DB Zero-Write Check...")
+    # 7. Physical DB Read-Only & Table Count Decomposition
+    print("\n[Scenario 7] Physical DB Zero-Write & Table Count Decomposition...")
     conn = sqlite3.connect(str(db_path))
     cur = conn.cursor()
     post_counts = {tbl: cur.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0] for tbl in tables}
     conn.close()
     mutations = {tbl: (post_counts[tbl] - pre_counts[tbl]) for tbl in tables if post_counts[tbl] != pre_counts[tbl]}
     assert len(mutations) == 0, f"Detected DB mutations: {mutations}"
+
+    user_tables = [t for t in tables if not t.startswith("sqlite_")]
+    core_tables = [t for t in user_tables if t != "data_quality_log"]
+
     evidence["scenarios"]["scenario_7_database_immutability"] = {
         "status": "PASS",
-        "monitored_tables": len(tables),
+        "table_decomposition": {
+            "total_tables_count": len(tables),
+            "total_tables_note": "所有 SQLite 物理表 (32张，含系统内部表 sqlite_sequence)",
+            "user_tables_count": len(user_tables),
+            "user_tables_note": "用户定义业务与诊断表 (31张，排除 sqlite_sequence)",
+            "core_business_tables_count": len(core_tables),
+            "core_business_tables_note": "纯核心业务表 (30张，排除 sqlite_sequence 与 data_quality_log 遥测表)",
+        },
+        "all_monitored_tables": tables,
         "mutations_count": 0,
         "zero_write_verified": True,
+    }
+
+    # 8. Extreme CRITICAL Saturation & DLQ Overflow Proof
+    print("\n[Scenario 8] Extreme CRITICAL Saturation & DLQ Overflow Proof...")
+    r_sat = AlertRingBuffer(capacity=20, critical_reservation_quota=5)
+    e_sat = AlertEvaluator(ring_buffer=r_sat, cooldown_seconds=0.0)
+    # 注入 10 CRITICAL + 10 INFO 填满
+    for i in range(10):
+        e_sat.evaluate_and_publish(build_test_verdict(time_str=f"10:{i:02d}:00", state=DriftStateEnum.CRITICAL_BREACH))
+    for i in range(10, 20):
+        e_sat.evaluate_and_publish(build_test_verdict(time_str=f"10:{i:02d}:00", state=DriftStateEnum.NORMAL, events=[]))
+    # 满载下再注入 15 个 CRITICAL：淘汰 10 个 INFO + 5 个 CRITICAL
+    for i in range(20, 35):
+        e_sat.evaluate_and_publish(build_test_verdict(time_str=f"10:{i:02d}:00", state=DriftStateEnum.CRITICAL_BREACH))
+    sat_metrics = r_sat.get_metrics()
+    assert sat_metrics["size"] == 20
+    assert sat_metrics["current_critical_count"] == 20
+    assert sat_metrics["total_overflow_drops"] == 15
+    assert sat_metrics["non_critical_drops"] == 10
+    assert sat_metrics["critical_protected_drops"] == 5
+
+    # DLQ 溢出测试
+    dlq_sat = AlertDeadLetterQueue(capacity=5)
+    for i in range(8):
+        dlq_sat.push({"poison": i}, f"Poison pill #{i}")
+    dlq_sat_metrics = dlq_sat.get_metrics()
+    assert dlq_sat_metrics["size"] == 5
+    assert dlq_sat_metrics["total_dropped_count"] == 3
+
+    evidence["scenarios"]["scenario_8_saturation_and_dlq"] = {
+        "status": "PASS",
+        "ring_buffer_metrics": sat_metrics,
+        "dlq_metrics": dlq_sat_metrics,
+        "zero_silent_drop_verified": True,
+    }
+
+    # 9. Cryptographic Trust Boundary & Truncation Defense
+    print("\n[Scenario 9] Cryptographic Trust Boundary & Truncation Defense...")
+    log_dir_trunc = ROOT / "logs" / "alert_bus_crypto_test"
+    if log_dir_trunc.exists():
+        import shutil
+        shutil.rmtree(log_dir_trunc)
+    logger_trunc = AlertAuditLogger(str(log_dir_trunc))
+    hashes = [logger_trunc.append_event(ev1)]
+    for i in range(1, 4):
+        _, ev_tmp, _ = evaluator.evaluate_and_publish(build_test_verdict(time_str=f"10:0{i}:00"))
+        hashes.append(logger_trunc.append_event(ev_tmp))
+    f_path = os.path.join(str(log_dir_trunc), f"alert_audit_{ev1.trade_date}.jsonl")
+    closing_anchor = hashes[-1]
+    ok_int, c_int, _ = AlertAuditLogger.verify_audit_log_integrity(f_path, expected_closing_hash=closing_anchor, expected_line_count=4)
+    assert ok_int is True
+    # 模拟截断第 4 行
+    with open(f_path, "r", encoding="utf-8") as f:
+        l_all = f.readlines()
+    with open(f_path, "w", encoding="utf-8") as f:
+        f.writelines(l_all[:2])
+    ok_cut, _, err_cut = AlertAuditLogger.verify_audit_log_integrity(f_path, expected_closing_hash=closing_anchor, expected_line_count=4)
+    assert ok_cut is False
+    assert "truncation" in err_cut.lower()
+    if log_dir_trunc.exists():
+        import shutil
+        shutil.rmtree(log_dir_trunc, ignore_errors=True)
+
+    evidence["scenarios"]["scenario_9_crypto_truncation"] = {
+        "status": "PASS",
+        "expected_closing_hash": closing_anchor,
+        "truncation_caught": True,
+        "truncation_error": err_cut,
+    }
+
+    # 10. Future Timestamps & Negative Data Age Handling
+    print("\n[Scenario 10] Future Timestamps & Negative Data Age Handling...")
+    eval_fut = AlertEvaluator(cooldown_seconds=0.0)
+    v_fut = build_test_verdict("10:45:00")
+    t_lag = datetime.fromisoformat("2026-10-09T10:40:00+08:00")
+    _, ev_fut, _ = eval_fut.evaluate_and_publish(v_fut, request_timestamp=t_lag)
+    assert ev_fut is not None
+    assert ev_fut.data_age_seconds == 0.0
+    assert ev_fut.detail_facts["is_future_skew"] is True
+    assert ev_fut.detail_facts["raw_data_age_seconds"] == -300.0
+
+    evidence["scenarios"]["scenario_10_future_timestamps"] = {
+        "status": "PASS",
+        "data_age_clamped": ev_fut.data_age_seconds,
+        "is_future_skew": ev_fut.detail_facts["is_future_skew"],
+        "raw_data_age_seconds": ev_fut.detail_facts["raw_data_age_seconds"],
     }
 
     out_file = ROOT / "baseline_evidence" / "audit_phase3b1_alert_bus_evidence.json"

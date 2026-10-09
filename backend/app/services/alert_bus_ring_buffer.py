@@ -70,6 +70,16 @@ class AlertDeadLetterQueue:
         with self._lock:
             return [item.to_dict() for item in self._queue]
 
+    def get_metrics(self) -> Dict[str, Any]:
+        """获取死信队列当前监控指标 (容量、当前大小、溢出丢弃总数)"""
+        with self._lock:
+            return {
+                "capacity": self.capacity,
+                "size": len(self._queue),
+                "current_size": len(self._queue),
+                "total_dropped_count": self.total_dropped_count,
+            }
+
     def clear(self) -> None:
         with self._lock:
             self._queue.clear()
@@ -162,6 +172,22 @@ class AlertRingBuffer:
                 except Exception as e:
                     logger.error(f"[RESTORE ERROR] Failed to parse item: {e}")
             return loaded
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """获取环形缓冲区监控指标 (容量、关键告警配额、当前告警数、各类溢出丢弃数)"""
+        with self._lock:
+            crit_count = sum(1 for e in self._buffer if e.severity == AlertSeverityEnum.CRITICAL)
+            return {
+                "capacity": self.capacity,
+                "size": len(self._buffer),
+                "current_size": len(self._buffer),
+                "critical_reservation_quota": self.critical_reservation_quota,
+                "current_critical_count": crit_count,
+                "current_non_critical_count": len(self._buffer) - crit_count,
+                "total_overflow_drops": self.total_overflow_drops,
+                "critical_protected_drops": self.critical_protected_drops,
+                "non_critical_drops": self.total_overflow_drops - self.critical_protected_drops,
+            }
 
     def clear(self) -> None:
         with self._lock:

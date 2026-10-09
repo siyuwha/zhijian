@@ -92,11 +92,16 @@ class AlertAuditLogger:
                 logger.error(f"[AUDIT LOG SYNC ERROR] Failed to parse last line: {e}")
 
     @staticmethod
-    def verify_audit_log_integrity(log_path: str) -> Tuple[bool, int, Optional[str]]:
+    def verify_audit_log_integrity(
+        log_path: str,
+        expected_closing_hash: Optional[str] = None,
+        expected_line_count: Optional[int] = None,
+    ) -> Tuple[bool, int, Optional[str]]:
         """
         全量静态校验指定日志文件的哈希链完整性：
+        - 支持外部可信锚点校验 (expected_closing_hash, expected_line_count)
         - 返回 (is_valid, verified_line_count, error_detail)
-        - 任何单字符篡改、删行、插行或重排将立即报告失败
+        - 任何单字符篡改、删行、尾部截断、插行或重排将立即报告失败
         """
         if not os.path.exists(log_path):
             return False, 0, f"File not found: {log_path}"
@@ -135,4 +140,12 @@ class AlertAuditLogger:
 
                 expected_prev_hash = actual_line_hash
 
+        # 校验外部可信锚点 (抗尾部截断与全量重写攻击)
+        if expected_line_count is not None and line_idx != expected_line_count:
+            return False, line_idx, f"Log truncation detected: expected {expected_line_count} lines, found {line_idx}"
+
+        if expected_closing_hash is not None and expected_prev_hash != expected_closing_hash:
+            return False, line_idx, f"Closing hash mismatch! External anchor {expected_closing_hash} != {expected_prev_hash}. Truncation or forgery detected."
+
         return True, line_idx, None
+
