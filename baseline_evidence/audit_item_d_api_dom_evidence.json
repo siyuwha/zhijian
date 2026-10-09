@@ -1,0 +1,94 @@
+{
+  "audit_version": "2D-ITEM-D-API-DOM-V1",
+  "trade_date": "2026-10-08",
+  "execution_timestamp_utc": "2026-10-09T04:28:00Z",
+  "sections": {
+    "part_1_api_contract": {
+      "status": "PASS",
+      "endpoint": "/api/v1/canonical/tactical-briefing/2026-10-08",
+      "status_code": 200,
+      "trade_date": "2026-10-08",
+      "market_state_label": "高位剧烈分化期",
+      "trace_id": "TRACE-2026-10-08-API-37c271ddd994",
+      "source_snapshot_hash": "8e0aea95bcd4018f613854c1fa452745c807ac6760f83098fc880006df1c1da7",
+      "source_context_fingerprint": "2996e40fc832a8fd2865f15979f2ea1d03e73a0d99d6e940fb8414afef84313a",
+      "briefing_fingerprint": "64a8d5e7df98024c70dd0bc324defac3091dc8b72a74d274de973ef211ea6702",
+      "recalculated_briefing_fingerprint": "64a8d5e7df98024c70dd0bc324defac3091dc8b72a74d274de973ef211ea6702",
+      "is_fallback_mode": false,
+      "safety_audit_passed": true,
+      "text_length": 307
+    },
+    "part_2_dom_fidelity": {
+      "status": "PASS",
+      "dom_rendered_text_length": 307,
+      "raw_text_length": 307,
+      "character_delta": 0,
+      "bitwise_character_exact": true,
+      "cards_rendered": {
+        "key_battlegrounds": [
+          "央国企改革 (龙头【新华传媒】8B)",
+          "电力设备 (龙头【时代万恒】4B)",
+          "固态电池 (龙头【上海洗霸】3B)"
+        ],
+        "risk_warnings": [
+          "日内真实炸板率高达 42.67%",
+          "收盘跌停 13 家",
+          "商业数据商异动规则撮合标的 11 家"
+        ],
+        "observation_posts": [
+          "空间标杆【新华传媒】竞价承接力",
+          "证伪观察：核心标杆 新华传媒 次日竞价大幅低开或开盘破位"
+        ]
+      },
+      "dom_watermark": {
+        "producer_version": "引擎: CANONICAL_TACTICAL_BRIEFING_ENGINE-V1",
+        "briefing_fingerprint_short": "战报指纹: 64a8d5e7df98024c...",
+        "safety_guard_claim": "BriefingSafetyGuard 物理拦截通过 · 零 L5 指令泄露",
+        "trace_id": "TRACE-2026-10-08-API-37c271ddd994",
+        "source_snapshot_hash_short": "8e0aea95bcd4018f..."
+      }
+    },
+    "part_3_negative_adversarial": {
+      "scenario_1_error_404": {
+        "status": "PASS",
+        "queried_date": "9999-12-31",
+        "status_code": 404,
+        "detail": "Canonical market snapshot for 9999-12-31 not found in storage",
+        "dom_fallback_type": "EMPTY_STATE",
+        "dom_fallback_text": "暂无可用的操盘手战报数据"
+      },
+      "scenario_2_tampered_payload": {
+        "status": "PASS",
+        "tampered_field": "tactical_briefing_text (+1 exclamation mark)",
+        "original_fingerprint": "64a8d5e7df98024c70dd0bc324defac3091dc8b72a74d274de973ef211ea6702",
+        "tampered_recalculated_fp": "9db6dc8cfc9db7cfaac43a1176ef8f105f8d1344ccde4d7e6305e6c2d1963e71",
+        "mismatch_detected": true
+      },
+      "scenario_3_missing_fields": {
+        "status": "PASS",
+        "dropped_fields": [
+          "tactical_briefing_text",
+          "briefing_fingerprint"
+        ],
+        "schema_rejected": true,
+        "missing_fields_reported": [
+          "tactical_briefing_text",
+          "briefing_fingerprint"
+        ]
+      },
+      "scenario_4_stale_date": {
+        "status": "PASS",
+        "requested_date": "2026-10-08",
+        "payload_date": "2026-10-07",
+        "date_mismatch_detected": true,
+        "dom_rendered_date": "2026-10-07"
+      },
+      "scenario_5_cross_request_trace": {
+        "status": "PASS",
+        "original_trace_id": "TRACE-2026-10-08-API-37c271ddd994",
+        "forged_trace_id": "TRACE-FORGED-OTHER-SESSION-9999",
+        "signature_mismatch_detected": true
+      }
+    }
+  }
+}
