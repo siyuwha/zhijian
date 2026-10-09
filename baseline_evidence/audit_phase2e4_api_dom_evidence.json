@@ -1,0 +1,148 @@
+{
+  "audit_target": "Phase 2E.4 BiddingFalsificationCard & TraderCockpitView API-DOM Integration",
+  "timestamp": "2026-10-09T09:18:00Z",
+  "scenarios": {
+    "scenario_1_real_database_20261009": {
+      "status": "PASS",
+      "status_code": 200,
+      "overall_verdict": "DIVERGENT",
+      "headline": "09:25 竞价盘面与前夜假说呈现中度分歧（量能/主线分化），需等待开盘确认。",
+      "assertions_count": 4,
+      "action_boundaries_count": 2,
+      "verdict_fingerprint": "aae3e52e32dc98fc34daec17f666d3217734117497a68fe910704c1952d677b7",
+      "dom_node_tree": {
+        "type": "CARD_VIEW",
+        "header": {
+          "title": "09:25 集合竞价波普尔证伪对账单",
+          "trade_date_badge": "2026-10-09",
+          "outcome_badge": {
+            "overall_verdict": "DIVERGENT",
+            "label": "中度分歧 · DIVERGENT",
+            "sub_label": "量能/主线分化",
+            "color": "amber"
+          },
+          "headline_text": "09:25 竞价盘面与前夜假说呈现中度分歧（量能/主线分化），需等待开盘确认。"
+        },
+        "rule_version": "2026.10.E2.V1",
+        "assertions_count": 4,
+        "assertions": [
+          {
+            "rule_id": "RULE-LIQUIDITY-INTENSITY",
+            "rule_name": "全市场流动性开盘强度断言",
+            "severity": "MODERATE",
+            "is_violated": true,
+            "status_label": "已违背",
+            "target_entity": "沪深两市全市场竞价总额 (0.00 亿元)",
+            "actual_observation": "竞价总额占比 0.00% (上海 0.00 亿, 深圳 0.00 亿)",
+            "expected_condition": "竞价总额占前日比例在 [0.80%, 1.50%] 且不低于 0.80%",
+            "deviation_analysis": "实际竞价总额占比 0.00% 跌破流动性萎缩红线 0.80% (前夜假说预期 [0.80%, 1.50%])"
+          },
+          {
+            "rule_id": "RULE-INDEX-SENTIMENT",
+            "rule_name": "上证指数核心情绪锚定断言",
+            "severity": "MODERATE",
+            "is_violated": false,
+            "status_label": "吻合",
+            "target_entity": "sh000001 上证指数",
+            "actual_observation": "上证指数切片缺失",
+            "expected_condition": "上证指数开盘涨跌幅 > -0.50%",
+            "deviation_analysis": "上证指数未见有效异常"
+          },
+          {
+            "rule_id": "RULE-SPACE-LEADER-PREMIUM",
+            "rule_name": "空间标杆溢价承接生命线断言",
+            "severity": "CRITICAL_KILL",
+            "is_violated": false,
+            "status_label": "吻合",
+            "target_entity": "600825 新华传媒",
+            "actual_observation": "开盘价 12.53 元，涨跌幅 10.01% (状态: LIMIT_UP_BIDDING)",
+            "expected_condition": "竞价开盘涨幅 > -3.00% 且未封死跌停",
+            "deviation_analysis": "空间标杆 新华传媒 开盘 10.01% 符合或强于承接预期"
+          },
+          {
+            "rule_id": "RULE-MAINLINE-LEADER-ALIGNMENT",
+            "rule_name": "核心主线龙头共振断言",
+            "severity": "MODERATE",
+            "is_violated": false,
+            "status_label": "吻合",
+            "target_entity": "Top 主线代表 (2 只)",
+            "actual_observation": "证券603200(603200): 9.57%, 时代万恒(600241): 10.01%",
+            "expected_condition": "主线领军标的不出现集体绿开且跌幅低于 -1.50%",
+            "deviation_analysis": "核心主线龙头竞价承接平稳"
+          }
+        ],
+        "action_boundaries": [
+          "竞价量能或主线承接出现偏离，不宜在 09:30 盲目抢筹入场。",
+          "观察开盘 15 分钟主线领军分时承接情况，确认是否发生弱转强。"
+        ],
+        "footer": {
+          "trace_id": "TRACE-2026-10-08-TO-2026-10-09-AUCTION-POPPER-80cb8e02",
+          "hypothesis_id": "HYPO-2026-10-08-80cb8e02",
+          "verdict_fingerprint": "aae3e52e32dc98fc34daec17f666d3217734117497a68fe910704c1952d677b7",
+          "auction_fingerprint": "8ba32fcc508c0332d362ed32df5aaa27b2472c051279826c1b81dd1a742ec985",
+          "threshold_config_hash": "85d1ada7c2fa509ff2d6367fb07b5ae393597c31451308bd6d2ea17fae06d7e0",
+          "rule_version": "2026.10.E2.V1",
+          "evaluated_at": "2026-10-09T09:25:05+08:00",
+          "safety_audit_passed": true
+        }
+      },
+      "rendered_text_length": 760
+    },
+    "scenario_2_market_closed_20261010": {
+      "status": "PASS",
+      "overall_verdict": "INCONCLUSIVE",
+      "inconclusive_reason": "MARKET_CLOSED",
+      "badge_rendered": "休市停牌 · MARKET CLOSED",
+      "assertions_count": 0,
+      "dom_node_tree": {
+        "type": "CARD_VIEW",
+        "header": {
+          "title": "09:25 集合竞价波普尔证伪对账单",
+          "trade_date_badge": "2026-10-10",
+          "outcome_badge": {
+            "overall_verdict": "INCONCLUSIVE",
+            "label": "休市停牌 · MARKET CLOSED",
+            "sub_label": "物理行情未开启",
+            "color": "slate"
+          },
+          "headline_text": "交易日历确认休市或非交易日 (2026-10-10)，物理行情未开启，无法对账。"
+        },
+        "rule_version": "2026.10.E2.V1",
+        "assertions_count": 0,
+        "assertions": [],
+        "action_boundaries": [
+          "市场处于休市非交易状态，保持底仓静默，等待下个交易日物理开盘。"
+        ],
+        "footer": {
+          "trace_id": "TRACE-2026-10-09-TO-2026-10-10-AUCTION-POPPER-00000000",
+          "hypothesis_id": "HYPO-2026-10-09-00000000",
+          "verdict_fingerprint": "1b12bbe3f299c1a6825f56fc655dde8481a0493cc9ce69d48fcd2c38eaa6c482",
+          "auction_fingerprint": "26f7645b70bc26f263919fb1b8906eddd4855d783066c7e56b7902608cbeda81",
+          "threshold_config_hash": "85d1ada7c2fa509ff2d6367fb07b5ae393597c31451308bd6d2ea17fae06d7e0",
+          "rule_version": "2026.10.E2.V1",
+          "evaluated_at": "2026-10-10T09:25:05+08:00",
+          "safety_audit_passed": true
+        }
+      }
+    },
+    "scenario_3_tamper_avalanche": {
+      "status": "PASS",
+      "original_fp": "aae3e52e32dc98fc34daec17f666d3217734117497a68fe910704c1952d677b7",
+      "tampered_fp": "3ce000af453b53308fe6177639d32210f39b7e1b73c04d4f12b439f16f4cad98",
+      "tamper_detected": true
+    },
+    "scenario_4_graceful_degradation": {
+      "status": "PASS",
+      "loading_view": {
+        "type": "LOADING_VIEW",
+        "text": "正在核验 09:25 集合竞价物理快照并执行波普尔证伪对账...",
+        "has_spinner": true
+      },
+      "error_view": {
+        "type": "ERROR_VIEW",
+        "error_text": "网络连接超时 (504)",
+        "has_retry_button": true
+      }
+    }
+  }
+}

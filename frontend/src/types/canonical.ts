@@ -290,3 +290,54 @@ export interface TacticalBriefingReport {
   briefing_fingerprint: string;
 }
 
+// =========================================================================
+// Phase 2E: 09:25 集合竞价波普尔证伪自动对账单类型契约
+// =========================================================================
+
+export type FalsificationOutcomeEnum =
+  | 'CONFIRMED'
+  | 'DIVERGENT'
+  | 'FALSIFIED'
+  | 'INCONCLUSIVE';
+
+export type InconclusiveReasonEnum =
+  | 'MARKET_CLOSED'
+  | 'DATA_QUALITY_DEGRADED'
+  | 'TARGET_MISSING_OR_SUSPENDED'
+  | 'EARLY_CALL'
+  | 'LATE_CALL'
+  | 'SYSTEM_ERROR';
+
+export type AssertionSeverityEnum = 'CRITICAL_KILL' | 'MODERATE' | 'INFO';
+
+export interface AssertionItemVerdict {
+  rule_id: string;
+  rule_name: string;
+  severity: AssertionSeverityEnum;
+  target_entity: string;
+  expected_condition: string;
+  actual_observation: string;
+  is_violated: boolean;
+  deviation_analysis: string;
+}
+
+export interface BiddingFalsificationVerdict {
+  verdict_id: string;
+  trade_date: string;
+  evaluated_at: string;
+  trace_id: string;
+  hypothesis_id: string;
+  hypothesis_fingerprint: string;
+  bound_briefing_fingerprint?: string | null;
+  rule_version: string;
+  threshold_config_hash: string;
+  auction_fingerprint: string;
+  overall_verdict: FalsificationOutcomeEnum;
+  inconclusive_reason?: InconclusiveReasonEnum | null;
+  verdict_headline: string;
+  assertion_results: AssertionItemVerdict[];
+  action_boundaries: string[];
+  safety_audit_passed: boolean;
+  verdict_fingerprint: string;
+}
+

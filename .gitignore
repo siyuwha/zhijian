@@ -45,3 +45,6 @@ baseline_evidence/recovery_points/
 # 外部文档排版临时目录
 我的背包排版/
 
+# 临时测试与对抗执行脚本
+scratch/
+

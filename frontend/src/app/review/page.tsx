@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { DailyReviewSummaryItem } from '@/types/report';
 import { formatDateWithWeekday } from '@/lib/utils';
-import { RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, Activity, HelpCircle, Info } from 'lucide-react';
+import { RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, Activity, HelpCircle, Info, Compass } from 'lucide-react';
 
 export default function ReviewPage() {
   const [reviews, setReviews] = useState<DailyReviewSummaryItem[]>([]);
@@ -131,6 +131,33 @@ export default function ReviewPage() {
           <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
           {generating ? '正在抓取计算...' : '一键生成今日复盘'}
         </button>
+      </div>
+
+      {/* 升级引导：全景交易员驾驶舱 · Trader Cockpit */}
+      <div className="p-4 rounded-xl bg-indigo-950/40 border border-indigo-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-200 text-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shrink-0">
+            <Compass className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-bold text-slate-100 flex items-center gap-2">
+              全景交易员驾驶舱 · Trader Cockpit 已就绪
+              <span className="text-[10px] font-mono bg-indigo-900/80 text-indigo-300 border border-indigo-700/60 px-1.5 py-0.5 rounded">
+                推荐使用
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              集成三层倒金字塔架构、7问第一屏、操盘内参战报与 09:25 集合竞价波普尔证伪闭环。
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/cockpit"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-lg transition shrink-0 self-start sm:self-center"
+        >
+          <span>进入交易员驾驶舱</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
       {/* 物理确权休市状态通知（通信正常、物理事实确认为休市，不作为错误报警） */}

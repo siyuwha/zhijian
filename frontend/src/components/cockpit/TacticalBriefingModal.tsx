@@ -20,6 +20,7 @@ interface TacticalBriefingModalProps {
   onClose: () => void;
   briefing: TacticalBriefingReport | null;
   isLoading?: boolean;
+  onOpenBiddingFalsification?: () => void;
 }
 
 export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
@@ -27,6 +28,7 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
   onClose,
   briefing,
   isLoading = false,
+  onOpenBiddingFalsification,
 }) => {
   if (!isOpen) return null;
 
@@ -195,6 +197,20 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                         <span className="text-slate-400 select-all">{briefing.source_snapshot_hash.slice(0, 16)}...</span>
                       </div>
                     )}
+                  </div>
+                )}
+                {onOpenBiddingFalsification && (
+                  <div className="pt-2.5 border-t border-slate-900 flex justify-end">
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenBiddingFalsification();
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-indigo-200 bg-indigo-950/70 hover:bg-indigo-900/80 border border-indigo-700/60 px-3 py-1.5 rounded-lg transition"
+                    >
+                      <Compass className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>查看次日 09:25 竞价对账回执 &rarr;</span>
+                    </button>
                   </div>
                 )}
               </div>

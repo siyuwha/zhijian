@@ -221,6 +221,8 @@ export const canonicalAPI = {
     fetchAPI<import('@/types/canonical').CanonicalMarketSnapshot>(`/canonical/market-snapshot/${date}`),
   getTacticalBriefing: (date: string) =>
     fetchAPI<import('@/types/canonical').TacticalBriefingReport>(`/canonical/tactical-briefing/${date}`),
+  getAuctionFalsification: (date: string) =>
+    fetchAPI<import('@/types/canonical').BiddingFalsificationVerdict>(`/canonical/auction-falsification/${date}`),
 };
 
 
