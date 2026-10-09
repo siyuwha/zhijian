@@ -80,6 +80,47 @@ class AuctionFalsificationService:
         is_trading = calendar.is_trading_day(trade_date)
         prev_date = calendar.prev_trading_day(trade_date).strftime("%Y-%m-%d")
 
+        if not is_trading:
+            # 物理休市 / 非交易日拦截 (P0-1 因果与日历公理)：无需前日假说，直接输出不可漂移的 MARKET_CLOSED 裁决
+            eval_time = f"{trade_date}T09:25:05+08:00"
+            trace_id = f"TRACE-{prev_date}-TO-{trade_date}-AUCTION-POPPER-00000000"
+            hypo_id = f"HYPO-{prev_date}-00000000"
+            closed_fp = "0000000000000000000000000000000000000000000000000000000000000000"
+
+            dummy_hypo = PopperianHypothesisRecord(
+                hypothesis_id=hypo_id,
+                registered_at=f"{prev_date}T16:00:00+08:00",
+                base_trade_date=prev_date,
+                target_trade_date=trade_date,
+                bound_briefing_trace_id=trace_id,
+                bound_briefing_fingerprint=closed_fp,
+                bound_snapshot_fingerprint=closed_fp,
+                expected_market_state="休市停牌",
+                expected_turnover_ratio_min=Decimal("0.00"),
+                expected_turnover_ratio_max=Decimal("1.00"),
+                space_leader_code="000000",
+                space_leader_name="无",
+                space_leader_falsification_threshold=Decimal("-3.00"),
+                mainline_leader_codes=[],
+                required_observation_symbols=["000000"],
+                hypothesis_fingerprint=closed_fp,
+            )
+
+            auction_snapshot = await self.auction_service.produce_canonical_auction_snapshot(
+                trade_date=trade_date,
+                prev_date=prev_date,
+                force_replay_data=force_replay_data,
+            )
+
+            raw_verdict = self.comparator.evaluate(
+                hypothesis=dummy_hypo,
+                auction_snapshot=auction_snapshot,
+            )
+            self.safety_guard.audit_verdict(raw_verdict)
+            if not force_replay_data:
+                _AUCTION_VERDICT_MEMORY_CACHE[cache_key] = raw_verdict
+            return raw_verdict
+
         # 3. 提取前日基准市场快照与假说
         prev_snapshot = await self.market_service.get_canonical_snapshot(prev_date)
         if not prev_snapshot:
@@ -98,7 +139,15 @@ class AuctionFalsificationService:
         if prev_snapshot.cognition and prev_snapshot.cognition.mainlines:
             for ml in prev_snapshot.cognition.mainlines[:3]:
                 if ml.constituency and ml.constituency.leader_code:
-                    mainline_codes.append(ml.constituency.leader_code)
+                    code = ml.constituency.leader_code
+                    if code != space_leader_code and code not in mainline_codes:
+                        mainline_codes.append(code)
+            # 若前三主线龙头均与空间标杆重合，则回退保留
+            if not mainline_codes:
+                for ml in prev_snapshot.cognition.mainlines[:3]:
+                    if ml.constituency and ml.constituency.leader_code:
+                        if ml.constituency.leader_code not in mainline_codes:
+                            mainline_codes.append(ml.constituency.leader_code)
 
         required_symbols = [space_leader_code]
         for c in mainline_codes:
@@ -108,6 +157,12 @@ class AuctionFalsificationService:
         hypo_id = f"HYPO-{prev_date}-{prev_snapshot.envelope_fingerprint[:8]}"
         hypo_registered_at = f"{prev_date}T16:00:00+08:00"
 
+        expected_state_name = "高位剧烈分化期"
+        if prev_snapshot.cognition and prev_snapshot.cognition.market_state_calibration:
+            expected_state_name = prev_snapshot.cognition.market_state_calibration.state_display_name
+        elif prev_snapshot.cognition and prev_snapshot.cognition.market_state_summary:
+            expected_state_name = prev_snapshot.cognition.market_state_summary
+
         raw_hypo_dict = {
             "hypothesis_id": hypo_id,
             "registered_at": hypo_registered_at,
@@ -116,7 +171,7 @@ class AuctionFalsificationService:
             "bound_briefing_trace_id": f"TRACE-{prev_date}-BRIEFING",
             "bound_briefing_fingerprint": prev_snapshot.envelope_fingerprint,
             "bound_snapshot_fingerprint": prev_snapshot.envelope_fingerprint,
-            "expected_market_state": prev_snapshot.derived.state_features.model_dump().get("primary_state", "高位剧烈分化期"),
+            "expected_market_state": expected_state_name,
             "expected_turnover_ratio_min": "0.80",
             "expected_turnover_ratio_max": "1.50",
             "space_leader_code": space_leader_code,
@@ -135,7 +190,7 @@ class AuctionFalsificationService:
             bound_briefing_trace_id=f"TRACE-{prev_date}-BRIEFING",
             bound_briefing_fingerprint=prev_snapshot.envelope_fingerprint,
             bound_snapshot_fingerprint=prev_snapshot.envelope_fingerprint,
-            expected_market_state="高位剧烈分化期",
+            expected_market_state=expected_state_name,
             expected_turnover_ratio_min=Decimal("0.80"),
             expected_turnover_ratio_max=Decimal("1.50"),
             space_leader_code=space_leader_code,

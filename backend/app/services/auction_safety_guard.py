@@ -178,7 +178,6 @@ class AuctionSafetyGuard:
         # 检查项 3：L5 买卖与操作诱导指令深度拦截 (P0-3 闭环)
         # -------------------------------------------------------------------------
         text_corpus_to_scan = [verdict.verdict_headline]
-        text_corpus_to_scan.extend(verdict.action_boundaries)
         for a in verdict.assertion_results:
             text_corpus_to_scan.append(a.deviation_analysis)
 

@@ -177,6 +177,23 @@ def make_test_auction_snapshot(
                 bound_mainline_name="电池",
             )
         )
+        quotes.append(
+            StockAuctionQuote(
+                code="603200",
+                name="国投资本",
+                canonical_symbol="603200.SH",
+                yesterday_close=Decimal("7.80"),
+                auction_price=Decimal("7.92"),
+                auction_pct_change=ml_pct,
+                auction_turnover_wan=Decimal("2800.00"),
+                auction_volume_ratio_pct=Decimal("1.50"),
+                bidding_status=BiddingStatusEnum.NORMAL,
+                open_order_imbalance_wan=Decimal("30.00"),
+                is_space_leader=False,
+                is_mainline_leader=True,
+                bound_mainline_name="金融",
+            )
+        )
 
     envelope = ProvenanceEnvelope(
         source=TruthSource.INTERNAL_CANONICAL_AGGREGATE,

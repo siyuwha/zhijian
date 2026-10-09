@@ -72,7 +72,55 @@ class CanonicalAuctionService:
         is_trading = calendar.is_trading_day(trade_date)
         obs_time = observed_time or "09:25:05"
 
-        # 2. 严格单向加载前一交易日的 CanonicalMarketSnapshot (提取基准事实与观察哨标的)
+        # 2. 若为休市或非交易日：刚性输出标记，杜绝假数据污染不可变账本 (无需前日基准)
+        if not is_trading:
+            dummy_envelope = ProvenanceEnvelope(
+                source=TruthSource.INTERNAL_CANONICAL_AGGREGATE,
+                observed_time=f"{trade_date}T{obs_time}+08:00",
+                quality=DataQualityGrade.UNAVAILABLE,
+                is_degraded=True,
+                degradation_reason=f"Date {trade_date} is confirmed non-trading day/market closed",
+            )
+            raw_empty_dict = {
+                "trade_date": trade_date,
+                "observed_time": obs_time,
+                "prev_trade_date": prev_date,
+                "bound_snapshot_trace_id": f"TRACE-{prev_date}-TO-{trade_date}-CLOSED",
+                "bound_snapshot_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+                "bound_briefing_fingerprint": None,
+                "indices": [],
+                "sh_auction_turnover_yi": "0.00",
+                "sz_auction_turnover_yi": "0.00",
+                "total_auction_turnover_yi": "0.00",
+                "prev_total_turnover_yi": "1.00",
+                "auction_turnover_ratio_pct": "0.00",
+                "leader_quotes": [],
+                "is_trading_day": False,
+                "data_quality": DataQualityGrade.UNAVAILABLE.value,
+                "envelope": dummy_envelope.model_dump(),
+            }
+            empty_fp = hash_jcs(raw_empty_dict)
+            return CanonicalAuctionSnapshot(
+                trade_date=trade_date,
+                observed_time=obs_time,
+                prev_trade_date=prev_date,
+                bound_snapshot_trace_id=f"TRACE-{prev_date}-TO-{trade_date}-CLOSED",
+                bound_snapshot_fingerprint="0000000000000000000000000000000000000000000000000000000000000000",
+                bound_briefing_fingerprint=None,
+                indices=[],
+                sh_auction_turnover_yi=Decimal("0.00"),
+                sz_auction_turnover_yi=Decimal("0.00"),
+                total_auction_turnover_yi=Decimal("0.00"),
+                prev_total_turnover_yi=Decimal("1.00"),
+                auction_turnover_ratio_pct=Decimal("0.00"),
+                leader_quotes=[],
+                is_trading_day=False,
+                data_quality=DataQualityGrade.UNAVAILABLE,
+                envelope=dummy_envelope,
+                auction_fingerprint=empty_fp,
+            )
+
+        # 3. 严格单向加载前一交易日的 CanonicalMarketSnapshot (提取基准事实与观察哨标的)
         prev_snapshot = await self.market_service.get_canonical_snapshot(prev_date)
         if not prev_snapshot:
             raise ValueError(f"Cannot produce auction snapshot: Base snapshot for {prev_date} not found!")
@@ -96,53 +144,6 @@ class CanonicalAuctionService:
                 if ml.constituency and ml.constituency.leader_code:
                     mainline_leaders[ml.constituency.leader_code] = ml.sector_name
 
-        # 3. 若为休市或非交易日：刚性输出标记，杜绝假数据污染不可变账本
-        if not is_trading:
-            dummy_envelope = ProvenanceEnvelope(
-                source=TruthSource.INTERNAL_CANONICAL_AGGREGATE,
-                observed_time=f"{trade_date}T{obs_time}+08:00",
-                quality=DataQualityGrade.UNAVAILABLE,
-                is_degraded=True,
-                degradation_reason=f"Date {trade_date} is confirmed non-trading day/market closed",
-            )
-            raw_empty_dict = {
-                "trade_date": trade_date,
-                "observed_time": obs_time,
-                "prev_trade_date": prev_date,
-                "bound_snapshot_trace_id": bound_trace_id,
-                "bound_snapshot_fingerprint": bound_snap_fp,
-                "bound_briefing_fingerprint": None,
-                "indices": [],
-                "sh_auction_turnover_yi": "0.00",
-                "sz_auction_turnover_yi": "0.00",
-                "total_auction_turnover_yi": "0.00",
-                "prev_total_turnover_yi": str(prev_total_turnover),
-                "auction_turnover_ratio_pct": "0.00",
-                "leader_quotes": [],
-                "is_trading_day": False,
-                "data_quality": DataQualityGrade.UNAVAILABLE.value,
-                "envelope": dummy_envelope.model_dump(),
-            }
-            empty_fp = hash_jcs(raw_empty_dict)
-            return CanonicalAuctionSnapshot(
-                trade_date=trade_date,
-                observed_time=obs_time,
-                prev_trade_date=prev_date,
-                bound_snapshot_trace_id=bound_trace_id,
-                bound_snapshot_fingerprint=bound_snap_fp,
-                bound_briefing_fingerprint=None,
-                indices=[],
-                sh_auction_turnover_yi=Decimal("0.00"),
-                sz_auction_turnover_yi=Decimal("0.00"),
-                total_auction_turnover_yi=Decimal("0.00"),
-                prev_total_turnover_yi=prev_total_turnover,
-                auction_turnover_ratio_pct=Decimal("0.00"),
-                leader_quotes=[],
-                is_trading_day=False,
-                data_quality=DataQualityGrade.UNAVAILABLE,
-                envelope=dummy_envelope,
-                auction_fingerprint=empty_fp,
-            )
 
         # 4. 采集/提取 09:25 真实竞价物理切片
         # 优先级：force_replay_data > 数据库 AUCTION_0925 快照 > 网络实时采集
