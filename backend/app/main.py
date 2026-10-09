@@ -46,7 +46,7 @@ app.add_middleware(
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
-from app.version import get_version_info, VERSION, get_git_commit
+from .version import get_version_info, VERSION, get_git_commit
 
 @app.get("/health")
 async def health_check():
