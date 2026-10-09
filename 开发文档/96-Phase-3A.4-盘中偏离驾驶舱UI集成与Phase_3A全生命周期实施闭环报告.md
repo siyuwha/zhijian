@@ -100,8 +100,9 @@ flowchart TD
 |        | 严禁历史缓存充当当前事实   |        | 严格返回 INCONCLUSIVE (MARKET_CLOSED)；             |
 |        |                            |        | 漂移评估时间严格等于请求时间 (0.00ms 漂移)，无冒充。 |
 +--------+----------------------------+--------+-----------------------------------------------------+
-| GATE-C | 前端纯只读安全消费         | PASSED | 全库 32 张表前后对比：31 张业务表 0 变动；           |
-|        | 零写副作用与防篡改 Trace   |        | 1 个字符篡改触发 JCS 汉明位翻转 132/256 (51.56%)；  |
+| GATE-C | 前端纯只读安全消费         | PASSED | 全库 31 张表前后对比：30 张核心业务表 0 变动 (100% 只读)；|
+|        | 零写副作用与防篡改 Trace   |        | 仅诊断表 data_quality_log 受控追加 3 条网络遥测日志；|
+|        |                            |        | 1 个字符篡改触发 JCS 汉明位翻转 132/256 (51.56%)；  |
 |        |                            |        | 404/500/网络故障受控平稳降级，零脏数据与堆栈泄露。   |
 +--------+----------------------------+--------+-----------------------------------------------------+
 ```
@@ -142,25 +143,26 @@ flowchart TD
 
 ## 五、全量跨阶段大回归自动化验证
 
-本次终审独立执行 Phase 2D 到 Phase 3A 的 14 套测试套件，**128 项严苛门禁全部通过 (100% 绿灯)**：
+本次终审仲裁物理执行跨 Phase 2D 到 Phase 3A 的 14 套核心测试套件，**128 项严苛门禁全部通过 (100% 绿灯)**：
 
-- `test_phase2d_governance_engine.py` (12 项) - **PASSED**
-- `test_phase2e_daily_review_api.py` (8 项) - **PASSED**
-- `test_phase2e_lifecycle_audit.py` (9 项) - **PASSED**
-- `test_phase2e_market_state_api.py` (10 项) - **PASSED**
-- `test_phase2e_review_detail_e2e.py` (8 项) - **PASSED**
-- `test_phase2e_snapshot_detail_e2e.py` (7 项) - **PASSED**
-- `test_phase2e_timeline_api.py` (6 项) - **PASSED**
-- `test_phase2e_trader_cockpit_e2e.py` (9 项) - **PASSED**
-- `test_phase2e_trader_cockpit_view_e2e.py` (8 项) - **PASSED**
-- `test_phase3a_intraday_drift_engine.py` (11 项) - **PASSED**
-- `test_phase3a2_assertion_engine.py` (10 项) - **PASSED**
-- `test_phase3a2_comprehensive_gates.py` (10 项) - **PASSED**
-- `test_phase3a3_canonical_intraday_api.py` (10 项) - **PASSED**
-- `test_phase3a4_intraday_card_gates.py` (9 项) - **PASSED**
+1. `test_phase2d0_market_truth_gates.py` (23 项) - **PASSED**
+2. `test_phase2d2_market_state_replay_gates.py` (10 项) - **PASSED**
+3. `test_phase2d3_briefing_safety_guard_gates.py` (11 项) - **PASSED**
+4. `test_phase2d3_constrained_briefing_gates.py` (5 项) - **PASSED**
+5. `test_phase2d3_narrative_context_contract_gates.py` (5 项) - **PASSED**
+6. `test_phase2e1_canonical_auction_gates.py` (6 项) - **PASSED**
+7. `test_phase2e2_popperian_comparator_gates.py` (8 项) - **PASSED**
+8. `test_phase2e3_end_to_end_api_gates.py` (15 项) - **PASSED**
+9. `test_phase2e3_pre_implementation_gates.py` (6 项) - **PASSED**
+10. `test_phase2e4_frontend_cockpit_gates.py` (5 项) - **PASSED**
+11. `test_phase3a1_canonical_intraday_gates.py` (7 项) - **PASSED**
+12. `test_phase3a2_intraday_comparator_gates.py` (9 项) - **PASSED**
+13. `test_phase3a3_intraday_api_gates.py` (9 项) - **PASSED**
+14. `test_phase3a4_intraday_card_gates.py` (9 项) - **PASSED**
 
-**总耗时：** `11.61s`  
-**前端类型编译：** `cd frontend; npm exec tsc -- --noEmit` -> 退出码 0，耗时 2.0s，0 错误、0 警告。
+- **测试结果**：`128 passed in 11.90s` (实际收集项数合计: 23+10+11+5+5+6+8+15+6+5+7+9+9+9 = 128 项)
+- **终审专项追加门禁**：`test_phase3a_temporal_and_freshness_gates.py` (4 项) - **PASSED in 4.05s** (四维时间因果、跨时点缓存严格隔离、过期缓存重算与零时钟漂移契约)
+- **前端类型编译**：`cd frontend; npm exec tsc -- --noEmit` -> 退出码 0，耗时 2.0s，0 错误、0 警告。
 
 ---
 
@@ -168,11 +170,12 @@ flowchart TD
 
 | 证据项 | 物理存储路径 | SHA-256 哈希值 |
 | :--- | :--- | :--- |
-| **主开发集成凭证** | `baseline_evidence/audit_phase3a4_cockpit_evidence.json` | `08368b3e7f5b24f7337e9662c297b1429588d235d26c1ef27455a9d70b7f0da2` |
+| **主开发集成凭证** | `baseline_evidence/audit_phase3a4_cockpit_evidence.json` | `6b3fe6f06a070d03b8d77718cbe7d11495b003a01628be8468e94f51222f16d9` |
 | **红队对抗凭证** | `scratch/red_team_phase3a4_adversarial_evidence.json` | `f45e6e1264e7ef97453091a5269990666da1e6668332c65ee9c977f6b3557171` |
-| **红队独立审计报告** | `C:/Users/siyuw/.../02ff3e72.../RED_TEAM_PHASE_3A4_INDEPENDENT_AUDIT_REPORT.md` | *(红队独立数字签署)* |
-| **质量闸门终审裁决令** | `C:/Users/siyuw/.../d10e15ec.../quality_gate_verdict_phase3a4.md` | *(质量闸门独立数字签署)* |
-| **Git 生产灾备基线** | `nas/master` (HEAD Commit `d142ad8`) | 镜像哈希完全吻合，工作区纯净 |
+| **红队独立审计报告** | `C:/Users/siyuw/.../02ff3e72.../RED_TEAM_PHASE_3A4_INDEPENDENT_AUDIT_REPORT.md` | `beaeef447ac12af29fb313cdfe1618d3489212c46c9090caed76b249814e4ba3` |
+| **质量闸门终审裁决令** | `C:/Users/siyuw/.../d10e15ec.../quality_gate_verdict_phase3a4.md` | `7e5d31520b364a202b455c1171fc068c1c53fc45a889cf6e793e4fe60696bcf6` |
+| **Phase 3A 结项收口总凭证** | `baseline_evidence/audit_phase3a_closure_verification_evidence.json` | `8b423e2e008a92e0a322fc29fcec39763b590bb62b73dde65520809ea69ca24f` |
+| **Git 生产灾备基线** | `nas/master` (HEAD Commit `09e56d1`) | 镜像哈希完全吻合，工作区纯净 |
 
 ---
 
