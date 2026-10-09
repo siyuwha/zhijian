@@ -1,0 +1,228 @@
+{
+  "audit_version": "2D-ITEM-C-LINEAGE-RECALC-V1",
+  "trade_date": "2026-10-08",
+  "database_file": "trading.db",
+  "execution_timestamp_utc": "2026-10-09T04:15:00Z",
+  "nodes": {
+    "node_1_physical_snapshot": {
+      "status": "VERIFIED_EXACT",
+      "sqlite_row_id": 3,
+      "trade_date": "2026-10-08",
+      "snapshot_type": "EOD_CLOSE",
+      "data_quality": "PARTIAL",
+      "created_at": "2026-10-08 11:47:25",
+      "raw_payload_bytes": {
+        "indices_snapshot": 776,
+        "limit_up_snapshot": 7619,
+        "market_state_snapshot": 325186,
+        "source_status": 281
+      },
+      "extracted_facts": {
+        "sh_turnover_yi": 8111.830964,
+        "sz_turnover_yi": 8709.256454,
+        "total_turnover_yi": 16821.09,
+        "limit_up_count": 43,
+        "broken_limit_count": 32,
+        "limit_down_count": 13,
+        "max_ladder_height": 8,
+        "anomaly_facts_count": 11,
+        "raw_sector_gates_count": 287
+      }
+    },
+    "node_2_snapshot_envelope": {
+      "status": "VERIFIED_EXACT",
+      "snapshot_version": "2D.0-CANONICAL-V2",
+      "generated_at": "2026-10-08T15:05:00.000+08:00",
+      "truth_fingerprint": "7556ed6e558cb978e58634196f38f997e864e6e54240a6f400eed3ddf3cac348",
+      "truth_canonical_bytes_len": 16087,
+      "cognition_fingerprint": "59b3f502a7d63b96cdc28ae382124ad164d1a0b813f19e468bcaddf598d5060b",
+      "cognition_canonical_bytes_len": 12588,
+      "envelope_fingerprint": "80cb8e02acbcc1079b39b59f35af4bd252ce6f39c5a48064a6726d089ea58f22",
+      "envelope_canonical_bytes_len": 291,
+      "envelope_canonical_preview": "{\"cognition_fingerprint\":\"59b3f502a7d63b96cdc28ae382124ad164d1a0b813f19e468bcaddf598d5060b\",\"generated_at\":\"2026-10-08T15:05:00.000+08:00\",\"snapshot_version\":\"2D.0-CANONICAL-V2\",\"trade_date\":\"2026-10-08\",\"truth_fingerprint\":\"7556ed6e558cb978e58634196f38f997e864e6e54240a6f400eed3ddf3cac348\"}"
+    },
+    "node_3_state_calibration": {
+      "status": "VERIFIED_EXACT",
+      "primary_state": "HIGH_DIVERGENCE_TOPPING",
+      "state_confidence": 0.9,
+      "driving_factors": [
+        "指数极度分化 (离散度 4.03%)，权重与题材背离",
+        "炸板率高达 42.67% 且跌停 13 家，短线博弈极端极化",
+        "最高连板达 8B (最高8B新华传媒)，高位博弈激烈",
+        "共 11 只标的触发严重异动商业规则，高位降温压力剧增"
+      ],
+      "lineage_accounting": {
+        "total_raw_evaluated": 287,
+        "admission_rejected_count": 36,
+        "admission_admitted_count": 251,
+        "excluded_meta_tags_count": 30,
+        "excluded_regions_count": 8,
+        "solitary_leader_noise_count": 32,
+        "pulse_noise_count": 147,
+        "deduplicated_clusters_count": 14,
+        "eligible_candidates_count": 20,
+        "top_mainlines_count": 5,
+        "folded_eligible_remainder_count": 15,
+        "is_mathematically_closed": true,
+        "lineage_formula": "287 Raw = 36 Rejected + 251 Admitted; 251 Admitted = 30 MetaTags + 8 Regions + 32 SolitaryLeader + 147 PulseNoise + 14 Deduplicated + 20 Eligible; 20 Eligible = 5 TopMainlines + 15 FoldedRemainder"
+      },
+      "top_mainlines": [
+        {
+          "rank": 1,
+          "sector_name": "央国企改革",
+          "sector_code": "BK0683",
+          "structural_role": "CORE_MAINLINE",
+          "thematic_tier": "TIER_1_CORE",
+          "leader_name": "新华传媒",
+          "leader_code": "600825",
+          "leader_height": 8,
+          "limit_up_count": 12
+        },
+        {
+          "rank": 2,
+          "sector_name": "电力设备",
+          "sector_code": "BK1200",
+          "structural_role": "CORE_MAINLINE",
+          "thematic_tier": "TIER_1_CORE",
+          "leader_name": "时代万恒",
+          "leader_code": "600241",
+          "leader_height": 4,
+          "limit_up_count": 9
+        },
+        {
+          "rank": 3,
+          "sector_name": "固态电池",
+          "sector_code": "BK0968",
+          "structural_role": "CORE_MAINLINE",
+          "thematic_tier": "TIER_1_CORE",
+          "leader_name": "上海洗霸",
+          "leader_code": "603200",
+          "leader_height": 3,
+          "limit_up_count": 5
+        },
+        {
+          "rank": 4,
+          "sector_name": "储能概念",
+          "sector_code": "BK0989",
+          "structural_role": "CORE_MAINLINE",
+          "thematic_tier": "TIER_1_CORE",
+          "leader_name": "传艺科技",
+          "leader_code": "002866",
+          "leader_height": 3,
+          "limit_up_count": 7
+        },
+        {
+          "rank": 5,
+          "sector_name": "家用电器",
+          "sector_code": "BK0456",
+          "structural_role": "WEAK_ROTATION_OR_ISOLATED",
+          "thematic_tier": "TIER_3_WEAK_OR_ISOLATED",
+          "leader_name": "九阳股份",
+          "leader_code": "002242",
+          "leader_height": 4,
+          "limit_up_count": 2
+        }
+      ]
+    },
+    "node_4_narrative_context": {
+      "status": "VERIFIED_EXACT",
+      "schema_version": "2D.3-NARRATIVE-CONTEXT-V1",
+      "trade_date": "2026-10-08",
+      "source_snapshot_fingerprint": "80cb8e02acbcc1079b39b59f35af4bd252ce6f39c5a48064a6726d089ea58f22",
+      "context_fingerprint": "2996e40fc832a8fd2865f15979f2ea1d03e73a0d99d6e940fb8414afef84313a",
+      "context_canonical_bytes_len": 17026,
+      "fact_layer_summary": {
+        "two_markets_total_yi": 16821.09,
+        "sh_amount_yi": 8111.83,
+        "sz_total_amount_yi": 8709.26,
+        "limit_up_count": 43,
+        "broken_limit_count": 32,
+        "limit_down_count": 13,
+        "max_ladder_height": 8,
+        "space_leader_name": "新华传媒"
+      },
+      "derived_layer_summary": {
+        "broken_limit_ratio": 0.4267,
+        "extreme_loss_ratio": 0.6,
+        "dispersion_pct": 4.03,
+        "breadth_status": "UNAVAILABLE"
+      },
+      "speech_boundary": {
+        "allowed_claim_types": [
+          "MACRO_TURNOVER_DIVERGENCE",
+          "LADDER_STRUCTURE_AND_SPACE",
+          "CORE_MAINLINE_EVIDENCE",
+          "BLEEDING_AND_NEGATIVE_FEEDBACK",
+          "REGULATORY_ANOMALY_WARNING",
+          "NEXT_DAY_FALSIFICATION_BOUNDARY"
+        ],
+        "forbidden_claim_types": [
+          "DIRECT_TRADING_DIRECTIVE",
+          "UNVERIFIED_PRICE_TARGET",
+          "UNAUTHENTICATED_SECURITY_IDENTITY",
+          "COGNITION_TO_FACT_PROMOTION",
+          "REDUNDANT_DOUBLE_COUNT_CLAIMS",
+          "SECONDARY_MAINLINE_RERANKING"
+        ],
+        "required_evidence_anchors": [
+          "EVID:TURNOVER:16821.09YI",
+          "EVID:BROKEN_RATIO:42.67%",
+          "EVID:LIMIT_DOWN:13",
+          "EVID:MAX_HEIGHT:8B",
+          "EVID:SPACE_LEADER:600825:新华传媒",
+          "EVID:MAINLINE:1:央国企改革 (全市场空间高度标杆):新华传媒:8B",
+          "EVID:MAINLINE:2:电池 / 锂电池产业链:时代万恒:4B",
+          "EVID:MAINLINE:3:固态电池 (前沿技术催化):上海洗霸:3B"
+        ],
+        "falsification_rules_to_monitor": [
+          "【央国企改革】核心标杆 新华传媒 次日竞价大幅低开或开盘破位",
+          "【央国企改革】板块内首板晋级率全部归零且无新增首板承接",
+          "【央国企改革】板块内炸板率超过 50% 出现群体踩踏",
+          "【电力设备】核心标杆 时代万恒 次日竞价大幅低开或开盘破位",
+          "【电力设备】板块内首板晋级率全部归零且无新增首板承接",
+          "【电力设备】板块内炸板率超过 50% 出现群体踩踏",
+          "【固态电池】核心标杆 上海洗霸 次日竞价大幅低开或开盘破位",
+          "【固态电池】板块内首板晋级率全部归零且无新增首板承接",
+          "【固态电池】板块内炸板率超过 50% 出现群体踩踏"
+        ]
+      }
+    },
+    "node_5_remote_llm": {
+      "status": "VERIFIED_EXACT",
+      "trace_id": "TRACE-2026-10-08-AUDIT-LIVE-1791509961",
+      "model": "deepseek-chat",
+      "ttft_ms": 1262.04,
+      "total_ms": 2644.67,
+      "char_count": 412,
+      "utf8_bytes_len": 1080,
+      "raw_text_sha256": "6ecb4c32dfd2936e8766bc6d62b03ef5124b5a8a49f75d0327137c5c2d6692e9",
+      "raw_text": "【大势定调】  \n两市真实成交额16821.09亿元（沪8111.83亿，深含创业板8709.26亿），量能维持高位但指数离散度4.03%，权重与题材背离显著。微观状态标定为高位剧烈分化期，置信度90%。  \n\n【主线与梯队】  \n空间高度8B由新华传媒锚定，央国企改革主线涨停12家，为全市场空间标杆。电力设备/锂电池产业链时代万恒4B，涨停9家；固态电池上海洗霸3B，涨停5家。梯队纵深尚存，但中高位分歧加剧。  \n\n【风险与负反馈】  \n真实炸板率42.67%，跌停13家，极值亏损率60%，负反馈强度处于极值区间。11家标的触发商业数据商异动规则撮合，高位降温压力与规则性抛压叠加，逆势博弈面临显著亏损风险。  \n\n【明日推演与防守红线】  \n次日竞价核心观察哨：新华传媒、时代万恒、上海洗霸。若上述标杆大幅低开或开盘破位，则对应主线逻辑证伪，结构性走弱将向梯队中位传导。当前环境仅支持客观观测，不构成任何行为指令。"
+    },
+    "node_6_safety_guard": {
+      "status": "VERIFIED_EXACT",
+      "passed": true,
+      "trace_id": "TRACE-2026-10-08-AUDIT-LIVE-1791509961",
+      "checks_run": [
+        "NumericalFidelityGuard",
+        "EntityMasterIntegrityGuard",
+        "IllegalDirectiveDefense",
+        "StructureAndAnchorsGuard"
+      ],
+      "violations": []
+    },
+    "node_7_api_and_dom": {
+      "status": "VERIFIED_EXACT",
+      "trace_id": "TRACE-2026-10-08-AUDIT-LIVE-1791509961",
+      "source_snapshot_hash": "80cb8e02acbcc1079b39b59f35af4bd252ce6f39c5a48064a6726d089ea58f22",
+      "source_context_fingerprint": "2996e40fc832a8fd2865f15979f2ea1d03e73a0d99d6e940fb8414afef84313a",
+      "briefing_fingerprint": "afdca111ae7a0611b7954c353ce9749edcf9a412eca66d0ea096a86996c9352a",
+      "api_canonical_bytes_len": 2184,
+      "dom_watermark_alignment": {
+        "dom_watermark_trace_id": "TRACE-2026-10-08-AUDIT-LIVE-1791509961",
+        "dom_watermark_snapshot_sha": "80cb8e02acbcc107...",
+        "dom_watermark_fingerprint": "afdca111ae7a0611...",
+        "aligned": true
+      }
+    }
+  }
+}
