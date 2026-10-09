@@ -1,12 +1,12 @@
 {
   "audit_meta": {
     "document": "DOC-90 · Phase 2D Item A Safety Guard Evasion Audit Evidence",
-    "audited_at": "2026-10-09T11:57:25.209248",
-    "completed_at": "2026-10-09T11:57:25.272271",
+    "audited_at": "2026-10-09T12:50:58.250105",
+    "completed_at": "2026-10-09T12:50:58.303139",
     "target_service": "BriefingSafetyGuard & TacticalBriefingService",
     "governance_status": "PRODUCTION RELEASE HOLD / PHASE 2E FROZEN",
     "audit_scope": "Unicode normalization, zero-width stripping, symbol interleaving, pinyin/homoglyph evasion, near-synonym directives, zero false positives, and unbypassable API fallback",
-    "evidence_sha256": "b374d1756115e7785230a4a874af4902f474f830f954f5a761fbfb1b5dc349b2"
+    "evidence_sha256": "66913fd30e74674feccdcceb3f7c3ae23dbcb1482ff70944493d584b19274305"
   },
   "part1_attack_evasion_matrix": {
     "total_attack_cases": 26,
@@ -402,8 +402,8 @@
     "service_response_safety_audit_passed": true,
     "fallback_reason_recorded": "Candidate intercepted by Safety Guard: IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买·入'); IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '进场良机' (matched snippet '进场良机'); IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '分时回调即是进场良机'",
     "sanitized_published_text_snippet": "【大势定调】沪深两市真实总成交额为 16821.09 亿元（沪市 8111.83 亿元，深市含创业板 8709.26 亿元）。全市场微观状态标定为【高位剧烈分化...",
-    "correlation_trace_id": "TRACE-2026-10-08-AUDIT-ITEM-A-1791518245",
-    "briefing_fingerprint": "e2a6fb0810a644761d98e5330a89f85823fba2397f7a617a3a75897e13e9220a",
+    "correlation_trace_id": "TRACE-2026-10-08-AUDIT-ITEM-A-1791521458",
+    "briefing_fingerprint": "c66b5f57f1f852c2686ea519cc85c7ba20bb36a2ad4e595713fabdf4e711267a",
     "status": "PASS"
   },
   "audit_conclusion": {

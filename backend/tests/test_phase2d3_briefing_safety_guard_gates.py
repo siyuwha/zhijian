@@ -734,5 +734,81 @@ def test_gate_2d3_07c_unicode_evasion_and_false_positive_matrix(golden_context: 
     assert briefing_res.trace_id == "TRACE-ITEM-A-EVASION-TEST-001"
 
 
+# =============================================================================
+# GATE-2D3-12: Semantic Risk Description vs Directive Matrix Gate
+# =============================================================================
+def test_gate_2d3_12_semantic_risk_vs_directive_matrix(golden_context: NarrativeContextContract):
+    """
+    GATE-2D3-12: 语义矩阵分类审查门禁 (客观风险描述 vs 交易劝诱指令)
+    - 验证客观风险事实描述 100% 放行，绝不产生误杀；
+    - 验证显式操作指令 100% 硬拦截；
+    - 验证隐蔽/委婉/劝诱操作指令 (含历史失效词) 100% 拦截；
+    - 验证混合内容 100% 拦截并触发确定性保底无感降级。
+    """
+    guard = BriefingSafetyGuard()
+    engine = DeterministicBriefingFallbackEngine(guard)
+    service = TacticalBriefingService(safety_guard=guard)
+    base_text = engine.generate_fallback_briefing(golden_context).tactical_briefing_text
+
+    # 1. 客观风险事实与市场状态描述 (MUST PASS - 零误杀)
+    objective_risk_descriptions = [
+        "盘面资金处于观望态势",
+        "由于高位股分歧加大，资金风险偏好降低",
+        "银行板块保持防御结构，指数窄幅震荡",
+        "两市成交额有所降低，整体防守特征明显",
+        "市场观望情绪浓厚，量能收缩",
+        "高位情绪退潮，资金态度保持谨慎",
+    ]
+    for desc in objective_risk_descriptions:
+        res = guard.audit(base_text + " " + desc, golden_context)
+        assert res.passed is True, f"FALSE POSITIVE: Objective risk sentence was falsely blocked: '{desc}', violations: {res.violations}"
+
+    # 2. 显式操作指令 (MUST BLOCK)
+    explicit_directives = [
+        "建议次日集合竞价买入核心龙头时代万恒",
+        "激进资金可满仓冲锋固态电池龙头",
+        "破位标的建议果断清仓割肉离场",
+    ]
+    for directive in explicit_directives:
+        res = guard.audit(base_text + " " + directive, golden_context)
+        assert res.passed is False, f"FAILED TO BLOCK EXPLICIT DIRECTIVE: '{directive}'"
+        assert any("IllegalDirectiveViolation" in v for v in res.violations)
+
+    # 3. 隐蔽/委婉/劝诱操作指令 (含历史失效用例，MUST BLOCK)
+    covert_directives = [
+        "杜绝逆势博弈，严守核心龙头竞价承接红线",
+        "建议交易员严格控制仓位，保持克制",
+        "操作上建议逢低吸纳优质标的",
+        "必须轻仓试错，切忌盲目出手",
+        "操作建议：持币观望，严守止损红线",
+        "建议适当降低仓位",
+        "务必压缩仓位风险敞口",
+        "建议保持观望",
+        "操作上保持防御",
+        "严防追高被套",
+    ]
+    for covert in covert_directives:
+        res = guard.audit(base_text + " " + covert, golden_context)
+        assert res.passed is False, f"FAILED TO BLOCK COVERT DIRECTIVE: '{covert}'"
+        assert any("IllegalDirectiveViolation" in v for v in res.violations)
+
+    # 4. 混合内容端到端 API 降级检验 (MUST TRIGGER FALLBACK)
+    mixed_content = (
+        base_text +
+        " 盘面资金处于观望态势，两市成交额有所降低。"  # 合规客观描述
+        " 操作建议：交易员务必压缩仓位风险敞口，建议保持观望。"  # 违规劝诱
+    )
+    briefing = service.produce_briefing(
+        context=golden_context,
+        candidate_text=mixed_content,
+        trace_id="TRACE-SEMANTIC-MATRIX-TEST-001",
+    )
+    assert briefing.is_fallback_mode is True, "Mixed content must trigger fallback!"
+    assert briefing.safety_audit_passed is True, "Sanitized fallback must pass audit!"
+    assert "压缩仓位" not in briefing.tactical_briefing_text
+    assert "保持观望" not in briefing.tactical_briefing_text
+
+
+
 
 
