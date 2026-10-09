@@ -9,7 +9,7 @@
       "headline": "09:25 竞价盘面与前夜假说呈现中度分歧（量能/主线分化），需等待开盘确认。",
       "assertions_count": 4,
       "action_boundaries_count": 2,
-      "verdict_fingerprint": "aae3e52e32dc98fc34daec17f666d3217734117497a68fe910704c1952d677b7",
+      "verdict_fingerprint": "bea0896e269d4fc6797b5dd4dc1eb64175b5a2a220b863d8a5ff118dfaa9e358",
       "dom_node_tree": {
         "type": "CARD_VIEW",
         "header": {
@@ -66,7 +66,7 @@
             "is_violated": false,
             "status_label": "吻合",
             "target_entity": "Top 主线代表 (2 只)",
-            "actual_observation": "证券603200(603200): 9.57%, 时代万恒(600241): 10.01%",
+            "actual_observation": "时代万恒(600241): 10.01%, 证券603200(603200): 9.57%",
             "expected_condition": "主线领军标的不出现集体绿开且跌幅低于 -1.50%",
             "deviation_analysis": "核心主线龙头竞价承接平稳"
           }
@@ -78,8 +78,8 @@
         "footer": {
           "trace_id": "TRACE-2026-10-08-TO-2026-10-09-AUCTION-POPPER-80cb8e02",
           "hypothesis_id": "HYPO-2026-10-08-80cb8e02",
-          "verdict_fingerprint": "aae3e52e32dc98fc34daec17f666d3217734117497a68fe910704c1952d677b7",
-          "auction_fingerprint": "8ba32fcc508c0332d362ed32df5aaa27b2472c051279826c1b81dd1a742ec985",
+          "verdict_fingerprint": "bea0896e269d4fc6797b5dd4dc1eb64175b5a2a220b863d8a5ff118dfaa9e358",
+          "auction_fingerprint": "7978cd2954faa78e6b74690d20319ee9532ec231b597d49581219005a941ffdd",
           "threshold_config_hash": "85d1ada7c2fa509ff2d6367fb07b5ae393597c31451308bd6d2ea17fae06d7e0",
           "rule_version": "2026.10.E2.V1",
           "evaluated_at": "2026-10-09T09:25:05+08:00",
@@ -127,8 +127,8 @@
     },
     "scenario_3_tamper_avalanche": {
       "status": "PASS",
-      "original_fp": "aae3e52e32dc98fc34daec17f666d3217734117497a68fe910704c1952d677b7",
-      "tampered_fp": "3ce000af453b53308fe6177639d32210f39b7e1b73c04d4f12b439f16f4cad98",
+      "original_fp": "bea0896e269d4fc6797b5dd4dc1eb64175b5a2a220b863d8a5ff118dfaa9e358",
+      "tampered_fp": "edeb319447a278f891cc6ab8d8d5eeac4ffd47a29cceed238222f91a47cac867",
       "tamper_detected": true
     },
     "scenario_4_graceful_degradation": {

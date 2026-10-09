@@ -268,6 +268,7 @@ class CanonicalAuctionService:
                     bound_mainline_name=ml_name,
                 )
             )
+        leader_model_list.sort(key=lambda x: x.code)
 
         envelope = ProvenanceEnvelope(
             source=source_type,

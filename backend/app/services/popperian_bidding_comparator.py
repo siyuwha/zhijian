@@ -345,9 +345,10 @@ class PopperianBiddingComparator:
         # 断言 4：核心主线龙头共振断言 (RULE-MAINLINE-LEADER-ALIGNMENT)
         # -------------------------------------------------------------------------
         weak_drop_threshold = Decimal(str(self.threshold_config["mainline_leader_weak_drop"]))
-        ml_quotes = [
-            q for q in auction_snapshot.leader_quotes if q.code in hypothesis.mainline_leader_codes
-        ]
+        ml_quotes = sorted(
+            [q for q in auction_snapshot.leader_quotes if q.code in hypothesis.mainline_leader_codes],
+            key=lambda x: x.code,
+        )
 
         is_ml_violated = False
         ml_obs_list = [f"{q.name}({q.code}): {q.auction_pct_change}%" for q in ml_quotes]
