@@ -148,12 +148,15 @@ ENABLE_PHASE3A_INTRADAY_API = os.getenv("ENABLE_PHASE3A_INTRADAY_API", "true").l
 async def get_intraday_drift_verdict(
     date: str,
     time: Optional[str] = None,
+    time_str: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
     获取指定日期及时间窗口的盘中波普尔认知偏离对账单 (Phase 3A.3)
     纯只读、确定性、不可伪造，强制流经 IntradaySafetyGuard 拦截审查
     """
+    target_time = time or time_str
+
     if not ENABLE_PHASE3A_INTRADAY_API:
         raise HTTPException(
             status_code=503,
@@ -166,15 +169,15 @@ async def get_intraday_drift_verdict(
             detail={"error_code": "ERR_INVALID_DATE_FORMAT", "message": f"Date '{date}' is invalid, must be YYYY-MM-DD"},
         )
 
-    if time and not re.match(r"^\d{2}:\d{2}(:\d{2})?$", time):
+    if target_time and not re.match(r"^\d{2}:\d{2}(:\d{2})?$", target_time):
         raise HTTPException(
             status_code=400,
-            detail={"error_code": "ERR_INVALID_TIME_FORMAT", "message": f"Time '{time}' is invalid, must be HH:MM or HH:MM:SS"},
+            detail={"error_code": "ERR_INVALID_TIME_FORMAT", "message": f"Time '{target_time}' is invalid, must be HH:MM or HH:MM:SS"},
         )
 
     try:
         service = IntradayDriftService(db)
-        verdict = await service.get_or_compute_verdict(trade_date=date, snapshot_time=time)
+        verdict = await service.get_or_compute_verdict(trade_date=date, snapshot_time=target_time)
         return verdict
     except IntradayCausalViolationError as e:
         raise HTTPException(

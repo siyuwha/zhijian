@@ -225,7 +225,7 @@ export const canonicalAPI = {
     fetchAPI<import('@/types/canonical').BiddingFalsificationVerdict>(`/canonical/auction-falsification/${date}`),
   getIntradayDrift: (date: string, timeStr?: string) =>
     fetchAPI<import('@/types/canonical').IntradayDriftVerdict>(
-      `/canonical/intraday-drift/${date}${timeStr ? `?time_str=${timeStr}` : ''}`
+      `/canonical/intraday-drift/${date}${timeStr ? `?time=${timeStr}` : ''}`
     ),
 };
 
