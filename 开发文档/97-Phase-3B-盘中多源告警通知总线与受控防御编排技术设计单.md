@@ -308,7 +308,12 @@ flowchart LR
    - 约束：前端绝不添加任何交易下单交互按钮，异常受控平稳降级。
 4. **Phase 3B.4：全链路只读影子静默运行与闭环封存 (Read-Only Shadow Run & Final Closure)**
    - 目标：在非生产沙盒环境中进行连续交易日盘中影子跟踪演练，验证系统稳定性与零数据污染。
-   - 约束：继续坚决保持生产全量发布与实盘交易 **HOLD / FROZEN**。
+### 5. 独立红队前置审查加固准则 (Red Team Pre-Audit Directives)
+依据独立红队特使前置审查意见 (`RED_TEAM_PHASE_3B_DESIGN_PRE_AUDIT_REPORT.md`)，Phase 3B 研发全链路刚性嵌入以下 4 项底层安全加固防御准则：
+1. **去重键防碰撞注入防御**：`deduplication_key` 各组成字段（`trade_date`, `stage`, `category`, `symbol`）必须通过正则白名单校验（`^[A-Za-z0-9_.-]+$`），严禁特殊分隔符注入引发去重域逃逸；
+2. **RingBuffer 绝对有界防 OOM**：内存环形队列容量上限硬卡 **1,000 条**，满载时执行严格的 FIFO 淘汰并触发容量告警日志，严禁无界累加引发内存泄漏；
+3. **WebSocket 入向载荷硬阻断**：告警 WebSocket 端点定位为纯单向下发通道（Server-to-Client Only），对任何来自客户端的入向操作载荷执行**无条件丢弃 (Drop Inbound Payload)**，彻底阻断反向控制与注入攻击面；
+4. **统一后端授时时钟源**：所有事件时间戳（`observed_at`, `generated_at`, `expires_at`）必须且只能由后端受信任时钟源统一生成，严禁采信前端或客户端本地时钟，杜绝时钟回拨逃逸。
 
 ---
 
