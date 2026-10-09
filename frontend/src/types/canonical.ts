@@ -274,6 +274,9 @@ export interface TacticalBriefingReport {
   schema_version: string;
   producer_version: string;
   trade_date: string;
+  trace_id?: string;
+  source_snapshot_hash?: string;
+  llm_metrics?: Record<string, any> | null;
   generated_at: string;
   market_state_label: string;
   tactical_briefing_text: string;

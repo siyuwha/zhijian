@@ -369,3 +369,62 @@ def test_gate_2d3_07b_adversarial_numerical_and_covert_directive_defense(
     assert res_fake_reg2.passed is False
     assert any("commercial data vendor rule match" in v for v in res_fake_reg2.violations)
 
+    # -------------------------------------------------------------------------
+    # 4. 行为操作劝诫与指令性操作拦截 (DOC-87 审计整改：封堵一切第二人称行为命令)
+    # -------------------------------------------------------------------------
+    # 4.1 DOC-86 原文精确对抗用例: "杜绝逆势博弈，严守核心龙头竞价承接红线" -> 刚性拦截！
+    t_doc86_imperative = base_text + " 防守红线：高位分化加速段杜绝逆势博弈，严守核心龙头竞价承接红线。"
+    res_doc86_block = guard.audit(t_doc86_imperative, golden_context)
+    assert res_doc86_block.passed is False, "DOC-86 imperative phrase must be hard-blocked!"
+    assert any(
+        "IllegalDirectiveViolation" in v and ("杜绝" in v or "严守" in v or "博弈" in v)
+        for v in res_doc86_block.violations
+    ), f"Expected IllegalDirectiveViolation in: {res_doc86_block.violations}"
+
+    # 4.2 更多操作劝诱与行为指令对抗矩阵 -> 全部 HARD BLOCK
+    operational_imperatives = [
+        "建议次日控制仓位在半仓以下，保持观望。",
+        "切忌逆势接力，杜绝盲目出手。",
+        "务必严守交易纪律。",
+        "严防追高被套风险。",
+        "建议持币观望等待企稳。",
+        "不可盲目开仓抄底。",
+    ]
+    for imp in operational_imperatives:
+        t_imp = base_text + " " + imp
+        res_imp = guard.audit(t_imp, golden_context)
+        assert res_imp.passed is False, f"Failed to block operational imperative: {imp}"
+        assert any("IllegalDirectiveViolation" in v for v in res_imp.violations)
+
+    # 4.3 允许项：客观描述风险、可验证观察条件与假说证伪条件 -> 100% 纯净 PASS
+    allowed_objective_cases = [
+        "市场处于高位分化加速段，逆势博弈面临显著微观亏损风险。",
+        "核心标杆若开盘失守竞价承接位，将触发主线结构性走弱与逻辑证伪。",
+        "次日竞价重点观察空间标杆溢价表现与主线承接力度。",
+    ]
+    for obj_case in allowed_objective_cases:
+        t_obj = base_text + " " + obj_case
+        res_obj = guard.audit(t_obj, golden_context)
+        assert res_obj.passed is True, f"Legitimate objective description falsely blocked: {obj_case}, errors: {res_obj.violations}"
+
+    # -------------------------------------------------------------------------
+    # 5. 强离散整数字段保真度与精度边界校验 (P0-4 & DOC-87)
+    # -------------------------------------------------------------------------
+    # 5.1 空间标杆高度 (true: 8B)
+    t_height_wrong = base_text.replace("8B", "9B")
+    res_h_wrong = guard.audit(t_height_wrong, golden_context)
+    assert res_h_wrong.passed is False
+    assert any("Space leader max height '9B'" in v for v in res_h_wrong.violations)
+
+    # 5.2 跌停家数 (true: 13家)
+    t_down_wrong = base_text.replace("13 家", "14 家")
+    res_d_wrong = guard.audit(t_down_wrong, golden_context)
+    assert res_d_wrong.passed is False
+    assert any("Limit down count '14'" in v for v in res_d_wrong.violations)
+
+    # 5.3 商业异动规则撮合标的数 (true: 11家)
+    t_reg_wrong = base_text.replace("11 家", "12 家")
+    res_r_wrong = guard.audit(t_reg_wrong, golden_context)
+    assert res_r_wrong.passed is False
+    assert any("Regulatory anomaly count '12'" in v for v in res_r_wrong.violations)
+

@@ -38,6 +38,8 @@ class DeterministicBriefingFallbackEngine:
         context: NarrativeContextContract,
         fallback_reason: str = "Deterministic Fallback Activated (Safety Guard or Generator Fallback)",
         generated_at: str = "2026-10-09T03:00:00Z",
+        trace_id: Optional[str] = None,
+        source_snapshot_hash: Optional[str] = None,
     ) -> TacticalBriefingReport:
         """
         基于 NarrativeContextContract 确定性生成操盘手内参实战战报
@@ -117,10 +119,15 @@ class DeterministicBriefingFallbackEngine:
         ]
 
         # 5. 计算初步报告对象
+        active_trace_id = trace_id or f"TRACE-{context.trade_date}-CANONICAL-FALLBACK"
+        active_snapshot_hash = source_snapshot_hash or "926200c87eb19e07547d3e6ce5f780c44b2943313a499f69a68560880a49cc52"
+
         base_payload = {
             "schema_version": "2D.3-TACTICAL-BRIEFING-V1",
             "producer_version": "CANONICAL_TACTICAL_BRIEFING_ENGINE-V1",
             "trade_date": context.trade_date,
+            "trace_id": active_trace_id,
+            "source_snapshot_hash": active_snapshot_hash,
             "generated_at": generated_at,
             "market_state_label": state_label,
             "tactical_briefing_text": tactical_text,
@@ -143,6 +150,7 @@ class DeterministicBriefingFallbackEngine:
         audit_res: SafetyAuditResult = self.safety_guard.audit(
             report_or_text=report,
             context=context,
+            trace_id=active_trace_id,
         )
         if not audit_res.passed:
             raise RuntimeError(

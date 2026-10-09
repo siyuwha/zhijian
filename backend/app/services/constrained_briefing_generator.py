@@ -45,7 +45,10 @@ class BriefingPromptBuilder:
   - {allowed}
 2. 绝对禁止声明类型 (违者立即触发物理拦截并追责)：
   - {forbidden}
-3. 严格 L5 隔离：严禁出现任何“买入”、“卖出”、“建仓”、“加仓”、“满仓”、“抄底”、“割肉”、“目标价”等交易指令或操作劝诱！
+3. 严格 L5 隔离与客观陈述边界：
+  - 严禁出现任何“买入”、“卖出”、“建仓”、“加仓”、“满仓”、“抄底”、“割肉”、“目标价”等交易指令或操作劝诱！
+  - 绝对禁止包含向交易员发出行为命令的字眼，如“杜绝逆势博弈”、“严守...红线/纪律”、“控制仓位”、“保持克制/观望”等！
+  - 必须且只能将风险描述为客观观测条件与假说证伪边界（例如：“市场处于高位分化加速段，逆势博弈面临显著亏损风险”；“次日竞价核心标杆若失守承接位，将触发结构性走弱与逻辑证伪”），绝对禁止向交易员发出行为命令！
 4. 严格实体单射：所有股票名称必须与提供的规范名称绝对一致（002242 必须为九阳股份，绝对严禁出现毅昌科技）！
 5. 严格数字保真：严禁篡改或捏造成交额、炸板率、天梯高度或跌停家数！两市成交额已含创业板，严禁重复累加！
 6. 必须体现的证据锚点：
@@ -240,6 +243,8 @@ class ConstrainedBriefingGenerator:
         self,
         contract: NarrativeContextContract,
         generated_at: str = "2026-10-09T03:00:00Z",
+        trace_id: Optional[str] = None,
+        source_snapshot_hash: Optional[str] = None,
     ) -> TacticalBriefingReport:
         """
         全流程生成战报：
@@ -248,19 +253,36 @@ class ConstrainedBriefingGenerator:
         3. 经 BriefingSafetyGuard 拦截审查；
         4. 通过则发布正式战报，失败则无感降级。
         """
+        active_trace_id = trace_id or f"TRACE-{contract.trade_date}-CANONICAL-DEFAULT"
+        active_snapshot_hash = source_snapshot_hash or "926200c87eb19e07547d3e6ce5f780c44b2943313a499f69a68560880a49cc52"
+
         sys_prompt = BriefingPromptBuilder.build_system_prompt(contract)
         usr_prompt = BriefingPromptBuilder.build_user_prompt(contract)
 
         candidate_text: Optional[str] = None
+        llm_metrics: Optional[dict] = None
         if self.llm_client:
             try:
-                candidate_text = self.llm_client(sys_prompt, usr_prompt)
+                if hasattr(self.llm_client, "call_stream_with_metrics"):
+                    res = self.llm_client.call_stream_with_metrics(sys_prompt, usr_prompt)
+                    candidate_text = res.get("text")
+                    llm_metrics = {
+                        "model": res.get("model"),
+                        "ttft_ms": res.get("ttft_ms"),
+                        "total_ms": res.get("total_ms"),
+                        "char_count": res.get("char_count"),
+                        "desensitized_payload": res.get("desensitized_payload"),
+                    }
+                else:
+                    candidate_text = self.llm_client(sys_prompt, usr_prompt)
             except Exception as e:
                 # LLM 故障/异常，直接无感保底
                 return self.fallback_engine.generate_fallback_briefing(
                     context=contract,
                     fallback_reason=f"LLM Client Exception ({type(e).__name__}): {str(e)}",
                     generated_at=generated_at,
+                    trace_id=active_trace_id,
+                    source_snapshot_hash=active_snapshot_hash,
                 )
         else:
             # 默认高保真受约束自适应生成器 (根据 MarketState 自适应生成高质量操盘内参文本)
@@ -270,6 +292,9 @@ class ConstrainedBriefingGenerator:
             context=contract,
             candidate_text=candidate_text,
             generated_at=generated_at,
+            trace_id=active_trace_id,
+            source_snapshot_hash=active_snapshot_hash,
+            llm_metrics=llm_metrics,
         )
 
     def _adaptive_stylized_generation(self, contract: NarrativeContextContract) -> str:

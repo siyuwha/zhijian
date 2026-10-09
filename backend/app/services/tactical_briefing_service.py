@@ -48,6 +48,9 @@ class TacticalBriefingService:
         risk_warnings: Optional[List[str]] = None,
         next_day_observation_posts: Optional[List[str]] = None,
         generated_at: str = "2026-10-09T03:00:00Z",
+        trace_id: Optional[str] = None,
+        source_snapshot_hash: Optional[str] = None,
+        llm_metrics: Optional[dict] = None,
     ) -> TacticalBriefingReport:
         """
         生产并发布符合审计门禁的 TacticalBriefingReport
@@ -55,12 +58,17 @@ class TacticalBriefingService:
         2. 若有候选文本，经 BriefingSafetyGuard 严格审查；
         3. 审查通过则封装发布；审查未通过则无感降级并记录违规原因。
         """
+        active_trace_id = trace_id or f"TRACE-{context.trade_date}-CANONICAL-DEFAULT"
+        active_snapshot_hash = source_snapshot_hash or "926200c87eb19e07547d3e6ce5f780c44b2943313a499f69a68560880a49cc52"
+
         # 情况 A: 无外部输入候选文本，直接由确定性保底引擎生成
         if not candidate_text:
             return self.fallback_engine.generate_fallback_briefing(
                 context=context,
                 fallback_reason="No external candidate provided; default deterministic engine activated",
                 generated_at=generated_at,
+                trace_id=active_trace_id,
+                source_snapshot_hash=active_snapshot_hash,
             )
 
         state_label = context.cognition_layer.market_state.state_display_name
@@ -76,7 +84,7 @@ class TacticalBriefingService:
         risks = risk_warnings or [
             f"日内真实炸板率高达 {context.derived_layer.broken_limit_ratio * 100:.2f}%",
             f"收盘跌停 {context.fact_layer.sentiment_counts.limit_down_count} 家",
-            f"严重异常波动监控 {context.fact_layer.regulatory.total_anomaly_count} 家",
+            f"商业数据商异动规则撮合标的 {context.fact_layer.regulatory.total_anomaly_count} 家",
         ]
         falsification_str = (
             top_ml.falsification_condition.invalidation_rules[0]
@@ -94,6 +102,7 @@ class TacticalBriefingService:
             key_battlegrounds=battlegrounds,
             risk_warnings=risks,
             next_day_observation_posts=observations,
+            trace_id=active_trace_id,
         )
 
         if audit_res.passed:
@@ -103,6 +112,9 @@ class TacticalBriefingService:
                 "schema_version": "2D.3-TACTICAL-BRIEFING-V1",
                 "producer_version": "CANONICAL_TACTICAL_BRIEFING_ENGINE-V1",
                 "trade_date": context.trade_date,
+                "trace_id": active_trace_id,
+                "source_snapshot_hash": active_snapshot_hash,
+                "llm_metrics": llm_metrics,
                 "generated_at": generated_at,
                 "market_state_label": state_label,
                 "tactical_briefing_text": candidate_text.strip(),
@@ -123,4 +135,6 @@ class TacticalBriefingService:
             context=context,
             fallback_reason=violation_reason,
             generated_at=generated_at,
+            trace_id=active_trace_id,
+            source_snapshot_hash=active_snapshot_hash,
         )

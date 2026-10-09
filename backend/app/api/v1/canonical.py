@@ -51,8 +51,18 @@ async def get_tactical_briefing(
             status_code=404,
             detail=f"Canonical market snapshot for {date} not found in storage",
         )
+    # 计算底层物理快照哈希与关联追踪 Trace ID (可审计血缘链路)
+    import hashlib
+    raw_snapshot_json = snapshot.model_dump_json()
+    snapshot_hash = hashlib.sha256(raw_snapshot_json.encode("utf-8")).hexdigest()
+    trace_id = f"TRACE-{date}-API-{hashlib.sha256((raw_snapshot_json + date).encode('utf-8')).hexdigest()[:12]}"
+
     extractor = NarrativeContextExtractor()
     context = extractor.extract_context(snapshot)
     generator = ConstrainedBriefingGenerator()
-    briefing = generator.generate_briefing(context)
+    briefing = generator.generate_briefing(
+        contract=context,
+        trace_id=trace_id,
+        source_snapshot_hash=snapshot_hash,
+    )
     return briefing

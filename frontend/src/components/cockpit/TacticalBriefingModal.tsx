@@ -169,18 +169,34 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                 </div>
               </div>
 
-              {/* 来源防伪与风控审计水印 */}
-              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] font-mono text-slate-500">
-                <div className="flex items-center gap-2">
-                  <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>引擎: {briefing.producer_version}</span>
-                  <span>|</span>
-                  <span>指纹: {briefing.briefing_fingerprint.slice(0, 16)}...</span>
+              {/* 来源防伪与全链路 Trace 水印 */}
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-850 flex flex-col gap-2 text-[11px] font-mono text-slate-500">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>引擎: {briefing.producer_version}</span>
+                    <span>|</span>
+                    <span>战报指纹: {briefing.briefing_fingerprint.slice(0, 16)}...</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>BriefingSafetyGuard 物理拦截通过 · 零 L5 指令泄露</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>BriefingSafetyGuard 物理拦截通过 · 零 L5 交易指令泄露</span>
-                </div>
+                {briefing.trace_id && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-900 text-[10px] text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-400">Trace ID:</span>
+                      <span className="text-indigo-400/90 select-all">{briefing.trace_id}</span>
+                    </div>
+                    {briefing.source_snapshot_hash && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">快照 SHA:</span>
+                        <span className="text-slate-400 select-all">{briefing.source_snapshot_hash.slice(0, 16)}...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           ) : (
