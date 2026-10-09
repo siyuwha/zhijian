@@ -2,10 +2,14 @@ FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/python:3.12-slim
 
 WORKDIR /app
 
-# 设置环境变量：Python 输出无缓冲、不写 pyc、设置时区
+# 设置环境变量：Python 输出无缓冲、不写 pyc、设置时区、设置 PYTHONPATH
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    TZ=Asia/Shanghai
+    TZ=Asia/Shanghai \
+    PYTHONPATH="/:/app"
+
+# 建立软链接让 /backend 指向 /app，实现 backend.app 与 app 双向绝对兼容
+RUN ln -s /app /backend 2>/dev/null || true
 
 # 配置阿里云国内 apt 源加速下载
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \

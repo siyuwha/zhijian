@@ -1,5 +1,27 @@
-import logging
+import sys
+import types
+from pathlib import Path
 from contextlib import asynccontextmanager
+import logging
+
+# 双向路径与包别名兼容保护 (兼容 Docker 容器内缺少 backend 顶层目录问题)
+_current_dir = Path(__file__).resolve().parent
+_parent_dir = _current_dir.parent
+for _p in [str(_current_dir), str(_parent_dir), "/app", "/"]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+if "backend" not in sys.modules:
+    try:
+        import app
+        _backend_pkg = types.ModuleType("backend")
+        _backend_pkg.app = app
+        _backend_pkg.__path__ = []
+        sys.modules["backend"] = _backend_pkg
+        sys.modules["backend.app"] = app
+    except Exception:
+        pass
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings

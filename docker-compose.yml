@@ -16,6 +16,7 @@ services:
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./data/trading.db
       - TZ=Asia/Shanghai
+      - PYTHONPATH=/:/app
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_BASE_URL=${LLM_BASE_URL:-https://api.deepseek.com/v1}
       - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
