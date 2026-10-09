@@ -341,3 +341,56 @@ export interface BiddingFalsificationVerdict {
   verdict_fingerprint: string;
 }
 
+// =========================================================================
+// Phase 3A: 盘中 4 阶段动态跟踪与认知偏离实时告警类型契约
+// =========================================================================
+
+export type IntradayStageEnum =
+  | 'STAGE_1_OPENING'
+  | 'STAGE_2_MORNING'
+  | 'LUNCH_BREAK'
+  | 'STAGE_3_AFTERNOON'
+  | 'STAGE_4_CLOSING'
+  | 'OFF_MARKET';
+
+export type DriftStateEnum =
+  | 'NORMAL'
+  | 'DRIFT_WARNING'
+  | 'CRITICAL_BREACH'
+  | 'INCONCLUSIVE';
+
+export type DriftInconclusiveReasonEnum =
+  | 'MARKET_CLOSED'
+  | 'DATA_QUALITY_DEGRADED'
+  | 'TARGET_MISSING_OR_SUSPENDED'
+  | 'CAUSAL_TEMPORAL_VIOLATION';
+
+export type DriftEventCategoryEnum =
+  | 'SPACE_LEADER_COLLAPSE'
+  | 'MAINLINE_TOTAL_REVERSAL'
+  | 'LIQUIDITY_FLASH_DRY'
+  | 'BREADTH_PANIC_DIVERGENCE';
+
+export interface IntradayDriftVerdict {
+  verdict_id: string;
+  trade_date: string;
+  evaluated_at: string;
+  stage: IntradayStageEnum;
+  elapsed_trading_minutes: number;
+  trace_id: string;
+  hypothesis_id: string;
+  hypothesis_fingerprint: string;
+  intraday_snapshot_fingerprint: string;
+  rule_version: string;
+  threshold_config_hash: string;
+  overall_drift_state: DriftStateEnum;
+  inconclusive_reason?: DriftInconclusiveReasonEnum | null;
+  verdict_headline: string;
+  detected_drift_events: DriftEventCategoryEnum[];
+  assertion_results: AssertionItemVerdict[];
+  preservation_boundaries: string[];
+  safety_audit_passed: boolean;
+  verdict_fingerprint: string;
+}
+
+

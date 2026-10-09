@@ -5,6 +5,7 @@ import {
   CanonicalMarketSnapshot,
   TacticalBriefingReport,
   BiddingFalsificationVerdict,
+  IntradayDriftVerdict,
 } from '@/types/canonical';
 import { canonicalAPI } from '@/lib/api';
 import { MarketStateBanner } from './MarketStateBanner';
@@ -13,6 +14,7 @@ import { MainlineMatrixCard } from './MainlineMatrixCard';
 import { RiskAndFalsificationCard } from './RiskAndFalsificationCard';
 import { BiddingFalsificationCard } from './BiddingFalsificationCard';
 import { BiddingFalsificationModal } from './BiddingFalsificationModal';
+import { IntradayDriftCard } from './IntradayDriftCard';
 import { AuditDrawer } from './AuditDrawer';
 import { TacticalBriefingModal } from './TacticalBriefingModal';
 import {
@@ -46,7 +48,15 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
   const [isBiddingLoading, setIsBiddingLoading] = useState<boolean>(false);
   const [biddingErrorMsg, setBiddingErrorMsg] = useState<string | null>(null);
   const [isBiddingModalOpen, setIsBiddingModalOpen] = useState<boolean>(false);
-  const [activeBottomTab, setActiveBottomTab] = useState<'RISK_FALSIFICATION' | 'BIDDING_AUCTION'>('RISK_FALSIFICATION');
+
+  // Phase 3A: 盘中 4 阶段动态跟踪与认知偏离状态
+  const [intradayVerdict, setIntradayVerdict] = useState<IntradayDriftVerdict | null>(null);
+  const [isIntradayLoading, setIsIntradayLoading] = useState<boolean>(false);
+  const [intradayErrorMsg, setIntradayErrorMsg] = useState<string | null>(null);
+
+  const [activeBottomTab, setActiveBottomTab] = useState<
+    'RISK_FALSIFICATION' | 'BIDDING_AUCTION' | 'INTRADAY_DRIFT'
+  >('RISK_FALSIFICATION');
 
   const fetchSnapshot = async (date: string) => {
     setIsLoading(true);
@@ -87,10 +97,25 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
     }
   };
 
+  const fetchIntradayVerdict = async (date: string) => {
+    setIsIntradayLoading(true);
+    setIntradayErrorMsg(null);
+    try {
+      const data = await canonicalAPI.getIntradayDrift(date);
+      setIntradayVerdict(data);
+    } catch (err: any) {
+      console.warn('Failed to fetch intraday drift verdict:', err);
+      setIntradayErrorMsg(err.message || '获取盘中认知偏离判定失败');
+    } finally {
+      setIsIntradayLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchSnapshot(selectedDate);
     fetchBriefing(selectedDate);
     fetchBiddingVerdict(selectedDate);
+    fetchIntradayVerdict(selectedDate);
   }, [selectedDate]);
 
   return (
@@ -277,6 +302,31 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
                       </span>
                     )}
                   </button>
+                  <button
+                    onClick={() => setActiveBottomTab('INTRADAY_DRIFT')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition ${
+                      activeBottomTab === 'INTRADAY_DRIFT'
+                        ? 'bg-slate-800 text-cyan-300 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>盘中 4 阶段偏离告警 (动态追踪)</span>
+                    {intradayVerdict && (
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-bold border ${
+                          intradayVerdict.overall_drift_state === 'NORMAL'
+                            ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                            : intradayVerdict.overall_drift_state === 'DRIFT_WARNING'
+                            ? 'bg-amber-950 text-amber-300 border-amber-800'
+                            : intradayVerdict.overall_drift_state === 'CRITICAL_BREACH'
+                            ? 'bg-rose-950 text-rose-300 border-rose-800'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {intradayVerdict.overall_drift_state}
+                      </span>
+                    )}
+                  </button>
                 </div>
 
                 {activeBottomTab === 'BIDDING_AUCTION' && (
@@ -296,13 +346,21 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
                   anomalies={snapshot.truth.regulatory_anomalies}
                   primaryMainline={snapshot.cognition.mainlines[0]}
                 />
-              ) : (
+              ) : activeBottomTab === 'BIDDING_AUCTION' ? (
                 <BiddingFalsificationCard
                   verdict={biddingVerdict}
                   isLoading={isBiddingLoading}
                   errorMsg={biddingErrorMsg}
                   onRefresh={() => fetchBiddingVerdict(selectedDate)}
                   onOpenDetailsModal={() => setIsBiddingModalOpen(true)}
+                  compact={true}
+                />
+              ) : (
+                <IntradayDriftCard
+                  verdict={intradayVerdict}
+                  isLoading={isIntradayLoading}
+                  errorMsg={intradayErrorMsg}
+                  onRefresh={() => fetchIntradayVerdict(selectedDate)}
                   compact={true}
                 />
               )}

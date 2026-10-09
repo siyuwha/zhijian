@@ -1,0 +1,68 @@
+{
+  "audit_phase": "Phase 3A.4",
+  "description": "盘中偏离驾驶舱 UI 集成与 Headless DOM 保真度核验",
+  "scenarios": {
+    "scenario_1_real_penetration": {
+      "status": "PASS",
+      "trade_date": "2026-10-09",
+      "stage": "STAGE_2_MORNING",
+      "overall_drift_state": "NORMAL",
+      "verdict_fingerprint": "6f47bc324d0563dcd0c07543e3e1458e03378746a5a359c7f637a4a35a10d7b0",
+      "dom_rendered": {
+        "stage_label": "10:00-11:30 主线定型期",
+        "elapsed_minutes": 60,
+        "badge_label": "假说吻合 · NORMAL",
+        "assertions_count": 4,
+        "boundaries_count": 1
+      }
+    },
+    "scenario_2_critical_breach": {
+      "status": "PASS",
+      "overall_drift_state": "CRITICAL_BREACH",
+      "detected_events": [
+        "空间标杆崩塌 (CRITICAL_KILL)",
+        "量能断崖衰减 (MODERATE)"
+      ],
+      "assertion_status": "CRITICAL_KILL"
+    },
+    "scenario_3_weekend_closed": {
+      "status": "PASS",
+      "trade_date": "2026-10-11",
+      "overall_drift_state": "INCONCLUSIVE",
+      "inconclusive_reason": "MARKET_CLOSED",
+      "badge_label": "休市停牌 · MARKET CLOSED"
+    },
+    "scenario_4_safety_shield": {
+      "status": "PASS",
+      "dom_type": "SAFETY_SHIELD_VIEW",
+      "title": "安全合规审查物理拦截 (ERR_INTRADAY_SAFETY_INTERCEPTION)",
+      "zero_leak_verified": true
+    },
+    "scenario_5_empty_state": {
+      "status": "PASS",
+      "status_code": 404,
+      "dom_type": "EMPTY_VIEW",
+      "empty_text": "暂无盘中认知偏离判定数据 (请确认是否为有效交易时段)"
+    },
+    "scenario_6_tamper_resistance": {
+      "status": "PASS",
+      "original_fp": "6f47bc324d0563dcd0c07543e3e1458e03378746a5a359c7f637a4a35a10d7b0",
+      "mutated_fp": "6f3d4d76e956c78b2009e5d39c012e02ed262cca7a58cf39b05a5029264a650a",
+      "mismatch_caught": true
+    },
+    "scenario_7_gate_a_boundaries": {
+      "status": "PASS",
+      "boundaries_count": 7,
+      "whitelisted_items": [
+        "全天量能萎缩不及预期，严控开仓仓位防流动性陷阱",
+        "市场炸板率高企分化加剧，保持观望谨防退潮杀跌",
+        "核心主线全面倒戈破位，坚决禁止逆势加仓",
+        "核心主线龙头集体走弱，防冲高回落防御为主",
+        "盘面演进吻合假说，按既定纪律持仓观察严格防守",
+        "空间标杆已炸板，坚决杜绝追高与盲目低吸",
+        "空间标杆深度走弱，防御优先严控盘中回撤"
+      ],
+      "zero_trading_inducement": true
+    }
+  }
+}
