@@ -13,6 +13,8 @@ import sys
 from decimal import Decimal
 from typing import Dict, Any
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
 from backend.app.core.database import async_session
 from backend.app.services.canonical_intraday_service import (
     CanonicalIntradayService,
