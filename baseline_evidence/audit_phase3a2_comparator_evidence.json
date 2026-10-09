@@ -1,0 +1,43 @@
+{
+  "audit_phase": "Phase 3A.2",
+  "description": "盘中动态波普尔证伪判定器与偏离事件引擎基准核验",
+  "scenarios": {
+    "scenario_1_real_data_penetration": {
+      "status": "PASS",
+      "overall_drift_state": "NORMAL",
+      "verdict_id": "VERDICT-2026-10-09-INTRADAY-15bec484",
+      "trace_id": "TRACE-2026-10-08-TO-2026-10-09-INTRADAY-15bec484",
+      "detected_events": [],
+      "assertions_count": 4,
+      "verdict_fingerprint": "6f049b63c007b33bdb25d5f06ce70a3d927b5923d173a9d18ebc2e13a19670b3"
+    },
+    "scenario_2_broken_limit_critical_kill": {
+      "status": "PASS",
+      "overall_drift_state": "CRITICAL_BREACH",
+      "detected_events": [
+        "SPACE_LEADER_COLLAPSE",
+        "LIQUIDITY_FLASH_DRY"
+      ],
+      "action_boundaries": [
+        "空间标杆已炸板，坚决杜绝追高与盲目低吸",
+        "全天量能萎缩不及预期，严控开仓仓位防流动性陷阱"
+      ]
+    },
+    "scenario_3_liquidity_flash_dry": {
+      "status": "PASS",
+      "overall_drift_state": "DRIFT_WARNING",
+      "detected_events": [
+        "LIQUIDITY_FLASH_DRY"
+      ],
+      "projected_turnover_yi": "554.62",
+      "pace_ratio_pct": "3.30"
+    },
+    "scenario_4_tamper_avalanche": {
+      "status": "PASS",
+      "base_fingerprint": "6f049b63c007b33bdb25d5f06ce70a3d927b5923d173a9d18ebc2e13a19670b3",
+      "tampered_fingerprint": "ef00cbd69916b5700bb90866d38ae6c3c860b1524b883932910e84b55cc0e515",
+      "hamming_distance": 132,
+      "bit_flip_ratio": "51.56%"
+    }
+  }
+}
