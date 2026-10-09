@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-09T20:17:57.864368+08:00",
+  "generated_at": "2026-10-09T20:49:55.876386+08:00",
   "audit_target": "Phase 3A Final Evidence Closure for Board Verdict VERDICT-PHASE3A-CLOSURE-PHASE3B-DESIGN-20261009",
   "git_genealogy": {
     "frozen_commit": "09e56d1af00943de54f0ed9e7a84c272fb399c22",
@@ -28,8 +28,8 @@
       "backend/tests/test_phase3a4_intraday_card_gates.py": 9
     },
     "actual_collected_sum": 128,
-    "actual_pytest_output": "........................................................................ [ 56%]\n........................................................                 [100%]\n128 passed in 11.90s",
-    "temporal_gates_run": "....                                                                     [100%]\n4 passed in 4.05s"
+    "actual_pytest_output": "........................................................................ [ 56%]\n........................................................                 [100%]\n128 passed in 21.36s",
+    "temporal_gates_run": ".....                                                                    [100%]\n5 passed in 4.91s"
   },
   "database_mutation_boundary": {
     "total_tables": 31,
@@ -67,7 +67,7 @@
     },
     "doc_97_closure_report": {
       "path": "开发文档/96-Phase-3A.4-盘中偏离驾驶舱UI集成与Phase_3A全生命周期实施闭环报告.md",
-      "sha256": "b39137411e060f611f91232771ea154aa7405557905aed47c8fec481f9a6a143"
+      "sha256": "322e89761040a6a9e4d0a5c436daa6adad00c5eb612814e426f8a614df8da9c8"
     }
   }
 }
