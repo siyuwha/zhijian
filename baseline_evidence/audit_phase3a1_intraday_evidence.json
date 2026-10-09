@@ -1,0 +1,69 @@
+{
+  "audit_phase": "Phase 3A.1",
+  "description": "盘中微观行情切片服务与量能投影模型基准核验",
+  "scenarios": {
+    "scenario_1_four_stages": {
+      "status": "PASS",
+      "stages": [
+        {
+          "time": "09:45:00",
+          "stage": "STAGE_1_OPENING",
+          "elapsed_minutes": 15,
+          "projected_turnover_yi": "135752.86",
+          "pace_ratio_pct": "807.04",
+          "snapshot_fingerprint": "d6e4905094257ac0216dd85959fc04c119989e414dd5927407002c25efdee753",
+          "leader_quotes_count": 3
+        },
+        {
+          "time": "10:30:00",
+          "stage": "STAGE_2_MORNING",
+          "elapsed_minutes": 60,
+          "projected_turnover_yi": "47912.77",
+          "pace_ratio_pct": "284.84",
+          "snapshot_fingerprint": "15bec48460fcbb5edc23c4fb8a2f45ebb212562fce50b6fc217e299e668af577",
+          "leader_quotes_count": 3
+        },
+        {
+          "time": "13:45:00",
+          "stage": "STAGE_3_AFTERNOON",
+          "elapsed_minutes": 165,
+          "projected_turnover_yi": "25510.60",
+          "pace_ratio_pct": "151.66",
+          "snapshot_fingerprint": "c8346737886636211f23b8484e7895a6843b902eeb788211f7b0469e7a2430f8",
+          "leader_quotes_count": 3
+        },
+        {
+          "time": "14:45:00",
+          "stage": "STAGE_4_CLOSING",
+          "elapsed_minutes": 225,
+          "projected_turnover_yi": "20435.91",
+          "pace_ratio_pct": "121.49",
+          "snapshot_fingerprint": "589bc245697eb1dc19fe94341076a63efe8077f721453ddbcf31526ba51f7120",
+          "leader_quotes_count": 3
+        }
+      ]
+    },
+    "scenario_2_non_trading_day": {
+      "status": "PASS",
+      "is_trading_day": false,
+      "stage": "OFF_MARKET",
+      "data_quality": "UNAVAILABLE",
+      "snapshot_fingerprint": "c8c292ec316f883e2a398a5e7b885168e038a77952e15036ffaff31616849d7b"
+    },
+    "scenario_3_tamper_avalanche": {
+      "status": "PASS",
+      "base_fingerprint": "2c890be020b0b751d0ccd9232c646716f2f2f00e1b63da2faaab2e224b8b5896",
+      "tampered_fingerprint": "2638bfc490a19ddec5c4e8447aa1e170a36e52230b0ae0f51b2fe4bc87c782be",
+      "hamming_distance": 109,
+      "bit_flip_ratio": "42.58%"
+    },
+    "scenario_4_broken_limit_detection": {
+      "status": "PASS",
+      "stock_code": "600825",
+      "is_space_leader": true,
+      "is_broken_limit": true,
+      "is_limit_up": false,
+      "broken_limit_ratio_pct": "25.00"
+    }
+  }
+}
