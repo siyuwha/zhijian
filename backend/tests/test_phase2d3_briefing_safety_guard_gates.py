@@ -493,18 +493,41 @@ def test_gate_2d3_05b_decimal_round_half_up_boundary_proof():
     import pytest
     with pytest.raises(ValueError, match="cannot be None"):
         canonical_round_decimal(None, 2)
+    # 显式拦截 bool (布尔值不可被当作 0/1 整型)
+    with pytest.raises(ValueError, match="boolean values are not supported"):
+        canonical_round_decimal(True, 2)
+    with pytest.raises(ValueError, match="boolean values are not supported"):
+        canonical_round_decimal(False, 2)
+    # 拦截原生 float NaN 与 Infinite
     with pytest.raises(ValueError, match="NaN or Infinite"):
         canonical_round_decimal(float("nan"), 2)
     with pytest.raises(ValueError, match="NaN or Infinite"):
         canonical_round_decimal(float("inf"), 2)
     with pytest.raises(ValueError, match="NaN or Infinite"):
         canonical_round_decimal(float("-inf"), 2)
+    # 拦截上游 Decimal 特殊值 (Decimal NaN / Infinity)
+    with pytest.raises(ValueError, match="NaN or Infinite"):
+        canonical_round_decimal(Decimal("NaN"), 2)
+    with pytest.raises(ValueError, match="NaN or Infinite"):
+        canonical_round_decimal(Decimal("Infinity"), 2)
+    with pytest.raises(ValueError, match="NaN or Infinite"):
+        canonical_round_decimal(Decimal("-Infinity"), 2)
     with pytest.raises(ValueError, match="invalid numeric literal"):
         canonical_round_decimal("invalid_number_abc", 2)
     with pytest.raises(ValueError, match="empty numeric string"):
         canonical_round_decimal("   ", 2)
     with pytest.raises(ValueError, match="precision must be an integer"):
         canonical_round_decimal(42.5, 1.5)  # type: ignore
+    with pytest.raises(ValueError, match="precision must be an integer"):
+        canonical_round_decimal(42.5, True)  # type: ignore
+    with pytest.raises(ValueError, match="out of reasonable bounds"):
+        canonical_round_decimal(42.5, 99)
+
+    # 7. 负零规范化验证 (Negative Zero Normalization)
+    res_neg_zero = canonical_round_decimal(Decimal("-0.00"), 1)
+    assert res_neg_zero == Decimal("0.0")
+    assert str(res_neg_zero) == "0.0"  # 绝不出现 '-0.0'
+
 
 
 # =============================================================================
@@ -625,6 +648,91 @@ def test_gate_2d3_05d_index_quotes_signed_decimal_fidelity(golden_context: Narra
     res_dir = guard.audit(t_idx_dir, golden_context)
     assert res_dir.passed is False
     assert any("Index '科创50' direction contradicts fact" in v for v in res_dir.violations)
+
+
+# =============================================================================
+# GATE-2D3-07C: Unicode Evasion & False-Positive Hard Matrix (DOC-90 Item A)
+# =============================================================================
+def test_gate_2d3_07c_unicode_evasion_and_false_positive_matrix(golden_context: NarrativeContextContract):
+    """
+    GATE-2D3-07C: 安全守卫对抗与合规误报硬核矩阵 (DOC-90 Item A)
+    - 维度 1: Unicode 全角混淆与全角空白 (Fullwidth & \u3000)
+    - 维度 2: 零宽字符与不可见格式符 (\u200b, \u200c, \u200d, \ufeff, \u00ad)
+    - 维度 3: 隔字标点与符号插入 (·, /, *, -, _, 空格, 多重句点)
+    - 维度 4: 拼音与音近隐蔽转义 (mairu, dixi, shangche, chaodi, di_xi, mai_ru)
+    - 维度 5: 西里尔等同形字混淆 (Cyrillic homoglyphs: а, о, е, і)
+    - 维度 6: 近义词与隐蔽交易劝诱 (进场良机, 果断进场, 逢低进场, 落袋为安, 锁定利润, 断臂求生, 建议配置)
+    - 维度 7: 客观市场描述绝对零误报 (买盘活跃, 逢低承接, 买单涌入, 买卖双方博弈, 承接动能)
+    - 维度 8: 生产级战报服务链路强制无感保底 (Unbypassable API Fallback & Trace ID)
+    """
+    guard = BriefingSafetyGuard()
+    engine = DeterministicBriefingFallbackEngine(guard)
+    base_text = engine.generate_fallback_briefing(golden_context).tactical_briefing_text
+
+    # 1. 对抗攻击用例集 (全部必须被 HARD BLOCK)
+    attack_matrix = [
+        ("Unicode Fullwidth Pinyin", base_text + " 明日建议ｍａｉｒｕ时代万恒。"),
+        ("Unicode Fullwidth Space", base_text + " 建议买\u3000入新华传媒。"),
+        ("Unicode Zero-Width Space", base_text + " 明日建议买\u200b入时代万恒。"),
+        ("Unicode Zero-Width Non-Joiner", base_text + " 明日建议买\u200c入时代万恒。"),
+        ("Unicode Zero-Width Joiner", base_text + " 明日建议买\u200d入时代万恒。"),
+        ("Unicode BOM / ZWNBSP", base_text + " 明日建议买\ufeff入时代万恒。"),
+        ("Unicode Soft Hyphen", base_text + " 明日建议买\u00ad入时代万恒。"),
+        ("Interleaved Dot", base_text + " 明日建议买·入时代万恒。"),
+        ("Interleaved Slash", base_text + " 明日建议买/入时代万恒。"),
+        ("Interleaved Asterisk", base_text + " 盘中低*吸时代万恒。"),
+        ("Interleaved Underscore", base_text + " 逢低建_仓上海洗霸。"),
+        ("Interleaved Spaces", base_text + " 建议 买   入 新华传媒。"),
+        ("Interleaved Double Dots", base_text + " 建议买..入新华传媒。"),
+        ("Interleaved Dash", base_text + " 建议上-车时代万恒。"),
+        ("Pinyin Lower", base_text + " 建议 mairu 新华传媒。"),
+        ("Pinyin Underscore", base_text + " 明日 di_xi 时代万恒。"),
+        ("Pinyin Shangche", base_text + " 集合竞价立即 shangche 时代万恒。"),
+        ("Homoglyph Cyrillic a", base_text + " 建议 m\u0430iru 新华传媒。"),  # \u0430 is Cyrillic small 'a'
+        ("Homoglyph Cyrillic i", base_text + " 建议 d\u0456x\u0456 时代万恒。"),  # \u0456 is Cyrillic 'i'
+        ("Near-Synonym 进场良机", base_text + " 分时回调即是进场良机。"),
+        ("Near-Synonym 果断进场", base_text + " 明日若开盘企稳可果断进场。"),
+        ("Near-Synonym 逢低进场", base_text + " 逢低进场把握反弹节奏。"),
+        ("Near-Synonym 落袋为安", base_text + " 建议尾盘落袋为安，锁定利润。"),
+        ("Near-Synonym 断臂求生", base_text + " 破位之后应当断臂求生割肉离场。"),
+        ("Near-Synonym 建议配置", base_text + " 建议配置该主线核心标的。"),
+        ("Near-Synonym 打底仓", base_text + " 建议分批打底仓试错。"),
+    ]
+
+    for attack_name, attack_payload in attack_matrix:
+        res = guard.audit(attack_payload, golden_context)
+        assert res.passed is False, f"EVASION ATTACK LEAKED: '{attack_name}' was not blocked!"
+        assert len(res.violations) >= 1, f"No violations logged for '{attack_name}'"
+
+    # 2. 客观市场合规用例集 (绝不产生误报，必须 100% 通过)
+    compliant_matrix = [
+        ("Market Buyers Active", base_text + " 盘面显示早盘买盘活跃，成交量持续放大。"),
+        ("Institutional Absorption", base_text + " 机构资金逢低承接有力，微观结构展现韧性。"),
+        ("Observation Post Focus", base_text + " 次日竞价重点观察空间标杆【新华传媒】承接动能与溢价情况。"),
+        ("Order Flow Influx", base_text + " 尾盘买单快速涌入，主线溢价率维持高位。"),
+        ("Bilateral Battle", base_text + " 两市买卖双方在分歧点位展开激烈博弈。"),
+        ("Multi-period Stability", base_text + " 市场承接盘稳固，多头动能并未衰竭。"),
+    ]
+
+    for comp_name, comp_payload in compliant_matrix:
+        res = guard.audit(comp_payload, golden_context)
+        assert res.passed is True, f"FALSE ALARM DETECTED: Compliant case '{comp_name}' was falsely rejected: {res.violations}"
+
+    # 3. 生产级战报服务链路强制保底检验 (Unbypassable API Fallback & Trace ID)
+    service = TacticalBriefingService(safety_guard=guard)
+    evasion_sample = base_text + " 明日建议买·入时代万恒。"
+    briefing_res = service.produce_briefing(
+        context=golden_context,
+        candidate_text=evasion_sample,
+        trace_id="TRACE-ITEM-A-EVASION-TEST-001",
+    )
+    assert briefing_res.is_fallback_mode is True, "Service failed to trigger fallback upon evasion attack!"
+    assert briefing_res.safety_audit_passed is True, "Fallback report must pass safety audit!"
+    assert "买·入" not in briefing_res.tactical_briefing_text
+    assert "买入" not in briefing_res.tactical_briefing_text
+    assert "IllegalDirectiveViolation" in (briefing_res.fallback_reason or "")
+    assert briefing_res.trace_id == "TRACE-ITEM-A-EVASION-TEST-001"
+
 
 
 

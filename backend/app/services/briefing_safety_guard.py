@@ -16,6 +16,7 @@ Phase 2D.3-B: Briefing Safety Guard Service
 
 import re
 import math
+import unicodedata
 from datetime import datetime
 from typing import List, Dict, Optional, Set, Any
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
@@ -34,15 +35,18 @@ def canonical_round_decimal(val: float | int | str | Decimal, precision: int = 2
     确定性规范四舍五入算法 (ROUND_HALF_UP, 严格规避 Python float banker's rounding ties-to-even 漂移)
 
     安全不变量：
-    1. 拒绝空值 (None) 与非法类型；
+    1. 拒绝空值 (None)、布尔值 (bool，由于 Python bool 是 int 子类需显式拦截) 与非法类型；
     2. 拒绝 NaN、+Infinity、-Infinity 极端无效值；
     3. 支持任意精度字符串与整型无损转换；
-    4. 对浮点数采用原生最简无损表示 (str(val) 或 Decimal)，废除硬编码 8 位截断；
-    5. 严格遵循远离零舍入 (Round half away from zero，正负数绝对对称)；
-    6. 支持任意合理整数 precision (>= 0 或负数精度)。
+    4. 对浮点数采用原生最短往返无损表达 (Python 3.12 Grisu3 str(val))，废除硬编码 8 位截断；
+    5. 严格遵循远离零舍入 (Round half away from zero，正负数绝对对称，消除负零 -0)；
+    6. 支持任意合理整数 precision ([-50, 50]，支持正数或负数精度)。
     """
     if val is None:
         raise ValueError("Canonical rounding error: input value cannot be None")
+
+    if isinstance(val, bool):
+        raise ValueError(f"Canonical rounding error: boolean values are not supported, got bool '{val}'")
 
     if isinstance(val, (int, str)):
         try:
@@ -65,17 +69,26 @@ def canonical_round_decimal(val: float | int | str | Decimal, precision: int = 2
     if d.is_nan() or d.is_infinite():
         raise ValueError(f"Canonical rounding error: Decimal value cannot be NaN or Infinite: '{d}'")
 
-    if not isinstance(precision, int):
+    if not isinstance(precision, int) or isinstance(precision, bool):
         raise ValueError(f"Canonical rounding error: precision must be an integer, got '{type(precision).__name__}'")
+
+    if not (-50 <= precision <= 50):
+        raise ValueError(f"Canonical rounding error: precision out of reasonable bounds [-50, 50], got {precision}")
 
     if precision < 0:
         target = Decimal(f"1e{-precision}")
-        return d.quantize(target, rounding=ROUND_HALF_UP).quantize(Decimal("1"))
+        res = d.quantize(target, rounding=ROUND_HALF_UP).quantize(Decimal("1"))
     elif precision == 0:
-        return d.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        res = d.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     else:
         target = Decimal(f"1e{-precision}")
-        return d.quantize(target, rounding=ROUND_HALF_UP)
+        res = d.quantize(target, rounding=ROUND_HALF_UP)
+
+    # 规范化负零 (Normalize -0 / -0.0 to 0)
+    if res == 0:
+        res = Decimal("0").quantize(res)
+
+    return res
 
 
 
@@ -90,24 +103,47 @@ FORBIDDEN_DIRECTIVE_TERMS: List[str] = [
     "低吸", "低吸机会", "关注低吸", "逢低布局", "逢低介入", "逢低吸纳",
     "逢阴低吸", "水下低吸", "轻仓试错", "试错机会", "建底仓", "分批建仓",
     "逢高减持", "逢高派发", "获利了结", "及时止盈", "做多机会", "积极做多",
-    "上车", "上车机会", "立即上车", "下车", "及时下车", "提前潜伏", "博弈反弹", "配置建议",
+    "上车", "上车机会", "立即上车", "下车", "及时下车", "提前潜伏", "博弈反弹",
     "买点", "卖点", "加仓点", "减仓点", "建仓点",
+    # 隐蔽进出场及仓位诱导 (DOC-90 Item A 抗规避近义词扩充)
+    "进场良机", "果断进场", "逢低进场", "分批进场", "择机进场", "随时进场", "择机介入",
+    "落袋为安", "锁定利润", "断臂求生", "割肉离场",
+    "打底仓", "首仓试错", "分批吸纳", "逢低加码", "积极加码", "择机加码",
+    "建议配置", "重点配置", "纳入组合", "配置建议",
     # 操作劝诱与交易员行为劝诫词汇 (DOC-87 审计整改：杜绝任何第二人称或无主语行为指令)
     "杜绝逆势博弈", "严守核心龙头竞价承接红线", "严守竞价承接红线", "严守承接红线",
     "严守交易纪律", "严守操作纪律", "控制仓位", "持币观望", "空仓观望", "保持克制",
     "杜绝盲目出手", "切忌逆势接力", "切忌盲目追高"
 ]
 
+# 拼音与音近变体 (Item A 规避防御)
+PHONETIC_DIRECTIVE_TERMS: List[str] = [
+    "mairu", "dixi", "shangche", "chaodi", "zuoduo",
+    "mai_ru", "di_xi", "shang_che", "chao_di", "zuo_duo",
+    "jiacang", "jiancang", "jia_cang", "jian_cang",
+    "pingcang", "kaicang", "zhiying", "zhisun",
+]
+
+# 同形近形字混淆映射 (Homoglyphs: Cyrillic/Greek/Fullwidth -> Latin)
+HOMOGLYPH_TRANSLATION_TABLE = str.maketrans({
+    'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x',
+    'і': 'i', 'ј': 'j', 'ѕ': 's', 'А': 'A', 'Е': 'E', 'О': 'O', 'Р': 'P',
+    'С': 'C', 'У': 'Y', 'Х': 'X',
+})
+
+# 隔字插入标点与空白容差正则 (仅匹配非词标点与空白符号，绝不匹配中文字符 \w)
+SEP_PATTERN = r'[\s\W_·\-\*\/\~`\!@#\$%\^&\*\(\)_\+=\[\]\{\}\|:;\"\'<>\,\.\?\/、]{0,6}?'
+
 # 隐蔽式间接交易指令与行为操作劝诫正则拦截模式 (P0-2 & DOC-87 审计整改)
 INDIRECT_DIRECTIVE_REGEX: List[str] = [
-    # 1. 变相建仓/买入诱导
-    r'(?:建议|提示|可|不妨|积极|重点)?[^，。；\n]{0,6}?(?:低吸|逢低|介入|布局|建仓|上车|试错|做多)(?:机会|标的|节奏)',
+    # 1. 变相建仓/买入诱导 (必须携带诱导后缀：机会/标的/节奏/良机)
+    r'(?:建议|提示|可|不妨|积极|重点)?[^，。；\n]{0,6}?(?:低吸|逢低|介入|布局|建仓|上车|试错|做多|进场|吸纳)(?:机会|标的|节奏|良机)',
     # 2. 抄底与左侧诱导
-    r'逢[低阴弱][^，。；\n]{0,6}?(?:低吸|介入|布局|买入|建仓)',
+    r'逢[低阴弱][^，。；\n]{0,6}?(?:低吸|介入|布局|买入|建仓|进场|加码)',
     # 3. 卖出/兑现诱导
-    r'逢[高阳强][^，。；\n]{0,6}?(?:派发|减持|减仓|兑现|出局|止盈)',
+    r'逢[高阳强][^，。；\n]{0,6}?(?:派发|减持|减仓|兑现|出局|止盈|离场|了结)',
     # 4. 盘中激进指令
-    r'(?:集合竞价|开盘|盘中)[^，。；\n]{0,8}?(?:上车|介入|买入|冲锋)',
+    r'(?:集合竞价|开盘|盘中)[^，。；\n]{0,8}?(?:上车|介入|买入|冲锋|进场)',
     # 5. 提前博弈指令
     r'提前(?:潜伏|埋伏)[^，。；\n]{0,6}?(?:博弈|等待)',
     # 6. 操作性劝诱与禁止性行为指令 (针对交易员发出的命令/劝告)
@@ -557,6 +593,25 @@ class BriefingSafetyGuard:
 
         return violations
 
+    @staticmethod
+    def _normalize_text_for_defense(text: str) -> str:
+        """
+        深度文本规范化 (DOC-90 Item A 抗规避防线):
+        1. Unicode NFKC 兼容性等价分解与重组 (全角字母/数字/标点转半角);
+        2. 剥离不可见字符、零宽连字/断字符、格式控制符 (如 \u200b-\u200f, \ufeff, \u00ad);
+        3. 同形字符 (Homoglyphs Cyrillic -> Latin) 映射归一化;
+        4. 保留原始中文字符与规范化标点供正则分析。
+        """
+        if not text:
+            return ""
+        # 1. NFKC 规范化 (全角转半角，复合字分解)
+        norm = unicodedata.normalize('NFKC', text)
+        # 2. 移除零宽字符、软连字符、不可见格式符
+        norm = re.sub(r'[\u200b-\u200f\u2028-\u202f\ufeff\u00ad\u2060\u180e]', '', norm)
+        # 3. 同形字替换
+        norm = norm.translate(HOMOGLYPH_TRANSLATION_TABLE)
+        return norm
+
     # -------------------------------------------------------------------------
     # 审查项 3: 交易指令与发言禁区拦截审查 (Illegal Directive Defense)
     # -------------------------------------------------------------------------
@@ -572,25 +627,44 @@ class BriefingSafetyGuard:
 
         all_content_blocks = [text] + battlegrounds + risks + observations
         combined_text = "\n".join(all_content_blocks)
+        norm_combined_text = self._normalize_text_for_defense(combined_text)
+        lower_norm = norm_combined_text.lower()
 
-        # 3.1 违规 L5 交易指令词汇扫描 (显式与隐蔽短语)
-        for term in FORBIDDEN_DIRECTIVE_TERMS:
-            if term in combined_text:
+        # 3.1 拼音与音近变体指令扫描 (Pinyin / Phonetic Evasion Defense)
+        for p_term in PHONETIC_DIRECTIVE_TERMS:
+            # 采用字母断言边界，在中英文混排下精准捕获，且不误伤长英文单词
+            if re.search(rf'(?<![a-zA-Z]){re.escape(p_term)}(?![a-zA-Z])', lower_norm):
                 violations.append(
-                    f"IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '{term}'"
+                    f"IllegalDirectiveViolation: Covert phonetic/pinyin trading directive detected: '{p_term}'"
                 )
 
-        # 3.1.2 隐蔽式间接交易指令正则匹配 (P0-2 变相交易诱导拦截)
+        # 3.2 违规 L5 交易指令词汇与隔字插入对抗扫描 (显式、隐蔽短语及标点/空白插入绕过)
+        for term in FORBIDDEN_DIRECTIVE_TERMS:
+            # 对于2字以上的中文违规词，构造隔字标点/空白容差模式 (如 "买·入", "买/入", "买 入", "低*吸", "建_仓")
+            if len(term) >= 2 and all('\u4e00' <= c <= '\u9fff' for c in term[:2]):
+                chars = list(term)
+                pat = SEP_PATTERN.join(re.escape(c) for c in chars)
+                m = re.search(pat, norm_combined_text)
+                if m:
+                    violations.append(
+                        f"IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '{term}' (matched snippet '{m.group(0)}')"
+                    )
+            else:
+                if term in norm_combined_text or term in combined_text:
+                    violations.append(
+                        f"IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '{term}'"
+                    )
+
+        # 3.3 隐蔽式间接交易指令正则匹配 (P0-2 变相交易诱导拦截)
         for reg_pat in INDIRECT_DIRECTIVE_REGEX:
-            m = re.search(reg_pat, combined_text)
+            m = re.search(reg_pat, norm_combined_text)
             if m:
                 matched_snippet = m.group(0)
-                # 避免重复记录相同违规
                 v_msg = f"IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '{matched_snippet}'"
                 if v_msg not in violations:
                     violations.append(v_msg)
 
-        # 3.2 预测具体目标价 / 买卖点位扫描
+        # 3.4 预测具体目标价 / 买卖点位扫描
         price_target_patterns = [
             r'目标价\s*[:：]?\s*[0-9]+(?:\.[0-9]+)?\s*元?',
             r'上看\s*[0-9]+(?:\.[0-9]+)?\s*元',
@@ -598,45 +672,45 @@ class BriefingSafetyGuard:
             r'止损价\s*[:：]?\s*[0-9]+(?:\.[0-9]+)?',
         ]
         for pat in price_target_patterns:
-            if re.search(pat, combined_text):
+            if re.search(pat, norm_combined_text):
                 violations.append(
                     "ForbiddenClaimViolation: Unverified price target / exact trading level prediction detected."
                 )
                 break
 
-        # 3.3 创业板重复累加会计违规扫描 (REDUNDANT_DOUBLE_COUNT_CLAIMS)
+        # 3.5 创业板重复累加会计违规扫描 (REDUNDANT_DOUBLE_COUNT_CLAIMS)
         double_count_patterns = [
             r'加上创业板(?:后)?两市成交',
             r'总成交额加上创业板',
             r'两市加上创业板共',
         ]
         for pat in double_count_patterns:
-            if re.search(pat, combined_text):
+            if re.search(pat, norm_combined_text):
                 violations.append(
                     "ForbiddenClaimViolation: Redundant double-count accounting claim detected "
                     "(ChiNext already included in Shenzhen turnover)."
                 )
 
-        # 3.4 主线事实化伪造声明 (COGNITION_TO_FACT_PROMOTION)
+        # 3.6 主线事实化伪造声明 (COGNITION_TO_FACT_PROMOTION)
         fact_promotion_patterns = [
             r'主线已成为绝对客观事实',
             r'毫无疑问的绝对主线',
         ]
         for pat in fact_promotion_patterns:
-            if re.search(pat, combined_text):
+            if re.search(pat, norm_combined_text):
                 violations.append(
                     "ForbiddenClaimViolation: Cognition-to-fact promotion detected "
                     "(L3 hypothesis promoted to L0 physical truth)."
                 )
 
-        # 3.5 伪造官方监管意图/交易所红头文件定性 (P0-3 事实语义纠偏：阻断主观推断向客观事实渗透)
+        # 3.7 伪造官方监管意图/交易所红头文件定性 (P0-3 事实语义纠偏：阻断主观推断向客观事实渗透)
         regulatory_fake_patterns = [
             r'交易所[^，。；\n]{0,15}?(?:重点监控|下发核查|实施核查|进行监管|明确核查|官方监控)',
             r'交易所[^，。；\n]{0,10}?(?:定性为|认定为)?严重异动',
             r'监管部门[^，。；\n]{0,10}?(?:定性为|特停|明确监管)',
         ]
         for pat in regulatory_fake_patterns:
-            if re.search(pat, combined_text):
+            if re.search(pat, norm_combined_text):
                 violations.append(
                     "ForbiddenClaimViolation: Subjective promotion of commercial data vendor rule match "
                     "to official Exchange administrative surveillance detected."

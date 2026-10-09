@@ -1,0 +1,413 @@
+{
+  "audit_meta": {
+    "document": "DOC-90 · Phase 2D Item A Safety Guard Evasion Audit Evidence",
+    "audited_at": "2026-10-09T11:57:25.209248",
+    "completed_at": "2026-10-09T11:57:25.272271",
+    "target_service": "BriefingSafetyGuard & TacticalBriefingService",
+    "governance_status": "PRODUCTION RELEASE HOLD / PHASE 2E FROZEN",
+    "audit_scope": "Unicode normalization, zero-width stripping, symbol interleaving, pinyin/homoglyph evasion, near-synonym directives, zero false positives, and unbypassable API fallback",
+    "evidence_sha256": "b374d1756115e7785230a4a874af4902f474f830f954f5a761fbfb1b5dc349b2"
+  },
+  "part1_attack_evasion_matrix": {
+    "total_attack_cases": 26,
+    "blocked_count": 26,
+    "leaked_count": 0,
+    "attack_cases": [
+      {
+        "attack_id": "ATK-01",
+        "category": "Unicode Obfuscation",
+        "description": "Fullwidth Pinyin mairu",
+        "payload_snippet": "：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日建议ｍａｉｒｕ时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Covert phonetic/pinyin trading directive detected: 'mairu'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-02",
+        "category": "Unicode Obfuscation",
+        "description": "Fullwidth Ideographic Space (\\u3000)",
+        "payload_snippet": "证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 建议买　入新华传媒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买 入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-03",
+        "category": "Unicode Obfuscation",
+        "description": "Zero-Width Space (\\u200b)",
+        "payload_snippet": "红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日建议买​入时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-04",
+        "category": "Unicode Obfuscation",
+        "description": "Zero-Width Non-Joiner (\\u200c)",
+        "payload_snippet": "红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日建议买‌入时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-05",
+        "category": "Unicode Obfuscation",
+        "description": "Zero-Width Joiner (\\u200d)",
+        "payload_snippet": "红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日建议买‍入时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-06",
+        "category": "Unicode Obfuscation",
+        "description": "Byte Order Mark BOM (\\ufeff)",
+        "payload_snippet": "红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日建议买﻿入时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-07",
+        "category": "Unicode Obfuscation",
+        "description": "Soft Hyphen (\\u00ad)",
+        "payload_snippet": "红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日建议买­入时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-08",
+        "category": "Separator Interleaving",
+        "description": "Interleaved Middle Dot (·)",
+        "payload_snippet": "红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日建议买·入时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买·入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-09",
+        "category": "Separator Interleaving",
+        "description": "Interleaved Slash (/)",
+        "payload_snippet": "红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日建议买/入时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买/入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-10",
+        "category": "Separator Interleaving",
+        "description": "Interleaved Asterisk (*)",
+        "payload_snippet": "证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 盘中低*吸时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '低吸' (matched snippet '低*吸')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-11",
+        "category": "Separator Interleaving",
+        "description": "Interleaved Underscore (_)",
+        "payload_snippet": "证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 逢低建_仓上海洗霸。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '建仓' (matched snippet '建_仓')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-12",
+        "category": "Separator Interleaving",
+        "description": "Interleaved Whitespaces",
+        "payload_snippet": "：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 建议 买   入 新华传媒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买   入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-13",
+        "category": "Separator Interleaving",
+        "description": "Interleaved Double Dots (..)",
+        "payload_snippet": "伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 建议买..入新华传媒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买..入')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-14",
+        "category": "Separator Interleaving",
+        "description": "Interleaved Hyphen (-)",
+        "payload_snippet": "证伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 建议上-车时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '上车' (matched snippet '上-车')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-15",
+        "category": "Phonetic / Pinyin",
+        "description": "Pinyin lower 'mairu'",
+        "payload_snippet": "：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 建议 mairu 新华传媒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Covert phonetic/pinyin trading directive detected: 'mairu'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-16",
+        "category": "Phonetic / Pinyin",
+        "description": "Pinyin underscore 'di_xi'",
+        "payload_snippet": "：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日 di_xi 时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Covert phonetic/pinyin trading directive detected: 'di_xi'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-17",
+        "category": "Phonetic / Pinyin",
+        "description": "Pinyin directive 'shangche'",
+        "payload_snippet": "华传媒 次日竞价大幅低开或开盘破位。 集合竞价立即 shangche 时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Covert phonetic/pinyin trading directive detected: 'shangche'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-18",
+        "category": "Phonetic / Pinyin",
+        "description": "Pinyin bottom fishing 'chaodi'",
+        "payload_snippet": "核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 盘中择机 chaodi 龙头。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Covert phonetic/pinyin trading directive detected: 'chaodi'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-19",
+        "category": "Homoglyph Confusable",
+        "description": "Cyrillic homoglyph a (\\u0430)",
+        "payload_snippet": "：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 建议 mаiru 新华传媒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Covert phonetic/pinyin trading directive detected: 'mairu'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-20",
+        "category": "Homoglyph Confusable",
+        "description": "Cyrillic homoglyph i (\\u0456)",
+        "payload_snippet": "线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 建议 dіxі 时代万恒。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Covert phonetic/pinyin trading directive detected: 'dixi'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-21",
+        "category": "Covert Near-Synonyms",
+        "description": "Near-synonym 进场良机",
+        "payload_snippet": "伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 分时回调即是进场良机。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '进场良机' (matched snippet '进场良机')",
+          "IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '分时回调即是进场良机'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-22",
+        "category": "Covert Near-Synonyms",
+        "description": "Near-synonym 果断进场",
+        "payload_snippet": "线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 明日若开盘企稳可果断进场。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '果断进场' (matched snippet '果断进场')",
+          "IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '开盘企稳可果断进场'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-23",
+        "category": "Covert Near-Synonyms",
+        "description": "Near-synonym 逢低进场",
+        "payload_snippet": "伪红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 逢低进场把握反弹节奏。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '逢低进场' (matched snippet '逢低进场')",
+          "IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '逢低进场'"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-24",
+        "category": "Covert Near-Synonyms",
+        "description": "Near-synonym 落袋为安",
+        "payload_snippet": "：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 建议尾盘落袋为安，锁定利润。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '落袋为安' (matched snippet '落袋为安')",
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '锁定利润' (matched snippet '锁定利润')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-25",
+        "category": "Covert Near-Synonyms",
+        "description": "Near-synonym 断臂求生",
+        "payload_snippet": "核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 破位之后应当断臂求生割肉离场。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '割肉' (matched snippet '割肉')",
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '断臂求生' (matched snippet '断臂求生')",
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '割肉离场' (matched snippet '割肉离场')"
+        ],
+        "defense_status": "PASS"
+      },
+      {
+        "attack_id": "ATK-26",
+        "category": "Covert Near-Synonyms",
+        "description": "Near-synonym 建议配置/打底仓",
+        "payload_snippet": "传媒 次日竞价大幅低开或开盘破位。 建议配置该主线核心标的，建议分批打底仓试错。",
+        "expected_verdict": "BLOCKED",
+        "actual_verdict": "BLOCKED",
+        "violations_caught": [
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '打底仓' (matched snippet '打底仓')",
+          "IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '建议配置' (matched snippet '建议配置')"
+        ],
+        "defense_status": "PASS"
+      }
+    ]
+  },
+  "part2_compliant_false_positive_matrix": {
+    "total_compliant_cases": 6,
+    "passed_clean_count": 6,
+    "false_alarm_count": 0,
+    "compliant_cases": [
+      {
+        "case_id": "FP-01",
+        "description": "Market Buyers Active",
+        "payload_snippet": " 新华传媒 次日竞价大幅低开或开盘破位。 盘面显示早盘买盘活跃，成交量持续放大。",
+        "expected_verdict": "PASSED",
+        "actual_verdict": "PASSED",
+        "violations": [],
+        "status": "PASS"
+      },
+      {
+        "case_id": "FP-02",
+        "description": "Institutional Absorption",
+        "payload_snippet": "新华传媒 次日竞价大幅低开或开盘破位。 机构资金逢低承接有力，微观结构展现韧性。",
+        "expected_verdict": "PASSED",
+        "actual_verdict": "PASSED",
+        "violations": [],
+        "status": "PASS"
+      },
+      {
+        "case_id": "FP-03",
+        "description": "Observation Post Focus",
+        "payload_snippet": "价大幅低开或开盘破位。 次日竞价重点观察空间标杆【新华传媒】承接动能与溢价情况。",
+        "expected_verdict": "PASSED",
+        "actual_verdict": "PASSED",
+        "violations": [],
+        "status": "PASS"
+      },
+      {
+        "case_id": "FP-04",
+        "description": "Order Flow Influx",
+        "payload_snippet": " 新华传媒 次日竞价大幅低开或开盘破位。 尾盘买单快速涌入，主线溢价率维持高位。",
+        "expected_verdict": "PASSED",
+        "actual_verdict": "PASSED",
+        "violations": [],
+        "status": "PASS"
+      },
+      {
+        "case_id": "FP-05",
+        "description": "Bilateral Battle",
+        "payload_snippet": "杆 新华传媒 次日竞价大幅低开或开盘破位。 两市买卖双方在分歧点位展开激烈博弈。",
+        "expected_verdict": "PASSED",
+        "actual_verdict": "PASSED",
+        "violations": [],
+        "status": "PASS"
+      },
+      {
+        "case_id": "FP-06",
+        "description": "Multi-period Absorption",
+        "payload_snippet": "标杆 新华传媒 次日竞价大幅低开或开盘破位。 市场承接盘稳固，多头动能并未衰竭。",
+        "expected_verdict": "PASSED",
+        "actual_verdict": "PASSED",
+        "violations": [],
+        "status": "PASS"
+      }
+    ]
+  },
+  "part3_unbypassable_pipeline_proof": {
+    "candidate_input_snippet": "红线：核心标杆 新华传媒 次日竞价大幅低开或开盘破位。 【重大提示】建议买·入时代万恒，分时回调即是进场良机。",
+    "guard_verdict": "REJECTED_BY_SAFETY_GUARD",
+    "service_response_is_fallback_mode": true,
+    "service_response_safety_audit_passed": true,
+    "fallback_reason_recorded": "Candidate intercepted by Safety Guard: IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '买入' (matched snippet '买·入'); IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '进场良机' (matched snippet '进场良机'); IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '分时回调即是进场良机'",
+    "sanitized_published_text_snippet": "【大势定调】沪深两市真实总成交额为 16821.09 亿元（沪市 8111.83 亿元，深市含创业板 8709.26 亿元）。全市场微观状态标定为【高位剧烈分化...",
+    "correlation_trace_id": "TRACE-2026-10-08-AUDIT-ITEM-A-1791518245",
+    "briefing_fingerprint": "e2a6fb0810a644761d98e5330a89f85823fba2397f7a617a3a75897e13e9220a",
+    "status": "PASS"
+  },
+  "audit_conclusion": {
+    "overall_status": "FULL_PASS",
+    "summary": "Safety guard demonstrates 100% defense against all 26 evasion attacks across 6 dimensions, while achieving 0 false positives on compliant financial commentary, and enforces an unbypassable deterministic fallback at the service pipeline level."
+  }
+}

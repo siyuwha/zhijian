@@ -1,13 +1,13 @@
 {
   "audit_meta": {
     "document": "DOC-89 · Item B Decimal Canonical Matching Independent Proof",
-    "audited_at": "2026-10-09T10:01:33.167396",
-    "completed_at": "2026-10-09T10:01:33.180394",
+    "audited_at": "2026-10-09T11:57:31.764734",
+    "completed_at": "2026-10-09T11:57:31.808973",
     "target_code_file": "backend/app/services/briefing_safety_guard.py",
     "function_under_audit": "canonical_round_decimal(val, precision=2)",
     "python_runtime": "Python 3.12.10 (lossless Grisu3 str float representation)",
     "operational_status": "PRODUCTION RELEASE HOLD / PHASE 2E FROZEN",
-    "evidence_sha256": "4d84c40720899b012f7cf0cd15307d910ab728aadfe5270c26de2298d7d8f39b"
+    "evidence_sha256": "2ae6551e9284fe5d0f23b510a301f6a7be7e47e8a8685d99e9ebd848bf1379c9"
   },
   "part1_boundary_proof": {
     "description": "Boundary ties comparison proving elimination of Banker's rounding flaw and symmetric rounding away from zero",
