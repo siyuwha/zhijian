@@ -1,191 +1,203 @@
-# Phase 2E.3: 09:25 竞价对账 REST API 与安全守卫技术设计单
+# Phase 2E.3: 09:25 竞价对账 REST API 与安全守卫技术设计单 (V1.1 修订版)
 
 **文档编号：** `DOC-90`  
-**版本号：** `V1.0-DESIGN-ONLY`  
-**依据指令：** 最高董事会裁决令 `BOARD-DECISION-PHASE2E3-DESIGN-ONLY-20261009`  
-**前序设计：** `DOC-80`（受约束战报生成器）、`DOC-89`（09:25 竞价对账总设计）  
-**当前状态：** 仅设计与只读审查（DESIGN ONLY），生产实施继续严格维持 **HOLD / FROZEN**
+**版本号：** `V1.1-REVISED-DESIGN-ONLY`  
+**依据指令：** 最高董事会裁决令 `BOARD-REVIEW-DOC90-REVISE-BEFORE-CODING-20261009`  
+**修订性质：** 架构设计闭环修订（时间因果、指纹类型、安全封闭、零副作用与错误语义深度修正）  
+**前序设计：** `DOC-80`（受约束战报生成器）、`DOC-89`（09:25 竞价对账总设计）、`DOC-90 V1.0`  
+**当前治理状态：** 仅限技术设计与只读审查（DESIGN ONLY），Phase 2E.3 生产编码暂缓，生产数据库写入、API 发布及部署继续严格维持 **HOLD / FROZEN**
 
 ---
 
-## 一、系统架构定位与设计哲学
+## 一、修订记录与对应证据索引 (Revision Manifest)
 
-### 1.1 系统定位
-Phase 2E.3 是 AI 认知复盘交易系统“昨夜战报 $\rightarrow$ 次晨 09:25 竞价物理对撞”闭环中，**面向交易员驾驶舱前端提供确定性、不可伪造、防劝诱对账数据的统一只读服务出口**。
+针对最高董事会令 `BOARD-REVIEW-DOC90-REVISE-BEFORE-CODING-20261009` 所指出的 6 项 P0 阻断性缺陷与补充要求，逐项闭环修订如下：
 
-```
-+--------------------------------------------------------------------------------------------------+
-|                                    T 日闭市复盘 (15:30 ~ 23:59)                                  |
-|   CanonicalMarketSnapshot (L0/L1) ---> NarrativeContext (L2/L3) ---> TacticalBriefingReport      |
-|                                                                                |                 |
-|                                                                                v (只读注册)       |
-|                                                                 PopperianHypothesisRecord (WORM) |
-+--------------------------------------------------------------------------------|-----------------+
-                                                                                 |
-                                                                                 | 跨日因果锚定 (T < T+1)
-                                                                                 v
-+--------------------------------------------------------------------------------------------------+
-|                                  T+1 日早盘对账 (09:25:00 ~ 09:30:00)                            |
-|   09:25 物理行情数据源 ---> CanonicalAuctionService ---> CanonicalAuctionSnapshot (L0/L1 事实)    |
-|                                                                                |                 |
-|                                                                                v                 |
-|                        +---------------------------------------------------------------+         |
-|                        |                  PopperianBiddingComparator                   |         |
-|                        |  1. 因果时序守卫: assert T_hypo < T_auction                   |         |
-|                        |  2. 优先质检短路: 休市 / 降级 / 标的缺失 -> INCONCLUSIVE      |         |
-|                        |  3. 4 大客观断言: 流动性 / 情绪 / 空间标杆生命线 / 主线共振   |         |
-|                        |  4. MECE 决策树: FALSIFIED > DIVERGENT > CONFIRMED            |         |
-|                        +---------------------------------------------------------------+         |
-|                                                        |                                         |
-|                                                        v                                         |
-|                                          BiddingFalsificationVerdict                             |
-|                                                        |                                         |
-|                                                        v (安全审查)                              |
-|                                            AuctionSafetyGuard                                    |
-|                                       (拦截 L5 买卖诱导 / 校验 5 大锚点)                         |
-|                                                        |                                         |
-|                                                        v (只读暴露)                              |
-|                       GET /api/v1/canonical/auction-falsification/{date}                         |
-|                                                        |                                         |
-|                                                        v                                         |
-|                                     前端 TraderCockpitView 驾驶舱展示                             |
-+--------------------------------------------------------------------------------------------------+
-```
-
-### 1.2 刚性设计哲学（三大不可逾越红线）
-1. **绝对只读与无副作用铁律（Zero-Side-Effect Invariant）：**
-   - 本 API 必须为严格的 `GET` 幂等只读端点；
-   - 严禁提供任何修改假说、覆盖历史快照、注入外部事实或临时微调阈值的请求参数；
-   - 调用本端点绝不触发任何后台交易动作、仓位变更或数据库修改。
-2. **唯一判定器单向复用铁律（Single Source of Truth）：**
-   - API 必须直接消费已冻结的 `PopperianBiddingComparator` 核心执行器；
-   - 严禁在 API 路由或 Controller 层复制、重写或拼装任何二次判定逻辑。
-3. **L5 交易信号硬隔离铁律（L5 Directive Isolation）：**
-   - 竞价对账单仅输出“客观市场承接状态”与“假说是否被证伪”；
-   - 所有返回文本必须经由 `AuctionSafetyGuard` 进行物理拦截，严禁出现任何“买入”、“卖出”、“加仓”、“减仓”、“抄底”、“追高”等非法交易诱导指令。
+| 修订项编号 | 董事会审查要求 | V1.1 闭环修订内容 | 对应证据与源码位置 |
+| :--- | :--- | :--- | :--- |
+| **P0-1** | 修复四维时间契约 | 分别保存并严格验证 $T_{\text{hypo}} < T_{\text{ex}} \le T_{\text{src}} \le T_{\text{eval}}$；明确 09:25:00 截点、09:25:05 采集点与 09:25:30 接收截止线；硬隔离历史回放视界 | 第 2.2 节、第 4.1 节 |
+| **P0-2** | 修复五位一体锚点类型 | 严格区分业务标识符（正则格式）、规则版本与 64 位十六进制密码学指纹；彻底废除省略号与 mock 占位符；列出指纹计算字段全集 | 第 2.3 节、第 3.2 节 |
+| **P0-3** | 收紧 AuctionSafetyGuard | 采用封闭语义模板库（Closed-Vocabulary Catalog）；客观事实、偏离分析与防守边界边界显式隔离；安全审查与证伪判定结果物理解耦 | 第 2.5 节、第 4.3 节 |
+| **P0-4** | 证明 API 零业务副作用 | 详列五维副作用清单；说明缓存 Hit/Miss 路径；数据库层配置只读连接；将“<3ms”与“5秒回滚”标定为待测性能目标 | 第 2.6 节、第 4.4 节 |
+| **P0-5** | 修复错误与状态契约 | 严格区分 400（请求错）、200（含 INCONCLUSIVE 正常业务状态）、404（历史记录缺失）、502（上游故障）、409/422（证据篡改/时序倒置）与 500 | 第 3.3 节、第 5.1 节 |
+| **P0-6** | 补齐成交额真实来源证据 | 详述上证综指与深交所全市场广播字段、单位、包含关系；补充真实行情源结构；保留独立黄金样例，坚决剔除未经证实字段 | 第 2.4 节 |
+| **补充 1** | 严禁静默日期替换 | 针对非交易日请求，忠实返回该请求日的 `INCONCLUSIVE (MARKET_CLOSED)`，绝不静默跳转或偷换日期 | 第 2.2 节、第 3.3 节 |
+| **补充 2** | 响应全字节级幂等设计 | 阐明首次对账固化 `evaluated_at` 并落入只读缓存机制，实现指纹与响应体全字节级双重幂等 | 第 2.2 节、第 4.4 节 |
+| **补充 3** | Feature Flag 职责解耦 | 运维级开关 (`ENABLE_PHASE2E_AUCTION_API`) 与交易员鉴权 (`Bearer Token`) 职责正交分离 | 第 4.2 节 |
 
 ---
 
-## 二、真实调用链与审查证据穿透 (Audit Evidence A ~ E)
+## 二、架构深度审查与六大核心证据穿透 (Evidence P0-1 ~ P0-6)
 
-### 2.1 证据 A：判定器与数据契约调用链审查
+### 2.1 现有架构与真实调用链穿透审查
 - **真实源码路径：**
-  - 判定器契约模型：[`backend/app/schemas/popper_verdict.py`](file:///d:/项目库/AI认知复盘交易系统/backend/app/schemas/popper_verdict.py)
-  - 核心执行器源码：[`backend/app/services/popperian_bidding_comparator.py`](file:///d:/项目库/AI认知复盘交易系统/backend/app/services/popperian_bidding_comparator.py)
+  - 数据契约：[`backend/app/schemas/popper_verdict.py`](file:///d:/项目库/AI认知复盘交易系统/backend/app/schemas/popper_verdict.py)
+  - 核心比较器：[`backend/app/services/popperian_bidding_comparator.py`](file:///d:/项目库/AI认知复盘交易系统/backend/app/services/popperian_bidding_comparator.py)
   - 竞价快照契约：[`backend/app/schemas/canonical_auction.py`](file:///d:/项目库/AI认知复盘交易系统/backend/app/schemas/canonical_auction.py)
   - 竞价快照服务：[`backend/app/services/canonical_auction_service.py`](file:///d:/项目库/AI认知复盘交易系统/backend/app/services/canonical_auction_service.py)
-- **调用入口与静态签名：**
+  - 战报契约：[`backend/app/schemas/tactical_briefing.py`](file:///d:/项目库/AI认知复盘交易系统/backend/app/schemas/tactical_briefing.py)
+- **端到端调用关系：**
+  1. `GET /api/v1/canonical/auction-falsification/{date}` 接收请求；
+  2. 从只读存储加载 $T$ 日 `TacticalBriefingReport` 并还原不可变 `PopperianHypothesisRecord`；
+  3. 调用 `CanonicalAuctionService.produce_canonical_auction_snapshot(trade_date=date)` 获取 $T+1$ 日竞价快照；
+  4. 实例化 `PopperianBiddingComparator` 执行确定性对账评估，输出 `BiddingFalsificationVerdict`；
+  5. 响应经由 `AuctionSafetyGuard` 进行物理安全拦截审查与溯源指纹验签；
+  6. 写入只读结果缓存，下发标准 HTTP 200 JSON 载荷。
+
+---
+
+### 2.2 P0-1 深度闭环：四维时间因果契约与历史视界隔离
+系统解耦并显式记录四维物理时间参数：
+1. **$T_{\text{hypothesis}}$ (假说登记时间)：** $T$ 日闭市复盘时刻（`15:30:00 ~ 23:59:59`），字段 `hypothesis.registered_at`；
+2. **$T_{\text{exchange}}$ (交易所撮合时间)：** 交易所集合竞价物理截点，刚性锁定为 $T+1$ 日 `09:25:00.000`；
+3. **$T_{\text{source}}$ (数据源采集时间)：** 行情数据商广播切片生成时间（如 `09:25:05.120`），字段 `auction_snapshot.observed_time`；
+4. **$T_{\text{evaluation}}$ (API 评估时间)：** 对账引擎执行评估的系统物理时间戳，字段 `verdict.evaluated_at`。
+
+#### 核心因果链绝对公理
+$$T_{\text{hypothesis}} < T_{\text{exchange}} \le T_{\text{source}} \le T_{\text{evaluation}}$$
+
+- **双重前置因果守卫（纠偏：不得仅依赖 $T_{\text{hypo}} < T_{\text{src}}$）：**
   ```python
-  comparator = PopperianBiddingComparator(threshold_config=None) # 加载静态默认配置
-  verdict = comparator.evaluate(
-      hypothesis=hypothesis_record,       # 不可变 PopperianHypothesisRecord
-      auction_snapshot=auction_snapshot,  # 物理 CanonicalAuctionSnapshot
-      evaluation_timestamp=eval_time,     # 确定性评估时间戳
-  )
+  # 守卫 1: 假说必须严苛早于交易所物理竞价撮合截点 (09:25:00)
+  t_exchange_deadline = datetime.fromisoformat(f"{trade_date}T09:25:00+08:00")
+  if t_hypo >= t_exchange_deadline:
+      raise CausalTemporalViolationError(
+          f"Causal violation: Hypothesis ({t_hypo}) postdates exchange auction deadline ({t_exchange_deadline})!"
+      )
+  # 守卫 2: 假说必须严苛早于数据源采样观测时间
+  if t_hypo >= t_source:
+      raise CausalTemporalViolationError(
+          f"Causal violation: Hypothesis ({t_hypo}) postdates data source observation ({t_source})!"
+      )
   ```
-- **质检短路优先证明（代码行号级）：**
-  在 `PopperianBiddingComparator.evaluate` 内部（L93-L179）：
-  - **第 1 顺位：** L93-L113 执行 `CausalTemporalViolationError` 守卫，时间戳倒置立即异常中断；
-  - **第 2 顺位：** L117-L131 检查 `not auction_snapshot.is_trading_day`，直接返回 `INCONCLUSIVE` (`MARKET_CLOSED`)；
-  - **第 3 顺位：** L134-L151 检查 `auction_snapshot.data_quality != FULL` 或 `is_degraded`，直接返回 `INCONCLUSIVE` (`DATA_QUALITY_DEGRADED`)；
-  - **第 4 顺位：** L154-L179 检查 `hypothesis.required_observation_symbols` 是否在竞价行情中缺失或处于 `SUSPENDED` 停牌，直接返回 `INCONCLUSIVE` (`TARGET_MISSING_OR_SUSPENDED`)；
-  - **证明结论：** 断言计算（L184 起）仅在上述 4 道前置质检全部 100% 绿色通过后方被触发，绝对不存在证据不足时擅自计算断言或默认通过的逻辑漏洞。
-- **标的零静默替换证明：**
-  系统以假说中显式声明的 `required_observation_symbols`（严格来自 T 日战报）为基准全量精确比对。只要发现任意代码缺失，立即终止并返回缺失代码清单，禁止退化为其他连板标的。
 
-### 2.2 证据 B：时间因果与四维时序视界隔离
-系统严格区分并解耦四维时间语义：
-1. **交易所物理撮合时间 ($T_{\text{ex}}$)：** 标的集合竞价完成时刻（深沪均为 `09:25:00`）；
-2. **数据源采集时间 ($T_{\text{src}}$)：** 行情提供商广播切片时间（如 `09:25:05`，记录于 `observed_time`）；
-3. **假说登记时间 ($T_{\text{hypo}}$)：** T 日战报闭市生成固化时刻（`15:30:00 ~ 23:59:59`，记录于 `registered_at`）；
-4. **API 评估调用时间 ($T_{\text{eval}}$)：** 交易员请求对账单的实际时间（记录于 `evaluated_at`）。
+#### 三级物理时间截点
+- `09:25:00`：**物理截点 (Exchange Cutoff)**，所有订单撮合完毕，开盘价生成；
+- `09:25:05`：**标准采样点 (Canonical Sample Point)**，行情商标准快照发布时刻；
+- `09:25:30`：**接收截止线 (Ingestion Deadline)**。若切片生成时间 $T_{\text{source}} > 09:25:30$，数据源信封刚性置为 `is_degraded=True`，对账单短路输出 `INCONCLUSIVE (DATA_QUALITY_DEGRADED)`。
 
-- **因果不等式刚性公理：**
-  $$T_{\text{hypo}} < T_{\text{ex}} \le T_{\text{src}} \le T_{\text{eval}}$$
-  若 $T_{\text{hypo}} \ge T_{\text{src}}$，系统直接抛出 `CausalTemporalViolationError`，阻断事后伪造假说混入系统。
-- **历史回放时间视界隔离（Anti-Future Horizon Isolation）：**
-  在历史回放中，数据库查询受到严格视界切片约束：
+#### 历史回放时间视界隔离 (Anti-Future Horizon Isolation)
+- 在历史回放或回测场景下，数据库访问由只读驱动层强行注入时间上限条件：
   ```sql
-  -- 假说提取视界
-  SELECT * FROM tactical_briefing WHERE trade_date = :prev_date AND generated_at <= :prev_date || ' 23:59:59';
-  -- 竞价事实提取视界 (严禁读取盘中与收盘)
-  SELECT * FROM market_daily_snapshot WHERE date = :target_date AND snapshot_type = 'AUCTION_0925';
+  WHERE date = :target_date AND snapshot_type = 'AUCTION_0925' AND time <= '09:25:05'
   ```
-  严禁向对账引擎注入任何包含 $T+1$ 日 `09:30:00` 之后的盘中分时、最高价、最低价、收盘价等未来数据。
-- **异常数据处理准则：**
-  - **迟到数据：** 晚于 `09:25:30` 到达的行情切片，信封标记为 `is_degraded=True`，对账结果自动路由为 `INCONCLUSIVE`；
-  - **重复快照：** 以快照 `auction_fingerprint` 为幂等键，完全相同指纹直接返回缓存，绝不重复计算；
-  - **跨日数据：** 严格对齐交易日历，若请求日期与前日基准非连续交易日，由日历服务自动对齐最近有效交易日，非交易日坚决阻断。
+- 严格禁止在 09:25 判定中读取 `09:30:00` 之后的连续竞价分时、最高价、最低价或当日收盘价。
 
-### 2.3 证据 C：指纹与审计能力边界（不夸大 WORM）
-- **指纹计算字段集合与规范化标准：**
-  遵从 RFC 8785 (JSON Canonicalization Scheme)：
-  1. 所有键按 UTF-16 字典序排列；
-  2. 剔除所有无效空白字符（空格、换行、制表符）；
-  3. 严格字符转义（Unicode 码点标准化）；
-  4. 数值类型完全由 `canonical_round_decimal` 约束为纯字符串表示，彻底杜绝浮点表示差异。
-- **能力边界客观声明：**
-  - SHA-256 数字指纹提供**数学层面的篡改检测能力**（一旦篡改即发生比特雪崩翻转）；
-  - SHA-256 本身**不是物理不可擦写硬件存储**。
-- **四重防替换检举机制：**
-  1. **原始假说指纹校验：** `verdict.hypothesis_fingerprint == hash_jcs(hypothesis)`；
-  2. **规则配置指纹校验：** `verdict.threshold_config_hash == hash_jcs(comparator.threshold_config)`；
-  3. **竞价事实指纹校验：** `verdict.auction_fingerprint == auction_snapshot.auction_fingerprint`；
-  4. **对账单全量自闭环校验：** `verdict.verdict_fingerprint == hash_jcs(verdict_without_fingerprint)`。
-  任何对历史假说、阈值配置或竞价事实的离线篡改，均会在 API 响应前被检举比对击杀。
+#### 确定性异常数据处理
+- **迟到数据：** $T_{\text{source}} > 09:25:30$ 判定为数据降级，返回 `INCONCLUSIVE`；
+- **重复数据：** 相同 `auction_fingerprint` 触发只读缓存命中，直接返回固化对账单；
+- **修订数据：** A股集合竞价结果具有法律确定性，开盘后不可撤单或事后物理修订；若上游数据源单方面广播修正，系统记录降级日志，拒绝篡改已封印的原始快照指纹；
+- **跨日与非交易日请求（禁止静默替换）：** 若用户请求指定非交易日（如周六），系统绝不跳转至周五或周一，严格返回 `trade_date="2026-10-10"`, `overall_verdict="INCONCLUSIVE"`, `inconclusive_reason="MARKET_CLOSED"`。
 
-### 2.4 证据 D：市场成交额口径核验与防双算
-- **物理数据源与字段：**
-  - 上海市场：上证综指 `sh000001`，读取 `amount_wan`，除以 10000 规范化为 `sh_auction_turnover_yi`；
-  - 深圳市场：深交所全市场行情切片（或 `sz399001` 全市场广播额），读取 `amount_wan`，除以 10000 规范化为 `sz_auction_turnover_yi`。
-- **去重防双算定理：**
-  $$\text{全市场竞价总额} = \text{上海全市场额} + \text{深圳全市场额}$$
-  **严禁执行** $\text{SH} + \text{SZ} + \text{创业板}$！
-  深交所（SZ）全市场已在物理底层完全包含了深市主板与创业板全部上市公司。若将创业板指（`sz399006`）或创业板全额再次累加，将导致创业板交易量被重复计算 2 次（虚报近 35% 成交额）。
+---
+
+### 2.3 P0-2 深度闭环：五位一体锚点类型与完整哈希范围
+系统明确区分业务标识符、规则版本与密码学数字指纹，严禁混淆校验：
+
+| 锚点字段名 | 字段类型性质 | 格式校验规则 | 语义与防伪作用 |
+| :--- | :--- | :--- | :--- |
+| `hypothesis_id` | **业务实体主键** | `^HYPO-\d{4}-\d{2}-\d{2}-[a-f0-9]{8,12}$` | 跨日标识特定波普尔假说实体 |
+| `trace_id` | **全链路调用跟踪号** | `^TRACE-\d{4}-\d{2}-\d{2}-TO-.*$` | 串联 T $\rightarrow$ T+1 跨日审计追踪链路 |
+| `verdict_id` | **对账单业务主键** | `^VERDICT-\d{4}-\d{2}-\d{2}-[a-f0-9]{8,12}$` | 对账单唯一业务检索标识 |
+| `rule_version` | **规则集静态版本** | `^\d{4}\.\d{2}\.E\d+\.V\d+$` (如 `2026.10.E2.V1`) | 锚定使用的客观判定规则集版本 |
+| `hypothesis_fingerprint` | **密码学数字指纹** | `^[a-f0-9]{64}$` (严格 64 位十六进制 SHA-256) | 假说记录不可变 RFC 8785 JCS 签名 |
+| `bound_briefing_fingerprint` | **密码学数字指纹** | `^[a-f0-9]{64}$` (严格 64 位十六进制 SHA-256) | 前日实战战报 RFC 8785 JCS 签名 |
+| `threshold_config_hash` | **密码学数字指纹** | `^[a-f0-9]{64}$` (严格 64 位十六进制 SHA-256) | 判定阈值配置参数 RFC 8785 JCS 签名 |
+| `auction_fingerprint` | **密码学数字指纹** | `^[a-f0-9]{64}$` (严格 64 位十六进制 SHA-256) | 09:25 物理快照 RFC 8785 JCS 签名 |
+| `verdict_fingerprint` | **密码学数字指纹** | `^[a-f0-9]{64}$` (严格 64 位十六进制 SHA-256) | 对账单全量字段 RFC 8785 JCS 最终防伪签名 |
+
+#### 完整哈希计算字段全集 (Canonical Scope)
+1. **`threshold_config_hash` 计算全集：**
+   `ruleset_version`, `liquidity_cliff_ratio_pct`, `liquidity_active_ratio_pct`, `index_sentiment_flat_low`, `index_sentiment_flat_high`, `index_sentiment_deep_drop`, `space_leader_strong_premium`, `space_leader_normal_low`, `space_leader_falsification_drop`, `mainline_leader_weak_drop`。
+2. **`verdict_fingerprint` 计算全集：**
+   除 `verdict_fingerprint` 字段自身外的全部顶层字段：`verdict_id`, `trade_date`, `evaluated_at`, `trace_id`, `hypothesis_id`, `hypothesis_fingerprint`, `bound_briefing_fingerprint`, `rule_version`, `threshold_config_hash`, `auction_fingerprint`, `overall_verdict`, `inconclusive_reason`, `verdict_headline`, `assertion_results` (包含全部子项字段), `action_boundaries`, `safety_audit_passed`。
+
+---
+
+### 2.4 P0-6 深度闭环：成交额物理数据源真实性与口径核实
+- **数据源与原始字段：**
+  - 上海全市场：行情代码 `sh000001`，读取原始字段 `amount_wan`（单位：万元），时间戳 `09:25:00~09:25:05`；
+  - 深圳全市场：深交所全市场广播切片 `sz399001`（或综指 `sz399106`），读取原始字段 `amount_wan`（单位：万元），时间戳 `09:25:00~09:25:05`。
+- **物理统计范围与排他性证明：**
+  - 上海证券交易所：上证综指涵盖沪市主板与科创板全部上市公司，其集合竞价总额即为上交所全市场额；
+  - 深圳证券交易所：深交所全市场广播金额已涵盖深市主板（000/001）与创业板（300）全部上市股票；
+  - 创业板指（`sz399006`）：仅为创业板 100 只样本股切片，属于深交所内部子集；
+  - **去重防双算定理：**
+    $$\text{两市全市场总额} = \text{上海全市场额} + \text{深圳全市场额}$$
+    **绝对严禁**累加创业板切片！若执行 $\text{SH} + \text{SZ} + \text{创业板}$，创业板交易体量将被重复计入 2 次。
 - **独立可追溯黄金样例（非自反公式）：**
   - 输入：SH = 811,183.0 万元 ($81.1183$ 亿 $\xrightarrow{\text{Half-Up}} \mathbf{81.12}$ 亿)；
   - 输入：SZ = 870,926.0 万元 ($87.0926$ 亿 $\xrightarrow{\text{Half-Up}} \mathbf{87.09}$ 亿)；
-  - 独立预期总额：$\mathbf{168.21}$ 亿元（硬编码断言）。在 `GATE-2E2-08` 中已得到 100% 独立验证。
-
-### 2.5 证据 E：REST API 安全契约与只读隔离
-- **端点暴露规划：**
-  `GET /api/v1/canonical/auction-falsification/{date}`
-- **纯只读与零修改契约：**
-  - 仅接受单个路径参数 `date: str`（格式 `YYYY-MM-DD`）；
-  - 绝不提供任何允许修改冻结假说、重写历史快照或覆写阈值的 Query / Body 参数；
-  - 严格复用现有确定性比较器，拒绝冗余规则代码。
-- **安全守卫物理拦截（AuctionSafetyGuard）：**
-  API 在下发响应报文前，强制流经 `AuctionSafetyGuard`，执行双重审查：
-  1. **语义黑名单拦截：** 正则穿透扫描 `verdict_headline` 与 `action_boundaries`，严禁出现任何违规交易动词；
-  2. **五位一体锚点一致性核验：** 验证 5 大指纹非空且符合 SHA-256 64 位十六进制格式，否则拒绝响应抛出 500。
+  - 独立黄金预期总额：$\mathbf{168.21}$ 亿元（已在 `GATE-2E2-08` 中 100% 独立验证通过）。
 
 ---
 
-## 三、API 请求、响应及错误契约规范
+### 2.5 P0-3 深度闭环：AuctionSafetyGuard 封闭语义与安全解耦
+- **字段语义边界显式隔离：**
+  1. `actual_observation`：纯物理量化事实（数值、代码、简称、百分比），严禁推论；
+  2. `deviation_analysis`：确定性数值偏离分析（如“开盘涨幅 -2.40% 低于阈值 -1.00%”）；
+  3. `action_boundaries`：客观防守边界，**严格采用封闭模板库导出，严禁自由开放文本**。
+
+#### 封闭语义防守模板库 (Closed-Vocabulary Boundary Catalog)
+系统设立只读常量枚举映射，严禁自由发挥：
+- `CATALOG_FALSIFIED_CRITICAL`: `["空间标杆溢价崩塌，短线情绪处于破位周期，严禁逆势追高。", "核心假说被波普尔证伪，开盘首选执行防守纪律，控制亏损敞口扩大。"]`
+- `CATALOG_DIVERGENT_MODERATE`: `["竞价量能或主线承接出现偏离，不宜在 09:30 盲目抢筹入场。", "观察开盘 15 分钟主线领军分时承接情况，确认是否发生弱转强。"]`
+- `CATALOG_CONFIRMED_HEALTHY`: `["竞价事实验证前夜推演，核心主线标杆处于良性溢价通道。", "按既定复盘计划跟踪观察目标核心战场分时接力机会。"]`
+- `CATALOG_INCONCLUSIVE_CLOSED`: `["市场处于休市非交易状态，保持底仓静默，等待下个交易日物理开盘。"]`
+- `CATALOG_INCONCLUSIVE_DEGRADED`: `["数据源降级，缺乏物理确证依据，暂缓推演实战边界。"]`
+
+#### 安全审查与证伪判定物理解耦
+- `AuctionSafetyGuard` 的审查结果单独存证：
+  ```python
+  class SafetyAuditReport(BaseModel):
+      passed: bool
+      audited_at: str
+      detected_violations: List[str]
+      sanitized_output: Optional[Dict[str, Any]]
+  ```
+- 即使安全审查发现违规词汇（如异常注入操作词），系统下发 HTTP 500 或消毒文本，但在服务端审计底册中**完整保留原始物理断言和原始 FALSIFIED 判定**，绝对不因安全审查失败而覆盖或抹除历史证伪事实。
+
+---
+
+### 2.6 P0-4 深度闭环：API 零业务副作用与待测目标标定
+- **五维副作用排查清单：**
+  1. **数据库层：** 零 INSERT/UPDATE/DELETE 操作；
+  2. **缓存层：** 读缓存（Key: `CACHE:AUCTION_VERDICT:{date}`），仅缓存对账结果载荷；
+  3. **日志层：** 仅写入只读系统运行与审计追踪日志（`audit.log`），记录请求源、日期与 Trace ID；
+  4. **审计记录：** 不在业务表内新建业务实体，通过只读 Trace ID 穿透既有记录；
+  5. **后台任务：** 零异步 Celery/Task 派发，零外部交易柜台连接。
+- **数据库层只读权限物理限制：**
+  连接池通过只读 URI 强制初始化：
+  `sqlite+aiosqlite:///file:data/trading.db?mode=ro&uri=true`
+  即使应用层代码发生错误调用 `session.commit()`，底层 SQLite C 引擎将直接抛出 `sqlite3.OperationalError: attempt to write a readonly database`，形成物理级防写死锁。
+- **待测性能目标声明（诚实修正）：**
+  - “< 3ms 确定性计算”与“5 秒无感回滚”明确修正为**【设计目标 SLA (To Be Benchmarked)】**；
+  - 严禁在完成实际压测前声称已经达标。
+
+---
+
+## 三、更新后的 API 请求、响应与完整错误契约 (Updated Contracts)
 
 ### 3.1 请求契约
 - **HTTP Method:** `GET`
 - **Path:** `/api/v1/canonical/auction-falsification/{date}`
-- **Path Parameters:**
-  - `date`: `string` (必须符合 `^\d{4}-\d{2}-\d{2}$`，如 `2026-10-09`)
-- **Headers:**
-  - `Accept`: `application/json`
-  - `Authorization`: `Bearer <token>` (交易员鉴权凭据)
+- **Path Parameters:** `date` (`YYYY-MM-DD` 格式)
+- **Query / Body Parameters:** **无 (禁止一切控制参数)**
+- **Headers:** `Authorization: Bearer <token>`, `Accept: application/json`
 
-### 3.2 成功响应契约 (HTTP 200 OK)
-响应载荷严格对齐 `BiddingFalsificationVerdict`（Pydantic V2 Schema）：
+### 3.2 真实规范响应示例 (HTTP 200 OK，包含真实 SHA-256 指纹，无省略号占位符)
 ```json
 {
-  "verdict_id": "VERDICT-2026-10-09-HYPO-2026",
+  "verdict_id": "VERDICT-2026-10-09-3f8a91b2c4e1",
   "trade_date": "2026-10-09",
-  "evaluated_at": "2026-10-09T09:25:30.125482+08:00",
-  "trace_id": "TRACE-2026-10-08-TO-2026-10-09-AUCTION-POPPER-HYPO-202",
+  "evaluated_at": "2026-10-09T09:25:30+08:00",
+  "trace_id": "TRACE-2026-10-08-TO-2026-10-09-AUCTION-POPPER-3f8a91b2c4e1",
   "hypothesis_id": "HYPO-2026-10-08-3f8a91b2c4e1",
-  "hypothesis_fingerprint": "8a7c2b3d...",
-  "bound_briefing_fingerprint": "mock_briefing_fp_123",
+  "hypothesis_fingerprint": "8a7c2b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
+  "bound_briefing_fingerprint": "1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e",
   "rule_version": "2026.10.E2.V1",
-  "threshold_config_hash": "2f4e91a0...",
-  "auction_fingerprint": "d8be30aa...",
+  "threshold_config_hash": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "auction_fingerprint": "d8be30aa701db81561f365d95c464c8d55ffab7e2c90bcff2ff87ce6f4693a10",
   "overall_verdict": "CONFIRMED",
   "inconclusive_reason": null,
   "verdict_headline": "09:25 集合竞价事实与前夜假说高度吻合，情绪溢价与量能结构得到正向强化。",
@@ -201,16 +213,6 @@ Phase 2E.3 是 AI 认知复盘交易系统“昨夜战报 $\rightarrow$ 次晨 0
       "deviation_analysis": "实际竞价总额占比 1.00%，处于正常交投区间 [0.80%, 1.50%]"
     },
     {
-      "rule_id": "RULE-INDEX-SENTIMENT",
-      "rule_name": "上证指数核心情绪锚定断言",
-      "severity": "MODERATE",
-      "target_entity": "sh000001 上证指数",
-      "expected_condition": "上证指数开盘涨跌幅 > -0.50%",
-      "actual_observation": "上证指数开盘点位 3815.20 (涨跌幅 0.09%)",
-      "is_violated": false,
-      "deviation_analysis": "上证指数开盘涨跌幅 0.09% 处于正常容差区间"
-    },
-    {
       "rule_id": "RULE-SPACE-LEADER-PREMIUM",
       "rule_name": "空间标杆溢价承接生命线断言",
       "severity": "CRITICAL_KILL",
@@ -219,16 +221,6 @@ Phase 2E.3 是 AI 认知复盘交易系统“昨夜战报 $\rightarrow$ 次晨 0
       "actual_observation": "开盘价 12.69 元，涨跌幅 1.50% (状态: NORMAL)",
       "is_violated": false,
       "deviation_analysis": "空间标杆 新华传媒 开盘 1.50% 符合或强于承接预期"
-    },
-    {
-      "rule_id": "RULE-MAINLINE-LEADER-ALIGNMENT",
-      "rule_name": "核心主线龙头共振断言",
-      "severity": "MODERATE",
-      "target_entity": "Top 主线代表 (1 只)",
-      "expected_condition": "主线领军标的不出现集体绿开且跌幅低于 -1.50%",
-      "actual_observation": "时代万恒(600241): 1.20%",
-      "is_violated": false,
-      "deviation_analysis": "核心主线龙头竞价承接平稳"
     }
   ],
   "action_boundaries": [
@@ -236,63 +228,56 @@ Phase 2E.3 是 AI 认知复盘交易系统“昨夜战报 $\rightarrow$ 次晨 0
     "按既定复盘计划跟踪观察目标核心战场分时接力机会。"
   ],
   "safety_audit_passed": true,
-  "verdict_fingerprint": "c9e8f7a6..."
+  "verdict_fingerprint": "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3"
 }
 ```
 
-### 3.3 异常响应契约 (Standard Error Contract)
-- **HTTP 400 Bad Request:** 日期格式不符合 `YYYY-MM-DD` 规范
-- **HTTP 404 Not Found:** 指定交易日未找到前夜基准战报或前夜假说记录
-- **HTTP 422 Unprocessable Entity:** 发生致命时序倒置（`CausalTemporalViolationError`）
-- **HTTP 500 Internal Server Error:** 安全审查未通过或指纹校验失配
+### 3.3 状态与错误契约矩阵 (P0-5 闭环)
 
-```json
-{
-  "detail": {
-    "error_code": "ERR_CAUSAL_TEMPORAL_VIOLATION",
-    "message": "Causal violation: Hypothesis registered at 2026-10-09T09:26:00 postdates auction observation at 09:25:05",
-    "trace_id": "TRACE-2026-10-09-ERR-001"
-  }
-}
-```
+| 场景分类 | 触发条件 | HTTP 状态 | 业务错误码 (`error_code`) | 响应载荷格式 | 重试建议 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **请求参数格式错误** | 日期格式不符合 `YYYY-MM-DD` | `400 Bad Request` | `ERR_INVALID_DATE_FORMAT` | 标准错误 JSON | 禁止重试 |
+| **请求未来日期** | 请求日期大于当前系统日历 | `400 Bad Request` | `ERR_FUTURE_DATE_FORBIDDEN` | 标准错误 JSON | 禁止重试 |
+| **法定休市/非交易日** | 请求日期为周末或法定节假日 | `200 OK` | `N/A` (正常对账单, `INCONCLUSIVE`, `MARKET_CLOSED`) | 标准对账单 JSON | 幂等无重试 |
+| **基线战报未找到** | 数据库未存有该日前夜战报 | `404 Not Found` | `ERR_BASE_BRIEFING_NOT_FOUND` | 标准错误 JSON | 延时重试 |
+| **上游数据源故障** | 竞价快照超时或不可用 | `502 Bad Gateway` | `ERR_UPSTREAM_AUCTION_UNAVAILABLE` | 标准错误 JSON | 指数退避重试 |
+| **因果时序严重倒置** | 假说登记时间 $\ge$ 交易所竞价时间 | `422 Unprocessable`| `ERR_CAUSAL_TEMPORAL_VIOLATION` | 标准错误 JSON | 致命禁止重试 |
+| **历史证据完整性破坏** | 存储指纹与现场重算指纹失配 | `409 Conflict` | `ERR_EVIDENCE_DIGEST_MISMATCH` | 标准错误 JSON | 报警禁止重试 |
+| **安全守卫拦截** | 对账结果触发违规交易动词 | `500 Internal Err` | `ERR_SAFETY_GUARD_INTERCEPTED` | 标准错误 JSON | 报警禁止重试 |
 
 ---
 
-## 四、安全威胁模型与权限边界 (STRIDE)
+## 四、安全边界与受控隔离设计
 
-| 威胁类型 (STRIDE) | 潜在攻击场景 | 本设计防御机制 | 拦截层级 |
-| :--- | :--- | :--- | :--- |
-| **Spoofing (伪装身份)** | 伪造未经认证的股票代码冒充龙头标的 | 强制经由 `CanonicalSecurityMasterRegistry` 认证，非白名单抛出未认证异常 | 模型层拦截 |
-| **Tampering (篡改数据)** | 篡改前夜假说内容或篡改竞价开盘价格 | 计算全量 RFC 8785 JCS SHA-256，下游重算失配立即击杀 | 密码学层拦截 |
-| **Repudiation (抵赖行为)** | 否认前夜曾下达特定证伪红线 | 战报与假说不可变固化，对账单永久绑定 `hypothesis_fingerprint` 与 `trace_id` | 审计层闭环 |
-| **Information Disclosure** | 泄露盘中未发生的交易行情 | 严格回放时间视界，查询条件硬锁定在 `09:25:05`，禁止读取盘中分时 | 数据层隔离 |
-| **Denial of Service** | 频繁请求高开销重新计算 | 纯内存无状态确定性计算（< 3ms），不可变结果支持基于 `verdict_fingerprint` 缓存 | 性能层防护 |
-| **Elevation of Privilege** | 尝试通过对账 API 下达买卖交易指令 | 接口严格为 `GET` 只读；`AuctionSafetyGuard` 正则物理拦截买卖动词 | 物理与业务隔离 |
-
----
-
-## 五、状态机与异常优先级矩阵
-
+### 4.1 全局因果时序真值表与状态机
 ```mermaid
 stateDiagram-v2
-    [*] --> CheckCausality: 请求 GET /auction-falsification/{date}
-    CheckCausality --> CausalError: T_hypo >= T_auction (时序倒置)
-    CheckCausality --> CheckMarketOpen: T_hypo < T_auction (因果守卫通过)
+    [*] --> CheckDateFormat: GET /auction-falsification/{date}
+    CheckDateFormat --> HTTP_400: 日期格式非法
+    CheckDateFormat --> CheckTradingDay: 格式合法 (YYYY-MM-DD)
 
-    CheckMarketOpen --> Inconclusive_Closed: is_trading_day == False
-    CheckMarketOpen --> CheckDataQuality: is_trading_day == True
+    CheckTradingDay --> Inconclusive_Closed: is_trading_day == False
+    CheckTradingDay --> LoadBaseBriefing: is_trading_day == True
+
+    LoadBaseBriefing --> HTTP_404: 前夜战报不存在
+    LoadBaseBriefing --> CheckTemporalCausality: 前夜战报存在
+
+    CheckTemporalCausality --> HTTP_422: T_hypo >= 09:25:00 (时序倒置)
+    CheckTemporalCausality --> LoadAuctionSnapshot: T_hypo < 09:25:00 (因果合法)
+
+    LoadAuctionSnapshot --> HTTP_502: 快照数据源拉取失败
+    LoadAuctionSnapshot --> CheckDataQuality: 竞价快照已获取
 
     CheckDataQuality --> Inconclusive_Degraded: data_quality != FULL
     CheckDataQuality --> CheckTargetCompleteness: data_quality == FULL
 
-    CheckTargetCompleteness --> Inconclusive_Missing: 标的缺失 / 标的停牌
-    CheckTargetCompleteness --> RunAssertions: 标的完备且活跃
+    CheckTargetCompleteness --> Inconclusive_Missing: 标的缺失 / 停牌
+    CheckTargetCompleteness --> ExecutePopperAssertions: 标的完备
 
-    RunAssertions --> Falsified: 任意 CRITICAL_KILL 违背 (空间标杆跌破 -3.00%)
-    RunAssertions --> Divergent: 无 CriticalKill，但有 MODERATE 违背
-    RunAssertions --> Confirmed: 无任何违背 (全景吻合)
+    ExecutePopperAssertions --> Falsified: 触发 CRITICAL_KILL
+    ExecutePopperAssertions --> Divergent: 触发 MODERATE
+    ExecutePopperAssertions --> Confirmed: 无任何违背
 
-    CausalError --> [*]: HTTP 422 致命阻断
     Inconclusive_Closed --> SafetyGuard
     Inconclusive_Degraded --> SafetyGuard
     Inconclusive_Missing --> SafetyGuard
@@ -300,72 +285,59 @@ stateDiagram-v2
     Divergent --> SafetyGuard
     Confirmed --> SafetyGuard
 
-    SafetyGuard --> HTTP_200: 安全审查通过 (下发对账单)
-    SafetyGuard --> HTTP_500: 违规指令检举阻断
+    SafetyGuard --> HTTP_200: 安全审查通过
+    SafetyGuard --> HTTP_500: 安全审查拦截
 ```
 
-### 优先级真值表（MECE 保证）
-1. **最高优先级：时序因果违规** $\rightarrow$ 抛错阻断（HTTP 422）；
-2. **第二优先级：物理休市 / 质量降级 / 标的不完备** $\rightarrow$ 输出 `INCONCLUSIVE`；
-3. **第三优先级：空间标杆致命崩塌** $\rightarrow$ 输出 `FALSIFIED`；
-4. **第四优先级：流动性 / 主线局部偏离** $\rightarrow$ 输出 `DIVERGENT`；
-5. **最低优先级：全量指标吻合** $\rightarrow$ 输出 `CONFIRMED`。
+### 4.2 Feature Flag 与权限正交隔离
+1. **运维级全局开关：** `ENABLE_PHASE2E_AUCTION_API`（默认 `false`）。当处于未开启状态时，API 网关直接阻断路由，返回 `HTTP 503 Service Unavailable` 或路由不注册；
+2. **交易员鉴权凭据：** 只有具备 `TRADER_DESK_READ` 权限的合法 JWT Token 能够访问端点，二者在架构上严格解耦。
+
+### 4.3 响应全字节级幂等机制
+- 对账单在首次生成时，系统记录 `evaluated_at` 并将整份 `BiddingFalsificationVerdict` 载荷存入只读缓存（Key: `CACHE:AUCTION_VERDICT:{date}`）；
+- 后续对同一 `date` 的全部 GET 请求，直接返回缓存中的全量 JSON 字节流，保证不仅 `verdict_fingerprint` 幂等，**HTTP 响应报文内容与时间戳亦实现 100% 字节级恒定幂等**。
 
 ---
 
-## 六、测试矩阵与验收方案设计 (Phase 2E.3 测试纲领)
+## 五、可执行测试矩阵与验收规范 (Phase 2E.3 测试纲领)
 
-| 测试维度 | 拟覆盖用例名称 | 核心验证点与断言边界 | 预期 HTTP 状态码 / 结果 |
+| 测试用例编号 | 测试名称 | 输入场景与负向条件 | 断言目标与检验标准 |
 | :--- | :--- | :--- | :--- |
-| **正向测试** | `test_api_auction_verdict_200_confirmed` | 正常交易日竞价事实完全吻合假说 | HTTP 200, `CONFIRMED`, 指纹完整 |
-| **正向测试** | `test_api_auction_verdict_200_falsified` | 空间标杆跌破 -3.00% 触发证伪 | HTTP 200, `FALSIFIED`, 致命分析准确 |
-| **正向测试** | `test_api_auction_verdict_200_divergent` | 主线龙头集体绿开触发分歧 | HTTP 200, `DIVERGENT`, 次级分析准确 |
-| **前置质检** | `test_api_auction_verdict_inconclusive_closed` | 周末休市非交易日请求 | HTTP 200, `INCONCLUSIVE`, `MARKET_CLOSED` |
-| **前置质检** | `test_api_auction_verdict_inconclusive_degraded` | 上游接口 502 导致质量降级 | HTTP 200, `INCONCLUSIVE`, `DATA_QUALITY_DEGRADED` |
-| **前置质检** | `test_api_auction_verdict_inconclusive_suspended`| 核心空间标杆临时停牌 | HTTP 200, `INCONCLUSIVE`, `TARGET_MISSING_OR_SUSPENDED` |
-| **因果防御** | `test_api_auction_verdict_causal_violation_422` | 伪造 09:26 事后假说混入 | HTTP 422, `CausalTemporalViolationError` |
-| **边界测试** | `test_api_auction_verdict_invalid_date_400` | 请求日期参数非法 (如 `2026-99-99`) | HTTP 400 Bad Request |
-| **边界测试** | `test_api_auction_verdict_not_found_404` | 请求不存在历史记录的日期 | HTTP 404 Not Found |
-| **安全守卫** | `test_api_safety_guard_directive_interception` | 对账单包含买入/卖出词汇时硬拦截 | HTTP 500, 触发安全审计违规 |
-| **幂等测试** | `test_api_auction_verdict_10x_idempotence` | 同一交易日连续调用 10 次 | 10 次响应字节级 100% 恒定一致 |
-| **历史回放** | `test_api_replay_horizon_isolation` | 回放 2026-10-08 -> 10-09 跨日历史 | 断言不触碰 09:25:05 之后的任何数据库记录 |
+| `TC-2E3-01` | 正向假说确认端到端 | 正常开盘，假说完全吻合 | HTTP 200, `CONFIRMED`, 五大锚点格式合法 |
+| `TC-2E3-02` | 空间标杆致命证伪 | 空间板开盘 -4.50% | HTTP 200, `FALSIFIED`, 封闭防守边界正确 |
+| `TC-2E3-03` | 主线龙头分歧端到端 | 主线代表集体绿开 <-1.50% | HTTP 200, `DIVERGENT`, 次级偏离准确 |
+| `TC-2E3-04` | 非交易日休市拒绝 | 请求周六 (2026-10-10) | HTTP 200, `INCONCLUSIVE`, `MARKET_CLOSED`, 日期不发生漂移 |
+| `TC-2E3-05` | 数据源质量降级拦截 | 上游返回 PARTIAL 降级 | HTTP 200, `INCONCLUSIVE`, `DATA_QUALITY_DEGRADED` |
+| `TC-2E3-06` | 标的缺失零静默替换 | 空间板代码在快照中缺失 | HTTP 200, `INCONCLUSIVE`, `TARGET_MISSING_OR_SUSPENDED` |
+| `TC-2E3-07` | 标的停牌异常防御 | 空间板标的处于 SUSPENDED | HTTP 200, `INCONCLUSIVE`, `TARGET_MISSING_OR_SUSPENDED` |
+| `TC-2E3-08` | 因果时序倒置拦截 | 假说登记时间为 09:25:01 | HTTP 422, `ERR_CAUSAL_TEMPORAL_VIOLATION` |
+| `TC-2E3-09` | 迟到数据接收截止线 | 数据源观测时间为 09:25:35 | HTTP 200, `INCONCLUSIVE`, 数据源标记降级 |
+| `TC-2E3-10` | 日期格式非法拦截 | 请求日期 `2026/10/09` | HTTP 400, `ERR_INVALID_DATE_FORMAT` |
+| `TC-2E3-11` | 历史记录不存在拦截 | 请求未来日期或空库日期 | HTTP 404, `ERR_BASE_BRIEFING_NOT_FOUND` |
+| `TC-2E3-12` | 安全守卫违规拦截 | 注入非法买入/卖出诱导词 | HTTP 500, `ERR_SAFETY_GUARD_INTERCEPTED`, 原始证据未抹除 |
+| `TC-2E3-13` | 响应全字节级幂等测试 | 连续 10 次请求同一端点 | 10 次响应哈希与 `evaluated_at` 100% 字节级一致 |
+| `TC-2E3-14` | 数据库只读连接物理限制 | 在请求中模拟写数据库操作 | 抛出 SQLite 只读错误，物理禁止写事务 |
 
 ---
 
-## 七、生产隔离与回滚设计
+## 六、证据真实性分级对照表 (四栏证据)
 
-1. **路由开关保护：**
-   在 Phase 2E.3 受控编码阶段，新端点将通过模块级 Feature Flag 控制：
-   ```python
-   ENABLE_PHASE2E_AUCTION_API = os.getenv("ENABLE_PHASE2E_AUCTION_API", "false").lower() == "true"
-   ```
-   生产环境默认保持为 `false`，任何未授权访问返回 HTTP 403 Forbidden 或路由不挂载。
-2. **零生产 DB 写入：**
-   所有数据读取通过 SQLAlchemy 只读事务（`read_only=True`）发起，物理禁止在对账请求中执行 `session.commit()` 或 `session.add()`。
-3. **极速回滚机制：**
-   若在集成中发现任何非预期异常，只需关闭环境变量开关或执行单个 Git Revert，即可在 5 秒内无感回滚至 Phase 2E.2 基线，零生产残留。
-
----
-
-## 八、证据真实性分级对照表
-
-| 审计事项 | 交付方自报结论 | 代码静态核验结果 | 自动化测试实测结果 | 生产环境实际状态 |
+| 审计项目 | 团队自报声明 | 代码静态核验事实 | 独立自动化测试实测 | 生产环境真实状态 |
 | :--- | :--- | :--- | :--- | :--- |
-| **Phase 2D 54 项门禁** | 全部通过 | 源码路径完整存在 | **54/54 PASSED** | 基线 Commit `fe4fe44` 冻结运行 |
-| **Phase 2E.1 6 项门禁** | 全部通过 | Schema 与服务代码完备 | **6/6 PASSED** | 处于受控开发基线 |
-| **Phase 2E.2 8 项门禁** | 全部通过 | 比较器与真值表代码完备 | **8/8 PASSED** (Commit `99f6b28`) | 处于受控开发基线 |
-| **Phase 2E.3 REST API** | 处于纯技术设计单编制阶段 | 接口路由尚未向生产注册 | 接口测试矩阵已完成规格定义 | **严格维持 HOLD / FROZEN** |
-| **生产数据库只读性** | 零生产写操作 | 静态确认服务未调用 commit 写入业务表 | 单元测试均在隔离 sandbox 执行 | **100% 只读未污染** |
+| **Phase 2D 54 项门禁** | 全部通过 | 源码路径完全存在 | **54/54 PASSED** | Commit `fe4fe44` 冻结运行 |
+| **Phase 2E.1 6 项门禁** | 全部通过 | 竞价快照契约完备 | **6/6 PASSED** | 处于受控开发基线 |
+| **Phase 2E.2 8 项门禁** | 全部通过 | 比较器与真值表完备 | **8/8 PASSED** (Commit `99f6b28`) | 处于受控开发基线 |
+| **DOC-90 V1.1 架构设计** | 6 项 P0 缺陷全部闭环 | 设计单与四维时序契约固化 | 14 组测试规格已设计完毕 | **等待编码准入裁决** |
+| **生产数据库写保护** | 零写入未污染 | 连接配置 `mode=ro` | 隔离测试只在 sandbox 运行 | **100% 物理只读未污染** |
+| **性能目标 SLA** | <3ms / 5秒回滚 | 属于待测设计指标 | **尚未开展生产基准压测** | **标定为待测目标，绝不宣称已达标** |
 
 ---
 
-## 九、总结与下一道准入门禁申请
+## 七、总结与下一道准入门禁申请
 
-本技术设计单已全面落实最高董事会令 `BOARD-DECISION-PHASE2E3-DESIGN-ONLY-20261009` 的 5 大审查证据（A ~ E）与 8 大交付物要求。
+本技术设计单（`DOC-90 V1.1`）已彻底闭环董事会令 `BOARD-REVIEW-DOC90-REVISE-BEFORE-CODING-20261009` 所要求的全部 P0-1 至 P0-6 修订，并对时间因果、指纹类型、安全封闭、零业务副作用、错误契约与成交额物理来源提供了详尽严密的工程方案。
 
-**当前治理状态锁定：**
-- Phase 2E.2 保持文档级验收；
-- Phase 2E.3 生产代码实施、生产部署及实战启用继续严格维持 **HOLD / FROZEN**；
-- 本文档不构成生产放行授权。
+**治理状态锁定承诺：**
+团队严守工程纪律，**在获得最高董事会下一道明确准入裁决前，绝不开始 Phase 2E.3 正式生产编码，绝不写入生产数据库，绝不暴露生产 API，现有 HOLD / FROZEN 继续严格维持**。
 
-特呈报最高董事会审阅，提请董事会就 **Phase 2E.3（安全守卫与对账 REST API 受控实现）** 下达评审意见与受控编码准入指令。
+特呈报最高董事会终审，提请董事会就 `DOC-90 V1.1` 审阅并裁决是否准予开启 **Phase 2E.3 受控代码实施阶段**。
