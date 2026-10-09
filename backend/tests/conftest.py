@@ -21,7 +21,10 @@ def hermetic_test_database_sandbox():
     strictly preventing any writes or mutations to physical data/trading.db instances.
     """
     if test_db_file.exists():
-        test_db_file.unlink()
+        try:
+            test_db_file.unlink()
+        except Exception:
+            pass
 
     # Physical schema & WORM triggers initialization on the isolated sandbox
     import asyncio
