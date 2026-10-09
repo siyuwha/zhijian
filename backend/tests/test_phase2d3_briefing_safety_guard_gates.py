@@ -447,7 +447,7 @@ def test_gate_2d3_05b_decimal_round_half_up_boundary_proof():
       - 16821.05 -> Decimal('16821.1') (round() 返回 16821.0)
       - 16821.04 -> Decimal('16821.0')
     """
-    # 1. 炸板率分界点对比
+    # 1. 炸板率正数分界点对比 (Positive Ties Away From Zero)
     val_broken_tie = Decimal("42.65")
     # Python banker's rounding flaw demonstration
     assert round(42.65, 1) == 42.6, "Python float banker's rounding returns even number 42.6"
@@ -459,16 +459,52 @@ def test_gate_2d3_05b_decimal_round_half_up_boundary_proof():
     assert canonical_round_decimal(Decimal("42.650001"), 1) == Decimal("42.7")
     assert canonical_round_decimal(Decimal("42.64"), 1) == Decimal("42.6")
 
-    # 2. 成交额分界点对比
+    # 2. 负数分界点与对称舍入对比 (Negative Ties Symmetric Rounding Away From Zero)
+    assert canonical_round_decimal(Decimal("-42.65"), 1) == Decimal("-42.7")
+    assert canonical_round_decimal(Decimal("-42.649999"), 1) == Decimal("-42.6")
+    assert canonical_round_decimal(Decimal("-42.650001"), 1) == Decimal("-42.7")
+    assert canonical_round_decimal(Decimal("-0.75"), 1) == Decimal("-0.8")
+    assert canonical_round_decimal(Decimal("-0.749"), 1) == Decimal("-0.7")
+    assert canonical_round_decimal(Decimal("-42.50"), 0) == Decimal("-43")
+    assert canonical_round_decimal(Decimal("-42.49"), 0) == Decimal("-42")
+
+    # 3. 成交额分界点对比
     val_to_tie = Decimal("16821.05")
     assert round(16821.05, 1) == 16821.0, "Python float banker's rounding returns even number 16821.0"
     assert canonical_round_decimal(val_to_tie, 1) == Decimal("16821.1")
     assert canonical_round_decimal(Decimal("16821.049"), 1) == Decimal("16821.0")
     assert canonical_round_decimal(Decimal("16821.04"), 1) == Decimal("16821.0")
 
-    # 3. 整数分界点
-    assert canonical_round_decimal(Decimal("42.50"), 0) == Decimal("43")
-    assert canonical_round_decimal(Decimal("42.49"), 0) == Decimal("42")
+    # 4. 负精度舍入 (Negative Precision for Tens / Hundreds)
+    assert canonical_round_decimal(Decimal("16854.5678"), -1) == Decimal("16850")
+    assert canonical_round_decimal(Decimal("16854.5678"), -2) == Decimal("16900")
+    assert canonical_round_decimal(Decimal("16849"), -2) == Decimal("16800")
+    assert canonical_round_decimal(Decimal("16850"), -2) == Decimal("16900")
+    assert canonical_round_decimal(Decimal("-16850"), -2) == Decimal("-16900")
+    assert canonical_round_decimal(Decimal("-16849"), -2) == Decimal("-16800")
+
+    # 5. 极端精度与科学计数法保真 (Extreme Precision & Scientific Notation)
+    assert canonical_round_decimal("0.123456789012345", 10) == Decimal("0.1234567890")
+    assert canonical_round_decimal("-0.123456789012345", 10) == Decimal("-0.1234567890")
+    assert canonical_round_decimal(1e-5, 6) == Decimal("0.000010")
+    assert canonical_round_decimal("1e-5", 6) == Decimal("0.000010")
+
+    # 6. 非法与异常输入刚性校验防御 (Invalid Inputs Defense)
+    import pytest
+    with pytest.raises(ValueError, match="cannot be None"):
+        canonical_round_decimal(None, 2)
+    with pytest.raises(ValueError, match="NaN or Infinite"):
+        canonical_round_decimal(float("nan"), 2)
+    with pytest.raises(ValueError, match="NaN or Infinite"):
+        canonical_round_decimal(float("inf"), 2)
+    with pytest.raises(ValueError, match="NaN or Infinite"):
+        canonical_round_decimal(float("-inf"), 2)
+    with pytest.raises(ValueError, match="invalid numeric literal"):
+        canonical_round_decimal("invalid_number_abc", 2)
+    with pytest.raises(ValueError, match="empty numeric string"):
+        canonical_round_decimal("   ", 2)
+    with pytest.raises(ValueError, match="precision must be an integer"):
+        canonical_round_decimal(42.5, 1.5)  # type: ignore
 
 
 # =============================================================================
@@ -550,5 +586,45 @@ def test_gate_2d3_05c_full_field_numerical_inventory_fidelity(golden_context: Na
     res_sc = guard.audit(t_sector_cnt_fake, golden_context)
     assert res_sc.passed is False
     assert any("Sector '央国企改革' limit up count '20' diverges from fact '12'" in v for v in res_sc.violations)
+
+
+# =============================================================================
+# GATE-2D3-05D: Index Quotes Signed Decimal Fidelity Guard
+# =============================================================================
+def test_gate_2d3_05d_index_quotes_signed_decimal_fidelity(golden_context: NarrativeContextContract):
+    """
+    GATE-2D3-05D: 核心宽基指数涨跌幅带符号/负数保真度门禁
+    - 验证四大核心宽基指数 (上证指数 -0.79%, 深成指 -2.07%, 创业板指 -3.15%, 科创50 -4.82%)；
+    - 验证自然语言叙事与跌幅动词匹配 (例如: "科创50重挫4.82%", "沪指跌0.79%")；
+    - 验证显式负号匹配与单小数位舍入 (例如: "科创50-4.8%", "创指-3.15%")；
+    - 拦截数值篡改 (例如: "科创50重挫5.00%")；
+    - 拦截方向矛盾 (例如: 真实为负跌幅 -4.82%，但文本宣称 "科创50大涨4.82%")。
+    """
+    guard = BriefingSafetyGuard()
+    engine = DeterministicBriefingFallbackEngine(guard)
+    base_text = engine.generate_fallback_briefing(golden_context).tactical_briefing_text
+
+    # 1. 自然语言合法指数表述 (跌幅动词 + 绝对值) -> PASS
+    t_idx_natural = base_text + " 盘面宽基方面，上证指数下跌0.79%，深成指大跌2.07%，创业板指重挫3.15%，科创50重挫4.82%。"
+    res_nat = guard.audit(t_idx_natural, golden_context)
+    assert res_nat.passed is True
+
+    # 2. 显式负号与规范舍入 (1位小数) -> PASS
+    t_idx_signed = base_text + " 今日主要指数收盘：沪指-0.79%，创指-3.15%，科创50-4.8%。"
+    res_sig = guard.audit(t_idx_signed, golden_context)
+    assert res_sig.passed is True
+
+    # 3. 数值偏差篡改拦截 (科创50 -4.82% -> 5.00%) -> HARD BLOCK
+    t_idx_diverge = base_text + " 今日科创50重挫5.00%。"
+    res_div = guard.audit(t_idx_diverge, golden_context)
+    assert res_div.passed is False
+    assert any("Index '科创50' pct_change '5.00%' diverges from true fact '-4.82%'" in v for v in res_div.violations)
+
+    # 4. 方向性矛盾硬拦截 (真实为 -4.82%，文本宣称大涨 4.82%) -> HARD BLOCK
+    t_idx_dir = base_text + " 今日科创50大涨4.82%。"
+    res_dir = guard.audit(t_idx_dir, golden_context)
+    assert res_dir.passed is False
+    assert any("Index '科创50' direction contradicts fact" in v for v in res_dir.violations)
+
 
 

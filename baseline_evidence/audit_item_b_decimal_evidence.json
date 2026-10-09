@@ -1,0 +1,553 @@
+{
+  "audit_meta": {
+    "document": "DOC-89 · Item B Decimal Canonical Matching Independent Proof",
+    "audited_at": "2026-10-09T10:01:33.167396",
+    "completed_at": "2026-10-09T10:01:33.180394",
+    "target_code_file": "backend/app/services/briefing_safety_guard.py",
+    "function_under_audit": "canonical_round_decimal(val, precision=2)",
+    "python_runtime": "Python 3.12.10 (lossless Grisu3 str float representation)",
+    "operational_status": "PRODUCTION RELEASE HOLD / PHASE 2E FROZEN",
+    "evidence_sha256": "4d84c40720899b012f7cf0cd15307d910ab728aadfe5270c26de2298d7d8f39b"
+  },
+  "part1_boundary_proof": {
+    "description": "Boundary ties comparison proving elimination of Banker's rounding flaw and symmetric rounding away from zero",
+    "test_cases": [
+      {
+        "test_case": "Broken limit tie 42.65",
+        "raw_input": "42.65",
+        "precision": 1,
+        "python_float_round": "42.6",
+        "canonical_decimal_result": "42.7",
+        "is_halfway_tie": true,
+        "python_banker_flaw_detected": true,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Broken limit below tie 42.649999",
+        "raw_input": "42.649999",
+        "precision": 1,
+        "python_float_round": "42.6",
+        "canonical_decimal_result": "42.6",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Broken limit above tie 42.650001",
+        "raw_input": "42.650001",
+        "precision": 1,
+        "python_float_round": "42.7",
+        "canonical_decimal_result": "42.7",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Broken limit distinct 42.64",
+        "raw_input": "42.64",
+        "precision": 1,
+        "python_float_round": "42.6",
+        "canonical_decimal_result": "42.6",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Turnover tie 16821.05",
+        "raw_input": "16821.05",
+        "precision": 1,
+        "python_float_round": "16821.0",
+        "canonical_decimal_result": "16821.1",
+        "is_halfway_tie": true,
+        "python_banker_flaw_detected": true,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Turnover below tie 16821.049",
+        "raw_input": "16821.049",
+        "precision": 1,
+        "python_float_round": "16821.0",
+        "canonical_decimal_result": "16821.0",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Turnover distinct 16821.04",
+        "raw_input": "16821.04",
+        "precision": 1,
+        "python_float_round": "16821.0",
+        "canonical_decimal_result": "16821.0",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Integer boundary tie 42.50",
+        "raw_input": "42.50",
+        "precision": 0,
+        "python_float_round": "42",
+        "canonical_decimal_result": "43",
+        "is_halfway_tie": true,
+        "python_banker_flaw_detected": true,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Integer boundary below 42.49",
+        "raw_input": "42.49",
+        "precision": 0,
+        "python_float_round": "42",
+        "canonical_decimal_result": "42",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Negative broken limit tie -42.65",
+        "raw_input": "-42.65",
+        "precision": 1,
+        "python_float_round": "-42.6",
+        "canonical_decimal_result": "-42.7",
+        "is_halfway_tie": true,
+        "python_banker_flaw_detected": true,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Negative broken limit below tie -42.649999",
+        "raw_input": "-42.649999",
+        "precision": 1,
+        "python_float_round": "-42.6",
+        "canonical_decimal_result": "-42.6",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Negative broken limit above tie -42.650001",
+        "raw_input": "-42.650001",
+        "precision": 1,
+        "python_float_round": "-42.7",
+        "canonical_decimal_result": "-42.7",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Negative index tie -0.75",
+        "raw_input": "-0.75",
+        "precision": 1,
+        "python_float_round": "-0.8",
+        "canonical_decimal_result": "-0.8",
+        "is_halfway_tie": true,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Negative index below tie -0.749",
+        "raw_input": "-0.749",
+        "precision": 1,
+        "python_float_round": "-0.7",
+        "canonical_decimal_result": "-0.7",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Negative integer boundary tie -42.50",
+        "raw_input": "-42.50",
+        "precision": 0,
+        "python_float_round": "-42",
+        "canonical_decimal_result": "-43",
+        "is_halfway_tie": true,
+        "python_banker_flaw_detected": true,
+        "status": "PASS"
+      },
+      {
+        "test_case": "Negative integer boundary below -42.49",
+        "raw_input": "-42.49",
+        "precision": 0,
+        "python_float_round": "-42",
+        "canonical_decimal_result": "-42",
+        "is_halfway_tie": false,
+        "python_banker_flaw_detected": false,
+        "status": "PASS"
+      }
+    ],
+    "symmetry_verified": true
+  },
+  "part2_precision_proof": {
+    "description": "Support for negative, zero, positive, and extreme precision",
+    "test_cases": [
+      {
+        "case_name": "Tens rounding 16854.5678 -> -1",
+        "input": "16854.5678",
+        "precision": -1,
+        "canonical_output": "16850",
+        "expected_output": "16850",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Hundreds rounding 16854.5678 -> -2",
+        "input": "16854.5678",
+        "precision": -2,
+        "canonical_output": "16900",
+        "expected_output": "16900",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Hundreds tie 16850 -> -2",
+        "input": "16850",
+        "precision": -2,
+        "canonical_output": "16900",
+        "expected_output": "16900",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Hundreds below tie 16849 -> -2",
+        "input": "16849",
+        "precision": -2,
+        "canonical_output": "16800",
+        "expected_output": "16800",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Negative hundreds tie -16850 -> -2",
+        "input": "-16850",
+        "precision": -2,
+        "canonical_output": "-16900",
+        "expected_output": "-16900",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Negative hundreds below tie -16849 -> -2",
+        "input": "-16849",
+        "precision": -2,
+        "canonical_output": "-16800",
+        "expected_output": "-16800",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Units precision 16854.5678 -> 0",
+        "input": "16854.5678",
+        "precision": 0,
+        "canonical_output": "16855",
+        "expected_output": "16855",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Tenths precision 16854.5678 -> 1",
+        "input": "16854.5678",
+        "precision": 1,
+        "canonical_output": "16854.6",
+        "expected_output": "16854.6",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Hundredths precision 16854.5678 -> 2",
+        "input": "16854.5678",
+        "precision": 2,
+        "canonical_output": "16854.57",
+        "expected_output": "16854.57",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Ten-thousandths precision 16854.5678 -> 4",
+        "input": "16854.5678",
+        "precision": 4,
+        "canonical_output": "16854.5678",
+        "expected_output": "16854.5678",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Extreme precision 10 places",
+        "input": "0.123456789012345",
+        "precision": 10,
+        "canonical_output": "0.1234567890",
+        "expected_output": "0.1234567890",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Negative extreme precision 10 places",
+        "input": "-0.123456789012345",
+        "precision": 10,
+        "canonical_output": "-0.1234567890",
+        "expected_output": "-0.1234567890",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Scientific notation float 1e-5 (prec=6)",
+        "input": "1e-05",
+        "precision": 6,
+        "canonical_output": "0.000010",
+        "expected_output": "0.000010",
+        "status": "PASS"
+      },
+      {
+        "case_name": "Scientific notation string '1e-5' (prec=6)",
+        "input": "1e-5",
+        "precision": 6,
+        "canonical_output": "0.000010",
+        "expected_output": "0.000010",
+        "status": "PASS"
+      }
+    ]
+  },
+  "part3_lossless_proof": {
+    "raw_float_value": 0.123456789012345,
+    "legacy_fstring_8digit_truncation": "0.12345679",
+    "legacy_loss_detected": true,
+    "python_312_lossless_str": "0.123456789012345",
+    "canonical_round_decimal_10places": "0.1234567890",
+    "verdict": "Lossless conversion strictly verified: zero arbitrary truncation, preserves up to IEEE-754 double limits."
+  },
+  "part4_invalid_defense": {
+    "description": "Rigid exception defense for NaN, Infinity, None, invalid strings, and invalid precisions",
+    "test_cases": [
+      {
+        "test_case": "None input",
+        "input_value": "None",
+        "precision": "2",
+        "expected_rejection_pattern": "cannot be None",
+        "actual_error_message": "Canonical rounding error: input value cannot be None",
+        "defense_status": "BLOCKED"
+      },
+      {
+        "test_case": "NaN float",
+        "input_value": "nan",
+        "precision": "2",
+        "expected_rejection_pattern": "NaN or Infinite",
+        "actual_error_message": "Canonical rounding error: cannot round NaN or Infinite float value 'nan'",
+        "defense_status": "BLOCKED"
+      },
+      {
+        "test_case": "Positive Infinity",
+        "input_value": "inf",
+        "precision": "2",
+        "expected_rejection_pattern": "NaN or Infinite",
+        "actual_error_message": "Canonical rounding error: cannot round NaN or Infinite float value 'inf'",
+        "defense_status": "BLOCKED"
+      },
+      {
+        "test_case": "Negative Infinity",
+        "input_value": "-inf",
+        "precision": "2",
+        "expected_rejection_pattern": "NaN or Infinite",
+        "actual_error_message": "Canonical rounding error: cannot round NaN or Infinite float value '-inf'",
+        "defense_status": "BLOCKED"
+      },
+      {
+        "test_case": "Non-numeric string 'abc'",
+        "input_value": "invalid_abc",
+        "precision": "2",
+        "expected_rejection_pattern": "invalid numeric literal",
+        "actual_error_message": "Canonical rounding error: invalid numeric literal 'invalid_abc': [<class 'decimal.ConversionSyntax'>]",
+        "defense_status": "BLOCKED"
+      },
+      {
+        "test_case": "Empty string",
+        "input_value": "",
+        "precision": "2",
+        "expected_rejection_pattern": "empty numeric string",
+        "actual_error_message": "Canonical rounding error: empty numeric string",
+        "defense_status": "BLOCKED"
+      },
+      {
+        "test_case": "Whitespace string",
+        "input_value": "   ",
+        "precision": "2",
+        "expected_rejection_pattern": "empty numeric string",
+        "actual_error_message": "Canonical rounding error: empty numeric string",
+        "defense_status": "BLOCKED"
+      },
+      {
+        "test_case": "Non-integer precision (1.5)",
+        "input_value": "42.5",
+        "precision": "1.5",
+        "expected_rejection_pattern": "precision must be an integer",
+        "actual_error_message": "Canonical rounding error: precision must be an integer, got 'float'",
+        "defense_status": "BLOCKED"
+      }
+    ]
+  },
+  "part5_inventory_fidelity": {
+    "description": "Full 12-field numerical inventory fidelity and anti-tampering interception verification",
+    "inventory_fields": [
+      [
+        "F01_TOTAL_TURNOVER",
+        "两市总成交额",
+        "16821.09",
+        "亿元 / 1.68万亿",
+        "Decimal Canonical Matching"
+      ],
+      [
+        "F02_SH_TURNOVER",
+        "沪市分市场成交额",
+        "8111.83",
+        "亿元",
+        "Decimal Canonical Matching"
+      ],
+      [
+        "F03_SZ_TURNOVER",
+        "深市分市场成交额",
+        "8709.26",
+        "亿元",
+        "Decimal Canonical Matching"
+      ],
+      [
+        "F04_BROKEN_RATIO",
+        "真实炸板率",
+        "42.67%",
+        "%",
+        "ROUND_HALF_UP Canonical Matching"
+      ],
+      [
+        "F05_EXTREME_LOSS",
+        "极值亏损率",
+        "60.00%",
+        "%",
+        "ROUND_HALF_UP Canonical Matching"
+      ],
+      [
+        "F06_INDEX_DISPERSION",
+        "指数极差离散度",
+        "4.03%",
+        "%",
+        "ROUND_HALF_UP Canonical Matching"
+      ],
+      [
+        "F07_SPACE_HEIGHT",
+        "空间最高板高度",
+        "8B",
+        "B",
+        "Exact Integer Matching"
+      ],
+      [
+        "F08_LIMIT_UP_COUNT",
+        "全市场封死涨停家数",
+        "43",
+        "家",
+        "Exact Integer Matching"
+      ],
+      [
+        "F09_LIMIT_DOWN_COUNT",
+        "全市场收盘跌停家数",
+        "13",
+        "家",
+        "Exact Integer Matching"
+      ],
+      [
+        "F10_REGULATORY_ANOMALY",
+        "商业异动规则撮合数",
+        "11",
+        "家",
+        "Exact Integer Matching"
+      ],
+      [
+        "F11_MAINLINE_LEADERS",
+        "主线龙头高度与成分数",
+        "新华传媒 8B/12家, 时代万恒 4B/9家, 上海洗霸 3B/5家",
+        "组合",
+        "Exact Integer Matching"
+      ],
+      [
+        "F12_SIGNED_INDICES",
+        "核心宽基指数涨跌幅",
+        "上证-0.79%, 深成-2.07%, 创指-3.15%, 科创50-4.82%",
+        "%",
+        "Signed Decimal Canonical Matching"
+      ]
+    ],
+    "tamper_interception_cases": [
+      {
+        "field": "F01_TOTAL_TURNOVER",
+        "tamper": "18000.00 亿元",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Total turnover '18000.00 亿元' (normalized: 18000.00亿) diverges from true fact '16821.09亿' (violates canonical value matching, divergence: 1178.91亿 beyond canonical rounding boundary)"
+      },
+      {
+        "field": "F02_SH_TURNOVER",
+        "tamper": "8500.00 亿元",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: SH turnover '8500.00 亿元' diverges from true fact '8111.83亿'"
+      },
+      {
+        "field": "F03_SZ_TURNOVER",
+        "tamper": "9200.00 亿元",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: SZ turnover '9200.00 亿元' diverges from true fact '8709.26亿'"
+      },
+      {
+        "field": "F04_BROKEN_RATIO",
+        "tamper": "55.00%",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Broken limit ratio '55.00%' diverges from derived fact '42.67%' (violates canonical value matching)"
+      },
+      {
+        "field": "F05_EXTREME_LOSS",
+        "tamper": "35.00%",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Extreme loss ratio '35.00%' diverges from derived fact '60.00%'"
+      },
+      {
+        "field": "F06_INDEX_DISPERSION",
+        "tamper": "8.50%",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Index dispersion '8.50%' diverges from derived fact '4.03%'"
+      },
+      {
+        "field": "F07_SPACE_HEIGHT",
+        "tamper": "9B【新华传媒】",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Space leader max height '9B' diverges from true fact '8B'"
+      },
+      {
+        "field": "F08_LIMIT_UP_COUNT",
+        "tamper": "68 家",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Full market limit up count '68' diverges from true fact '43'"
+      },
+      {
+        "field": "F09_LIMIT_DOWN_COUNT",
+        "tamper": "25 家",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Limit down count '25' diverges from true fact '13'"
+      },
+      {
+        "field": "F10_REGULATORY_ANOMALY",
+        "tamper": "19 家",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Regulatory anomaly count '19' diverges from true fact '11' (commercial anomaly rule match count)"
+      },
+      {
+        "field": "F11_MAINLINE_LEADERS",
+        "tamper": "新华传媒 6B",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Leader '新华传媒' height '6B' diverges from true fact '8B'"
+      },
+      {
+        "field": "F12_SIGNED_INDICES_NUM",
+        "tamper": "科创50重挫5.00%",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Index '科创50' pct_change '5.00%' diverges from true fact '-4.82%' (expected '-4.82%')"
+      },
+      {
+        "field": "F12_SIGNED_INDICES_DIR",
+        "tamper": "科创50大涨4.82%",
+        "result": "BLOCKED",
+        "violation": "NumericalFidelityViolation: Index '科创50' direction contradicts fact: text indicates gain ('科创50大涨4.82%') but true pct_change is negative (-4.82%)"
+      }
+    ]
+  },
+  "audit_conclusion": {
+    "overall_status": "FULL_PASS",
+    "flaws_cleared": [
+      "Arbitrary f'{val:.8f}' float truncation eliminated",
+      "Python Banker's ties-to-even rounding flaw eliminated",
+      "Symmetric negative number tie rounding away from zero implemented",
+      "Negative precision tens/hundreds rounding implemented without scientific notation drift",
+      "Extreme precision and scientific notation inputs lossless handling verified",
+      "Rigid ValueError defensive guard against None/NaN/Inf/invalid inputs verified",
+      "Full 12-field numerical inventory and signed index quotes canonical matching verified"
+    ]
+  }
+}

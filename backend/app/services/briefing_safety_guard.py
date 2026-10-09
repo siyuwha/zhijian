@@ -15,9 +15,10 @@ Phase 2D.3-B: Briefing Safety Guard Service
 """
 
 import re
+import math
 from datetime import datetime
 from typing import List, Dict, Optional, Set, Any
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 from backend.app.schemas.narrative_context import NarrativeContextContract
 from backend.app.schemas.tactical_briefing import (
@@ -30,17 +31,52 @@ from backend.app.services.canonical_market_service import CanonicalSecurityMaste
 
 def canonical_round_decimal(val: float | int | str | Decimal, precision: int = 2) -> Decimal:
     """
-    确定性四舍五入算法 (ROUND_HALF_UP, 严格规避 Python float banker's rounding ties-to-even 漂移)
+    确定性规范四舍五入算法 (ROUND_HALF_UP, 严格规避 Python float banker's rounding ties-to-even 漂移)
+
+    安全不变量：
+    1. 拒绝空值 (None) 与非法类型；
+    2. 拒绝 NaN、+Infinity、-Infinity 极端无效值；
+    3. 支持任意精度字符串与整型无损转换；
+    4. 对浮点数采用原生最简无损表示 (str(val) 或 Decimal)，废除硬编码 8 位截断；
+    5. 严格遵循远离零舍入 (Round half away from zero，正负数绝对对称)；
+    6. 支持任意合理整数 precision (>= 0 或负数精度)。
     """
-    if isinstance(val, (float, int)):
-        val_str = f"{val:.8f}".rstrip("0").rstrip(".") if isinstance(val, float) else str(val)
-        d = Decimal(val_str)
+    if val is None:
+        raise ValueError("Canonical rounding error: input value cannot be None")
+
+    if isinstance(val, (int, str)):
+        try:
+            val_cleaned = str(val).strip()
+            if not val_cleaned:
+                raise ValueError("Canonical rounding error: empty numeric string")
+            d = Decimal(val_cleaned)
+        except InvalidOperation as e:
+            raise ValueError(f"Canonical rounding error: invalid numeric literal '{val}': {e}")
+    elif isinstance(val, float):
+        if math.isnan(val) or math.isinf(val):
+            raise ValueError(f"Canonical rounding error: cannot round NaN or Infinite float value '{val}'")
+        # Python 3.12 float str() uses Grisu3 algorithm, giving the exact shortest lossless decimal representation
+        d = Decimal(str(val))
     elif isinstance(val, Decimal):
         d = val
     else:
-        d = Decimal(str(val).strip())
-    target = Decimal("10") ** (-precision) if precision > 0 else Decimal("1")
-    return d.quantize(target, rounding=ROUND_HALF_UP)
+        raise ValueError(f"Canonical rounding error: unsupported input type '{type(val).__name__}'")
+
+    if d.is_nan() or d.is_infinite():
+        raise ValueError(f"Canonical rounding error: Decimal value cannot be NaN or Infinite: '{d}'")
+
+    if not isinstance(precision, int):
+        raise ValueError(f"Canonical rounding error: precision must be an integer, got '{type(precision).__name__}'")
+
+    if precision < 0:
+        target = Decimal(f"1e{-precision}")
+        return d.quantize(target, rounding=ROUND_HALF_UP).quantize(Decimal("1"))
+    elif precision == 0:
+        return d.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    else:
+        target = Decimal(f"1e{-precision}")
+        return d.quantize(target, rounding=ROUND_HALF_UP)
+
 
 
 
@@ -412,6 +448,59 @@ class BriefingSafetyGuard:
                 if val != ml.limit_up_count:
                     violations.append(
                         f"NumericalFidelityViolation: Sector '{sector_name}' limit up count '{val}' diverges from fact '{ml.limit_up_count}'"
+                    )
+
+        # 1.11 核心宽基指数涨跌幅规范化解析与字段级精确匹配 (负数/带符号 Decimal Canonical Matching)
+        index_alias_map = {
+            "sh000001": ["上证指数", "上证综指", "沪指", "上证"],
+            "sz399001": ["深证成指", "深成指"],
+            "sz399006": ["创业板指", "创指", "创业板"],
+            "sh000688": ["科创50", "科创50指数"],
+        }
+        for idx in context.fact_layer.indices:
+            aliases = index_alias_map.get(idx.symbol, [idx.name])
+            aliases_pattern = "|".join([re.escape(a) for a in aliases])
+            idx_pattern = rf'(?:{aliases_pattern})[^，。；\n]{{0,15}}?([+-]?[0-9]+(?:\.[0-9]+)?)\s*%'
+            for m in re.finditer(idx_pattern, text):
+                raw_pct_str = m.group(1)
+                full_match_text = m.group(0)
+                has_down_verb = any(w in full_match_text for w in ["跌", "挫", "回撤", "跳水", "绿盘"])
+                has_up_verb = any(w in full_match_text for w in ["涨", "拉升", "红盘", "飙升"])
+                raw_dec = Decimal(raw_pct_str)
+                dec_places = len(raw_pct_str.split(".")[1]) if "." in raw_pct_str else 0
+                true_pct = idx.pct_change
+                expected_dec = canonical_round_decimal(true_pct, dec_places)
+                expected_abs = canonical_round_decimal(abs(true_pct), dec_places)
+                is_valid = False
+                if raw_pct_str.startswith("-") or raw_pct_str.startswith("+"):
+                    if raw_dec == expected_dec:
+                        is_valid = True
+                else:
+                    if has_down_verb:
+                        if true_pct <= 0 and raw_dec == expected_abs:
+                            is_valid = True
+                        elif true_pct > 0:
+                            violations.append(
+                                f"NumericalFidelityViolation: Index '{idx.name}' direction contradicts fact: "
+                                f"text indicates decline ('{full_match_text}') but true pct_change is positive (+{true_pct:.2f}%)"
+                            )
+                            continue
+                    elif has_up_verb:
+                        if true_pct >= 0 and raw_dec == expected_abs:
+                            is_valid = True
+                        elif true_pct < 0:
+                            violations.append(
+                                f"NumericalFidelityViolation: Index '{idx.name}' direction contradicts fact: "
+                                f"text indicates gain ('{full_match_text}') but true pct_change is negative ({true_pct:.2f}%)"
+                            )
+                            continue
+                    else:
+                        if raw_dec == expected_dec or raw_dec == expected_abs:
+                            is_valid = True
+                if not is_valid:
+                    violations.append(
+                        f"NumericalFidelityViolation: Index '{idx.name}' pct_change '{raw_pct_str}%' "
+                        f"diverges from true fact '{true_pct:.2f}%' (expected '{expected_dec}%')"
                     )
 
         return violations
