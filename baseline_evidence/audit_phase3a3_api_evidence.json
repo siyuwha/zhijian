@@ -29,7 +29,7 @@
         "error_code": "ERR_INTRADAY_SAFETY_INTERCEPTION",
         "message": "Intraday verdict failed security & compliance guard.",
         "trace_id": "TRACE-2026-10-08-TO-2026-10-09-INTRADAY-f9fa6c7e",
-        "audited_at": "2026-10-09T18:47:44+08:00",
+        "audited_at": "2026-10-09T18:55:48+08:00",
         "violations_count": 2
       },
       "zero_leak_verified": true
