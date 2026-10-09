@@ -89,8 +89,8 @@ class DeterministicBriefingFallbackEngine:
         )
         part3 = (
             f"【风险与负反馈】盘面微观亏钱效应显著：日内真实炸板率高达 {broken_pct:.2f}%，"
-            f"收盘跌停 {limit_down} 家；交易所严重异常波动重点监控标的达 {anomaly_count} 家，"
-            f"高位分化与监管降温压制明显。"
+            f"收盘跌停 {limit_down} 家；商业数据商异动规则撮合标的达 {anomaly_count} 家，"
+            f"高位分化与规则降温压制明显。"
         )
         part4 = (
             f"【明日推演与防守红线】次日竞价重点观察空间标杆【{space_leader_name}】溢价承接力"
@@ -108,7 +108,7 @@ class DeterministicBriefingFallbackEngine:
         risk_warnings: List[str] = [
             f"日内真实炸板率高达 {broken_pct:.2f}%",
             f"全市场收盘跌停家数达 {limit_down} 家",
-            f"交易所严重异常波动重点监控标的达 {anomaly_count} 家",
+            f"商业数据商异动规则撮合标的达 {anomaly_count} 家",
         ]
         next_day_observation_posts: List[str] = [
             f"最高空间标杆【{space_leader_name}】({max_height}B) 次日竞价承接力与溢价表现",

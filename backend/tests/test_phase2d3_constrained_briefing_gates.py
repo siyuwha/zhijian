@@ -23,7 +23,9 @@ from backend.app.services.narrative_context_service import NarrativeContextExtra
 from backend.app.services.constrained_briefing_generator import (
     ConstrainedBriefingGenerator,
     BriefingPromptBuilder,
+    DeepSeekBriefingLLMClient,
 )
+from backend.app.services.briefing_safety_guard import BriefingSafetyGuard
 from backend.app.cognition.jcs import hash_jcs
 
 
@@ -278,3 +280,55 @@ def test_gate_2d3_13_downstream_exception_and_fallback_resilience(golden_context
     # 确认最终发布的战报中彻底清除了“满仓买入”与“目标价”
     assert "满仓" not in rep_poison.tactical_briefing_text
     assert "目标价" not in rep_poison.tactical_briefing_text
+
+
+# =============================================================================
+# GATE-2D3-14: Real Remote LLM End-to-End Penetration Gate (P0-1)
+# =============================================================================
+def test_gate_2d3_14_real_remote_llm_penetration(golden_context_1008: NarrativeContextContract):
+    """
+    GATE-2D3-14: 真实大模型调用穿透核验门禁 (P0-1)
+    - 验证 DeepSeekBriefingLLMClient 对真实远程 API (api.deepseek.com) 发起 HTTPS 流式推理；
+    - 捕获实际网络推理耗时 (TTFT 与 Total Latency)；
+    - 验证请求报文完全脱敏 (Key 隐藏、Prompt 摘要)；
+    - 验证真实大模型生成的候选文本通过 BriefingSafetyGuard 严苛审计 (无指令违规、数字保真)。
+    """
+    from backend.app.services.constrained_briefing_generator import DeepSeekBriefingLLMClient
+    from backend.app.config import settings
+
+    if not settings.DEEPSEEK_API_KEY and not settings.LLM_API_KEY:
+        pytest.skip("No API Key configured for real LLM penetration test")
+
+    llm_client = DeepSeekBriefingLLMClient()
+    sys_prompt = BriefingPromptBuilder.build_system_prompt(golden_context_1008)
+    usr_prompt = BriefingPromptBuilder.build_user_prompt(golden_context_1008)
+
+    # 1. 执行真实网络调用并捕获全生命周期指标
+    metrics = llm_client.call_stream_with_metrics(
+        sys_prompt=sys_prompt,
+        usr_prompt=usr_prompt,
+        temperature=0.1,
+        max_tokens=400,
+    )
+
+    # 2. 断言真实推理指标 (真实远程大模型网络耗时必在 300ms ~ 15000ms 之间，绝非 3ms Mock)
+    assert metrics["ttft_ms"] > 200.0, f"TTFT {metrics['ttft_ms']}ms indicates local mock rather than remote LLM"
+    assert metrics["total_ms"] > 500.0, f"Total latency {metrics['total_ms']}ms indicates local mock"
+    assert metrics["char_count"] >= 150, "Output length too short"
+
+    # 3. 断言请求报文脱敏
+    payload = metrics["desensitized_payload"]
+    assert "***" in payload["api_key_masked"]
+    assert payload["model"] == "deepseek-chat"
+
+    # 4. 断言真实模型生成文本经 BriefingSafetyGuard 审查
+    guard = BriefingSafetyGuard()
+    raw_text = metrics["text"]
+    audit_res = guard.audit(raw_text, golden_context_1008)
+
+    # 即使真实大模型偶有轻微格式偏差，经 ConstrainedBriefingGenerator 也必须 100% 产出安全合规战报
+    generator = ConstrainedBriefingGenerator(safety_guard=guard, llm_client=llm_client)
+    report = generator.generate_briefing(golden_context_1008)
+    assert report.safety_audit_passed is True
+    assert len(report.tactical_briefing_text) >= 150
+

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Any
 from datetime import datetime
 import re
@@ -57,6 +57,8 @@ class TradeNoteCreate(BaseModel):
     append_mode: bool = Field(True, description="是否为增量时间戳追加模式")
 
 class TradeNoteResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     trade_id: int
     date: str
@@ -67,10 +69,9 @@ class TradeNoteResponse(BaseModel):
     created_at: Optional[Any] = None
     updated_at: Optional[Any] = None
 
-    class Config:
-        from_attributes = True
-
 class TradeRecordResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     code: str
     name: Optional[str] = None
@@ -88,10 +89,9 @@ class TradeRecordResponse(BaseModel):
     realized_pnl: Optional[float] = None
     note: Optional[TradeNoteResponse] = None
 
-    class Config:
-        from_attributes = True
-
 class PositionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     code: str
     name: Optional[str] = None
@@ -105,9 +105,6 @@ class PositionResponse(BaseModel):
     floating_pnl_pct: Optional[float] = None
     market_value: Optional[float] = None
     updated_at: Optional[Any] = None
-
-    class Config:
-        from_attributes = True
 
 class TradeStatsResponse(BaseModel):
     total_trades: int

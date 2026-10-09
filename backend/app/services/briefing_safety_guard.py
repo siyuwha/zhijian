@@ -27,11 +27,27 @@ from backend.app.schemas.canonical_market import CanonicalSecurityIdentity
 from backend.app.services.canonical_market_service import CanonicalSecurityMasterRegistry
 
 
-# 绝对禁止出现的 L5 交易指令与主观操作引导词汇
+# 绝对禁止出现的 L5 交易指令与主观操作引导词汇 (含显式指令与隐蔽式变相交易提示)
 FORBIDDEN_DIRECTIVE_TERMS: List[str] = [
+    # 显式交易动作 (L5 硬隔离)
     "买入", "卖出", "加仓", "减仓", "建仓", "满仓", "半仓", "清仓",
     "抄底", "割肉", "冲锋", "梭哈", "追高", "建议操作", "目标价",
-    "止盈", "止损", "开仓", "平仓", "低吸", "重仓", "轻仓", "打板买入"
+    "止盈", "止损", "开仓", "平仓", "重仓", "轻仓", "打板买入",
+    # 隐蔽式/变相交易诱导词 (P0-2 对抗测试防护)
+    "低吸", "低吸机会", "关注低吸", "逢低布局", "逢低介入", "逢低吸纳",
+    "逢阴低吸", "水下低吸", "轻仓试错", "试错机会", "建底仓", "分批建仓",
+    "逢高减持", "逢高派发", "获利了结", "及时止盈", "做多机会", "积极做多",
+    "上车", "上车机会", "立即上车", "下车", "及时下车", "提前潜伏", "博弈反弹", "配置建议",
+    "买点", "卖点", "加仓点", "减仓点", "建仓点"
+]
+
+# 隐蔽式间接交易指令正则拦截模式 (P0-2)
+INDIRECT_DIRECTIVE_REGEX: List[str] = [
+    r'(?:建议|提示|可|不妨|积极|重点)?[^，。；\n]{0,6}?(?:低吸|逢低|介入|布局|建仓|上车|试错|做多)(?:机会|标的|节奏)',
+    r'逢[低阴弱][^，。；\n]{0,6}?(?:低吸|介入|布局|买入|建仓)',
+    r'逢[高阳强][^，。；\n]{0,6}?(?:派发|减持|减仓|兑现|出局|止盈)',
+    r'(?:集合竞价|开盘|盘中)[^，。；\n]{0,8}?(?:上车|介入|买入|冲锋)',
+    r'提前(?:潜伏|埋伏)[^，。；\n]{0,6}?(?:博弈|等待)',
 ]
 
 
@@ -120,48 +136,93 @@ class BriefingSafetyGuard:
         )
 
     # -------------------------------------------------------------------------
-    # 审查项 1: 数字保真度审查 (Numerical Fidelity)
+    # 审查项 1: 数字保真度审查 (Numerical Fidelity - Canonical Value Matching)
     # -------------------------------------------------------------------------
     def _check_numerical_fidelity(
         self, text: str, context: NarrativeContextContract
     ) -> List[str]:
         violations: List[str] = []
 
-        # 1.1 总成交额校验
+        # 1.1 总成交额规范化解析与字段级精确匹配 (P0-2 & P0-4 Canonical Value Matching)
         turnover_patterns = [
-            r'(?:两市|沪深两市)?(?:真实)?(?:总成交额|总成交|成交额|成交金额)[^，。；\n]{0,10}?([0-9]+(?:\.[0-9]+)?)\s*(?:亿元|亿)',
-            r'([0-9]+(?:\.[0-9]+)?)\s*(?:亿元|亿)[^，。；\n]{0,10}?(?:的总成交|成交额)',
+            r'(?:两市|沪深两市)?(?:真实)?(?:总成交额|总成交|成交额|成交金额)[^，。；\n]{0,10}?([0-9]+(?:\.[0-9]+)?)\s*(万亿元|万亿|亿元|亿)',
+            r'([0-9]+(?:\.[0-9]+)?)\s*(万亿元|万亿|亿元|亿)[^，。；\n]{0,10}?(?:的总成交|成交额)',
         ]
-        true_turnover = context.fact_layer.turnover.total_turnover_yi
+        true_turnover = context.fact_layer.turnover.total_turnover_yi  # 16821.09
         for pat in turnover_patterns:
             matches = re.finditer(pat, text)
             for m in matches:
-                val = float(m.group(1))
-                rel_diff = abs(val - true_turnover) / true_turnover
-                abs_diff = abs(val - true_turnover)
-                if rel_diff > 0.001 and abs_diff > 1.0:
+                raw_num_str = m.group(1)
+                raw_num = float(raw_num_str)
+                unit = m.group(2)
+
+                # 单位归一化换算为 亿元
+                if "万亿" in unit:
+                    norm_val = raw_num * 10000.0
+                else:
+                    norm_val = raw_num
+
+                abs_diff = abs(norm_val - true_turnover)
+                is_valid = False
+
+                if abs_diff <= 0.01:
+                    is_valid = True
+                elif "万亿" in unit:
+                    # 对于万亿单位，若有效四舍五入到4位小数 (如 1.6821万亿 = 16821.0亿，偏差0.09亿 <= 0.5亿)
+                    if abs(norm_val - round(true_turnover, 0)) <= 0.5:
+                        is_valid = True
+                else:
+                    # 对于亿单位
+                    if "." in raw_num_str:
+                        dec_places = len(raw_num_str.split(".")[1])
+                        if dec_places == 1:
+                            if abs(norm_val - round(true_turnover, 1)) <= 0.01:
+                                is_valid = True
+                        elif dec_places == 2:
+                            if abs_diff <= 0.01:
+                                is_valid = True
+                    else:
+                        # 纯整数
+                        if abs(norm_val - round(true_turnover, 0)) <= 0.01:
+                            is_valid = True
+
+                if not is_valid:
                     violations.append(
-                        f"NumericalFidelityViolation: Total turnover '{val}' diverges from true fact "
-                        f"'{true_turnover:.2f}' (divergence: {abs_diff:.2f}亿 > 0.1% tolerance)"
+                        f"NumericalFidelityViolation: Total turnover '{raw_num_str} {unit}' (normalized: {norm_val:.2f}亿) "
+                        f"diverges from true fact '{true_turnover:.2f}亿' "
+                        f"(violates canonical value matching, divergence: {abs_diff:.2f}亿 beyond canonical rounding boundary)"
                     )
 
-        # 1.2 炸板率校验
+        # 1.2 炸板率规范化解析与字段级精确匹配 (P0-2 & P0-4 Canonical Value Matching)
         broken_patterns = [
             r'(?:真实)?炸板率[^，。；\n]{0,10}?([0-9]+(?:\.[0-9]+)?)\s*%',
             r'([0-9]+(?:\.[0-9]+)?)\s*%[^，。；\n]{0,10}?(?:真实)?炸板率',
         ]
-        true_broken_pct = context.derived_layer.broken_limit_ratio * 100
+        true_broken_pct = context.derived_layer.broken_limit_ratio * 100  # 42.67
         for pat in broken_patterns:
             matches = re.finditer(pat, text)
             for m in matches:
-                val = float(m.group(1))
-                if abs(val - true_broken_pct) > 0.2:
+                raw_pct_str = m.group(1)
+                val = float(raw_pct_str)
+                is_valid = False
+                abs_diff = abs(val - true_broken_pct)
+                if abs_diff <= 0.01:
+                    is_valid = True
+                elif "." in raw_pct_str:
+                    dec_places = len(raw_pct_str.split(".")[1])
+                    if dec_places == 1 and abs(val - round(true_broken_pct, 1)) <= 0.01:
+                        is_valid = True
+                else:
+                    if abs(val - round(true_broken_pct, 0)) <= 0.01:
+                        is_valid = True
+
+                if not is_valid:
                     violations.append(
-                        f"NumericalFidelityViolation: Broken limit ratio '{val}%' diverges from derived fact "
-                        f"'{true_broken_pct:.2f}%'"
+                        f"NumericalFidelityViolation: Broken limit ratio '{raw_pct_str}%' diverges from derived fact "
+                        f"'{true_broken_pct:.2f}%' (violates canonical value matching)"
                     )
 
-        # 1.3 空间最高板高度校验
+        # 1.3 空间最高板高度强离散校验 (精确等于整数)
         space_leader_patterns = [
             r'(?:最高空间标杆|空间标杆|高度标杆|全市场最高板|最高板)[^，。；\n]{0,15}?([0-9]+)\s*(?:连板|板|B)',
             r'([0-9]+)\s*(?:连板|板|B)[^，。；\n]{0,15}?(?:最高空间标杆|空间标杆|高度标杆)',
@@ -177,7 +238,7 @@ class BriefingSafetyGuard:
                         f"'{true_max_height}B'"
                     )
 
-        # 1.4 全市场收盘跌停家数校验
+        # 1.4 全市场收盘跌停家数强离散校验 (精确等于整数)
         down_patterns = [
             r'(?:收盘)?跌停[^，。；\n]{0,10}?([0-9]+)\s*(?:只|家)',
             r'([0-9]+)\s*(?:只|家)[^，。；\n]{0,10}?(?:收盘)?跌停',
@@ -187,26 +248,26 @@ class BriefingSafetyGuard:
             matches = re.finditer(pat, text)
             for m in matches:
                 val = int(m.group(1))
-                if abs(val - true_down) > 0:
+                if val != true_down:
                     violations.append(
                         f"NumericalFidelityViolation: Limit down count '{val}' diverges from true fact "
                         f"'{true_down}'"
                     )
 
-        # 1.5 严重异常波动家数校验
+        # 1.5 商业数据商异动规则撮合标的数强离散校验 (P0-3 语义纠偏与整数匹配)
         reg_patterns = [
-            r'(?:严重异常波动|严重异动|监管异动)[^，。；\n]{0,20}?([0-9]+)\s*(?:只|家)',
-            r'([0-9]+)\s*(?:只|家)[^，。；\n]{0,10}?(?:严重异常波动|严重异动)',
+            r'(?:商业数据商异动规则撮合|异动规则撮合|严重异常波动|监管异动|商业规则监控)[^，。；\n]{0,20}?([0-9]+)\s*(?:只|家)',
+            r'([0-9]+)\s*(?:只|家)[^，。；\n]{0,10}?(?:商业数据商异动规则撮合|异动规则撮合|严重异常波动|监管异动|商业规则监控)',
         ]
         true_anomaly = context.fact_layer.regulatory.total_anomaly_count
         for pat in reg_patterns:
             matches = re.finditer(pat, text)
             for m in matches:
                 val = int(m.group(1))
-                if abs(val - true_anomaly) > 0:
+                if val != true_anomaly:
                     violations.append(
                         f"NumericalFidelityViolation: Regulatory anomaly count '{val}' diverges from true fact "
-                        f"'{true_anomaly}'"
+                        f"'{true_anomaly}' (commercial anomaly rule match count)"
                     )
 
         return violations
@@ -253,8 +314,8 @@ class BriefingSafetyGuard:
                     "EntityIdentityViolation: Code '002242' associated with '毅昌科技' detected in text."
                 )
 
-        # 2.4 扫描文本中出现的 6 位股票代码，必须属于 authorized_identities
-        code_matches = re.findall(r'\b([0-368][0-9]{5})\b', text)
+        # 2.4 扫描文本中出现的 6 位股票代码，必须属于 authorized_identities (排除浮点数小数部分)
+        code_matches = re.findall(r'(?<![.\d])([0-368][0-9]{5})(?![.\d])', text)
         for code in code_matches:
             if code not in authorized_identities:
                 violations.append(
@@ -279,12 +340,22 @@ class BriefingSafetyGuard:
         all_content_blocks = [text] + battlegrounds + risks + observations
         combined_text = "\n".join(all_content_blocks)
 
-        # 3.1 违规 L5 交易指令词汇扫描
+        # 3.1 违规 L5 交易指令词汇扫描 (显式与隐蔽短语)
         for term in FORBIDDEN_DIRECTIVE_TERMS:
             if term in combined_text:
                 violations.append(
                     f"IllegalDirectiveViolation: Forbidden L5 trading directive term detected: '{term}'"
                 )
+
+        # 3.1.2 隐蔽式间接交易指令正则匹配 (P0-2 变相交易诱导拦截)
+        for reg_pat in INDIRECT_DIRECTIVE_REGEX:
+            m = re.search(reg_pat, combined_text)
+            if m:
+                matched_snippet = m.group(0)
+                # 避免重复记录相同违规
+                v_msg = f"IllegalDirectiveViolation: Indirect trading inducement detected matching pattern '{matched_snippet}'"
+                if v_msg not in violations:
+                    violations.append(v_msg)
 
         # 3.2 预测具体目标价 / 买卖点位扫描
         price_target_patterns = [
@@ -324,6 +395,20 @@ class BriefingSafetyGuard:
                     "ForbiddenClaimViolation: Cognition-to-fact promotion detected "
                     "(L3 hypothesis promoted to L0 physical truth)."
                 )
+
+        # 3.5 伪造官方监管意图/交易所红头文件定性 (P0-3 事实语义纠偏：阻断主观推断向客观事实渗透)
+        regulatory_fake_patterns = [
+            r'交易所[^，。；\n]{0,15}?(?:重点监控|下发核查|实施核查|进行监管|明确核查|官方监控)',
+            r'交易所[^，。；\n]{0,10}?(?:定性为|认定为)?严重异动',
+            r'监管部门[^，。；\n]{0,10}?(?:定性为|特停|明确监管)',
+        ]
+        for pat in regulatory_fake_patterns:
+            if re.search(pat, combined_text):
+                violations.append(
+                    "ForbiddenClaimViolation: Subjective promotion of commercial data vendor rule match "
+                    "to official Exchange administrative surveillance detected."
+                )
+                break
 
         return violations
 

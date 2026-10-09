@@ -70,10 +70,10 @@ class NarrativeSentimentCountsFact(BaseModel):
 
 
 class NarrativeRegulatoryFact(BaseModel):
-    """L1 交易所严重异常波动监管事实 (客观撮合)"""
+    """L1 商业数据商异动规则撮合事实 (基于公开异动规则的第三方算法撮合，非交易所官方行政定性)"""
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    total_anomaly_count: int = Field(..., ge=0, description="严重异常波动标的总数")
+    total_anomaly_count: int = Field(..., ge=0, description="商业数据商异动规则撮合标的总数")
     anomaly_stocks: List[CanonicalSecurityIdentity] = Field(..., description="触碰规则标的规范身份列表")
     space_leader_has_warning: bool = Field(False, description="最高板标的是否触碰异动或特停预警")
 
@@ -186,7 +186,7 @@ class SpeechBoundaryContract(BaseModel):
             "LADDER_STRUCTURE_AND_SPACE",      # 可陈述连板天梯高度与梯队纵深
             "CORE_MAINLINE_EVIDENCE",          # 可陈述 Top 3~5 核心主线与代表标杆
             "BLEEDING_AND_NEGATIVE_FEEDBACK",  # 可陈述炸板率、跌停家数与高位派发
-            "REGULATORY_ANOMALY_WARNING",      # 可陈述交易所严重异动重点监控风险
+            "REGULATORY_ANOMALY_WARNING",      # 可陈述商业数据商异动规则撮合风险 (非交易所官方内参)
             "NEXT_DAY_FALSIFICATION_BOUNDARY", # 可陈述次日竞价核心观察哨与证伪条件
         ],
         description="允许 LLM 叙述的客观事实与假说声明类型"

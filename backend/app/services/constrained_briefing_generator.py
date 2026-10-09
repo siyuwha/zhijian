@@ -55,7 +55,7 @@ class BriefingPromptBuilder:
 - 严格分为四大模块：
   1. 【大势定调】：量能真实口径与微观状态标定；
   2. 【主线与梯队】：核心做多战场代表标杆与空间最高板；
-  3. 【风险与负反馈】：真实炸板率、跌停大面与交易所异动监控压力；
+  3. 【风险与负反馈】：真实炸板率、跌停大面与商业数据商异动规则撮合压力；
   4. 【明日推演与防守红线】：次日竞价核心观察哨与证伪触发条件。
 - 总字数必须严格控制在 250 至 350 字之间，杜绝废话与泛泛而谈的宏观空话。"""
 
@@ -83,7 +83,7 @@ class BriefingPromptBuilder:
 - 沪深真实总成交额：{fact.turnover.total_turnover_yi:.2f} 亿元（沪市 {fact.turnover.sh_amount_yi:.2f} 亿，深市含创业板 {fact.turnover.sz_total_amount_yi:.2f} 亿）
 - 空间最高连板高度：{fact.ladder.max_height}B（空间标杆：【{fact.ladder.space_leader.canonical_name}】）
 - 涨跌停微观统计：真实有效涨停 {fact.sentiment_counts.limit_up_count} 家，收盘跌停 {fact.sentiment_counts.limit_down_count} 家
-- 交易所严重异常波动重点监控标的：{fact.regulatory.total_anomaly_count} 家
+- 商业数据商异动规则撮合标的：{fact.regulatory.total_anomaly_count} 家
 
 【L2 衍生结构层 (DERIVED)】：
 - 真实炸板率：{derived.broken_limit_ratio * 100:.2f}%
@@ -98,6 +98,119 @@ class BriefingPromptBuilder:
 请严格遵守发言边界，输出操盘内参战报正文。"""
 
 
+class DeepSeekBriefingLLMClient:
+    """
+    生产级真实 DeepSeek LLM 客户端 (P0-1 真实大模型调用穿透支持)
+    可精确测量 TTFT (Time To First Token)、总推理延迟与 Token 吞吐，并记录脱敏报文。
+    """
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout: float = 30.0,
+    ):
+        from backend.app.config import settings
+        self.api_key = api_key or settings.DEEPSEEK_API_KEY or settings.LLM_API_KEY
+        self.base_url = (base_url or settings.LLM_BASE_URL).rstrip("/")
+        self.model = model or settings.LLM_MODEL or "deepseek-chat"
+        self.timeout = timeout
+
+    def call_stream_with_metrics(
+        self,
+        sys_prompt: str,
+        usr_prompt: str,
+        temperature: float = 0.1,
+        max_tokens: int = 400,
+    ) -> Dict[str, Any]:
+        """
+        以流式方式调用真实 LLM，精确测量 TTFT 与总耗时，捕获脱敏报文。
+        """
+        import time
+        import httpx
+        import json
+
+        desensitized_key = (
+            f"{self.api_key[:8]}***{self.api_key[-6:]}"
+            if len(self.api_key) > 14
+            else "***"
+        )
+        desensitized_payload = {
+            "endpoint": f"{self.base_url}/chat/completions",
+            "model": self.model,
+            "api_key_masked": desensitized_key,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "sys_prompt_preview": sys_prompt[:120] + "...",
+            "usr_prompt_preview": usr_prompt[:120] + "...",
+        }
+
+        if not self.api_key:
+            raise ValueError("No valid LLM_API_KEY / DEEPSEEK_API_KEY configured for real LLM call.")
+
+        client = httpx.Client(timeout=self.timeout)
+        t0 = time.time()
+        ttft = None
+        full_text = ""
+        first_chunk = False
+
+        with client.stream(
+            "POST",
+            f"{self.base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": usr_prompt},
+                ],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": True,
+            },
+        ) as resp:
+            if resp.status_code != 200:
+                raw_body = resp.read().decode("utf-8", errors="ignore")
+                raise RuntimeError(f"DeepSeek API HTTP {resp.status_code}: {raw_body}")
+
+            for line in resp.iter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                data_str = line[6:].strip()
+                if data_str == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data_str)
+                    delta = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    if delta and not first_chunk:
+                        ttft = (time.time() - t0) * 1000
+                        first_chunk = True
+                    full_text += delta
+                except Exception:
+                    continue
+
+        t_total = (time.time() - t0) * 1000
+        if ttft is None:
+            ttft = t_total
+
+        return {
+            "ttft_ms": round(ttft, 2),
+            "total_ms": round(t_total, 2),
+            "text": full_text.strip(),
+            "char_count": len(full_text.strip()),
+            "model": self.model,
+            "desensitized_payload": desensitized_payload,
+        }
+
+    def __call__(self, sys_prompt: str, usr_prompt: str) -> str:
+        metrics = self.call_stream_with_metrics(sys_prompt, usr_prompt)
+        return metrics["text"]
+
+
 class ConstrainedBriefingGenerator:
     """
     受约束 LLM 操盘战报生成器 (Constrained Briefing Generator)
@@ -108,6 +221,7 @@ class ConstrainedBriefingGenerator:
         safety_guard: Optional[BriefingSafetyGuard] = None,
         fallback_engine: Optional[DeterministicBriefingFallbackEngine] = None,
         llm_client: Optional[Callable[[str, str], str]] = None,
+        use_real_llm: bool = False,
     ):
         self.safety_guard = safety_guard or BriefingSafetyGuard()
         self.fallback_engine = fallback_engine or DeterministicBriefingFallbackEngine(
@@ -117,7 +231,10 @@ class ConstrainedBriefingGenerator:
             safety_guard=self.safety_guard,
             fallback_engine=self.fallback_engine,
         )
-        self.llm_client = llm_client
+        if use_real_llm and llm_client is None:
+            self.llm_client = DeepSeekBriefingLLMClient()
+        else:
+            self.llm_client = llm_client
 
     def generate_briefing(
         self,
@@ -198,7 +315,7 @@ class ConstrainedBriefingGenerator:
             )
             p3 = (
                 f"【风险与负反馈】微观亏钱效应急剧放大：日内真实炸板率高达 {broken_pct:.2f}%，收盘跌停 {limit_down} 家；"
-                f"交易所严重异常波动重点监控达 {anomaly_count} 家，高位核按钮频发使得情绪大幅承压。"
+                f"商业数据商异动规则撮合达 {anomaly_count} 家，高位核按钮频发使得情绪大幅承压。"
             )
             p4 = (
                 f"【明日推演与防守红线】明日竞价重点盯紧【{space_leader}】溢价表现与【{top_leader}】承接力度。"
@@ -216,7 +333,7 @@ class ConstrainedBriefingGenerator:
             )
             p3 = (
                 f"【风险与负反馈】盘面良性运行：真实炸板率仅为 {broken_pct:.2f}%，收盘跌停 {limit_down} 家；"
-                f"监管异动标的仅 {anomaly_count} 家，做多情绪处于良性通道。"
+                f"商业数据商异动规则撮合标的仅 {anomaly_count} 家，做多情绪处于良性通道。"
             )
             p4 = (
                 f"【明日推演与防守红线】明日竞价重点观察空间标杆【{space_leader}】的接力意愿与后排首板晋级率。"
@@ -234,7 +351,7 @@ class ConstrainedBriefingGenerator:
             )
             p3 = (
                 f"【风险与负反馈】真实炸板率达 {broken_pct:.2f}%，收盘跌停 {limit_down} 家，"
-                f"交易所严重异常波动监控 {anomaly_count} 家。"
+                f"商业数据商异动规则撮合标的 {anomaly_count} 家。"
             )
             p4 = (
                 f"【明日推演与防守红线】次日重点跟踪【{space_leader}】竞价承接。核心证伪红线：{falsification}。"

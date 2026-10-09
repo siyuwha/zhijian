@@ -267,3 +267,105 @@ def test_gate_2d3_09_end_to_end_fallback_activation(golden_context: NarrativeCon
     res_c = service.produce_briefing(context=golden_context, candidate_text=None)
     assert res_c.is_fallback_mode is True
     assert res_c.safety_audit_passed is True
+
+
+# =============================================================================
+# GATE-2D3-07B: Adversarial Numerical and Covert Directive Defense (P0-2)
+# =============================================================================
+def test_gate_2d3_07b_adversarial_numerical_and_covert_directive_defense(
+    golden_context: NarrativeContextContract,
+):
+    """
+    GATE-2D3-07B: 完备安全对抗测试 (P0-2)
+    - 单位换算：万亿 vs 亿 归一化与非法跳变拦截；
+    - 舍入边界：精确匹配、合法四舍五入与非法舍入拦截；
+    - 隐蔽式间接交易指令：低吸机会、逢低布局、轻仓试错、上车潜伏等全面拦截；
+    - 监管语义防伪：阻断将商业数据商异动规则推断为交易所官方行政定性。
+    """
+    guard = BriefingSafetyGuard()
+    engine = DeterministicBriefingFallbackEngine(guard)
+    base_text = engine.generate_fallback_briefing(golden_context).tactical_briefing_text
+
+    # -------------------------------------------------------------------------
+    # 1. 单位换算与舍入边界对抗 (Turnover: 16821.09 亿)
+    # -------------------------------------------------------------------------
+    # 1.1 合法单位换算 (1.6821 万亿 -> 16821.0 亿) -> PASS
+    t_valid_trillion = base_text.replace("16821.09 亿元", "1.6821 万亿元")
+    assert guard.audit(t_valid_trillion, golden_context).passed is True
+
+    # 1.2 精确万亿换算 (1.682109 万亿元 -> 16821.09 亿) -> PASS
+    t_valid_trillion_exact = base_text.replace("16821.09 亿元", "1.682109 万亿元")
+    assert guard.audit(t_valid_trillion_exact, golden_context).passed is True
+
+    # 1.3 恶意/虚假万亿换算 (1.95 万亿元 -> 19500 亿) -> HARD BLOCK
+    t_fake_trillion = base_text.replace("16821.09 亿元", "1.95 万亿元")
+    res_fake_trillion = guard.audit(t_fake_trillion, golden_context)
+    assert res_fake_trillion.passed is False
+    assert any("Total turnover" in v and "1.95 万亿元" in v for v in res_fake_trillion.violations)
+
+    # 1.4 精度不足的粗暴万亿换算 (1.68 万亿元 -> 16800 亿，偏差 21.09 亿) -> HARD BLOCK
+    t_rough_trillion = base_text.replace("16821.09 亿元", "1.68 万亿元")
+    res_rough = guard.audit(t_rough_trillion, golden_context)
+    assert res_rough.passed is False
+    assert any("Total turnover" in v and "1.68 万亿元" in v for v in res_rough.violations)
+
+    # 1.5 合法 1 位小数舍入 (16821.1 亿元) -> PASS
+    t_round_1dec = base_text.replace("16821.09 亿元", "16821.1 亿元")
+    assert guard.audit(t_round_1dec, golden_context).passed is True
+
+    # 1.6 合法整数四舍五入 (16821 亿元) -> PASS
+    t_round_int = base_text.replace("16821.09 亿元", "16821 亿元")
+    assert guard.audit(t_round_int, golden_context).passed is True
+
+    # 1.7 非法向上舍入 (16822 亿元，正确应为 16821) -> HARD BLOCK
+    t_wrong_int = base_text.replace("16821.09 亿元", "16822 亿元")
+    res_wrong_int = guard.audit(t_wrong_int, golden_context)
+    assert res_wrong_int.passed is False
+    assert any("16822 亿元" in v for v in res_wrong_int.violations)
+
+    # 1.8 炸板率合法舍入 (42.7% & 43%) -> PASS
+    t_broken_1dec = base_text.replace("42.67%", "42.7%")
+    assert guard.audit(t_broken_1dec, golden_context).passed is True
+    t_broken_int = base_text.replace("42.67%", "43%")
+    assert guard.audit(t_broken_int, golden_context).passed is True
+
+    # 1.9 炸板率非法舍入 (42% 向下截断) -> HARD BLOCK
+    t_broken_wrong = base_text.replace("42.67%", "42%")
+    res_broken_wrong = guard.audit(t_broken_wrong, golden_context)
+    assert res_broken_wrong.passed is False
+    assert any("Broken limit ratio" in v and "42%" in v for v in res_broken_wrong.violations)
+
+    # -------------------------------------------------------------------------
+    # 2. 隐蔽式间接交易指令对抗拦截 (P0-2)
+    # -------------------------------------------------------------------------
+    covert_directive_cases = [
+        ("【盘面提示】建议关注低吸机会。", "低吸"),
+        ("核心品种可逢低积极布局。", "布局"),
+        ("次日竞价可考虑轻仓试错前排标的。", "轻仓试错"),
+        ("高位滞涨品种建议逢高派发减仓。", "逢高派发"),
+        ("建议逢阴低吸优质主线标的。", "逢阴低吸"),
+        ("集合竞价即可果断上车。", "上车"),
+        ("建议提前潜伏博弈超跌反弹。", "提前潜伏"),
+        ("重点关注核心资产做多机会。", "做多机会"),
+    ]
+    for text_suffix, expected_keyword in covert_directive_cases:
+        poisoned_text = base_text + " " + text_suffix
+        audit_res = guard.audit(poisoned_text, golden_context)
+        assert audit_res.passed is False, f"Failed to intercept covert directive: {text_suffix}"
+        assert any(
+            "IllegalDirectiveViolation" in v for v in audit_res.violations
+        ), f"Missing IllegalDirectiveViolation for: {text_suffix}"
+
+    # -------------------------------------------------------------------------
+    # 3. 监管语义防伪与官方定性拦截 (P0-3)
+    # -------------------------------------------------------------------------
+    t_fake_reg1 = base_text + " 交易所官方明确下发重点监控核查函。"
+    res_fake_reg1 = guard.audit(t_fake_reg1, golden_context)
+    assert res_fake_reg1.passed is False
+    assert any("commercial data vendor rule match" in v for v in res_fake_reg1.violations)
+
+    t_fake_reg2 = base_text + " 监管部门定性为严重异动并实施特停。"
+    res_fake_reg2 = guard.audit(t_fake_reg2, golden_context)
+    assert res_fake_reg2.passed is False
+    assert any("commercial data vendor rule match" in v for v in res_fake_reg2.violations)
+
