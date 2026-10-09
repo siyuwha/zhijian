@@ -98,33 +98,53 @@ class PopperianBiddingComparator:
         """
         执行 09:25 竞价事实 vs 前夜假说的确定性因果对账
         """
-        eval_time = evaluation_timestamp or datetime.now().isoformat()
+        # 1. 解析数据源采集时间 T_source
+        obs_time_raw = auction_snapshot.observed_time
+        if "T" in obs_time_raw:
+            auc_dt = datetime.fromisoformat(obs_time_raw.replace("Z", "+00:00"))
+        else:
+            auc_dt = datetime.fromisoformat(f"{auction_snapshot.trade_date}T{obs_time_raw}+08:00")
+
+        # 2. 确定性评估时间戳 T_evaluation (若未显式指定，确定性锚定在数据源观测时刻，确保进程重启与多实例 100% 字节级幂等)
+        eval_time = evaluation_timestamp or auc_dt.isoformat()
+        eval_dt = datetime.fromisoformat(eval_time.replace("Z", "+00:00"))
+
+        hypo_suffix = hypothesis.hypothesis_id.split("-")[-1]
         trace_id = (
             f"TRACE-{hypothesis.base_trade_date}-TO-{auction_snapshot.trade_date}-"
-            f"AUCTION-POPPER-{hypothesis.hypothesis_id[:8]}"
+            f"AUCTION-POPPER-{hypo_suffix[:12]}"
         )
-        verdict_id = f"VERDICT-{auction_snapshot.trade_date}-{hypothesis.hypothesis_id[:8]}"
+        verdict_id = f"VERDICT-{auction_snapshot.trade_date}-{hypo_suffix[:12]}"
 
         # =========================================================================
-        # 阶段 1：因果时序严格守卫 (Strict Temporal Causality Guard)
+        # 阶段 1：因果时序严格守卫 (Strict 4D Temporal Causality Guard - P0-1)
+        # 绝对公理: T_hypothesis < T_exchange <= T_source <= T_evaluation
         # =========================================================================
         hypo_reg_str = hypothesis.registered_at
-        # 兼容含时区与不含时区比较
         try:
             hypo_dt = datetime.fromisoformat(hypo_reg_str.replace("Z", "+00:00"))
-            # 竞价时间若为 HH:MM:SS，则拼接 trade_date
-            obs_time_raw = auction_snapshot.observed_time
-            if "T" in obs_time_raw:
-                auc_dt = datetime.fromisoformat(obs_time_raw.replace("Z", "+00:00"))
-            else:
-                auc_dt = datetime.fromisoformat(f"{auction_snapshot.trade_date}T{obs_time_raw}+08:00")
-            
-            # 若假说时间晚于或等于竞价观测时间，引发致命因果违规异常
-            if hypo_dt >= auc_dt:
+            t_exchange = datetime.fromisoformat(f"{auction_snapshot.trade_date}T09:25:00+08:00")
+
+            # 守卫 1: 假说必须严苛早于交易所 09:25:00 物理撮合截点
+            if hypo_dt >= t_exchange:
                 raise CausalTemporalViolationError(
-                    f"Causal violation detected: Hypothesis registered at {hypo_reg_str} "
-                    f"postdates or equals auction observed at {obs_time_raw}! "
-                    f"Post-hoc hypotheses are strictly forbidden."
+                    f"Causal violation: Hypothesis registered at {hypo_reg_str} "
+                    f"postdates or equals exchange cutoff {t_exchange.isoformat()}! "
+                    f"Post-hoc hypotheses established at or after 09:25:00 are strictly forbidden."
+                )
+
+            # 守卫 2: 竞价行情采集时间必须在撮合发生之后 (T_exchange <= T_source)
+            if auc_dt < t_exchange:
+                raise CausalTemporalViolationError(
+                    f"Causal violation: Auction source observation ({auc_dt.isoformat()}) "
+                    f"predates exchange matching cutoff ({t_exchange.isoformat()})!"
+                )
+
+            # 守卫 3: 对账评估时间必须在行情产生之后 (T_source <= T_evaluation)
+            if eval_dt < auc_dt:
+                raise CausalTemporalViolationError(
+                    f"Causal violation: Evaluation timestamp ({eval_dt.isoformat()}) "
+                    f"predates auction source observation ({auc_dt.isoformat()})!"
                 )
         except ValueError as e:
             logger.warning(f"Timestamp parse warning during causality check: {e}")

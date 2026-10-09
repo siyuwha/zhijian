@@ -49,8 +49,10 @@ from backend.app.cognition.jcs import hash_jcs
 
 
 def make_test_hypothesis(
-    hypothesis_id: str = "HYPO-2026-10-08-TEST01",
+    hypothesis_id: str = "HYPO-2026-10-08-3f8a91b2c4e1",
     registered_at: str = "2026-10-08T16:00:00+08:00",
+    base_trade_date: str = "2026-10-08",
+    target_trade_date: str = "2026-10-09",
     space_leader_code: str = "600825",
     space_leader_name: str = "新华传媒",
     space_leader_falsification_threshold: Decimal = Decimal("-3.00"),
@@ -62,10 +64,10 @@ def make_test_hypothesis(
     raw_dict = {
         "hypothesis_id": hypothesis_id,
         "registered_at": registered_at,
-        "base_trade_date": "2026-10-08",
-        "target_trade_date": "2026-10-09",
-        "bound_briefing_trace_id": "TRACE-20261008-BRIEFING",
-        "bound_briefing_fingerprint": "mock_briefing_fp_123",
+        "base_trade_date": base_trade_date,
+        "target_trade_date": target_trade_date,
+        "bound_briefing_trace_id": f"TRACE-{base_trade_date}-BRIEFING",
+        "bound_briefing_fingerprint": "1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e",
         "bound_snapshot_fingerprint": "80cb8e02acbcc1079b39b59f35af4bd252ce6f39c5a48064a6726d089ea58f22",
         "expected_market_state": "高位剧烈分化期",
         "expected_turnover_ratio_min": "0.80",
@@ -80,10 +82,10 @@ def make_test_hypothesis(
     return PopperianHypothesisRecord(
         hypothesis_id=hypothesis_id,
         registered_at=registered_at,
-        base_trade_date="2026-10-08",
-        target_trade_date="2026-10-09",
-        bound_briefing_trace_id="TRACE-20261008-BRIEFING",
-        bound_briefing_fingerprint="mock_briefing_fp_123",
+        base_trade_date=base_trade_date,
+        target_trade_date=target_trade_date,
+        bound_briefing_trace_id=f"TRACE-{base_trade_date}-BRIEFING",
+        bound_briefing_fingerprint="1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e",
         bound_snapshot_fingerprint="80cb8e02acbcc1079b39b59f35af4bd252ce6f39c5a48064a6726d089ea58f22",
         expected_market_state="高位剧烈分化期",
         expected_turnover_ratio_min=Decimal("0.80"),
