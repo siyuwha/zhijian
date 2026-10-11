@@ -10,7 +10,7 @@ APP_NAME = "AI认知复盘交易系统"
 VERSION = "0.3.1"
 STAGE_NAME = "极光暗夜流光实战交易驾驶舱版"
 BUILD_DATE = "2026-10-11"
-FALLBACK_COMMIT = "a23a9e5"
+FALLBACK_COMMIT = "0e7a4ac"
 
 
 def get_git_commit() -> str:
