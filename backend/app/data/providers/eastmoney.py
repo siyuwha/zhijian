@@ -16,6 +16,7 @@ from ..capabilities import (
     SecuritySearchCapability,
     PriceAnomalyCapability,
     ConceptBlocksCapability,
+    SectorCapability,
 )
 from ...core.canonical_fact import MarketAnomalyFact, BlockMappingFact
 from ...core.block_registry import BlockRegistry
@@ -30,6 +31,7 @@ class EastmoneyProvider(
     SecuritySearchCapability,
     PriceAnomalyCapability,
     ConceptBlocksCapability,
+    SectorCapability,
 ):
     """
     东方财富全市场广度、风格及高标数据适配器
@@ -318,11 +320,14 @@ class EastmoneyProvider(
                 error_message=str(e)
             )
 
-    async def get_top_sectors(self, limit: int = 3) -> DataResult:
+    async def get_top_sectors(self, limit: int = 15, sector_type: str = "industry") -> DataResult:
         """
-        获取当日实时涨幅排名前 N 的行业板块
+        获取当日实时板块排行 (含成交额、主力资金净流向及领涨龙头)
+        - sector_type: 'industry' (行业, fs=m:90+t:2) 或 'concept' (概念, fs=m:90+t:3)
+        - 补充字段: f6 (成交额), f62 (主力净流入), f128 (领涨股名), f140 (领涨股代码), f136 (领涨股涨幅)
         """
         try:
+            fs_val = "m:90+t:3+f:!50" if sector_type == "concept" else "m:90+t:2+f:!50"
             url = "https://push2delay.eastmoney.com/api/qt/clist/get"
             params = {
                 "pn": "1",
@@ -332,8 +337,8 @@ class EastmoneyProvider(
                 "fltt": "2",
                 "invt": "2",
                 "fid": "f3",
-                "fs": "m:90+t:2+f:!50",
-                "fields": "f12,f14,f2,f3"
+                "fs": fs_val,
+                "fields": "f12,f14,f2,f3,f6,f62,f128,f140,f136"
             }
             async with httpx.AsyncClient(timeout=8.0, trust_env=False, follow_redirects=True) as client:
                 resp = await client.get(url, params=params, headers=self.HEADERS)
@@ -361,10 +366,22 @@ class EastmoneyProvider(
             diff_list = res_data.get("data", {}).get("diff", [])
             sectors = []
             for item in diff_list:
+                amount_raw = float(item.get("f6", 0) or 0)
+                net_inflow_raw = float(item.get("f62", 0) or 0)
+                leader_n = item.get("f128")
+                leader_c = item.get("f140")
+                leader_pct = item.get("f136")
+
                 sectors.append({
                     "code": item.get("f12"),
                     "name": item.get("f14"),
-                    "pct_change": float(item.get("f3", 0.0))
+                    "price": float(item.get("f2", 0.0) or 0.0),
+                    "pct_change": float(item.get("f3", 0.0) or 0.0),
+                    "amount_yi": round(amount_raw / 1e8, 2),
+                    "net_inflow_yi": round(net_inflow_raw / 1e8, 2),
+                    "leader_name": str(leader_n) if leader_n else None,
+                    "leader_code": str(leader_c) if leader_c else None,
+                    "leader_pct": float(leader_pct) if leader_pct is not None and leader_pct != "-" else None,
                 })
 
             if not sectors:
@@ -402,6 +419,12 @@ class EastmoneyProvider(
                 provider=self.name,
                 error_message=str(e)
             )
+
+    async def get_sector_ranking(self, sector_type: str = "industry") -> DataResult:
+        """
+        SectorCapability 协议标准实现：获取板块排行与主力资金流
+        """
+        return await self.get_top_sectors(limit=20, sector_type=sector_type)
 
     async def get_large_cap_turnover_cores(self, min_cap_yi: float = 1000.0, top_turnover: int = 20) -> DataResult:
         """

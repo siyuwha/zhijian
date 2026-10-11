@@ -77,15 +77,25 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
             total_zt_count = res_zt.get("data", {}).get("tc", len(pool_list)) if res_zt.get("data") else 0
 
             # 解析跌停池
-            total_dt_count = res_dt.get("data", {}).get("tc", 0) if res_dt.get("data") else 0
+            dt_pool = res_dt.get("data", {}).get("pool", []) if res_dt.get("data") else []
+            total_dt_count = res_dt.get("data", {}).get("tc", len(dt_pool)) if res_dt.get("data") else 0
 
             # 解析炸板池
-            total_zb_count = res_zb.get("data", {}).get("tc", 0) if res_zb.get("data") else 0
+            zb_pool = res_zb.get("data", {}).get("pool", []) if res_zb.get("data") else []
+            total_zb_count = res_zb.get("data", {}).get("tc", len(zb_pool)) if res_zb.get("data") else 0
 
             # 真实炸板率计算：炸板数 / (封板数 + 炸板数)
             broken_ratio: Optional[float] = None
             if (total_zt_count + total_zb_count) > 0:
                 broken_ratio = round(total_zb_count / (total_zt_count + total_zb_count), 4)
+
+            def _fmt_time(val) -> Optional[str]:
+                if val is None or val == "":
+                    return None
+                s = str(val).strip().zfill(6)
+                if len(s) == 6 and s.isdigit():
+                    return f"{s[:2]}:{s[2:4]}:{s[4:6]}"
+                return str(val)
 
             items = []
             reasons_counter = {}
@@ -104,6 +114,14 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
                 if lbc > max_height:
                     max_height = lbc
 
+                fund_raw = float(entry.get("fund", 0) or 0)
+                amount_raw = float(entry.get("amount", 0) or 0)
+                ltsz_raw = float(entry.get("ltsz", 0) or 0)
+                fbt_val = entry.get("fbt")
+                lbt_val = entry.get("lbt")
+                zbc_val = int(entry.get("zbc", 0) or 0)
+                hs_val = float(entry.get("hs", 0) or 0)
+
                 items.append({
                     "code": code,
                     "name": name,
@@ -111,13 +129,89 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
                     "reasons": reasons,
                     "high_days": f"{lbc}天{lbc}板" if lbc > 1 else "首板",
                     "lbc": lbc,
-                    "fbt": entry.get("fbt"), # 封板时间
+                    "fbt": fbt_val,
+                    "fbt_str": _fmt_time(fbt_val),
+                    "lbt": lbt_val,
+                    "lbt_str": _fmt_time(lbt_val),
                     "limit_up_type": "FIRST_LIMIT" if lbc == 1 else "CONTINUED",
-                    "sector": entry.get("hybk", "")
+                    "sector": entry.get("hybk", ""),
+                    "fund": fund_raw,
+                    "fund_wan": round(fund_raw / 1e4, 2),
+                    "fund_yi": round(fund_raw / 1e8, 4),
+                    "amount": amount_raw,
+                    "amount_yi": round(amount_raw / 1e8, 4),
+                    "turnover_ratio": round(hs_val, 2),
+                    "open_count": zbc_val,
+                    "ltsz_yi": round(ltsz_raw / 1e8, 2) if ltsz_raw else None,
                 })
 
             first_limit_count = sum(1 for i in items if i["lbc"] == 1)
             continued_count = sum(1 for i in items if i["lbc"] > 1)
+
+            # 解析跌停池标的 (大跌/核按钮风险榜)
+            limit_down_items = []
+            for entry in dt_pool:
+                c = str(entry.get("c", ""))
+                n = str(entry.get("n", ""))
+                if not c:
+                    continue
+                p_raw = float(entry.get("p", 0) or 0)
+                fund_raw = float(entry.get("fund", 0) or 0)
+                amount_raw = float(entry.get("amount", 0) or 0)
+                hs_raw = float(entry.get("hs", 0) or 0)
+                zdp_raw = float(entry.get("zdp", 0) or 0)
+                lbt_val = entry.get("lbt")
+                days_val = int(entry.get("days", 1) or 1)
+
+                limit_down_items.append({
+                    "code": c,
+                    "name": n,
+                    "price": round(p_raw / 1000.0, 2) if p_raw else 0.0,
+                    "pct_change": round(zdp_raw, 2),
+                    "amount_yi": round(amount_raw / 1e8, 4),
+                    "fund_wan": round(fund_raw / 1e4, 2),
+                    "fund_yi": round(fund_raw / 1e8, 4),
+                    "turnover_ratio": round(hs_raw, 2),
+                    "lbt": lbt_val,
+                    "lbt_str": _fmt_time(lbt_val),
+                    "days": days_val,
+                    "sector": str(entry.get("hybk", "") or ""),
+                })
+
+            # 解析炸板池标的 (日内大面榜)
+            broken_limit_items = []
+            for entry in zb_pool:
+                c = str(entry.get("c", ""))
+                n = str(entry.get("n", ""))
+                if not c:
+                    continue
+                p_raw = float(entry.get("p", 0) or 0)
+                ztp_raw = float(entry.get("ztp", 0) or 0)
+                zdp_raw = float(entry.get("zdp", 0) or 0)
+                amount_raw = float(entry.get("amount", 0) or 0)
+                hs_raw = float(entry.get("hs", 0) or 0)
+                zf_raw = float(entry.get("zf", 0) or 0)
+                zbc_val = int(entry.get("zbc", 1) or 1)
+                fbt_val = entry.get("fbt")
+
+                # 回落幅度估算 (振幅与当前涨幅之差即为自高点回落幅度)
+                fall_back_pct = round(zf_raw - zdp_raw, 2) if zf_raw else round(10.0 - zdp_raw, 2)
+
+                broken_limit_items.append({
+                    "code": c,
+                    "name": n,
+                    "price": round(p_raw / 1000.0, 2) if p_raw else 0.0,
+                    "limit_up_price": round(ztp_raw / 1000.0, 2) if ztp_raw else 0.0,
+                    "pct_change": round(zdp_raw, 2),
+                    "fall_back_pct": fall_back_pct,
+                    "amount_yi": round(amount_raw / 1e8, 4),
+                    "turnover_ratio": round(hs_raw, 2),
+                    "open_count": zbc_val,
+                    "fbt": fbt_val,
+                    "fbt_str": _fmt_time(fbt_val),
+                    "amplitude": round(zf_raw, 2),
+                    "sector": str(entry.get("hybk", "") or ""),
+                })
 
             summary = {
                 "total_count": total_zt_count,
@@ -128,7 +222,9 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
                 "broken_limit_count": total_zb_count,
                 "broken_limit_ratio": broken_ratio,
                 "top_reasons": sorted(reasons_counter.items(), key=lambda x: x[1], reverse=True)[:5],
-                "items": items
+                "items": items,
+                "limit_down_items": limit_down_items,
+                "broken_limit_items": broken_limit_items,
             }
 
             quality = DataQuality.FULL if (res_zt.get("data") is not None) else DataQuality.PARTIAL

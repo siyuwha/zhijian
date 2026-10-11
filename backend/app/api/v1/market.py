@@ -33,3 +33,13 @@ async def get_latest_news(
     service = DataService(db)
     res = await service.get_latest_news(count)
     return {"code": 200, "data": res.data, "quality": res.quality.value, "provider": res.provider}
+
+@router.get("/sectors")
+async def get_sectors(
+    sector_type: str = Query(default="industry", description="industry (行业) or concept (概念)"),
+    limit: int = Query(default=15, ge=1, le=50, description="返回数量"),
+    db: AsyncSession = Depends(get_db)
+):
+    service = DataService(db)
+    res = await service.get_sector_ranking(sector_type=sector_type)
+    return {"code": 200, "data": res.data, "quality": res.quality.value, "provider": res.provider}

@@ -62,13 +62,84 @@ export interface LimitUpStockItem {
   code: string;
   name: string;
   security_id?: string | null;
-  board_type: 'MAIN' | 'GEM' | 'STAR' | 'BSE' | string;
-  continuous_board_count: number;
-  limit_up_type: 'FIRST_LIMIT' | 'CONTINUED' | string;
+  board_type?: 'MAIN' | 'GEM' | 'STAR' | 'BSE' | string;
+  continuous_board_count?: number;
+  limit_up_type?: 'FIRST_LIMIT' | 'CONTINUED' | string;
   first_limit_time?: string | null;
   last_limit_time?: string | null;
-  reason_type: string;
+  reason_type?: string;
+  reasons?: string[];
   order_amount_wan?: number | null;
+  fund_wan?: number | null;
+  fund_yi?: number | null;
+  amount_yi?: number | null;
+  turnover_ratio?: number | null;
+  open_count?: number | null;
+  fbt?: number | null;
+  fbt_str?: string | null;
+  lbt?: number | null;
+  lbt_str?: string | null;
+  lbc?: number | null;
+  sector?: string | null;
+  price?: number | null;
+  zdp?: number | null;
+  high_days?: string | null;
+  ltsz_yi?: number | null;
+}
+
+export interface LimitDownStockItem {
+  code: string;
+  name: string;
+  price?: number | null;
+  pct_change?: number | null;
+  amount_yi?: number | null;
+  fund_wan?: number | null;
+  fund_yi?: number | null;
+  turnover_ratio?: number | null;
+  days?: number | null;
+  lbt?: number | null;
+  lbt_str?: string | null;
+  sector?: string | null;
+}
+
+export interface BrokenLimitStockItem {
+  code: string;
+  name: string;
+  price?: number | null;
+  limit_up_price?: number | null;
+  pct_change?: number | null;
+  fall_back_pct?: number | null;
+  amount_yi?: number | null;
+  turnover_ratio?: number | null;
+  open_count?: number | null;
+  fbt?: number | null;
+  fbt_str?: string | null;
+  amplitude?: number | null;
+  sector?: string | null;
+}
+
+export interface SectorFlowItem {
+  code: string;
+  name: string;
+  pct_change?: number | null;
+  amount_yi?: number | null;
+  net_inflow_yi?: number | null;
+  leader_name?: string | null;
+  leader_code?: string | null;
+  leader_pct?: number | null;
+}
+
+export interface EnrichedLimitUpPoolData {
+  total_count?: number;
+  max_height?: number;
+  first_limit_count?: number;
+  continued_count?: number;
+  broken_limit_count?: number;
+  limit_down_count?: number;
+  broken_limit_ratio?: number;
+  items?: LimitUpStockItem[];
+  limit_down_items?: LimitDownStockItem[];
+  broken_limit_items?: BrokenLimitStockItem[];
 }
 
 export interface BrokenLimitUniverseContract {

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知见 · Aurora Night 极光暗夜流光版 (Bento Grid)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
+      background-color: #07090E;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+    .glass-pill {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .glow-purple {
+      box-shadow: 0 0 24px -4px rgba(168, 85, 247, 0.35);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 24px -4px rgba(6, 182, 212, 0.35);
+    }
+    .glow-red {
+      box-shadow: 0 0 24px -4px rgba(244, 63, 94, 0.35);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 p-4 md:p-6 lg:p-8 flex flex-col gap-6 selection:bg-purple-500 selection:text-white relative overflow-x-hidden">
+
+  <!-- 背景弥散氛围光 -->
+  <div class="fixed top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-purple-600/15 blur-[140px] pointer-events-none"></div>
+  <div class="fixed bottom-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-cyan-500/10 blur-[150px] pointer-events-none"></div>
+  <div class="fixed top-[40%] right-[20%] w-[400px] h-[400px] rounded-full bg-rose-500/10 blur-[130px] pointer-events-none"></div>
+
+  <!-- 顶部悬浮胶囊灵动岛导航 (Floating Island Nav) -->
+  <header class="glass-pill max-w-7xl mx-auto w-full rounded-full px-4 md:px-6 py-2.5 flex items-center justify-between z-30 sticky top-4 shadow-2xl transition">
+    <!-- 品牌与环境 -->
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-sm shadow-md">
+        知
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-sm tracking-wide text-white">知见 · 交易认知</span>
+          <span class="text-[10px] font-mono text-purple-300 bg-purple-950/60 border border-purple-800/80 px-2 py-0.5 rounded-full">BENTO iOS 18</span>
+        </div>
+        <div class="text-[10px] text-slate-400">A股个人量化复盘 · 极光暗夜版</div>
+      </div>
+    </div>
+
+    <!-- 核心分段控制器 (Segmented Control) -->
+    <nav class="hidden md:flex items-center bg-black/40 border border-white/10 rounded-full p-1 gap-1">
+      <button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white/15 text-white shadow-sm transition">认知总览</button>
+      <button class="px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white transition">交易复盘</button>
+      <button class="px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white transition">题材战场</button>
+      <button class="px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white transition">空间天梯</button>
+      <button class="px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white transition">审计留痕</button>
+    </nav>
+
+    <!-- 右侧状态标签与头像 -->
+    <div class="flex items-center gap-2.5">
+      <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="hidden sm:inline font-medium">仅分析 · 未接入委托</span>
+      </div>
+      <div class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-slate-300">
+        2026.10.08
+      </div>
+      <div class="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-400/40 text-purple-200 flex items-center justify-center text-xs font-bold font-mono">
+        SY
+      </div>
+    </div>
+  </header>
+
+  <!-- 黄金研究边界胶囊横幅 -->
+  <div class="max-w-7xl mx-auto w-full bg-amber-950/25 border border-amber-500/30 rounded-2xl p-3 flex items-center justify-between text-xs text-amber-200 backdrop-blur-md">
+    <div class="flex items-center gap-2.5">
+      <span class="w-1.5 h-6 rounded-full bg-amber-400"></span>
+      <span class="font-bold text-amber-300">研究边界法则：</span>
+      <span class="text-amber-200/90">本工作台只呈现纯客观事实与归因结论，严禁作为实盘追高买卖建议；所有指标可随时回溯至不可变审计凭证。</span>
+    </div>
+    <span class="text-[10px] font-mono bg-amber-900/40 px-2 py-0.5 rounded-full border border-amber-600/40 text-amber-300">ZERO_POLLUTION</span>
+  </div>
+
+  <!-- Bento Grid 主体网格区 (4列网格) -->
+  <main class="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+
+    <!-- Bento 1: 情绪周期与全景天气 (占据 2 列宽) -->
+    <div class="glass-card rounded-3xl p-5 lg:col-span-2 flex flex-col justify-between relative overflow-hidden group">
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="text-xs font-semibold text-slate-400 tracking-wider uppercase">全景宏观天气 · 情绪周期定位</span>
+          <div class="flex items-center gap-3 mt-1.5">
+            <span class="text-2xl font-black font-mono text-white">分歧退潮期</span>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-600 to-rose-600 text-white shadow-sm">
+              防守优先 · 仓位 0~2成
+            </span>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-slate-400">两市总成交额 (防重算)</div>
+          <div class="text-xl font-bold font-mono text-cyan-300 mt-0.5">18,245 <span class="text-xs text-slate-400 font-sans">亿元</span></div>
+          <div class="text-[11px] font-mono text-rose-400">+1,250 亿放量滞涨</div>
+        </div>
+      </div>
+
+      <!-- 核心指数与分时曲线模拟 -->
+      <div class="my-4 grid grid-cols-3 gap-2 text-xs">
+        <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-2.5">
+          <div class="text-slate-400">上证指数</div>
+          <div class="text-base font-bold font-mono text-emerald-400 mt-0.5">3,326.46</div>
+          <div class="text-[11px] font-mono text-emerald-400">-0.79%</div>
+        </div>
+        <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-2.5">
+          <div class="text-slate-400">深证成指</div>
+          <div class="text-base font-bold font-mono text-emerald-400 mt-0.5">10,611.71</div>
+          <div class="text-[11px] font-mono text-emerald-400">-1.45%</div>
+        </div>
+        <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-2.5">
+          <div class="text-slate-400">创业板指</div>
+          <div class="text-base font-bold font-mono text-emerald-400 mt-0.5">2,180.12</div>
+          <div class="text-[11px] font-mono text-emerald-400">-2.10%</div>
+        </div>
+      </div>
+
+      <!-- 极光波形示意 SVG -->
+      <div class="h-16 w-full relative">
+        <svg class="w-full h-full overflow-visible" viewBox="0 0 500 60" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="auroraGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#8B5CF6"/>
+              <stop offset="50%" stop-color="#06B6D4"/>
+              <stop offset="100%" stop-color="#F43F5E"/>
+            </linearGradient>
+            <linearGradient id="auroraFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="M0 45 Q 60 10, 120 30 T 240 15 T 360 40 T 500 20 L 500 60 L 0 60 Z" fill="url(#auroraFill)"/>
+          <path d="M0 45 Q 60 10, 120 30 T 240 15 T 360 40 T 500 20" fill="none" stroke="url(#auroraGrad)" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="flex items-center justify-between text-[11px] text-slate-400 border-t border-white/5 pt-2">
+        <span>全市场横截面中位数: -1.24%</span>
+        <span>上涨 1,850 / 下跌 3,120</span>
+      </div>
+    </div>
+
+    <!-- Bento 2: 空间标杆与连板天梯树 (高阶连板卡) -->
+    <div class="glass-card rounded-3xl p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-400 tracking-wider">空间连板天梯树</span>
+        <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">MAX 8B</span>
+      </div>
+
+      <div class="space-y-2.5 my-3">
+        <!-- 8板空间标杆 -->
+        <div class="bg-gradient-to-r from-purple-950/70 via-indigo-950/50 to-transparent border border-purple-500/40 rounded-2xl p-2.5 flex items-center justify-between glow-purple">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-black font-mono px-1.5 py-0.5 rounded bg-purple-600 text-white">8B</span>
+              <span class="text-sm font-bold text-white">华立科技</span>
+            </div>
+            <div class="text-[10px] text-purple-300 mt-0.5">鸿蒙+智能穿戴 · 09:31一字</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs font-bold font-mono text-purple-200">封 3.8 亿</div>
+            <div class="text-[10px] text-slate-400 font-mono">换手 28.4%</div>
+          </div>
+        </div>
+
+        <!-- 4板中坚 -->
+        <div class="bg-white/[0.03] border border-white/10 rounded-2xl p-2 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300">4B</span>
+            <div>
+              <div class="text-xs font-bold text-white">润和软件</div>
+              <div class="text-[10px] text-slate-400">华为鸿蒙软件</div>
+            </div>
+          </div>
+          <div class="text-right text-[11px] font-mono text-slate-300">
+            <div>封 2.1 亿</div>
+            <div class="text-[10px] text-slate-500">换手 15.2%</div>
+          </div>
+        </div>
+
+        <!-- 3板 -->
+        <div class="bg-white/[0.03] border border-white/10 rounded-2xl p-2 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">3B</span>
+            <span class="text-xs font-medium text-white">拓维信息</span>
+          </div>
+          <span class="text-xs font-mono text-slate-400">封 1.4 亿</span>
+        </div>
+      </div>
+
+      <!-- 折叠的首板基座 -->
+      <button class="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 flex items-center justify-between px-3 transition">
+        <span>1B 基座展开</span>
+        <span class="font-mono text-purple-300 font-bold">共 35 只 &gt;</span>
+      </button>
+    </div>
+
+    <!-- Bento 3: 市场极端对冲盘口 (涨跌极值) -->
+    <div class="glass-card rounded-3xl p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-400 tracking-wider">市场极端盘口对冲</span>
+        <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 my-2 text-center">
+        <div class="bg-rose-950/20 border border-rose-500/20 rounded-2xl p-2.5">
+          <div class="text-[11px] text-rose-300">涨停家数</div>
+          <div class="text-2xl font-black font-mono text-rose-400 mt-0.5">43</div>
+        </div>
+        <div class="bg-emerald-950/20 border border-emerald-500/20 rounded-2xl p-2.5">
+          <div class="text-[11px] text-emerald-300">跌停家数</div>
+          <div class="text-2xl font-black font-mono text-emerald-400 mt-0.5">13</div>
+        </div>
+      </div>
+
+      <div class="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-3 my-1">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-amber-300 font-medium">炸板大面率</span>
+          <span class="text-lg font-black font-mono text-amber-400">42.6%</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
+          <div class="bg-gradient-to-r from-amber-400 to-rose-500 h-1.5 rounded-full" style="width: 42.6%"></div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-1.5 flex justify-between">
+          <span>触及涨停 75 只</span>
+          <span class="text-rose-400">炸板 32 只</span>
+        </div>
+      </div>
+
+      <div class="text-[11px] text-slate-400 text-center">
+        炸板率超过 35% 阈值，追高胜率骤降
+      </div>
+    </div>
+
+    <!-- Bento 4: 主力题材战场与资金流向 (占据 2 列宽) -->
+    <div class="glass-card rounded-3xl p-5 lg:col-span-2 flex flex-col justify-between">
+      <div class="flex items-center justify-between pb-3 border-b border-white/5">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-400 tracking-wider">主力题材战场与大单净流入</span>
+        </div>
+        <!-- 胶囊切换 Tab -->
+        <div class="flex bg-black/40 border border-white/10 rounded-full p-0.5 text-xs">
+          <button class="px-3 py-1 rounded-full bg-white/15 text-white font-medium">概念题材</button>
+          <button class="px-3 py-1 rounded-full text-slate-400 hover:text-white">行业板块</button>
+        </div>
+      </div>
+
+      <!-- 板块资金列表 -->
+      <div class="space-y-2 mt-3">
+        <!-- #1 鸿蒙概念 -->
+        <div class="bg-white/[0.03] border border-white/10 hover:border-purple-500/40 rounded-2xl p-3 flex items-center justify-between transition">
+          <div class="flex items-center gap-3">
+            <span class="font-mono text-sm font-black text-purple-400">#1</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-white">鸿蒙概念</span>
+                <span class="text-xs font-mono font-bold text-rose-400 bg-rose-950/40 px-1.5 py-0.2 rounded">+4.82%</span>
+              </div>
+              <div class="text-[11px] text-slate-400 mt-0.5">总成交 682 亿 · 连板梯队: [8B][4B][1B*3]</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="inline-block px-2.5 py-1 rounded-xl bg-rose-500/15 border border-rose-500/30 font-mono text-xs font-bold text-rose-300">
+              主力净买 +42.5 亿
+            </span>
+            <div class="text-[10px] text-slate-400 mt-1">龙头: 常山北明 (+10.02% 封死)</div>
+          </div>
+        </div>
+
+        <!-- #2 华为昇腾 -->
+        <div class="bg-white/[0.03] border border-white/10 hover:border-purple-500/40 rounded-2xl p-3 flex items-center justify-between transition">
+          <div class="flex items-center gap-3">
+            <span class="font-mono text-sm font-black text-slate-400">#2</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-white">华为昇腾</span>
+                <span class="text-xs font-mono font-bold text-rose-400 bg-rose-950/40 px-1.5 py-0.2 rounded">+3.15%</span>
+              </div>
+              <div class="text-[11px] text-slate-400 mt-0.5">总成交 415 亿 · 梯队: [3B][2B]</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="inline-block px-2.5 py-1 rounded-xl bg-rose-500/15 border border-rose-500/30 font-mono text-xs font-bold text-rose-300">
+              主力净买 +18.2 亿
+            </span>
+            <div class="text-[10px] text-slate-400 mt-1">龙头: 拓维信息 (+9.98% 封死)</div>
+          </div>
+        </div>
+
+        <!-- #3 算力租赁 (大单出逃) -->
+        <div class="bg-white/[0.03] border border-white/10 hover:border-emerald-500/40 rounded-2xl p-3 flex items-center justify-between transition">
+          <div class="flex items-center gap-3">
+            <span class="font-mono text-sm font-black text-slate-400">#3</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-white">算力租赁</span>
+                <span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/40 px-1.5 py-0.2 rounded">-2.85%</span>
+              </div>
+              <div class="text-[11px] text-slate-400 mt-0.5">总成交 540 亿 · 炸板 2 只</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 font-mono text-xs font-bold text-emerald-300">
+              主力出逃 -51.2 亿
+            </span>
+            <div class="text-[10px] text-slate-400 mt-1">风险: 润泽科技 (-6.80% 走弱)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bento 5: 亏钱效应极值池 (跌停核按钮 + 炸板大面) -->
+    <div class="glass-card rounded-3xl p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-400 tracking-wider">跌停核按钮 & 炸板大面池</span>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-950 text-rose-400 border border-rose-800">高危警戒</span>
+      </div>
+
+      <div class="space-y-2.5 my-3">
+        <!-- 跌停核按钮 -->
+        <div class="border-l-2 border-emerald-400 bg-white/[0.02] p-2 rounded-r-xl">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-white">宝塔实业 (000595)</span>
+            <span class="font-mono font-bold text-emerald-400">-10.00%</span>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+            <span>跌停封单 3.2 亿元</span>
+            <span class="text-emerald-400 font-medium">连续 2 跌停</span>
+          </div>
+        </div>
+
+        <div class="border-l-2 border-emerald-400 bg-white/[0.02] p-2 rounded-r-xl">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-white">双成药业 (002693)</span>
+            <span class="font-mono font-bold text-emerald-400">-9.99%</span>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+            <span>跌停封单 1.8 亿元</span>
+            <span class="text-slate-400">高位首阴</span>
+          </div>
+        </div>
+
+        <!-- 炸板大面榜 -->
+        <div class="border-l-2 border-amber-400 bg-white/[0.02] p-2 rounded-r-xl">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-white">某某软件 (300XXX)</span>
+            <span class="font-mono font-bold text-amber-400">大面 -14.5%</span>
+          </div>
+          <div class="text-[10px] text-slate-400 mt-0.5">
+            冲涨停 +10.0% 收盘倒灌跌至 -4.5%
+          </div>
+        </div>
+      </div>
+
+      <div class="text-[10px] text-slate-400 border-t border-white/5 pt-2 flex justify-between">
+        <span>全市场共 13 只跌停</span>
+        <span class="text-rose-400 font-mono font-bold">踩踏效应扩散</span>
+      </div>
+    </div>
+
+    <!-- Bento 6: AI 战术研判与次日 09:25 竞价对账闭环 -->
+    <div class="glass-card rounded-3xl p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-purple-400 tracking-wider">AI 战术研判与竞价锚点</span>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-800">VERDICT</span>
+      </div>
+
+      <div class="bg-purple-950/20 border border-purple-500/20 rounded-2xl p-3 my-2 text-xs space-y-2">
+        <div>
+          <span class="text-purple-300 font-bold block mb-1">💡 盘后核心矛盾定论：</span>
+          <p class="text-slate-300 text-[11px] leading-relaxed">
+            华立科技孤勇顶板穿越，但华为后排跟风严重乏力；算力中军遭大资金砸盘，放量滞涨特征显著。
+          </p>
+        </div>
+        <div class="border-t border-purple-500/20 pt-2">
+          <span class="text-amber-300 font-bold block mb-1">🎯 09:25 竞价核验目标：</span>
+          <p class="text-slate-300 text-[11px] leading-relaxed">
+            盯死【常山北明】与【华立科技】竞价额是否 &gt; 3 亿；若竞价低开且缩量，确认退潮全面防守。
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+        <span>波普尔证伪闭环: PROVISIONAL</span>
+        <button class="text-cyan-400 hover:underline">查看对账单 &rarr;</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 底部备案与免责声明 -->
+  <footer class="max-w-7xl mx-auto w-full text-center text-xs text-slate-500 py-2 border-t border-white/5">
+    知见 · AI认知复盘交易系统 · 机构级暗黑流光终端 · 本页面仅供客观研究回溯
+  </footer>
+
+</body>
+</html>

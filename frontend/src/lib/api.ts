@@ -13,6 +13,7 @@ import {
   IntradayAnomalyEventItem
 } from '@/types/monitor';
 import { IndexData } from '@/types/market';
+import { EnrichedLimitUpPoolData, SectorFlowItem } from '@/types/canonical';
 
 const BACKEND_HOST = process.env.NEXT_PUBLIC_API_URL || 
   (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8000` : 'http://localhost:8000');
@@ -76,7 +77,9 @@ export const api = {
   getMarketIndices: (codes?: string) => 
     fetchAPI<IndexData[]>(`/market/indices${codes ? `?codes=${codes}` : ''}`),
   getLimitUpPool: (date?: string) => 
-    fetchAPI<any>(`/market/limit-up${date ? `?date=${date}` : ''}`),
+    fetchAPI<EnrichedLimitUpPoolData>(`/market/limit-up${date ? `?date=${date}` : ''}`),
+  getSectors: (sectorType: 'industry' | 'concept' = 'industry', limit: number = 15) =>
+    fetchAPI<SectorFlowItem[]>(`/market/sectors?sector_type=${sectorType}&limit=${limit}`),
   getDailyReviews: (limit?: number, offset?: number) =>
     fetchAPI<{ items: DailyReviewSummaryItem[]; total: number }>(
       `/reports/daily-review?limit=${limit ?? 30}&offset=${offset ?? 0}`

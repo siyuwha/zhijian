@@ -1,0 +1,95 @@
+{
+  "$schema": "https://tokens.studio/schemas/token-set-v1.json",
+  "name": "Zhijian-AI-Cognitive-Tokens",
+  "version": "1.0.0",
+  "color": {
+    "background": {
+      "app": { "value": "#070A11", "type": "color", "description": "系统全局深黑墨底色" },
+      "sidebar": { "value": "#0A0E18", "type": "color", "description": "左侧固定导航栏底色" },
+      "header": { "value": "#0A0E18", "type": "color", "description": "顶部面包屑状态栏底色" },
+      "card": { "value": "#0F1626", "type": "color", "description": "通用数据卡片底色" },
+      "cardSubtle": { "value": "#0B111E", "type": "color", "description": "卡片内部二级容器底色" },
+      "cardHover": { "value": "#141E33", "type": "color", "description": "卡片悬浮激活态" },
+      "boundaryAlert": { "value": "#18140B", "type": "color", "description": "研究边界黄金警示横幅底色" },
+      "pillDefault": { "value": "#162032", "type": "color", "description": "默认胶囊药丸底色" }
+    },
+    "border": {
+      "subtle": { "value": "#162238", "type": "color", "description": "微弱分割线" },
+      "card": { "value": "#1B2A45", "type": "color", "description": "标准卡片 1px 描边" },
+      "cardHighlight": { "value": "#2A3F66", "type": "color", "description": "卡片高亮与焦点描边" },
+      "boundary": { "value": "#78350F", "type": "color", "description": "边界横幅微弱描边" },
+      "boundaryAccent": { "value": "#D97706", "type": "color", "description": "边界横幅醒目金棕指示线" }
+    },
+    "text": {
+      "primary": { "value": "#F8FAFC", "type": "color", "description": "主标题、核心数值 (Slate-50)" },
+      "secondary": { "value": "#94A3B8", "type": "color", "description": "次级文本、表头、卡片标题 (Slate-400)" },
+      "muted": { "value": "#64748B", "type": "color", "description": "辅助说明、样本单位 (Slate-500)" },
+      "accent": { "value": "#38BDF8", "type": "color", "description": "激活蓝 (Sky-400)" }
+    },
+    "semantic": {
+      "red": {
+        "value": "#EF4444",
+        "type": "color",
+        "description": "做多/涨幅/严重回撤/红字 (Red-500)"
+      },
+      "redBg": {
+        "value": "rgba(239, 68, 68, 0.15)",
+        "type": "color",
+        "description": "红字药丸背景"
+      },
+      "green": {
+        "value": "#10B981",
+        "type": "color",
+        "description": "做空/跌幅/已核验/实际运行曲线 (Emerald-500)"
+      },
+      "greenBg": {
+        "value": "rgba(16, 185, 129, 0.15)",
+        "type": "color",
+        "description": "绿字药丸背景"
+      },
+      "amber": {
+        "value": "#F59E0B",
+        "type": "color",
+        "description": "警示/分歧/确认不足/黄金边界 (Amber-500)"
+      },
+      "amberBg": {
+        "value": "rgba(245, 158, 11, 0.15)",
+        "type": "color",
+        "description": "橙黄药丸背景"
+      },
+      "purple": {
+        "value": "#A855F7",
+        "type": "color",
+        "description": "事实不完整/空间高标 (Purple-500)"
+      },
+      "purpleBg": {
+        "value": "rgba(168, 85, 247, 0.15)",
+        "type": "color",
+        "description": "紫色药丸背景"
+      },
+      "cyan": {
+        "value": "#06B6D4",
+        "type": "color",
+        "description": "定义期望曲线/中性因子 (Cyan-500)"
+      }
+    }
+  },
+  "spacing": {
+    "xs": { "value": "4px", "type": "spacing" },
+    "sm": { "value": "8px", "type": "spacing" },
+    "md": { "value": "12px", "type": "spacing" },
+    "lg": { "value": "16px", "type": "spacing" },
+    "xl": { "value": "24px", "type": "spacing" },
+    "2xl": { "value": "32px", "type": "spacing" }
+  },
+  "borderRadius": {
+    "sm": { "value": "4px", "type": "borderRadius" },
+    "md": { "value": "8px", "type": "borderRadius" },
+    "lg": { "value": "12px", "type": "borderRadius" },
+    "full": { "value": "9999px", "type": "borderRadius" }
+  },
+  "fontFamily": {
+    "sans": { "value": "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif", "type": "fontFamilies" },
+    "mono": { "value": "'JetBrains Mono', 'Roboto Mono', 'SF Mono', monospace", "type": "fontFamilies" }
+  }
+}
