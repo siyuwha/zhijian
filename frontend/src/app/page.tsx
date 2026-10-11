@@ -159,34 +159,24 @@ export default function Dashboard() {
 
       {/* 顶部悬浮胶囊灵动岛导航 (Floating Island Nav) */}
       <FloatingPillNav
-        brandName="知见 · 交易认知"
-        brandBadge="BENTO iOS 18"
-        subtitle="A股全天候客观认知与市场事实雷达"
         activeNav="overview"
         dateText={reportDate !== "--" ? reportDate : undefined}
         onNavChange={handleNavChange}
         rightSlot={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {lastRefreshed && (
-              <span className="hidden sm:inline text-[11px] text-slate-500 font-mono">
+              <span className="hidden xl:inline text-[11px] text-slate-500 font-mono">
                 更新于 {lastRefreshed}
               </span>
             )}
             <button
               onClick={fetchData}
               disabled={loading}
-              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition disabled:opacity-50"
+              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition disabled:opacity-50 shrink-0"
               title="刷新全量事实雷达"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
-            <Link
-              href="/cockpit"
-              className="hidden md:flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-md transition whitespace-nowrap"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              进入交易驾驶舱
-            </Link>
           </div>
         }
       />

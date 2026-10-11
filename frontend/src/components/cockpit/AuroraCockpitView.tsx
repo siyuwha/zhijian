@@ -307,15 +307,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
       {/* 顶部悬浮胶囊灵动岛导航 (Floating Island Nav) */}
       <FloatingPillNav
-        brandName="知见 · 交易认知"
-        brandBadge="BENTO iOS 18"
-        subtitle="A股个人量化复盘 · 极光暗夜版"
         activeNav="review"
-        dateText={selectedDate}
         onNavChange={handleNavChange}
         rightSlot={
-          <div className="flex items-center gap-2">
-            {/* 日期选择器 */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* 日期选择器（唯一交互入口，避免与静态日期药丸重复） */}
             <div className="h-8 flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-full px-2.5 text-xs shadow-inner">
               <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <input
@@ -337,16 +333,6 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               title="刷新全量事实数据"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-
-            {/* 审计抽屉入口 */}
-            <button
-              onClick={() => setIsAuditOpen(true)}
-              className="hidden lg:flex items-center gap-1.5 h-8 px-3 rounded-full bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/30 text-purple-300 text-xs font-medium transition shrink-0"
-              title="RFC 8785 不可变审计凭证"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>审计留痕</span>
             </button>
 
             {/* 切换经典版 */}

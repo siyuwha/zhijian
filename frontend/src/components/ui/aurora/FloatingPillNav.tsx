@@ -13,14 +13,16 @@ export interface NavItemDef {
 }
 
 export interface FloatingPillNavProps extends React.HTMLAttributes<HTMLElement> {
-  /** 品牌名称，默认“知见 · 交易认知” */
+  /** @deprecated 左侧系统名称（细分页面已统一取消展示，由左侧栏全局呈现） */
   brandName?: string;
-  /** 品牌角标，默认“BENTO iOS 18” */
+  /** @deprecated 品牌角标 */
   brandBadge?: string;
-  /** 副标题或系统环境说明，默认“A股个人量化复盘 · 极光暗夜版” */
+  /** @deprecated 副标题 */
   subtitle?: string;
-  /** 品牌首字/Logo 图标内容，默认“知” */
+  /** @deprecated 品牌 Logo 内容 */
   logoContent?: React.ReactNode;
+  /** 左侧自定义插槽（如细分页面面包屑或图标） */
+  leftSlot?: React.ReactNode;
   /** 导航选项列表 */
   navItems?: NavItemDef[];
   /** 当前选中的导航项 key */
@@ -29,7 +31,7 @@ export interface FloatingPillNavProps extends React.HTMLAttributes<HTMLElement> 
   onNavChange?: (key: string) => void;
   /** 右侧委托安全状态文本，默认“仅分析 · 未接入委托” */
   safetyStatusText?: string;
-  /** 显式传递日期文本，如“2026.10.08” */
+  /** 显式传递日期文本，如“2026.10.08”，未传递时不渲染占位 */
   dateText?: string;
   /** 用户头像文字或自定义节点，默认“SY” */
   userBadge?: React.ReactNode;
@@ -47,10 +49,11 @@ const DEFAULT_NAV_ITEMS: NavItemDef[] = [
 
 export function FloatingPillNav({
   className,
-  brandName = "知见 · 交易认知",
-  brandBadge = "BENTO iOS 18",
-  subtitle = "A股个人量化复盘 · 极光暗夜版",
-  logoContent = "知",
+  brandName,
+  brandBadge,
+  subtitle,
+  logoContent,
+  leftSlot,
   navItems = DEFAULT_NAV_ITEMS,
   activeNav = "overview",
   onNavChange,
@@ -64,6 +67,10 @@ export function FloatingPillNav({
   const [internalActive, setInternalActive] = React.useState<string>(activeNav);
 
   const currentActive = onNavChange ? activeNav : internalActive;
+
+  const currentActiveItem = React.useMemo(() => {
+    return navItems.find((item) => item.key === currentActive) || navItems[0];
+  }, [navItems, currentActive]);
 
   const handleSelect = (key: string) => {
     if (onNavChange) {
@@ -124,79 +131,60 @@ export function FloatingPillNav({
     }));
   }, [navItems]);
 
-  const displayDate = React.useMemo(() => {
-    if (dateText) return dateText;
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
-    return `${y}.${m}.${d}`;
-  }, [dateText]);
-
   return (
     <header
       className={cn(
-        "glass-pill max-w-7xl mx-auto w-full rounded-full px-4 md:px-6 py-2 flex items-center justify-between z-30 sticky top-4 shadow-2xl transition select-none",
+        "glass-pill max-w-7xl mx-auto w-full rounded-full px-3 sm:px-4 md:px-5 py-2 flex items-center justify-between z-30 sticky top-4 shadow-2xl transition select-none",
         className
       )}
       {...props}
     >
-      {/* 左侧：品牌与系统环境说明 */}
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-sm shadow-md ring-1 ring-white/20 shrink-0">
-          {logoContent}
+      {/* 左侧导航区：取消细分页面重复的系统名称，直接展示等宽分段导航控制器（或自定义 leftSlot） */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {leftSlot}
+
+        {/* 移动端/窄屏：优雅展示当前页面定位标签 */}
+        <div className="flex lg:hidden items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-white">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+          <span>{currentActiveItem?.label}</span>
         </div>
-        <div className="hidden sm:block">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-sm tracking-wide text-white">
-              {brandName}
-            </span>
-            {brandBadge && (
-              <span className="text-[10px] font-mono text-purple-300 bg-purple-950/60 border border-purple-800/80 px-2 py-0.5 rounded-full">
-                {brandBadge}
-              </span>
-            )}
-          </div>
-          {subtitle && (
-            <div className="text-[10px] text-slate-400 leading-tight">
-              {subtitle}
-            </div>
-          )}
-        </div>
+
+        {/* 桌面端：标准等宽 5 键分段导航控制器 */}
+        {navItems.length > 0 && (
+          <nav className="hidden lg:flex items-center">
+            <SegmentedControl
+              items={segmentedItems}
+              value={currentActive}
+              onChange={handleSelect}
+              size="md"
+            />
+          </nav>
+        )}
       </div>
 
-      {/* 中部：iOS 灵动分段控制器导航（三段式居中布局） */}
-      {navItems.length > 0 && (
-        <nav className="hidden lg:flex flex-1 items-center justify-center px-4">
-          <SegmentedControl
-            items={segmentedItems}
-            value={currentActive}
-            onChange={handleSelect}
-            size="md"
-          />
-        </nav>
-      )}
-
-      {/* 右侧：交易安全绿灯药丸、日期指示器、用户态 */}
-      <div className="flex items-center justify-end gap-2 md:gap-2.5 shrink-0">
+      {/* 右侧：交易安全绿灯药丸、日期指示器、操作插槽、用户头像 */}
+      <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0 ml-auto">
         {safetyStatusText && (
           <div
-            className="h-8 flex items-center gap-1.5 px-3 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs shadow-sm"
+            className="h-8 flex items-center gap-1.5 px-2.5 xl:px-3 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs shadow-sm shrink-0"
             title="纯客观研究，无实盘委托风险"
           >
-            <span className="relative flex h-2 w-2">
+            <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
             </span>
-            <span className="hidden md:inline font-medium">
+            <span className="hidden xl:inline font-medium whitespace-nowrap">
               {safetyStatusText}
             </span>
           </div>
         )}
 
-        <div className="h-8 flex items-center px-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-slate-300 shadow-inner">
-          {displayDate}
-        </div>
+        {/* 仅当显式传入 dateText 时才渲染日期药丸，杜绝与日期选择器重复 */}
+        {dateText && (
+          <div className="h-8 flex items-center px-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-slate-300 shadow-inner whitespace-nowrap shrink-0">
+            {dateText}
+          </div>
+        )}
 
         {rightSlot}
 
