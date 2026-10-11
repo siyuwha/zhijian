@@ -86,6 +86,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   const handleNavChange = (key: string) => {
     if (key === 'overview') {
       router.push('/');
+    } else if (key === 'review') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (key === 'audit') {
       setIsAuditOpen(true);
     } else if (key === 'battleground') {
@@ -94,6 +96,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     } else if (key === 'ladder') {
       const el = document.getElementById('bento-ladder');
       el?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      router.push(`/${key}`);
     }
   };
 
@@ -312,8 +316,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         rightSlot={
           <div className="flex items-center gap-2">
             {/* 日期选择器 */}
-            <div className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-full px-2.5 py-1 text-xs">
-              <Calendar className="w-3 h-3 text-slate-400" />
+            <div className="h-8 flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-full px-2.5 text-xs shadow-inner">
+              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <input
                 type="date"
                 value={selectedDate}
@@ -329,7 +333,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 fetchSectors(sectorType);
               }}
               disabled={isLoading}
-              className="p-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition disabled:opacity-50"
+              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition disabled:opacity-50 shrink-0"
               title="刷新全量事实数据"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -338,17 +342,17 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 审计抽屉入口 */}
             <button
               onClick={() => setIsAuditOpen(true)}
-              className="hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/30 text-purple-300 text-[11px] font-medium transition"
+              className="hidden lg:flex items-center gap-1.5 h-8 px-3 rounded-full bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/30 text-purple-300 text-xs font-medium transition shrink-0"
               title="RFC 8785 不可变审计凭证"
             >
-              <Layers className="w-3 h-3" />
+              <Layers className="w-3.5 h-3.5" />
               <span>审计留痕</span>
             </button>
 
             {/* 切换经典版 */}
             <button
               onClick={() => setViewMode('classic')}
-              className="p-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-400 hover:text-slate-200 text-xs transition"
+              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-400 hover:text-slate-200 text-xs transition shrink-0"
               title="切换为经典三层驾驶舱布局"
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />

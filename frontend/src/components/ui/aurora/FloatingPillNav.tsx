@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SegmentedControl, type SegmentedItem } from "./SegmentedControl";
 
@@ -59,6 +60,7 @@ export function FloatingPillNav({
   rightSlot,
   ...props
 }: FloatingPillNavProps) {
+  const router = useRouter();
   const [internalActive, setInternalActive] = React.useState<string>(activeNav);
 
   const currentActive = onNavChange ? activeNav : internalActive;
@@ -66,8 +68,47 @@ export function FloatingPillNav({
   const handleSelect = (key: string) => {
     if (onNavChange) {
       onNavChange(key);
+      return;
+    }
+
+    setInternalActive(key);
+
+    // 内置路由与平滑锚点跳转逻辑
+    if (key === "overview") {
+      if (typeof window !== "undefined" && window.location.pathname === "/") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        router.push("/");
+      }
+    } else if (key === "review") {
+      if (typeof window !== "undefined" && window.location.pathname === "/cockpit") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        router.push("/cockpit");
+      }
+    } else if (key === "battleground") {
+      const el = typeof document !== "undefined" ? document.getElementById("bento-battleground") : null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      } else {
+        router.push("/cockpit#bento-battleground");
+      }
+    } else if (key === "ladder") {
+      const el = typeof document !== "undefined" ? document.getElementById("bento-ladder") : null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      } else {
+        router.push("/cockpit#bento-ladder");
+      }
+    } else if (key === "audit") {
+      const el = typeof document !== "undefined" ? document.getElementById("bento-audit") : null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      } else {
+        router.push("/cockpit#bento-audit");
+      }
     } else {
-      setInternalActive(key);
+      router.push(`/${key}`);
     }
   };
 
@@ -95,7 +136,7 @@ export function FloatingPillNav({
   return (
     <header
       className={cn(
-        "glass-pill max-w-7xl mx-auto w-full rounded-full px-4 md:px-6 py-2.5 flex items-center justify-between z-30 sticky top-4 shadow-2xl transition select-none",
+        "glass-pill max-w-7xl mx-auto w-full rounded-full px-4 md:px-6 py-2 flex items-center justify-between z-30 sticky top-4 shadow-2xl transition select-none",
         className
       )}
       {...props}
@@ -124,9 +165,9 @@ export function FloatingPillNav({
         </div>
       </div>
 
-      {/* 中部：iOS 灵动分段控制器导航 */}
+      {/* 中部：iOS 灵动分段控制器导航（三段式居中布局） */}
       {navItems.length > 0 && (
-        <nav className="hidden lg:flex items-center">
+        <nav className="hidden lg:flex flex-1 items-center justify-center px-4">
           <SegmentedControl
             items={segmentedItems}
             value={currentActive}
@@ -137,10 +178,10 @@ export function FloatingPillNav({
       )}
 
       {/* 右侧：交易安全绿灯药丸、日期指示器、用户态 */}
-      <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
+      <div className="flex items-center justify-end gap-2 md:gap-2.5 shrink-0">
         {safetyStatusText && (
           <div
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs shadow-sm"
+            className="h-8 flex items-center gap-1.5 px-3 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs shadow-sm"
             title="纯客观研究，无实盘委托风险"
           >
             <span className="relative flex h-2 w-2">
@@ -153,14 +194,14 @@ export function FloatingPillNav({
           </div>
         )}
 
-        <div className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-slate-300 shadow-inner">
+        <div className="h-8 flex items-center px-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-slate-300 shadow-inner">
           {displayDate}
         </div>
 
         {rightSlot}
 
         {userBadge && (
-          <div className="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-400/40 text-purple-200 flex items-center justify-center text-xs font-bold font-mono shadow-sm cursor-pointer hover:bg-purple-600/40 transition">
+          <div className="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-400/40 text-purple-200 flex items-center justify-center text-xs font-bold font-mono shadow-sm cursor-pointer hover:bg-purple-600/40 transition shrink-0">
             {userBadge}
           </div>
         )}

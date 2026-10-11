@@ -143,6 +143,8 @@ export default function Dashboard() {
       router.push("/cockpit");
     } else if (key === "overview") {
       window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (key === "battleground" || key === "ladder" || key === "audit") {
+      router.push(`/cockpit#bento-${key}`);
     } else {
       router.push(`/${key}`);
     }
@@ -173,14 +175,14 @@ export default function Dashboard() {
             <button
               onClick={fetchData}
               disabled={loading}
-              className="p-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition disabled:opacity-50"
+              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition disabled:opacity-50"
               title="刷新全量事实雷达"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
             <Link
               href="/cockpit"
-              className="hidden md:flex items-center gap-1 px-3 py-1 rounded-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-md transition"
+              className="hidden md:flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-md transition whitespace-nowrap"
             >
               <Zap className="w-3.5 h-3.5" />
               进入交易驾驶舱

@@ -119,10 +119,10 @@ export default function AuctionPage() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
       {/* 头部导航与操作栏 */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-7 h-7 text-teal-400" />
+            <Clock className="w-7 h-7 text-purple-400" />
             <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
               M3 集合竞价观测归档
             </h1>
@@ -145,7 +145,7 @@ export default function AuctionPage() {
           <button
             onClick={handleGenerateToday}
             disabled={generating || loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-sm font-semibold shadow-lg shadow-teal-500/20 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/30 transition disabled:opacity-50"
             title="生成今日竞价报告"
           >
             <Sparkles className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
@@ -195,12 +195,12 @@ export default function AuctionPage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-28 rounded-xl bg-slate-900/60 border border-slate-800 animate-pulse"
+              className="h-28 rounded-xl bg-slate-900/60 border border-white/10 animate-pulse"
             />
           ))}
         </div>
       ) : reports.length === 0 ? (
-        <Card className="bg-slate-900/60 border-slate-800 text-center py-16">
+        <Card className="bg-slate-900/60 border-white/10 text-center py-16">
           <CardContent className="space-y-4">
             <Clock className="w-12 h-12 text-slate-600 mx-auto" />
             <div className="text-slate-300 font-medium text-lg">暂无已生成的集合竞价观测报告</div>
@@ -210,7 +210,7 @@ export default function AuctionPage() {
             <button
               onClick={handleGenerateToday}
               disabled={generating}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-sm font-semibold transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/30 transition"
             >
               <Sparkles className="w-4 h-4" />
               立即生成首份报告
@@ -221,13 +221,13 @@ export default function AuctionPage() {
         <div className="space-y-4">
           {reports.map((item) => (
             <Link key={item.id} href={`/auction/${item.date}`}>
-              <Card className="bg-slate-900/70 border-slate-800 hover:border-teal-500/50 hover:bg-slate-850/80 transition-all cursor-pointer group shadow-sm">
+              <Card className="bg-slate-900/70 border-white/10 hover:border-purple-500/50 hover:bg-slate-850/80 transition-all cursor-pointer group shadow-sm">
                 <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   {/* 左侧：日期与开盘状态 */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 text-base font-bold text-white group-hover:text-teal-300 transition">
-                        <Calendar className="w-4 h-4 text-teal-400" />
+                      <div className="flex items-center gap-1.5 text-base font-bold text-white group-hover:text-purple-300 transition">
+                        <Calendar className="w-4 h-4 text-cyan-400" />
                         <span>{formatDateWithWeekday(item.date)} 集合竞价观测</span>
                       </div>
                       <span
@@ -242,7 +242,7 @@ export default function AuctionPage() {
                     {/* 指标胶囊：两市竞价总额、量能承接比、一字板 */}
                     <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
                       <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700/60">
-                        <Activity className="w-3.5 h-3.5 text-teal-400" />
+                        <Activity className="w-3.5 h-3.5 text-cyan-400" />
                         <span className="text-slate-400">两市竞价额:</span>
                         <span className="font-mono font-medium text-white">
                           {item.bidding_amount_yi !== null && item.bidding_amount_yi !== undefined
@@ -267,14 +267,14 @@ export default function AuctionPage() {
                   </div>
 
                   {/* 右侧：生成时间与进入箭头 */}
-                  <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+                  <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
                     <div className="text-xs text-slate-400">
                       生成时间:{' '}
                       <span className="font-mono text-slate-400">
                         {item.generated_at ? item.generated_at.replace('T', ' ').slice(0, 19) : '--'}
                       </span>
                     </div>
-                    <div className="inline-flex items-center gap-1 text-sm font-medium text-teal-400 group-hover:translate-x-1 transition-transform">
+                    <div className="inline-flex items-center gap-1 text-sm font-medium text-purple-400 group-hover:translate-x-1 transition-transform">
                       <span>查看看板</span>
                       <ArrowRight className="w-4 h-4" />
                     </div>

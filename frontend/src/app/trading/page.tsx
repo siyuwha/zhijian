@@ -472,14 +472,14 @@ export default function TradingPage() {
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
       {/* 顶部标题栏与全局操作 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-              <Layers className="w-6 h-6 text-teal-400" />
+              <Layers className="w-6 h-6 text-purple-400" />
               交易记录与持仓管理看板
             </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-950 text-teal-300 border border-teal-800 font-mono">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-800 font-mono">
               G1-M3 Truth Ledger
             </span>
           </div>
@@ -491,7 +491,7 @@ export default function TradingPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => handleOpenTradeModal('buy')}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-medium text-sm transition shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium text-sm transition shadow-lg shadow-purple-900/30"
           >
             <PlusCircle className="w-4 h-4" />
             录入交易事实
@@ -540,7 +540,7 @@ export default function TradingPage() {
 
       {/* 核心指标卡片矩阵 (Top Metrics) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Card className="bg-slate-900/80 border-slate-800">
+        <Card className="bg-slate-900/80 border-white/10">
           <CardContent className="p-4">
             <div className="text-xs text-slate-400 font-medium">总持仓市值</div>
             <div className="text-xl font-bold font-mono text-slate-100 mt-1">
@@ -550,7 +550,7 @@ export default function TradingPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900/80 border-slate-800">
+        <Card className="bg-slate-900/80 border-white/10">
           <CardContent className="p-4">
             <div className="text-xs text-slate-400 font-medium flex items-center justify-between">
               <span>持仓总浮动盈亏</span>
@@ -569,7 +569,7 @@ export default function TradingPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900/80 border-slate-800">
+        <Card className="bg-slate-900/80 border-white/10">
           <CardContent className="p-4">
             <div className="text-xs text-slate-400 font-medium">累计已实现盈亏</div>
             <div className={`text-xl font-bold font-mono mt-1 ${
@@ -581,7 +581,7 @@ export default function TradingPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900/80 border-slate-800">
+        <Card className="bg-slate-900/80 border-white/10">
           <CardContent className="p-4">
             <div className="text-xs text-slate-400 font-medium">单笔卖出胜率</div>
             <div className="text-xl font-bold font-mono text-cyan-300 mt-1">
@@ -593,7 +593,7 @@ export default function TradingPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900/80 border-slate-800">
+        <Card className="bg-slate-900/80 border-white/10">
           <CardContent className="p-4">
             <div className="text-xs text-slate-400 font-medium">盈亏比 (Payoff Ratio)</div>
             <div className="text-xl font-bold font-mono text-purple-300 mt-1">
@@ -605,12 +605,12 @@ export default function TradingPage() {
       </div>
 
       {/* 视图切换 Tabs */}
-      <div className="flex border-b border-slate-800">
+      <div className="flex border-b border-white/10">
         <button
           onClick={() => setActiveTab('positions')}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition flex items-center gap-2 ${
             activeTab === 'positions'
-              ? 'border-teal-500 text-teal-400 bg-teal-950/20'
+              ? 'border-purple-500 text-purple-400 bg-purple-950/20'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -621,7 +621,7 @@ export default function TradingPage() {
           onClick={() => setActiveTab('ledger')}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition flex items-center gap-2 ${
             activeTab === 'ledger'
-              ? 'border-teal-500 text-teal-400 bg-teal-950/20'
+              ? 'border-purple-500 text-purple-400 bg-purple-950/20'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -634,7 +634,7 @@ export default function TradingPage() {
       {activeTab === 'positions' && (
         <div className="space-y-4">
           {positions.length === 0 ? (
-            <div className="bg-slate-900/50 border border-dashed border-slate-800 rounded-xl p-12 text-center text-slate-400">
+            <div className="bg-slate-900/50 border border-dashed border-white/10 rounded-xl p-12 text-center text-slate-400">
               <Layers className="w-12 h-12 mx-auto mb-3 text-slate-600" />
               <div className="text-base font-semibold text-slate-300">当前账户无持仓</div>
               <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
@@ -642,14 +642,14 @@ export default function TradingPage() {
               </p>
               <button
                 onClick={() => handleOpenTradeModal('buy')}
-                className="mt-4 px-4 py-2 bg-teal-600/80 hover:bg-teal-500 text-white text-sm font-medium rounded-lg inline-flex items-center gap-2"
+                className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg inline-flex items-center gap-2 shadow-lg shadow-purple-900/30 transition-all"
               >
                 <PlusCircle className="w-4 h-4" />
                 立即建仓
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/60">
               <table className="w-full text-left text-sm text-slate-300">
                 <thead className="bg-slate-800/80 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   <tr>
@@ -744,7 +744,7 @@ export default function TradingPage() {
       {activeTab === 'ledger' && (
         <div className="space-y-4">
           {/* 筛选工具栏 */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-slate-900/80 border border-white/10">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400">流水过滤:</span>
@@ -780,7 +780,7 @@ export default function TradingPage() {
 
           {/* 流水明细列表 */}
           {records.length === 0 ? (
-            <div className="bg-slate-900/50 border border-dashed border-slate-800 rounded-xl p-12 text-center text-slate-400">
+            <div className="bg-slate-900/50 border border-dashed border-white/10 rounded-xl p-12 text-center text-slate-400">
               <FileText className="w-12 h-12 mx-auto mb-3 text-slate-600" />
               <div className="text-base font-semibold text-slate-300">暂无交易流水记录</div>
               <p className="text-sm text-slate-500 mt-1">
@@ -800,7 +800,7 @@ export default function TradingPage() {
                     className={`rounded-xl border p-4 transition ${
                       isReversal 
                         ? 'bg-purple-950/20 border-purple-900/50' 
-                        : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+                        : 'bg-slate-900/70 border-white/10 hover:border-white/20'
                     }`}
                   >
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -834,7 +834,7 @@ export default function TradingPage() {
                           </div>
 
                           {r.trade_reason && (
-                            <div className="text-xs text-slate-400 mt-1.5 bg-slate-950/60 p-2 rounded border border-slate-800/80">
+                            <div className="text-xs text-slate-400 mt-1.5 bg-slate-950/60 p-2 rounded border border-white/10">
                               <span className="text-slate-500">交易理由: </span>
                               {r.trade_reason}
                             </div>
@@ -848,7 +848,7 @@ export default function TradingPage() {
                           onClick={() => handleOpenNoteDrawer(r)}
                           className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded border transition ${
                             hasNote
-                              ? 'bg-teal-950/60 text-teal-300 border-teal-800 hover:bg-teal-900/60'
+                              ? 'bg-purple-950/60 text-purple-300 border-purple-800 hover:bg-purple-900/60'
                               : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
                           }`}
                         >
@@ -893,33 +893,33 @@ export default function TradingPage() {
 
                     {/* 挂载的复盘反思卡片 */}
                     {hasNote && (
-                      <div className="mt-3 pt-3 border-t border-slate-800/60 text-xs space-y-1.5">
-                        <div className="flex items-center gap-1.5 text-teal-400 font-medium">
+                      <div className="mt-3 pt-3 border-t border-white/10 text-xs space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-purple-400 font-medium">
                           <BookOpen className="w-3.5 h-3.5" />
                           <span>认知复盘笔记</span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-400">
                           {r.note?.mental_state && (
-                            <div className="bg-slate-950/40 p-2 rounded border border-slate-800/60">
+                            <div className="bg-slate-950/40 p-2 rounded border border-white/10">
                               <span className="text-slate-500 font-semibold">心理状态: </span>
                               {r.note.mental_state}
                             </div>
                           )}
                           {r.note?.decision_logic && (
-                            <div className="bg-slate-950/40 p-2 rounded border border-slate-800/60">
+                            <div className="bg-slate-950/40 p-2 rounded border border-white/10">
                               <span className="text-slate-500 font-semibold">决策逻辑: </span>
                               {r.note.decision_logic}
                             </div>
                           )}
                         </div>
                         {r.note?.reflection && (
-                          <div className="bg-slate-950/40 p-2 rounded border border-slate-800/60 whitespace-pre-line text-slate-300">
+                          <div className="bg-slate-950/40 p-2 rounded border border-white/10 whitespace-pre-line text-slate-300">
                             <span className="text-slate-500 font-semibold">事后反思演化: </span>
                             {r.note.reflection}
                           </div>
                         )}
                         {r.note?.lessons && (
-                          <div className="bg-slate-950/40 p-2 rounded border border-slate-800/60 text-amber-300/90">
+                          <div className="bg-slate-950/40 p-2 rounded border border-white/10 text-amber-300/90">
                             <span className="text-amber-500 font-semibold">固化经验教训: </span>
                             {r.note.lessons}
                           </div>
@@ -962,10 +962,10 @@ export default function TradingPage() {
       {/* 弹窗 1: 录入买卖事实弹窗 (Trade Entry Modal) */}
       {isTradeModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="bg-slate-900 border border-white/10 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-teal-400" />
+                <PlusCircle className="w-5 h-5 text-purple-400" />
                 录入交易事实流水
               </h3>
               <button onClick={() => setIsTradeModalOpen(false)} className="text-slate-400 hover:text-slate-200">
@@ -1032,7 +1032,7 @@ export default function TradingPage() {
                         <div
                           key={item.code}
                           onClick={() => handleSelectSecurity(item, 'trade')}
-                          className="px-3 py-2 text-xs hover:bg-teal-900/40 cursor-pointer flex items-center justify-between border-b border-slate-700/50 last:border-b-0"
+                          className="px-3 py-2 text-xs hover:bg-purple-900/40 cursor-pointer flex items-center justify-between border-b border-slate-700/50 last:border-b-0"
                         >
                           <span className="font-semibold text-slate-200">{item.name}</span>
                           <span className="text-slate-400 font-mono">{item.code} ({item.market})</span>
@@ -1095,7 +1095,7 @@ export default function TradingPage() {
                 />
               </div>
 
-              <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs font-mono flex justify-between text-slate-400">
+              <div className="bg-slate-950 p-2.5 rounded border border-white/10 text-xs font-mono flex justify-between text-slate-400">
                 <span>预估成交总额:</span>
                 <span className="font-bold text-slate-100">
                   ¥{(tradeForm.price * tradeForm.quantity).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
@@ -1113,7 +1113,7 @@ export default function TradingPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition shadow-lg shadow-purple-900/30 disabled:opacity-50"
                 >
                   {isSubmitting ? '正在录入...' : '确认录入事实'}
                 </button>
@@ -1127,7 +1127,7 @@ export default function TradingPage() {
       {isReversalModalOpen && reversalTarget && (
         <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-rose-900/60 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-lg font-bold text-rose-300 flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-rose-400" />
                 申请会计红字冲正
@@ -1141,7 +1141,7 @@ export default function TradingPage() {
               <strong>硬隔离安全机制提醒：</strong> 冲正将生成一条反向对冲流水抵消错账，并在状态机回放中成对抹除，持仓成本将完全复原，且绝不污染平仓胜率与已实现盈亏。
             </div>
 
-            <div className="bg-slate-950 p-3 rounded border border-slate-800 text-xs space-y-1 font-mono text-slate-400">
+            <div className="bg-slate-950 p-3 rounded border border-white/10 text-xs space-y-1 font-mono text-slate-400">
               <div>目标流水: #{reversalTarget.id} ({reversalTarget.direction.toUpperCase()})</div>
               <div>标的: {reversalTarget.name || reversalTarget.code} ({reversalTarget.code})</div>
               <div>单价: ¥{reversalTarget.price.toFixed(2)} | 数量: {reversalTarget.quantity} 股</div>
@@ -1186,7 +1186,7 @@ export default function TradingPage() {
       {isCorrectionModalOpen && correctionTarget && (
         <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-amber-900/60 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-lg font-bold text-amber-300 flex items-center gap-2">
                 <RotateCcw className="w-5 h-5 text-amber-400" />
                 交易记录纠错 (Truth Ledger Correction)
@@ -1200,7 +1200,7 @@ export default function TradingPage() {
               <strong>审计不可篡改闭环保障：</strong> 系统将原子化自动生成一条冲正流水（REVERSAL）抵消原记录 #{correctionTarget.id}，同时生成一条全新正确的交易事实流水，并自动迁移复盘反思笔记及重新核算对齐持仓。
             </div>
 
-            <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs space-y-1 font-mono text-slate-400">
+            <div className="bg-slate-950 p-2.5 rounded border border-white/10 text-xs space-y-1 font-mono text-slate-400">
               <div className="text-slate-500 font-sans font-semibold">原错误流水事实快照:</div>
               <div>流水 #{correctionTarget.id} | {correctionTarget.name || correctionTarget.code} ({correctionTarget.code}) | {correctionTarget.direction.toUpperCase()}</div>
               <div>单价: ¥{correctionTarget.price.toFixed(2)} | 数量: {correctionTarget.quantity.toLocaleString()} 股 | 总额: ¥{correctionTarget.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</div>
@@ -1278,7 +1278,7 @@ export default function TradingPage() {
                         <div
                           key={item.code}
                           onClick={() => handleSelectSecurity(item, 'correction')}
-                          className="px-3 py-2 text-xs hover:bg-teal-900/40 cursor-pointer flex items-center justify-between border-b border-slate-700/50 last:border-b-0"
+                          className="px-3 py-2 text-xs hover:bg-purple-900/40 cursor-pointer flex items-center justify-between border-b border-slate-700/50 last:border-b-0"
                         >
                           <span className="font-semibold text-slate-200">{item.name}</span>
                           <span className="text-slate-400 font-mono">{item.code} ({item.market})</span>
@@ -1341,7 +1341,7 @@ export default function TradingPage() {
                 />
               </div>
 
-              <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs font-mono flex justify-between text-slate-400">
+              <div className="bg-slate-950 p-2.5 rounded border border-white/10 text-xs font-mono flex justify-between text-slate-400">
                 <span>修正后成交总额:</span>
                 <span className="font-bold text-amber-300">
                   ¥{(correctionForm.price * correctionForm.quantity).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
@@ -1372,10 +1372,10 @@ export default function TradingPage() {
       {/* 弹窗 3: 复盘反思抽屉 (Trade Note Drawer) */}
       {isNoteDrawerOpen && selectedRecordForNote && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="bg-slate-900 border border-white/10 rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-teal-400" />
+                <BookOpen className="w-5 h-5 text-purple-400" />
                 交易认知复盘反思笔记
               </h3>
               <button onClick={() => setIsNoteDrawerOpen(false)} className="text-slate-400 hover:text-slate-200">
@@ -1383,7 +1383,7 @@ export default function TradingPage() {
               </button>
             </div>
 
-            <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs font-mono text-slate-400">
+            <div className="bg-slate-950 p-2.5 rounded border border-white/10 text-xs font-mono text-slate-400">
               流水 #{selectedRecordForNote.id} | {selectedRecordForNote.name || selectedRecordForNote.code} ({selectedRecordForNote.direction.toUpperCase()}) | {selectedRecordForNote.trade_time}
             </div>
 
@@ -1413,7 +1413,7 @@ export default function TradingPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-slate-400">事后反思 (Reflection)</label>
-                  <label className="flex items-center gap-1.5 cursor-pointer text-teal-400 text-[11px]">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-purple-400 text-[11px]">
                     <input
                       type="checkbox"
                       checked={noteForm.append_mode}
@@ -1453,7 +1453,7 @@ export default function TradingPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold transition shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold transition shadow-lg shadow-purple-900/30 disabled:opacity-50"
                 >
                   {isSubmitting ? '正在保存...' : '保存反思笔记'}
                 </button>
@@ -1468,7 +1468,7 @@ export default function TradingPage() {
         <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-indigo-900/60 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             {/* 标题栏 */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
                 <Brain className="w-5 h-5 text-indigo-400" />
                 <h3 className="text-lg font-bold text-slate-100">
@@ -1519,12 +1519,12 @@ export default function TradingPage() {
                   </div>
 
                   {/* 对撞的环境测量快照 */}
-                  <div className="bg-slate-900/60 p-2.5 rounded border border-slate-800/80 mt-2">
+                  <div className="bg-slate-900/60 p-2.5 rounded border border-white/10 mt-2">
                     <div className="text-[10px] text-slate-400 font-medium mb-1">
                       当日市场客观测度 ({formatDateWithWeekday(diagnosisData.market_d1_d6_snapshot.date || diagnosisData.date)}):
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-slate-800 text-teal-300 font-medium text-[11px] border border-slate-700">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-medium text-[11px] border border-slate-700">
                         状态: {diagnosisData.market_d1_d6_snapshot.state_label || '未分类 / 缺失'}
                       </span>
                       {diagnosisData.market_d1_d6_snapshot.composite_score != null && (
@@ -1556,26 +1556,26 @@ export default function TradingPage() {
                     {/* 治理胶囊徽章 */}
                     {diagnosisData.human_status === 'UNCONFIRMED' && (
                       <span className="px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-800/80 font-semibold text-[10px] flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3 text-amber-400" />
+                        <AlertCircle className="w-3 text-amber-400" />
                         [AI 诊断 / 待人工确认]
                       </span>
                     )}
                     {diagnosisData.human_status === 'CONFIRMED' && (
                       <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 font-semibold text-[10px] flex items-center gap-1">
-                        <CheckCheck className="w-3 h-3 text-emerald-400" />
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
                         [已人工确认采纳]
                       </span>
                     )}
                     {diagnosisData.human_status === 'MODIFIED' && (
                       <span className="px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/80 font-semibold text-[10px] flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-cyan-400" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
                         [人工已修正]
                       </span>
                     )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-slate-900/70 p-2.5 rounded border border-slate-800">
+                    <div className="bg-slate-900/70 p-2.5 rounded border border-white/10">
                       <div className="text-[10px] text-slate-500 font-medium">环境匹配类型 (Environment Match)</div>
                       <div className="text-slate-200 font-bold mt-0.5">
                         {diagnosisData.env_match_type === 'HIGH_MATCH' && '🟢 顺应主线环境 (High Match)'}
@@ -1585,7 +1585,7 @@ export default function TradingPage() {
                         {!['HIGH_MATCH', 'LOW_MATCH', 'EMO_DRIVEN', 'AMBIGUOUS'].includes(diagnosisData.env_match_type) && diagnosisData.env_match_type}
                       </div>
                     </div>
-                    <div className="bg-slate-900/70 p-2.5 rounded border border-slate-800">
+                    <div className="bg-slate-900/70 p-2.5 rounded border border-white/10">
                       <div className="text-[10px] text-slate-500 font-medium">逻辑兑现度 (Logic Realization)</div>
                       <div className="text-slate-200 font-bold mt-0.5">
                         {diagnosisData.logic_realization === 'REALIZED' && '✅ 逻辑按预期兑现 (Realized)'}
@@ -1596,7 +1596,7 @@ export default function TradingPage() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/70 p-2.5 rounded border border-slate-800 space-y-1">
+                  <div className="bg-slate-900/70 p-2.5 rounded border border-white/10 space-y-1">
                     <div className="text-[10px] text-indigo-300 font-semibold">认知偏离与根因剖析 (Cognitive Gap Analysis)</div>
                     <div className="text-slate-300 leading-relaxed whitespace-pre-line">
                       {diagnosisData.cognitive_gap_analysis}
@@ -1614,7 +1614,7 @@ export default function TradingPage() {
                 </div>
 
                 {/* 3. 人机审定与主权回环操作栏 (HITL Review Actions) */}
-                <div className="rounded-lg bg-slate-950 p-3.5 border border-slate-800 space-y-2.5">
+                <div className="rounded-lg bg-slate-950 p-3.5 border border-white/10 space-y-2.5">
                   <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
                     <span>人工审定与修正 (Human-In-The-Loop Confirmation)</span>
                     <span className="text-[10px] text-amber-400 font-normal">
@@ -1667,7 +1667,7 @@ export default function TradingPage() {
         <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-indigo-900/60 rounded-xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             {/* 标题栏与周期切换 */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
                 <BarChart2 className="w-5 h-5 text-indigo-400" />
                 <h3 className="text-lg font-bold text-slate-100">
@@ -1722,9 +1722,9 @@ export default function TradingPage() {
               <div className="space-y-4">
                 {/* 1. 三维核心客观度量矩阵 */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10">
                     <div className="text-xs text-slate-400 font-medium">环境匹配度 (EMD)</div>
-                    <div className="text-2xl font-bold font-mono text-teal-400 mt-1">
+                    <div className="text-2xl font-bold font-mono text-cyan-400 mt-1">
                       {weeklyAuditData.metrics.env_match_degree != null 
                         ? `${weeklyAuditData.metrics.env_match_degree.toFixed(1)}%` 
                         : '--'}
@@ -1734,7 +1734,7 @@ export default function TradingPage() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10">
                     <div className="text-xs text-slate-400 font-medium">逻辑兑现度 (LRD)</div>
                     <div className="text-2xl font-bold font-mono text-indigo-400 mt-1">
                       {weeklyAuditData.metrics.logic_realization_degree != null 
@@ -1746,7 +1746,7 @@ export default function TradingPage() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10">
                     <div className="text-xs text-slate-400 font-medium">结果偏离度 (ODD)</div>
                     <div className="text-2xl font-bold font-mono text-amber-400 mt-1">
                       {weeklyAuditData.metrics.outcome_deviation_degree != null 
@@ -1760,7 +1760,7 @@ export default function TradingPage() {
                 </div>
 
                 {/* 2. 样本统计分布 */}
-                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-white/10 space-y-3">
                   <div className="flex items-center justify-between text-xs text-slate-300 font-medium">
                     <span>交易诊断样本治理画像</span>
                     <div className="flex items-center gap-3 font-mono text-[11px]">
@@ -1771,25 +1771,25 @@ export default function TradingPage() {
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
-                    <div className="bg-slate-900 p-2.5 rounded border border-slate-800">
+                    <div className="bg-slate-900 p-2.5 rounded border border-white/10">
                       <div className="text-[10px] text-slate-500">高匹配交易 (High Match)</div>
                       <div className="text-base font-bold text-emerald-400 font-mono mt-0.5">
                         {weeklyAuditData.trade_sample_summary.high_match} 笔
                       </div>
                     </div>
-                    <div className="bg-slate-900 p-2.5 rounded border border-slate-800">
+                    <div className="bg-slate-900 p-2.5 rounded border border-white/10">
                       <div className="text-[10px] text-slate-500">低匹配交易 (Low Match)</div>
                       <div className="text-base font-bold text-rose-400 font-mono mt-0.5">
                         {weeklyAuditData.trade_sample_summary.low_match} 笔
                       </div>
                     </div>
-                    <div className="bg-slate-900 p-2.5 rounded border border-slate-800">
+                    <div className="bg-slate-900 p-2.5 rounded border border-white/10">
                       <div className="text-[10px] text-slate-500">情绪驱动 (Emo Driven)</div>
                       <div className="text-base font-bold text-amber-400 font-mono mt-0.5">
                         {weeklyAuditData.trade_sample_summary.emo_driven} 笔
                       </div>
                     </div>
-                    <div className="bg-slate-900 p-2.5 rounded border border-slate-800">
+                    <div className="bg-slate-900 p-2.5 rounded border border-white/10">
                       <div className="text-[10px] text-slate-500">模糊/中性 (Ambiguous)</div>
                       <div className="text-base font-bold text-slate-400 font-mono mt-0.5">
                         {weeklyAuditData.trade_sample_summary.ambiguous} 笔
@@ -1800,7 +1800,7 @@ export default function TradingPage() {
 
                 {/* 3. 实证观察与认知洞察 */}
                 {weeklyAuditData.empirical_observations && weeklyAuditData.empirical_observations.length > 0 && (
-                  <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2 text-xs">
+                  <div className="bg-slate-950/60 p-4 rounded-xl border border-white/10 space-y-2 text-xs">
                     <div className="font-medium text-slate-300">实证观察与周期认知反思洞察</div>
                     <ul className="space-y-1.5 text-slate-400">
                       {weeklyAuditData.empirical_observations.map((obs, idx) => (

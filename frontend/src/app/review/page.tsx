@@ -111,10 +111,10 @@ export default function ReviewPage() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
       {/* 顶部标题与操作栏 */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Activity className="w-6 h-6 text-teal-400" />
+            <Activity className="w-6 h-6 text-purple-400" />
             <h1 className="text-2xl font-bold tracking-tight text-white">收盘认知复盘</h1>
           </div>
           <p className="text-sm text-slate-400">
@@ -125,7 +125,7 @@ export default function ReviewPage() {
         <button
           onClick={handleGenerateToday}
           disabled={generating}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-900/30"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
           title="抓取并计算今日收盘客观复盘"
         >
           <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
@@ -195,11 +195,11 @@ export default function ReviewPage() {
       {/* 复盘列表 */}
       {loading ? (
         <div className="py-24 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-teal-400 animate-spin mx-auto" />
+          <RefreshCw className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
           <p className="text-slate-400 text-sm">正在加载复盘记录...</p>
         </div>
       ) : reviews.length === 0 ? (
-        <div className="py-24 text-center space-y-4 rounded-xl border border-dashed border-slate-800 bg-slate-900/40">
+        <div className="py-24 text-center space-y-4 rounded-xl border border-dashed border-white/10 bg-slate-900/40">
           <Activity className="w-12 h-12 text-slate-600 mx-auto" />
           <div className="space-y-1">
             <h3 className="text-base font-medium text-slate-200">暂无复盘历史记录</h3>
@@ -210,7 +210,7 @@ export default function ReviewPage() {
           <button
             onClick={handleGenerateToday}
             disabled={generating}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-teal-700 hover:bg-teal-600 text-white transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/30 transition-all"
           >
             <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
             立即生成第一期复盘
@@ -225,12 +225,12 @@ export default function ReviewPage() {
           <div className="grid gap-3">
             {reviews.map((item) => (
               <Link key={item.id} href={`/review/${item.date}`}>
-                <Card className="bg-slate-900/90 border-slate-800 hover:border-teal-500/60 transition-all hover:shadow-lg hover:shadow-teal-950/30 cursor-pointer group">
+                <Card className="bg-slate-900/90 border-white/10 hover:border-purple-500/60 transition-all hover:shadow-lg hover:shadow-purple-950/30 cursor-pointer group">
                   <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-1.5 text-base font-semibold text-white">
-                          <Calendar className="w-4 h-4 text-teal-400" />
+                          <Calendar className="w-4 h-4 text-cyan-400" />
                           <span>{formatDateWithWeekday(item.date)}</span>
                         </div>
 
@@ -259,7 +259,7 @@ export default function ReviewPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 text-sm font-medium text-teal-400 group-hover:text-teal-300 group-hover:translate-x-1 transition-all self-end sm:self-center">
+                    <div className="flex items-center gap-1 text-sm font-medium text-purple-400 group-hover:text-purple-300 group-hover:translate-x-1 transition-all self-end sm:self-center">
                       <span>查看认知全景</span>
                       <ArrowRight className="w-4 h-4" />
                     </div>

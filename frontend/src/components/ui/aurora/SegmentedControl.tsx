@@ -30,19 +30,19 @@ const SIZE_STYLES: Record<
   { container: string; item: string; text: string }
 > = {
   sm: {
-    container: "p-0.5 gap-0.5",
-    item: "px-2.5 py-1",
+    container: "p-0.5 gap-1",
+    item: "min-w-[4.75rem] px-2.5 py-1 h-7",
     text: "text-xs",
   },
   md: {
     container: "p-1 gap-1",
-    item: "px-4 py-1.5",
-    text: "text-xs font-medium",
+    item: "min-w-[5.75rem] px-3.5 py-1.5 h-8",
+    text: "text-xs",
   },
   lg: {
     container: "p-1.5 gap-1.5",
-    item: "px-5 py-2",
-    text: "text-sm font-semibold",
+    item: "min-w-[6.75rem] px-4 py-2 h-9",
+    text: "text-sm",
   },
 };
 
@@ -114,16 +114,16 @@ export function SegmentedControl<T extends string = string>({
             onClick={() => !item.disabled && onChange(item.value)}
             onKeyDown={(e) => handleKeyDown(e, index)}
             className={cn(
-              "relative flex items-center justify-center rounded-full transition-all duration-200 select-none outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1 focus-visible:ring-offset-black",
+              "relative flex items-center justify-center shrink-0 rounded-full transition-all duration-200 select-none outline-none text-center whitespace-nowrap focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1 focus-visible:ring-offset-black",
               currentSize.item,
               currentSize.text,
-              fullWidth && "flex-1",
+              fullWidth && "flex-1 min-w-0",
               isSelected
                 ? cn(
                     "bg-white/15 text-white shadow-sm font-semibold border border-white/10",
                     activeItemClassName
                   )
-                : "text-slate-400 hover:text-white hover:bg-white/[0.04] font-medium",
+                : "text-slate-400 hover:text-white hover:bg-white/[0.04] font-medium border border-transparent",
               item.disabled && "opacity-40 cursor-not-allowed",
               itemClassName
             )}

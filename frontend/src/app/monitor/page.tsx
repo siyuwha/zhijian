@@ -286,11 +286,11 @@ export default function MonitorPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* 1. 顶部控制栏与态势抬头 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-5 rounded-xl border border-slate-800 backdrop-blur-sm shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-5 rounded-xl border border-white/10 backdrop-blur-sm shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center gap-2">
-              <Activity className="h-6 w-6 text-teal-400" />
+              <Activity className="h-6 w-6 text-purple-400" />
               盘中动态监控与异动感知 (M4)
             </h1>
             <div className={`px-2.5 py-1 rounded-full text-xs font-medium border flex items-center gap-1.5 ${sessionInfo.className}`}>
@@ -316,12 +316,12 @@ export default function MonitorPage() {
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all ${
               autoRefresh 
-                ? 'bg-teal-500/20 text-teal-300 border-teal-500/40 hover:bg-teal-500/30' 
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30' 
                 : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
             }`}
             title={autoRefresh ? '点击暂停自动轮询' : '点击开启自动轮询'}
           >
-            {autoRefresh ? <Play className="w-3.5 h-3.5 text-teal-400 fill-teal-400" /> : <Pause className="w-3.5 h-3.5 text-slate-400" />}
+            {autoRefresh ? <Play className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400" /> : <Pause className="w-3.5 h-3.5 text-slate-400" />}
             {autoRefresh ? '自动轮询中' : '已暂停'}
           </button>
 
@@ -368,7 +368,7 @@ export default function MonitorPage() {
       {/* 2. 核心宏观 4 大指标切片卡片 (严格执行 None 零填充防伪) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 卡片 1: 上证指数分时 */}
-        <Card className="bg-slate-900/60 border-slate-800">
+        <Card className="bg-slate-900/60 border-white/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>上证指数实时分时</span>
@@ -404,7 +404,7 @@ export default function MonitorPage() {
         </Card>
 
         {/* 卡片 2: 成交量能与 W(T) 全天投影 */}
-        <Card className="bg-slate-900/60 border-slate-800">
+        <Card className="bg-slate-900/60 border-white/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>两市成交额与全天投影</span>
@@ -434,7 +434,7 @@ export default function MonitorPage() {
         </Card>
 
         {/* 卡片 3: 市场全景涨跌分布 */}
-        <Card className="bg-slate-900/60 border-slate-800">
+        <Card className="bg-slate-900/60 border-white/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>全市场普适涨跌分布</span>
@@ -473,7 +473,7 @@ export default function MonitorPage() {
         </Card>
 
         {/* 卡片 4: 极端生态与高度空间 */}
-        <Card className="bg-slate-900/60 border-slate-800">
+        <Card className="bg-slate-900/60 border-white/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>短线极端生态与最高高度</span>
@@ -509,7 +509,7 @@ export default function MonitorPage() {
         {/* 左侧 (7 列): 分时宏观走势图 + 核心监控池 */}
         <div className="lg:col-span-7 space-y-6">
           {/* 分时指数走势图 */}
-          <Card className="bg-slate-900/60 border-slate-800">
+          <Card className="bg-slate-900/60 border-white/10">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-slate-200 flex items-center gap-2">
@@ -528,7 +528,7 @@ export default function MonitorPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="w-full h-44 bg-slate-950/60 rounded-lg p-2 border border-slate-800/80 relative flex flex-col justify-between">
+              <div className="w-full h-44 bg-slate-950/60 rounded-lg p-2 border border-white/10 relative flex flex-col justify-between">
                 {/* SVG 分时曲线 */}
                 <svg viewBox="0 0 600 160" className="w-full h-full overflow-visible">
                   {/* 网格参考线 */}
@@ -575,7 +575,7 @@ export default function MonitorPage() {
           </Card>
 
           {/* 重点监控池雷达 (领涨行业龙头与千亿中军) */}
-          <Card className="bg-slate-900/60 border-slate-800">
+          <Card className="bg-slate-900/60 border-white/10">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-slate-200 flex items-center gap-2">
@@ -590,7 +590,7 @@ export default function MonitorPage() {
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-800">
+                  <thead className="bg-slate-800/50 text-slate-400 border-b border-white/10">
                     <tr>
                       <th className="py-2.5 px-3">代码 / 名称</th>
                       <th className="py-2.5 px-2">盘中状态</th>
@@ -712,8 +712,8 @@ export default function MonitorPage() {
 
         {/* 右侧 (5 列): 客观异动与相变事件流 (Edge Trigger 边沿跃迁流水) */}
         <div className="lg:col-span-5 space-y-4">
-          <Card className="bg-slate-900/60 border-slate-800 h-full flex flex-col">
-            <CardHeader className="pb-3 border-b border-slate-800">
+          <Card className="bg-slate-900/60 border-white/10 h-full flex flex-col">
+            <CardHeader className="pb-3 border-b border-white/10">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                   <Radio className="w-4 h-4 text-purple-400 animate-pulse" />
@@ -828,12 +828,12 @@ export default function MonitorPage() {
       </div>
 
       {/* 4. 底部客观物理事实测量提示与免责隔离横幅 (7+1 铁律必修项) */}
-      <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-400 flex items-start gap-3 shadow-lg">
-        <ShieldAlert className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
+      <div className="p-4 rounded-xl bg-slate-950/80 border border-white/10 text-xs text-slate-400 flex items-start gap-3 shadow-lg">
+        <ShieldAlert className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <div className="font-semibold text-slate-300 flex items-center gap-2">
             客观物理事实测量提示与边界隔离
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
               纯客观度量
             </span>
           </div>
