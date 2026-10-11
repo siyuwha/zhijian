@@ -8,7 +8,7 @@ set -e
 COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "c158722")
 echo "================================================================="
 echo "  [AI 认知复盘交易系统] NAS Docker 生产环境一键部署与验证"
-echo "  生产发布版本: v0.3.0 (Commit: ${COMMIT_SHA})"
+echo "  生产发布版本: v0.3.1 (Commit: ${COMMIT_SHA})"
 echo "================================================================="
 
 # 1. 检查 Docker 与 Docker Compose
