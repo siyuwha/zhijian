@@ -20,7 +20,6 @@ import {
   SegmentedControl,
   StatusBadge,
   MetricPill,
-  ResearchBoundaryBanner,
 } from '@/components/ui/aurora';
 import { AuditDrawer } from './AuditDrawer';
 import { TacticalBriefingModal } from './TacticalBriefingModal';
@@ -347,12 +346,6 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         }
       />
 
-      {/* 黄金研究边界胶囊横幅 */}
-      <ResearchBoundaryBanner
-        title="研究边界法则："
-        statement="本工作台只呈现纯客观事实与归因结论，严禁作为实盘追高买卖建议；所有指标可随时回溯至不可变审计凭证。"
-        badgeText="ZERO_POLLUTION"
-      />
 
       {/* 异常警示栏 */}
       {errorMsg && (

@@ -33,7 +33,6 @@ import {
   FloatingPillNav,
   StatusBadge,
   MetricPill,
-  ResearchBoundaryBanner,
 } from "@/components/ui/aurora";
 
 export default function Dashboard() {
@@ -131,6 +130,12 @@ export default function Dashboard() {
   const limitUpCount = limitUpData?.total_count ?? sentimentMetrics?.limit_up_count ?? 43;
   const limitDownCount = limitUpData?.limit_down_count ?? sentimentMetrics?.limit_down_count ?? 13;
   const brokenLimitRatio = limitUpData?.broken_limit_ratio ?? 0.426;
+  const firstLimitCount = limitUpData?.first_limit_count ?? 0;
+  const continuedCount = limitUpData?.continued_count ?? 0;
+  const brokenLimitCount = limitUpData?.broken_limit_count ?? 0;
+  const topLadderStock = limitUpData?.items && limitUpData.items.length > 0
+    ? [...limitUpData.items].sort((a, b) => (b.continuous_board_count || 0) - (a.continuous_board_count || 0))[0]
+    : null;
 
   const liquidityMetrics = marketState?.dimensions?.D6?.metrics || {};
   const totalAmountYi =
@@ -181,12 +186,6 @@ export default function Dashboard() {
         }
       />
 
-      {/* 黄金研究边界胶囊横幅 */}
-      <ResearchBoundaryBanner
-        title="研究边界法则："
-        statement="全天候客观时间序列度量与物理事实沉淀，绝不提供任何买卖建议；所有指标可随时回溯至不可变审计凭证。"
-        badgeText="ZERO_POLLUTION"
-      />
 
       {/* 异常警示栏 */}
       {error && (
@@ -278,48 +277,91 @@ export default function Dashboard() {
             </div>
           </GlassCard>
 
-          {/* 系统健康看板 (1 列宽) */}
+          {/* 短线情绪与接力极值看板 (1 列宽) */}
           <GlassCard rounded="3xl" padding="md" className="flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-white/5">
                 <span className="text-xs font-semibold text-slate-400 tracking-wider flex items-center gap-1.5">
-                  <HeartPulse className="w-3.5 h-3.5 text-emerald-400" />
-                  系统运行健康看板
+                  <Flame className="w-3.5 h-3.5 text-amber-400" />
+                  短线情绪与接力极值
                 </span>
                 <StatusBadge
-                  variant={healthStatus === "ok" ? "bullish" : "warning"}
+                  variant={maxHeight >= 5 ? "bullish" : maxHeight >= 3 ? "spatial" : "bearish"}
                   size="xs"
-                  pulse
                 >
-                  {healthStatus === "ok" ? "全链路在线" : "降级运行"}
+                  最高 {maxHeight} 板
                 </StatusBadge>
               </div>
 
+              {/* 核心短线指标网格 */}
               <div className="space-y-2.5 my-3">
+                {/* 涨停生态 (总涨停/首板/连板) */}
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-2.5 flex items-center justify-between text-xs">
-                  <span className="text-slate-300">后端底层引擎 API</span>
-                  <span className="font-mono text-emerald-400 flex items-center gap-1 font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    200 OK (8000端口)
-                  </span>
+                  <div>
+                    <div className="text-slate-400 text-[11px]">涨停梯队</div>
+                    <div className="font-mono text-rose-400 font-bold text-sm mt-0.5">
+                      {limitUpCount} <span className="text-[11px] font-normal text-slate-400">家</span>
+                    </div>
+                  </div>
+                  <div className="text-right text-[11px] font-mono text-slate-300">
+                    <span className="text-slate-400">首板: </span>{firstLimitCount}
+                    <span className="mx-1 text-slate-600">|</span>
+                    <span className="text-slate-400">连板: </span>
+                    <span className="text-amber-300 font-bold">{continuedCount}</span>
+                  </div>
                 </div>
 
+                {/* 亏钱效应与炸板 (跌停 + 炸板率) */}
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-2.5 flex items-center justify-between text-xs">
-                  <span className="text-slate-300">客观事实底盘数据源</span>
-                  <span className="font-mono text-purple-300">同花顺+东方财富+新浪</span>
+                  <div>
+                    <div className="text-slate-400 text-[11px]">跌停警示 / 炸板率</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="font-mono text-emerald-400 font-bold text-sm">
+                        {limitDownCount} <span className="text-[11px] font-normal text-slate-400">家跌停</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`font-mono font-bold text-xs ${
+                      brokenLimitRatio > 0.3 ? "text-amber-400" : "text-slate-300"
+                    }`}>
+                      {(brokenLimitRatio * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-mono">
+                      炸板 {brokenLimitCount} 家
+                    </div>
+                  </div>
                 </div>
 
+                {/* 空间龙头标杆 */}
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-2.5 flex items-center justify-between text-xs">
-                  <span className="text-slate-300">RFC 8785 审计数字指纹</span>
-                  <span className="font-mono text-cyan-300">JCS 严格防篡改校验</span>
+                  <div className="min-w-0">
+                    <div className="text-slate-400 text-[11px]">空间标杆</div>
+                    <div className="font-bold text-white truncate text-xs mt-0.5 flex items-center gap-1.5">
+                      {topLadderStock?.name || "连板龙头"}
+                      {topLadderStock?.code && (
+                        <span className="text-[10px] text-slate-500 font-mono font-normal">
+                          {topLadderStock.code}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      {topLadderStock?.continuous_board_count || maxHeight} 连板
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="pt-2 border-t border-white/5 text-[11px] text-slate-400 flex items-center justify-between">
-              <span>零主观臆造 · 纯客观真实数据</span>
-              <Link href="/cockpit" className="text-purple-300 hover:text-white flex items-center gap-0.5">
-                <span>进入驾驶舱 &rarr;</span>
+              <span className="flex items-center gap-1.5 text-slate-400">
+                <span className={`w-1.5 h-1.5 rounded-full ${healthStatus === "ok" ? "bg-emerald-400" : "bg-amber-400"}`} />
+                <span>引擎状态: {healthStatus === "ok" ? "在线" : "降级"}</span>
+              </span>
+              <Link href="/cockpit#bento-ladder" className="text-purple-300 hover:text-white flex items-center gap-0.5 transition">
+                <span>连板天梯 &rarr;</span>
               </Link>
             </div>
           </GlassCard>
