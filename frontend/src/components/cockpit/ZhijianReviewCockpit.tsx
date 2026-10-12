@@ -190,24 +190,10 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             <a href="#ch10" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-300 shrink-0 transition">10 开盘探针</a>
           </nav>
 
-          {/* 头版焦点 Bento Matrix (纯净题头，无重复按钮) */}
+          {/* 头版焦点 Bento Matrix (直接呈现核心盘面数据，无冗余空头大标题) */}
           <section className="space-y-4 pb-8 border-b border-white/10">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-slate-300 font-semibold">{date} 盘后全景深度复盘</span>
-              </div>
-              <div className="text-slate-500">
-                沪深两市全样本统计口径
-              </div>
-            </div>
-
-            <h1 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
-              {date} A股全景深度复盘：微观博弈剪刀差、流动性再定价与波普尔假说证伪
-            </h1>
-
             {/* 不对称 12 列高级金融 Bento 矩阵 */}
-            <div className="grid grid-cols-12 gap-3.5 pt-2">
+            <div className="grid grid-cols-12 gap-3.5">
               
               {/* 左侧 7 列：三大指数分化力场与缩量三力模型 */}
               <div className="col-span-12 lg:col-span-7 bg-[#0B0E17] border border-white/10 p-5 rounded-xl flex flex-col justify-between space-y-4 shadow-xl">
