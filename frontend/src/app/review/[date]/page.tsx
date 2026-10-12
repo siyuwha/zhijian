@@ -32,12 +32,14 @@ import {
 } from 'lucide-react';
 import { MarketHypothesis, MarketHypothesisCreatePayload } from '@/types/cognition';
 import { CognitionLoopVisualizer } from '@/components/cognition/CognitionLoopVisualizer';
+import { ZhijianReviewCockpit } from '@/components/cockpit/ZhijianReviewCockpit';
 
 export default function ReviewDetailPage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = use(params);
   const [data, setData] = useState<DailyReviewDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'zhijian' | 'classical'>('zhijian');
 
   // 推演假说跟踪器状态 (G1-Cognition Pre-market Hypothesis Tracker)
   const [hypotheses, setHypotheses] = useState<MarketHypothesis[]>([]);
@@ -216,6 +218,22 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
   const d5 = dims['D5'];
   const d6 = dims['D6'];
 
+  if (viewMode === 'zhijian') {
+    return (
+      <div className="relative">
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            onClick={() => setViewMode('classical')}
+            className="text-xs px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 shadow-2xl backdrop-blur-md transition flex items-center gap-1.5"
+          >
+            <span>📊 切换至分层指标审计视图</span>
+          </button>
+        </div>
+        <ZhijianReviewCockpit date={date} transcendentData={(data as any)?.transcendent_review} />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
       {/* 顶部导航与状态条 */}
@@ -241,6 +259,12 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setViewMode('zhijian')}
+              className="text-xs px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md transition"
+            >
+              返回「知见」杂志级全景复盘
+            </button>
             {ms?.state_label && (
               <span
                 className={`px-3.5 py-1 rounded-full text-xs md:text-sm font-semibold border ${getStateBadgeStyle(

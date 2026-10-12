@@ -133,30 +133,30 @@ export default function ReviewPage() {
         </button>
       </div>
 
-      {/* 升级引导：全景交易员驾驶舱 · Trader Cockpit */}
-      <div className="p-4 rounded-xl bg-indigo-950/40 border border-indigo-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-200 text-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shrink-0">
-            <Compass className="w-5 h-5" />
+      {/* 核心亮点：「知见」11章全景深度复盘工作台 */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-[#0C1222] via-[#0E172E] to-[#0A0F1D] border border-indigo-500/40 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-base shadow-lg shadow-indigo-600/30 shrink-0">
+            知
           </div>
           <div>
-            <div className="font-bold text-slate-100 flex items-center gap-2">
-              全景交易员驾驶舱 · Trader Cockpit 已就绪
-              <span className="text-[10px] font-mono bg-indigo-900/80 text-indigo-300 border border-indigo-700/60 px-1.5 py-0.5 rounded">
-                推荐使用
+            <div className="font-extrabold text-base flex items-center gap-2">
+              <span>知见 · A股全景深度复盘工作台</span>
+              <span className="text-[10px] font-mono bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-2 py-0.5 rounded-full font-bold">
+                16:30 自动生成 · 11章全景
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              集成三层倒金字塔架构、7问第一屏、操盘内参战报与 09:25 集合竞价波普尔证伪闭环。
+            <p className="text-xs text-slate-400 mt-1">
+              杂志级排版美学 · 连板天梯图谱 · 多空双向热力条 · 6类机制样本 · 伴随证据链与 AI 认知推演助手
             </p>
           </div>
         </div>
         <Link
-          href="/cockpit"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-lg transition shrink-0 self-start sm:self-center"
+          href={`/review/${reviews[0]?.date || '2026-10-12'}`}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-xs font-bold text-white rounded-xl shadow-lg shadow-indigo-600/30 transition shrink-0 self-start sm:self-center active:scale-95"
         >
-          <span>进入交易员驾驶舱</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          <span>进入全景深度复盘工作台</span>
+          <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
 

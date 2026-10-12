@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 from typing import Optional
 from ...core.database import get_db
 from ...services.daily_review import DailyReviewService
@@ -52,6 +53,15 @@ async def get_daily_review(date: str, db: AsyncSession = Depends(get_db)):
                 "missing_metrics": []
             }
 
+    # 提取或补全「知见」11章全景深度复盘数据
+    transcendent_review = report_content.get("transcendent_review")
+    if not transcendent_review:
+        try:
+            from ...services.zhijian_transcendent_review_service import zhijian_transcendent_service
+            transcendent_review = await zhijian_transcendent_service.generate_transcendent_review({"date": date})
+        except Exception:
+            transcendent_review = None
+
     return {
         "code": 200,
         "data": {
@@ -60,6 +70,7 @@ async def get_daily_review(date: str, db: AsyncSession = Depends(get_db)):
             "market_overview": market_overview,
             "limit_up_analysis": limit_up_analysis,
             "market_state": market_state,
+            "transcendent_review": transcendent_review,
             "report_content": report_content,
             "data_quality": review.data_quality,
             "generated_at": review.generated_at.isoformat() if review.generated_at else None
@@ -96,6 +107,43 @@ async def generate_daily_review(date: Optional[str] = None, force: bool = False,
         "data": {
             "id": review.id,
             "date": review.date
+        }
+    }
+
+class ReviewChatRequest(BaseModel):
+    date: str
+    query: str
+    chapter: Optional[str] = None
+
+@router.post("/daily-review/chat")
+async def chat_daily_review(payload: ReviewChatRequest, db: AsyncSession = Depends(get_db)):
+    """向「知见」AI 认知推演助手深入提问接口"""
+    service = DailyReviewService(db)
+    review = await service.get_review_by_date(payload.date)
+    context_text = ""
+    if review and review.report_content:
+        try:
+            rc = json.loads(review.report_content)
+            tr = rc.get("transcendent_review")
+            if tr:
+                context_text = tr.get("markdown_content", "")
+        except Exception:
+            pass
+
+    from ...services.zhijian_transcendent_review_service import zhijian_transcendent_service
+    if not context_text:
+        context_text = zhijian_transcendent_service.get_baseline_review_md() or ""
+
+    answer = await zhijian_transcendent_service.ask_ai_cognitive_query(
+        query=payload.query,
+        review_context=context_text
+    )
+    return {
+        "code": 200,
+        "data": {
+            "query": payload.query,
+            "answer": answer,
+            "date": payload.date
         }
     }
 

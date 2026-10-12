@@ -516,34 +516,6 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             })()}
           </div>
 
-          {/* 极光流体微光波形 SVG 氛围 */}
-          <div className="h-14 w-full relative my-1">
-            <svg className="w-full h-full overflow-visible" viewBox="0 0 500 50" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="auroraGradBento" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#8B5CF6" />
-                  <stop offset="50%" stopColor="#06B6D4" />
-                  <stop offset="100%" stopColor="#F43F5E" />
-                </linearGradient>
-                <linearGradient id="auroraFillBento" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M0 38 Q 60 8, 120 25 T 240 12 T 360 35 T 500 16 L 500 50 L 0 50 Z"
-                fill="url(#auroraFillBento)"
-              />
-              <path
-                d="M0 38 Q 60 8, 120 25 T 240 12 T 360 35 T 500 16"
-                fill="none"
-                stroke="url(#auroraGradBento)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-
           {/* 底部横截面中位数与微观广度 */}
           <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-white/5 pt-2.5">
             <span className="flex items-center gap-1.5">

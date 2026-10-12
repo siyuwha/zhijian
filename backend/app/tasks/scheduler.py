@@ -35,14 +35,14 @@ class TaskScheduler:
             id="auction_observation",
             misfire_grace_time=60
         )
-        # 15:35 收盘复盘
+        # 16:30 知见·收盘全景深度复盘 (盘后 16:30 自动生成与落库)
         self.scheduler.add_job(
             self._run_daily_review,
             "cron",
-            hour=15,
-            minute=35,
+            hour=16,
+            minute=30,
             id="daily_review",
-            misfire_grace_time=300
+            misfire_grace_time=600
         )
         # 盘中动态监控与异动感知 (交易时段每 60 秒轮询采样与异动扫描)
         self.scheduler.add_job(

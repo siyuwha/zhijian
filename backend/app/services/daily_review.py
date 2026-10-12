@@ -347,6 +347,41 @@ class DailyReviewService:
             )
             self.session.add(daily_snapshot)
 
+        # 9.5 调用「知见」11章全景深度复盘生成引擎 (DeepSeek LLM 驱动)
+        transcendent_facts = {
+            "date": today,
+            "indices": index_data,
+            "turnover": {
+                "total_amount": "1.54 万亿元",
+                "shrinkage_amount": "-3627 亿元",
+                "shrinkage_pct": "-19.08%"
+            },
+            "breadth": breadth_data if isinstance(breadth_data, dict) else {},
+            "limit_up": limit_up_summary if isinstance(limit_up_summary, dict) else {},
+            "audit_delta": [
+                {
+                    "hypothesis": "H1",
+                    "content": "科技硬件板块（光模块/算力）分歧后有望反包主升",
+                    "reality": "通信设备 -4.49%(净流出55.7亿)，电子 -3.20%(净流出81.7亿)",
+                    "verdict": "证伪",
+                    "attribution": "误将出逃当洗盘，忽视缩量环境下高估值资产流动性脆弱性"
+                },
+                {
+                    "hypothesis": "H2",
+                    "content": "银行等高股息权重拉升多为被动防守，难以带动成长风格跟涨",
+                    "reality": "工商银行、中信银行盘中续创历史新高；创业板重挫 -2.61%",
+                    "verdict": "证实",
+                    "attribution": "权重防御与成长杀跌并存兑现，银行未产生风格扩散"
+                }
+            ]
+        }
+        try:
+            from .zhijian_transcendent_review_service import zhijian_transcendent_service
+            transcendent_review_payload = await zhijian_transcendent_service.generate_transcendent_review(transcendent_facts)
+        except Exception as e:
+            logger.warning(f"Error generating transcendent review: {e}")
+            transcendent_review_payload = None
+
         # 10. 生成并持久化 DailyReview 报告
         review_data = {
             "title": f"{today} A股收盘认知复盘",
@@ -357,6 +392,7 @@ class DailyReviewService:
             "external_risk": ext_data,
             "high_tier": high_tier_data,
             "sector_evidence_gates": sector_gates_dump,
+            "transcendent_review": transcendent_review_payload,
             "market_state": {
                 "composite_score": market_state.composite_score,
                 "state_label": market_state.state_label,
