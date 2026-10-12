@@ -13,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh" className="dark">
-      <body className="font-sans antialiased bg-[#07090E] text-slate-100 selection:bg-purple-500 selection:text-white min-h-screen flex relative overflow-x-hidden">
+    <html lang="zh" className="dark h-full">
+      <body className="font-sans antialiased bg-[#07090E] text-slate-100 selection:bg-purple-500 selection:text-white h-screen flex overflow-hidden relative">
         {/* 全局底层弥散流光氛围（固定背景层，不阻挡交互） */}
         <div
           aria-hidden="true"
@@ -26,7 +26,7 @@ export default function RootLayout({
         />
 
         <Navbar />
-        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-auto relative z-0">
+        <main className="flex-1 h-screen overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0 relative z-0">
           {children}
         </main>
       </body>

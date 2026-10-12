@@ -18,16 +18,15 @@ import { cn } from "@/lib/utils";
 import { APP_VERSION, STAGE_NAME, GIT_COMMIT } from "@/config/version";
 
 const navItems = [
-  { name: "总览", href: "/", icon: Home },
   { name: "驾驶舱", href: "/cockpit", icon: Compass },
-  { name: "复盘", href: "/review", icon: FileText },
   { name: "简报", href: "/briefing", icon: Newspaper },
   { name: "竞价", href: "/auction", icon: Clock },
   { name: "盯盘", href: "/monitor", icon: MonitorPlay },
+  { name: "复盘", href: "/review", icon: FileText },
   { name: "交易", href: "/trading", icon: TrendingUp },
   { name: "策略", href: "/strategy", icon: Compass },
   { name: "模拟", href: "/simulation", icon: PlaySquare },
-  { name: "设置", href: "/settings", icon: Settings },
+  { name: "系统状态", href: "/settings", icon: Settings },
 ];
 
 export function Navbar() {
@@ -46,8 +45,8 @@ export function Navbar() {
 
   return (
     <>
-      {/* Desktop Navigation */}
-      <nav className="hidden md:flex flex-col w-64 bg-[#07090E]/95 backdrop-blur-2xl border-r border-white/10 text-white min-h-screen select-none shrink-0 z-40">
+      {/* Desktop Navigation (物理固定方案，不随二级/三级内容滚动) */}
+      <nav className="hidden md:flex flex-col w-64 bg-[#07090E]/95 backdrop-blur-2xl border-r border-white/10 text-white h-screen select-none shrink-0 z-40 sticky top-0 left-0">
         {/* 顶部品牌头：极光流光 Logo 徽标“知” + 标题 */}
         <div className="p-5 border-b border-white/5 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-base shadow-md ring-1 ring-white/20 shrink-0">

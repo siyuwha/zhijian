@@ -38,6 +38,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
     }, 2800);
   };
 
+  // 唯一的“复制”入口：一键复制所有 11 个章节
   const copyFullMarkdown = () => {
     const md = transcendentData?.markdown_content || `# ${date} A股全景深度复盘\n\n复盘生成中...`;
     navigator.clipboard.writeText(md).then(() => {
@@ -45,15 +46,6 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
     }).catch(() => {
       showToast('复制成功！可直接粘贴至飞书或研报笔记');
     });
-  };
-
-  const copyChapterText = (chId: string) => {
-    const el = document.getElementById(chId);
-    if (el) {
-      navigator.clipboard.writeText(el.innerText).then(() => {
-        showToast(`已成功复制 [${chId.toUpperCase()}] 章节要点！`);
-      });
-    }
   };
 
   const handleStockClick = (key: string) => {
@@ -93,16 +85,10 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
     }
   };
 
-  const askAiChapter = (chapterName: string) => {
-    setAiDrawerOpen(true);
-    const prompt = `针对「${chapterName}」，如果明天市场出现超预期分化，具体的证伪临界点与防守策略是什么？`;
-    setUserInput(prompt);
-  };
-
   return (
     <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col relative overflow-x-hidden selection:bg-amber-500/20 selection:text-amber-200 font-sans">
       
-      {/* 顶部机构级研究报头 (Masthead) */}
+      {/* 顶部机构级研究报头 (Masthead) - 唯一定位“复制全文”与“向AI提问” */}
       <header className="sticky top-0 z-40 bg-[#07090E]/95 backdrop-blur-md border-b border-white/10 px-5 py-3 flex items-center justify-between shadow-2xl">
         <div className="flex items-center gap-3.5">
           <div className="flex items-center gap-2.5">
@@ -112,11 +98,11 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-base tracking-widest text-white">知见</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 font-semibold tracking-wider">
-                  COGNITIVE PROTOCOL V4.2
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold tracking-wider">
+                  认知推演 v4.2
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400 -mt-0.5">A股短线微观结构 · 波普尔假说证伪闭环</span>
+              <span className="text-[10px] text-slate-400 -mt-0.5">A股短线微观博弈 · 假说证伪闭环</span>
             </div>
           </div>
 
@@ -124,24 +110,27 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
           <div className="hidden sm:flex items-center gap-2">
             <span className="text-xs px-2.5 py-1 rounded bg-white/5 text-slate-300 font-mono border border-white/10">
-              {date} 16:30 自动生成
+              {date} · 盘后复盘
             </span>
             <span className="text-xs px-2.5 py-1 rounded bg-amber-950/40 text-amber-300 font-medium border border-amber-800/40">
-              周期定位：退潮期 · 冰点分歧 (置信度 85%)
+              周期定位：退潮期 · 冰点分歧
             </span>
           </div>
         </div>
 
-        {/* 顶部操作工具链 */}
+        {/* 顶部唯一操作工具链：一处搞定全文复制与AI交互 */}
         <div className="flex items-center gap-2.5">
+          {/* 唯一的“复制”入口：一键复制所有章节 */}
           <button
             onClick={copyFullMarkdown}
             className="text-xs px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 font-medium border border-white/10 flex items-center gap-2 transition active:scale-95 shadow-sm"
+            title="一键复制全部 11 个章节的完整复盘 Markdown 正文"
           >
             <Copy className="w-3.5 h-3.5 text-amber-400" />
-            <span>一键复制全文 (11章Markdown)</span>
+            <span>一键复制全文 (11章复盘)</span>
           </button>
 
+          {/* 伴随证据栏联动切换 */}
           <button
             onClick={() => setEvidenceOpen(!evidenceOpen)}
             className="text-xs px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
@@ -152,6 +141,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             </span>
           </button>
 
+          {/* 唯一的“追问”入口：向 AI 深入提问 */}
           <button
             onClick={() => setAiDrawerOpen(true)}
             className="text-xs px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-bold flex items-center gap-1.5 transition active:scale-95 shadow-md shadow-amber-900/40"
@@ -170,88 +160,45 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
         </div>
       )}
 
-      {/* 主体工作台：双栏联动 */}
+      {/* 主体工作台 */}
       <div className="flex-1 flex max-w-[1780px] w-full mx-auto relative overflow-hidden">
-        
-        {/* 左侧极简目录锚点浮标 */}
-        <aside className="w-60 hidden xl:flex flex-col border-r border-white/5 p-4 bg-[#07090E]/80 shrink-0 sticky top-14 h-[calc(100vh-56px)] overflow-y-auto">
-          <div className="text-[11px] font-mono uppercase tracking-widest text-slate-500 mb-3 px-2 flex justify-between items-center">
-            <span>DOSSIER STRUCTURE</span>
-            <span className="text-amber-500 font-bold">11 CHAPTERS</span>
-          </div>
-          <nav className="space-y-1 text-xs font-medium">
-            <a href="#ch0" className="block px-3 py-1.5 rounded-lg text-amber-300/90 hover:text-amber-200 hover:bg-white/5 transition flex items-center justify-between">
-              <span>00 昨日假说审判</span>
-              <span className="text-[10px] font-mono text-amber-500 font-bold">AUDIT</span>
-            </a>
-            <a href="#ch1" className="block px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center justify-between">
-              <span>01 宏观流动性缩量</span>
-              <span className="text-[10px] font-mono text-emerald-400 font-bold">-19.0%</span>
-            </a>
-            <a href="#ch2" className="block px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center justify-between">
-              <span>02 微观宽度与天梯</span>
-              <span className="text-[10px] font-mono text-rose-400 font-bold">46/18</span>
-            </a>
-            <a href="#ch3" className="block px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center justify-between">
-              <span>03 板块图谱与归因</span>
-              <span className="text-[10px] font-mono text-slate-400">SECTORS</span>
-            </a>
-            <a href="#ch4" className="block px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center justify-between">
-              <span>04 资金流向真伪辨</span>
-              <span className="text-[10px] font-mono text-slate-400">FLOWS</span>
-            </a>
-            <a href="#ch5" className="block px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center justify-between">
-              <span>05 六类机制样本</span>
-              <span className="text-[10px] font-mono text-amber-400 font-bold">6 SAMPLES</span>
-            </a>
-            <a href="#ch6" className="block px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center justify-between">
-              <span>06 情绪周期状态机</span>
-              <span className="text-[10px] font-mono text-slate-400">REGIME</span>
-            </a>
-            <a href="#ch7" className="block px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center justify-between">
-              <span>07 对手盘博弈心理</span>
-              <span className="text-[10px] font-mono text-slate-400">GAME</span>
-            </a>
-            <a href="#ch8" className="block px-3 py-1.5 rounded-lg text-rose-300 hover:text-rose-200 hover:bg-white/5 transition flex items-center justify-between">
-              <span>08 次日情景推演</span>
-              <span className="text-[10px] font-mono text-rose-400 font-bold">A/B/C</span>
-            </a>
-            <a href="#ch9" className="block px-3 py-1.5 rounded-lg text-amber-300 hover:text-amber-200 hover:bg-white/5 transition flex items-center justify-between">
-              <span>09 波普尔证伪闭环</span>
-              <span className="text-[10px] font-mono text-amber-400 font-bold">H1~H4</span>
-            </a>
-            <a href="#ch10" className="block px-3 py-1.5 rounded-lg text-emerald-300 hover:text-emerald-200 hover:bg-white/5 transition flex items-center justify-between">
-              <span>10 09:25 开盘探针</span>
-              <span className="text-[10px] font-mono text-emerald-400 font-bold">PROBES</span>
-            </a>
-          </nav>
-          <div className="mt-auto pt-4 border-t border-white/5 text-[10px] text-slate-500 leading-relaxed font-mono">
-            <span className="text-slate-400 font-bold block mb-1">ZHISIAN LAW</span>
-            1. FACT ≢ INFERENCE<br />
-            2. RED = UP · GREEN = DOWN<br />
-            3. ZERO TRADING ADVICE
-          </div>
-        </aside>
 
         {/* 中间：杂志级研报正文阅读区 */}
-        <main className="flex-1 p-6 lg:p-10 overflow-y-auto space-y-12 max-w-5xl mx-auto">
+        <main className="flex-1 p-6 lg:p-10 overflow-y-auto space-y-8 max-w-5xl mx-auto">
           
-          {/* 头版焦点 Bento Matrix (不对称 12 列战情矩阵) */}
+          {/* 11 章快速锚点索引横栏 */}
+          <nav className="flex items-center gap-1.5 overflow-x-auto py-2.5 px-3.5 rounded-xl bg-[#0B0E17] border border-white/10 text-xs no-scrollbar shadow-lg">
+            <span className="text-slate-500 font-mono text-[11px] shrink-0 mr-1 font-semibold">11章直达:</span>
+            <a href="#ch0" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 shrink-0 transition flex items-center gap-1">
+              <span>00 假说审判</span>
+            </a>
+            <a href="#ch1" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition flex items-center gap-1">
+              <span>01 宏观缩量</span>
+              <span className="text-[10px] text-emerald-400 font-mono font-bold">-19%</span>
+            </a>
+            <a href="#ch2" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition flex items-center gap-1">
+              <span>02 连板天梯</span>
+              <span className="text-[10px] text-rose-400 font-mono font-bold">46/18</span>
+            </a>
+            <a href="#ch3" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">03 板块图谱</a>
+            <a href="#ch4" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">04 资金流向</a>
+            <a href="#ch5" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">05 机制样本</a>
+            <a href="#ch6" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">06 情绪周期</a>
+            <a href="#ch7" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">07 博弈心理</a>
+            <a href="#ch8" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-rose-300 shrink-0 transition">08 次日推演</a>
+            <a href="#ch9" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 shrink-0 transition">09 证伪闭环</a>
+            <a href="#ch10" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-300 shrink-0 transition">10 开盘探针</a>
+          </nav>
+
+          {/* 头版焦点 Bento Matrix (纯净题头，无重复按钮) */}
           <section className="space-y-4 pb-8 border-b border-white/10">
-            <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+            <div className="flex items-center justify-between text-xs text-slate-400">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="tracking-widest uppercase text-slate-300 font-semibold">DAILY COGNITIVE SYNTHESIS · {date}</span>
+                <span className="text-slate-300 font-semibold">{date} 盘后全景深度复盘</span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-slate-500">DIGEST: SHA-256 (VERIFIED)</span>
-                <button
-                  onClick={copyFullMarkdown}
-                  className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-amber-400 border border-white/10 flex items-center gap-1 transition"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>复制全文</span>
-                </button>
+              <div className="text-slate-500">
+                沪深两市全样本统计口径
               </div>
             </div>
 
@@ -266,7 +213,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
               <div className="col-span-12 lg:col-span-7 bg-[#0B0E17] border border-white/10 p-5 rounded-xl flex flex-col justify-between space-y-4 shadow-xl">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">三大指数微观博弈剪刀差</span>
+                    <span className="text-[11px] text-slate-400">三大指数微观博弈剪刀差</span>
                     <span className="text-[10px] font-mono text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/40">
                       剪刀差裂口: 2.18%
                     </span>
@@ -308,7 +255,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 {/* 成交额缩量分析栏 */}
                 <div className="border-t border-white/5 pt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div>
-                    <span className="text-[10px] font-mono uppercase text-slate-500 block">两市真实总成交 (TURNOVER)</span>
+                    <span className="text-[10px] text-slate-500 block">两市全天总成交金额</span>
                     <div className="flex items-baseline gap-1.5 mt-0.5">
                       <span className="text-2xl font-black font-mono text-white">1.54</span>
                       <span className="text-xs text-slate-400 font-medium">万亿元</span>
@@ -317,7 +264,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                       </span>
                     </div>
                   </div>
-                  <div className="text-[11px] font-mono text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                  <div className="text-[11px] text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
                     <span className="text-amber-400 font-bold">三力拆解:</span> 买盘收缩 45% · 交易降温 35% · 抛压未尽 20%
                   </div>
                 </div>
@@ -328,9 +275,9 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 
                 {/* 多空极性对决卡 */}
                 <div className="bg-[#0B0E17] border border-white/10 p-4 rounded-xl flex-1 flex flex-col justify-between shadow-xl">
-                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                    <span>多空广度极性对决 (BREADTH POLARITY)</span>
-                    <span className="text-slate-500">上涨比例: 21.3%</span>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>全市场多空涨跌分布</span>
+                    <span className="text-slate-500 font-mono">上涨比例: 21.3%</span>
                   </div>
                   
                   {/* 极性对比双色柱 (红涨绿跌) */}
@@ -363,8 +310,8 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 <div className="bg-[#0B0E17] border-l-4 border-l-amber-500 border-r border-t border-b border-white/10 p-4 rounded-xl">
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="font-bold text-amber-400 tracking-wider">波普尔假说警戒</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50">
-                      REGIME: RETREAT
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50 font-medium">
+                      退潮期防守
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
@@ -378,20 +325,13 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             </div>
           </section>
 
-          {/* 第0章：昨日假说审判 (Audit Stamps) */}
+          {/* 第0章：昨日假说审判 (纯净标题排版，无重复按钮) */}
           <section id="ch0" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-amber-400">00</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  昨日假说判决书与认知校准
-                  <span className="text-xs font-mono font-normal text-slate-400 px-2 py-0.5 rounded bg-white/5 border border-white/10">AUDIT DELTA</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch0')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制本章</button>
-                <button onClick={() => askAiChapter('第0章 昨日假说判决')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问假说偏差</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-amber-400">00</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                昨日假说判决书与认知校准
+              </h2>
             </div>
 
             <div className="p-3.5 rounded-lg border-l-4 border-l-amber-500 bg-amber-950/10 italic text-sm text-slate-300 leading-relaxed">
@@ -403,7 +343,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
               <div className="bg-[#0B0E17] border border-rose-900/40 p-5 rounded-xl relative overflow-hidden">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <span className="text-xs font-mono font-bold text-rose-400 tracking-wider uppercase">HYPOTHESIS 01 · 科技反包</span>
+                    <span className="text-xs font-bold text-rose-400 tracking-wider">假说 01 · 科技反包预期</span>
                     <h3 className="text-sm font-bold text-white mt-0.5">科技硬件板块（光模块/算力）分歧后有望反包主升</h3>
                   </div>
                   <div className="border border-dashed border-rose-500 bg-rose-950/60 text-rose-400 px-2.5 py-1 text-[11px] font-black tracking-widest -rotate-2 rounded">
@@ -424,7 +364,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
               <div className="bg-[#0B0E17] border border-amber-900/40 p-5 rounded-xl relative overflow-hidden">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <span className="text-xs font-mono font-bold text-amber-400 tracking-wider uppercase">HYPOTHESIS 02 · 权重防守</span>
+                    <span className="text-xs font-bold text-amber-400 tracking-wider">假说 02 · 权重防守效应</span>
                     <h3 className="text-sm font-bold text-white mt-0.5">银行拉升多为被动防守，难以带动成长题材</h3>
                   </div>
                   <div className="border border-dashed border-amber-500 bg-amber-950/60 text-amber-400 px-2.5 py-1 text-[11px] font-black tracking-widest -rotate-2 rounded">
@@ -445,18 +385,12 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
           {/* 第1章：宏观流动性缩量三层解构 */}
           <section id="ch1" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-slate-400">01</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  宏观流动性缩量三层解构
-                  <span className="text-xs font-mono font-normal text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40">-19.0%</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch1')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制</button>
-                <button onClick={() => askAiChapter('第1章 宏观流动性缩量')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-slate-400">01</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                宏观流动性缩量三层解构
+                <span className="text-xs font-mono font-normal text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40">-19.0%</span>
+              </h2>
             </div>
 
             <div className="border-l-4 border-l-amber-500 pl-4 py-1.5 italic text-sm text-slate-200 leading-relaxed bg-amber-950/10 rounded-r-lg">
@@ -465,9 +399,8 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
               <div className="bg-[#0B0E17] border-l-4 border-l-emerald-500 border-r border-t border-b border-white/10 p-4 rounded-xl">
-                <div className="font-bold text-sm text-emerald-300 mb-1 flex items-center justify-between">
-                  <span>1. 买盘罢工 (核心主因)</span>
-                  <span className="text-[10px] font-mono text-emerald-400">DEMAND DROP</span>
+                <div className="font-bold text-sm text-emerald-300 mb-1">
+                  1. 买盘罢工 (核心主因)
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
                   全市场 4325 只下跌（占比 79%），但跌停仅 18 家。这证明并非大面积恐慌踩踏，而是成长股的买方资金突然离场，个股在极薄的流动性下自然下坠。
@@ -475,9 +408,8 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
               </div>
 
               <div className="bg-[#0B0E17] border-l-4 border-l-amber-500 border-r border-t border-b border-white/10 p-4 rounded-xl">
-                <div className="font-bold text-sm text-amber-300 mb-1 flex items-center justify-between">
-                  <span>2. 交易降温 (炸板高企)</span>
-                  <span className="text-[10px] font-mono text-amber-400">TURNOVER CHILL</span>
+                <div className="font-bold text-sm text-amber-300 mb-1">
+                  2. 交易降温 (炸板高企)
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
                   日内真实炸板率高达 <strong>42.50%</strong>。全天触碰涨停 80 家但收盘封死仅 46 家，反映短线活跃资金虽有试错动作，但极度缺乏后续接力买盘。
@@ -485,9 +417,8 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
               </div>
 
               <div className="bg-[#0B0E17] border-l-4 border-l-rose-500 border-r border-t border-b border-white/10 p-4 rounded-xl">
-                <div className="font-bold text-sm text-rose-300 mb-1 flex items-center justify-between">
-                  <span>3. 抛压未尽 (防御陷阱)</span>
-                  <span className="text-[10px] font-mono text-rose-400">TRAP RISK</span>
+                <div className="font-bold text-sm text-rose-300 mb-1">
+                  3. 抛压未尽 (防御陷阱)
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
                   上证仅跌 0.43% 营造了“指数抗跌”的虚幻安全感。上证抗跌与个股大面积亏钱的巨大剪刀差，是当前最容易引发诱多加仓的致命陷阱。
@@ -498,18 +429,11 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
           {/* 第2章：连板天梯图谱 (Skyline Ladder) */}
           <section id="ch2" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-slate-400">02</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  微观宽度与连板天际线天梯
-                  <span className="text-xs font-mono font-normal text-rose-400 px-2 py-0.5 rounded bg-rose-950/60 border border-rose-800/40">SKYLINE LADDER</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch2')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制</button>
-                <button onClick={() => askAiChapter('第2章 连板天梯图谱')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问梯队分化</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-slate-400">02</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                微观宽度与连板天际线天梯
+              </h2>
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
@@ -604,28 +528,21 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
           {/* 第3章：板块图谱与多空归因 */}
           <section id="ch3" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-slate-400">03</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  板块强弱图谱与归因分析
-                  <span className="text-xs font-mono font-normal text-slate-400 px-2 py-0.5 rounded bg-white/5 border border-white/10">SECTOR MATRIX</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch3')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制</button>
-                <button onClick={() => askAiChapter('第3章 板块强弱图谱')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问传媒逻辑</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-slate-400">03</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                板块强弱图谱与归因分析
+              </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* 强势多头 */}
               <div className="bg-[#0B0E17] border border-rose-900/40 p-4 rounded-xl space-y-3 border-l-4 border-l-rose-500">
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-xs font-bold text-rose-400 uppercase tracking-wider font-mono">
+                  <span className="text-xs font-bold text-rose-400 tracking-wider">
                     ▲ 多头主攻与防守 (净流入前列)
                   </span>
-                  <span className="text-[10px] text-rose-400 font-mono font-semibold">红涨 (A股)</span>
+                  <span className="text-[10px] text-rose-400 font-medium">资金净流入</span>
                 </div>
                 <div className="space-y-3 text-xs">
                   <div>
@@ -652,10 +569,10 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
               {/* 弱势空头 */}
               <div className="bg-[#0B0E17] border border-emerald-900/40 p-4 rounded-xl space-y-3 border-l-4 border-l-emerald-500">
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono">
+                  <span className="text-xs font-bold text-emerald-400 tracking-wider">
                     ▼ 承压出逃方向 (估值与流动性双杀)
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-mono font-semibold">绿跌 (A股)</span>
+                  <span className="text-[10px] text-emerald-400 font-medium">资金净流出</span>
                 </div>
                 <div className="space-y-3 text-xs">
                   <div>
@@ -683,18 +600,11 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
           {/* 第5章：六类微观机制样本 */}
           <section id="ch5" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-amber-400">05</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  微观结构：六类交易机制极值样本剖析
-                  <span className="text-xs font-mono font-normal text-amber-400 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800/40">6 PROBE SAMPLES</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch5')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制</button>
-                <button onClick={() => askAiChapter('第5章 六类微观机制样本')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问样本特征</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-amber-400">05</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                微观结构：六类交易机制样本切片
+              </h2>
             </div>
 
             <p className="text-xs text-slate-400">
@@ -707,7 +617,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 className="bg-[#0B0E17] hover:bg-white/[0.04] border border-amber-500/30 hover:border-amber-400 p-4 rounded-xl cursor-pointer transition shadow-md"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-700/50">高标情绪孤岛</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-700/50">高标情绪孤岛</span>
                   <span className="text-xs font-mono font-bold text-rose-400">+10.02%</span>
                 </div>
                 <h4 className="font-bold text-sm text-white">新华传媒 (600825)</h4>
@@ -721,7 +631,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 className="bg-[#0B0E17] hover:bg-white/[0.04] border border-white/10 hover:border-amber-400 p-4 rounded-xl cursor-pointer transition shadow-md"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-700/50">中位接力断裂</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-700/50">中位接力断裂</span>
                   <span className="text-xs font-mono font-bold text-amber-400">+9.98% (炸)</span>
                 </div>
                 <h4 className="font-bold text-sm text-white">九阳股份 (002242)</h4>
@@ -735,7 +645,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 className="bg-[#0B0E17] hover:bg-white/[0.04] border border-white/10 hover:border-amber-400 p-4 rounded-xl cursor-pointer transition shadow-md"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-300 border border-white/10">权重避险虹吸</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-slate-300 border border-white/10">权重避险虹吸</span>
                   <span className="text-xs font-mono font-bold text-rose-400">+1.25%</span>
                 </div>
                 <h4 className="font-bold text-sm text-white">工商银行 (601398)</h4>
@@ -749,7 +659,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 className="bg-[#0B0E17] hover:bg-white/[0.04] border border-emerald-900/40 hover:border-emerald-500 p-4 rounded-xl cursor-pointer transition shadow-md"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-700/50">成长估值出清</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-700/50">成长估值出清</span>
                   <span className="text-xs font-mono font-bold text-emerald-400">-5.82%</span>
                 </div>
                 <h4 className="font-bold text-sm text-white">中际旭创 (300308)</h4>
@@ -763,7 +673,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 className="bg-[#0B0E17] hover:bg-white/[0.04] border border-white/10 hover:border-amber-400 p-4 rounded-xl cursor-pointer transition shadow-md"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-800/40">低位题材扩散</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-800/40">低位题材扩散</span>
                   <span className="text-xs font-mono font-bold text-rose-400">2连板</span>
                 </div>
                 <h4 className="font-bold text-sm text-white">吉视传媒 / 博纳影业</h4>
@@ -777,7 +687,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 className="bg-[#0B0E17] hover:bg-white/[0.04] border border-white/10 hover:border-amber-400 p-4 rounded-xl cursor-pointer transition shadow-md"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-700/50">20cm 脉冲套利</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-700/50">20cm 脉冲套利</span>
                   <span className="text-xs font-mono font-bold text-rose-400">+20.00%</span>
                 </div>
                 <h4 className="font-bold text-sm text-white">金冠电气 / 首航新能</h4>
@@ -788,26 +698,19 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             </div>
           </section>
 
-          {/* 第6章：情绪周期 5 阶段状态机 */}
+          {/* 第6章：情绪周期 5 阶段演进 */}
           <section id="ch6" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-slate-400">06</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  情绪周期五阶段状态机
-                  <span className="text-xs font-mono font-normal text-amber-400 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800/40">REGIME: 05</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch6')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制</button>
-                <button onClick={() => askAiChapter('第6章 情绪周期状态机')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-slate-400">06</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                短线情绪周期五阶段演进
+              </h2>
             </div>
 
             <div className="bg-[#0B0E17] border border-white/10 p-5 rounded-xl space-y-4 shadow-xl">
-              <div className="text-xs font-mono text-slate-400 uppercase tracking-wider flex justify-between items-center">
-                <span>5-STAGE MARKET REGIME PIPELINE</span>
-                <span className="text-amber-400 font-bold">CURRENT: 退潮分歧 (置信度 85%)</span>
+              <div className="text-xs text-slate-400 tracking-wider flex justify-between items-center">
+                <span>五阶段情绪演进状态</span>
+                <span className="text-amber-400 font-bold">当前阶段：退潮分歧期</span>
               </div>
 
               <div className="grid grid-cols-5 gap-2 text-center text-xs font-mono">
@@ -835,7 +738,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
               </div>
 
               <div className="text-xs text-slate-300 leading-relaxed bg-black/30 p-3 rounded-lg border border-white/5 space-y-1">
-                <p><strong className="text-amber-400">状态机判定依据：</strong> 全天触板 80 只、封死 46 只、炸板率 42.50%，4325 只个股下跌但仅 18 只跌停。成交额由 1.9 万亿急剧缩减至 1.54 万亿。高位标的抱团但中位接力崩解，符合典型“退潮分歧期”特征。</p>
+                <p><strong className="text-amber-400">盘面周期判定逻辑：</strong> 全天触板 80 只、封死 46 只、炸板率 42.50%，4325 只个股下跌但仅 18 只跌停。成交额由 1.9 万亿急剧缩减至 1.54 万亿。高位标的抱团但中位接力崩解，符合典型“退潮分歧期”特征。</p>
                 <p><strong className="text-amber-400">资金行动指引：</strong> 严控追高冲动，仓位压制至 3 成以下。拒绝在分时冲高时接力中位股，耐心等待市场放量或出现全市场冰点出清信号。</p>
               </div>
             </div>
@@ -843,18 +746,11 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
           {/* 第8章：次日情景推演 A / B / C */}
           <section id="ch8" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-rose-400">08</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  次日推演：A / B / C 三大情景与应变底线
-                  <span className="text-xs font-mono font-normal text-rose-400 px-2 py-0.5 rounded bg-rose-950/60 border border-rose-800/40">SCENARIOS</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch8')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制</button>
-                <button onClick={() => askAiChapter('第8章 次日情景推演')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问推演应对</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-rose-400">08</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                次日推演：A / B / C 三大情景与应变底线
+              </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
@@ -892,18 +788,11 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
           {/* 第9章：波普尔假说证伪闭环 */}
           <section id="ch9" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-amber-400">09</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  波普尔式核心假说与证伪指标闭环
-                  <span className="text-xs font-mono font-normal text-amber-400 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800/40">FALSIFICATION LOOP</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch9')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制</button>
-                <button onClick={() => askAiChapter('第9章 波普尔证伪闭环')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问证伪标准</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-amber-400">09</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                波普尔式核心假说与证伪指标闭环
+              </h2>
             </div>
 
             <div className="space-y-3 pt-1">
@@ -925,18 +814,11 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
 
           {/* 第10章：09:25 开盘探针系统 */}
           <section id="ch10" className="space-y-4 scroll-mt-20 pb-16">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-black text-emerald-400">10</span>
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  09:25 集合竞价微观探针观测表
-                  <span className="text-xs font-mono font-normal text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40">PROBES</span>
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => copyChapterText('ch10')} className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition">📋 复制</button>
-                <button onClick={() => askAiChapter('第10章 09:25 竞价探针')} className="text-xs px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 border border-amber-700/40 transition">💬 追问开盘探针</button>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono font-black text-emerald-400">10</span>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                09:25 集合竞价微观探针观测表
+              </h2>
             </div>
 
             <div className="bg-[#0B0E17] border border-white/10 p-4 rounded-xl space-y-3 font-mono text-xs">
@@ -971,9 +853,9 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-400" />
-                <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">EVIDENCE INSPECTOR</span>
+                <span className="text-xs font-bold text-white tracking-wider">伴随式微观证据</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-500">LIVE SYNC</span>
+              <span className="text-[10px] text-slate-500">实时联动</span>
             </div>
 
             {/* 聚焦个股样本 */}
@@ -988,31 +870,31 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             </div>
 
             {/* 微观关键指标 */}
-            <div className="space-y-2 text-xs font-mono">
-              <span className="text-[11px] text-slate-400 font-bold block">MICROSTRUCTURE METRICS</span>
+            <div className="space-y-2 text-xs">
+              <span className="text-[11px] text-slate-400 font-bold block">微观结构关键指标</span>
               <div className="bg-[#0B0E17] border border-white/10 p-3 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-400">实际换手涨停家数:</span>
-                  <span className="text-rose-400 font-bold">39 家</span>
+                  <span className="text-rose-400 font-bold font-mono">39 家</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">一字板 / T字板:</span>
-                  <span className="text-rose-400 font-bold">7 家</span>
+                  <span className="text-rose-400 font-bold font-mono">7 家</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">大面股 (&gt; -10%):</span>
-                  <span className="text-emerald-400 font-bold">14 家</span>
+                  <span className="text-emerald-400 font-bold font-mono">14 家</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">昨日涨停今日收益率:</span>
-                  <span className="text-emerald-400 font-bold">-1.24%</span>
+                  <span className="text-emerald-400 font-bold font-mono">-1.24%</span>
                 </div>
               </div>
             </div>
 
             {/* 推荐追问 */}
             <div className="space-y-2 pt-2">
-              <span className="text-[11px] text-slate-400 font-mono font-bold block">FREQUENT QUESTIONS</span>
+              <span className="text-[11px] text-slate-400 font-bold block">高频追问建议</span>
               <div className="space-y-1.5 text-xs">
                 <button
                   onClick={() => { setAiDrawerOpen(true); handleSendChat('为什么缩量下跌不能视作洗盘结束？'); }}
@@ -1046,8 +928,8 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold text-xs">知</div>
               <div>
-                <h3 className="font-bold text-white text-sm">知见 · AI 认知推演助手</h3>
-                <p className="text-[10px] font-mono text-slate-400">DeepSeek-V3 引擎驱动 · 伴随式事实核查</p>
+                <h3 className="font-bold text-white text-sm">知见 · 智能问答助手</h3>
+                <p className="text-[10px] text-slate-400">依据今日盘面真实数据与推演逻辑解答</p>
               </div>
             </div>
             <button
@@ -1078,7 +960,7 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
                 <div className="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold text-xs shrink-0 animate-pulse">知</div>
                 <div className="bg-white/5 p-3 rounded-xl text-slate-400 border border-white/10 flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                  <span>DeepSeek 认知推演生成中...</span>
+                  <span>知见推演生成中...</span>
                 </div>
               </div>
             )}

@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知见 · 机构级A股全景认知复盘工作台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-terminal: #07090E;
+      --card-obsidian: #0B0E17;
+      --card-surface: #101420;
+      --border-hairline: rgba(255, 255, 255, 0.08);
+      --border-active: rgba(255, 255, 255, 0.18);
+      --red-up: #EF4444;
+      --green-down: #10B981;
+      --amber-audit: #F59E0B;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
+      background-color: var(--bg-terminal);
+      color: #E2E8F0;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    .font-serif-sc {
+      font-family: 'Noto Serif SC', serif;
+    }
+    /* 细线精密网格底纹 (Hairline Grid Pattern) */
+    .bg-grid-hairline {
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    /* 黑曜石机构级 Bento 卡片 */
+    .obsidian-card {
+      background: linear-gradient(165deg, rgba(16, 20, 32, 0.85) 0%, rgba(10, 13, 22, 0.95) 100%);
+      border: 1px solid var(--border-hairline);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .obsidian-card:hover {
+      border-color: var(--border-active);
+      box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+    /* 杂志金句引言 (Editorial Pull Quote) */
+    .editorial-quote {
+      position: relative;
+      padding: 1.25rem 1.5rem 1.25rem 2.25rem;
+      border-left: 3px solid var(--amber-audit);
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.06) 0%, transparent 100%);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+    .editorial-quote::before {
+      content: "“";
+      position: absolute;
+      left: 0.6rem;
+      top: 0.25rem;
+      font-size: 2.25rem;
+      line-height: 1;
+      color: rgba(245, 158, 11, 0.4);
+      font-family: serif;
+    }
+    /* 物理法庭印章 (Popperian Stamp) */
+    .audit-stamp-falsified {
+      border: 1.5px dashed #EF4444;
+      background: rgba(239, 68, 68, 0.1);
+      color: #F87171;
+      transform: rotate(-2deg);
+      letter-spacing: 0.12em;
+    }
+    .audit-stamp-confirmed {
+      border: 1.5px dashed #F59E0B;
+      background: rgba(245, 158, 11, 0.1);
+      color: #FBBF24;
+      transform: rotate(-1.5deg);
+      letter-spacing: 0.12em;
+    }
+    /* 自定义细窄滚动条 */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #07090E; }
+    ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+  </style>
+</head>
+<body class="h-screen overflow-hidden bg-grid-hairline flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
+
+  <!-- 顶部机构级研究报头 (Masthead) -->
+  <header class="shrink-0 z-40 bg-[#07090E]/95 backdrop-blur-md border-b border-white/10 px-6 py-3 flex items-center justify-between shadow-md">
+    <div class="flex items-center gap-4">
+      <!-- 品牌 Logo 标识 -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center font-black text-sm text-black shadow-md shadow-amber-900/30">
+          知
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-base tracking-widest text-white">知见</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold tracking-wider">
+              认知推演 v4.2
+            </span>
+          </div>
+          <p class="text-[10px] text-slate-400">A股短线微观博弈 · 假说证伪闭环</p>
+        </div>
+      </div>
+
+      <div class="h-5 w-[1px] bg-white/10 hidden md:block"></div>
+
+      <!-- 时间戳与周期定位 -->
+      <div class="hidden lg:flex items-center gap-3 text-xs text-slate-400">
+        <span class="flex items-center gap-1.5 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span>2026年10月12日 · 盘后复盘</span>
+        </span>
+        <span class="text-slate-600">|</span>
+        <span class="text-amber-400/90 font-medium bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40">
+          市场周期：退潮期 · 冰点分歧
+        </span>
+      </div>
+    </div>
+
+    <!-- 顶部唯一操作工具链：一处搞定全文复制与AI交互 -->
+    <div class="flex items-center gap-3">
+      <!-- 唯一的“复制”入口：一键复制所有章节 -->
+      <button 
+        onclick="copyFullReviewMarkdown()"
+        class="text-xs px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 font-medium border border-white/10 flex items-center gap-2 transition active:scale-95 shadow-sm"
+        title="一键复制全部 11 个章节的完整复盘 Markdown 正文"
+      >
+        <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+        <span>一键复制全文 (11章复盘)</span>
+      </button>
+
+      <!-- 伴随证据栏联动切换 -->
+      <button 
+        onclick="toggleEvidenceDrawer()"
+        id="evidenceToggleBtn"
+        class="text-xs px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
+      >
+        <span>伴随证据栏:</span>
+        <span class="text-amber-400 font-semibold" id="evidenceStateLabel">联动开启</span>
+      </button>
+
+      <!-- 唯一的“追问”入口：向 AI 深入提问 -->
+      <button 
+        onclick="toggleAiDrawer()"
+        class="text-xs px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-bold flex items-center gap-1.5 transition active:scale-95 shadow-md shadow-amber-900/40"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+        <span>向 AI 深入提问</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 复制反馈 Toast -->
+  <div id="copyToast" class="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-[#0F1422] border border-amber-500/40 text-amber-100 px-5 py-2.5 rounded-xl text-xs shadow-2xl backdrop-blur-xl opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-3">
+    <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</div>
+    <span id="toastMsg" class="font-medium">已复制所有章节全景复盘研报 (9700字) 至剪贴板</span>
+  </div>
+
+  <!-- 研报工作台主体 -->
+  <div class="flex-1 flex max-w-[1780px] w-full mx-auto relative overflow-hidden">
+    
+    <!-- 左侧系统主功能区导航栏 (完全物理固定，不随二级/三级内容滚动) -->
+    <aside class="w-64 hidden md:flex flex-col border-r border-white/10 bg-[#07090E]/95 p-4 shrink-0 h-full overflow-y-auto no-scrollbar select-none z-30 justify-between">
+      <nav class="space-y-1.5 text-xs font-medium">
+        <!-- 01 驾驶舱 (总览与驾驶舱合并统一入口) -->
+        <a href="#cockpit" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition group">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+            <span>驾驶舱</span>
+          </div>
+          <span class="text-[10px] text-slate-500">全景中控</span>
+        </a>
+
+        <!-- 02 简报 (08:30 盘前决策预案) -->
+        <a href="#briefing" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition group">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+            <span>简报</span>
+          </div>
+          <span class="text-[10px] text-slate-500 font-mono">08:30 盘前</span>
+        </a>
+
+        <!-- 03 竞价 (09:25 探针刚性裁决) -->
+        <a href="#auction" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition group">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>竞价</span>
+          </div>
+          <span class="text-[10px] text-slate-500 font-mono">09:25 探针</span>
+        </a>
+
+        <!-- 04 盯盘 (09:30-15:00 盘中动态异动) -->
+        <a href="#monitor" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition group">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <span>盯盘</span>
+          </div>
+          <span class="text-[10px] text-rose-400 font-mono">盘中实时</span>
+        </a>
+
+        <!-- 05 复盘 (当前选中激活) -->
+        <a href="#review" class="flex items-center justify-between px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-600/25 via-amber-600/10 to-transparent border-l-2 border-amber-400 text-white font-semibold shadow-sm">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="text-amber-200">复盘</span>
+          </div>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold">11章已就绪</span>
+        </a>
+
+        <!-- 06 交易 (实战台账与知行合一诊断) -->
+        <a href="#trading" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition group">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            <span>交易</span>
+          </div>
+          <span class="text-[10px] text-slate-500">实战诊断</span>
+        </a>
+
+        <!-- 07 策略 (选股模型与策略中心) -->
+        <a href="#strategy" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition group">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"/></svg>
+            <span>策略</span>
+          </div>
+          <span class="text-[10px] text-slate-500">选股模型</span>
+        </a>
+
+        <!-- 08 模拟 (沙盒回测演练) -->
+        <a href="#simulation" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition group">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>模拟</span>
+          </div>
+          <span class="text-[10px] text-slate-500">沙盒回测</span>
+        </a>
+
+        <!-- 09 系统状态 (工程监控与数据审计) -->
+        <a href="#settings" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition group">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span>系统状态</span>
+          </div>
+          <span class="text-[10px] text-purple-400 font-mono">工程审计</span>
+        </a>
+      </nav>
+
+      <!-- 底部安全提示 -->
+      <div class="mt-auto pt-4 border-t border-white/5 text-[11px] text-slate-400">
+        <div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/20 text-emerald-300">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>仅客观分析 · 未接入委托</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 中间：深度研报阅读与 Bento 大屏 (唯一随鼠标滚动的正文区域) -->
+    <main id="mainArticle" class="flex-1 h-full overflow-y-auto p-6 lg:p-10 space-y-8 max-w-5xl mx-auto scroll-smooth">
+      
+      <!-- 11 章快速锚点索引横栏 -->
+      <nav class="flex items-center gap-1.5 overflow-x-auto py-2.5 px-3.5 rounded-xl bg-[#0B0E17] border border-white/10 text-xs no-scrollbar shadow-lg">
+        <span class="text-slate-500 font-mono text-[11px] shrink-0 mr-1 font-semibold">11章直达:</span>
+        <a href="#ch0" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 shrink-0 transition flex items-center gap-1">
+          <span>00 假说审判</span>
+        </a>
+        <a href="#ch1" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition flex items-center gap-1">
+          <span>01 宏观缩量</span>
+          <span class="text-[10px] text-emerald-400 font-mono font-bold">-19%</span>
+        </a>
+        <a href="#ch2" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition flex items-center gap-1">
+          <span>02 连板天梯</span>
+          <span class="text-[10px] text-rose-400 font-mono font-bold">46/18</span>
+        </a>
+        <a href="#ch3" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">03 板块图谱</a>
+        <a href="#ch4" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">04 资金流向</a>
+        <a href="#ch5" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">05 机制样本</a>
+        <a href="#ch6" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">06 情绪周期</a>
+        <a href="#ch7" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">07 博弈心理</a>
+        <a href="#ch8" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-rose-300 shrink-0 transition">08 次日推演</a>
+        <a href="#ch9" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 shrink-0 transition">09 证伪闭环</a>
+        <a href="#ch10" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-300 shrink-0 transition">10 开盘探针</a>
+      </nav>
+
+      <!-- 封面 Bento 态势大矩阵 -->
+      <section class="space-y-4 pb-8 border-b border-white/10">
+        
+        <!-- 题头元信息 -->
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span class="text-slate-300 font-semibold">2026年10月12日 盘后全景深度复盘</span>
+          </div>
+          <div class="text-slate-500">
+            沪深两市全样本统计口径
+          </div>
+        </div>
+
+        <h1 class="text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug font-serif-sc">
+          2026年10月12日 A股全景复盘：微观博弈剪刀差、流动性再定价与波普尔假说证伪
+        </h1>
+
+        <!-- 不对称 12 列高级金融 Bento 矩阵 -->
+        <div class="grid grid-cols-12 gap-3.5 pt-2">
+          
+          <!-- 左侧 7 列：三大指数分化力场与缩量三力模型 -->
+          <div class="col-span-12 lg:col-span-7 obsidian-card p-5 rounded-xl flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] text-slate-400">三大指数微观博弈剪刀差</span>
+                <span class="text-[10px] font-mono text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/40">
+                  剪刀差裂口: 2.18%
+                </span>
+              </div>
+              <div class="grid grid-cols-3 gap-3 pt-1">
+                <!-- 上证指数 -->
+                <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                  <div class="text-[11px] text-slate-400">上证指数 (大盘)</div>
+                  <div class="text-xl font-black font-mono text-white mt-1">3797.24</div>
+                  <!-- A股绿跌 -->
+                  <div class="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <span>-0.43%</span>
+                    <span class="text-[9px] text-slate-500 font-normal">(-16.4)</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-1">银行托底 · 假抗跌</div>
+                </div>
+                <!-- 深证成指 -->
+                <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                  <div class="text-[11px] text-slate-400">深证成指</div>
+                  <div class="text-xl font-black font-mono text-white mt-1">12384.87</div>
+                  <!-- A股绿跌 -->
+                  <div class="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <span>-2.03%</span>
+                    <span class="text-[9px] text-slate-500 font-normal">(-256.6)</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-1">权重题材普遍承压</div>
+                </div>
+                <!-- 创业板指 -->
+                <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                  <div class="text-[11px] text-slate-400">创业板指 (成长)</div>
+                  <div class="text-xl font-black font-mono text-white mt-1">2963.82</div>
+                  <!-- A股绿跌 -->
+                  <div class="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <span>-2.61%</span>
+                    <span class="text-[9px] text-slate-500 font-normal">(-79.5)</span>
+                  </div>
+                  <div class="text-[10px] text-emerald-400/80 mt-1">科技硬件估值杀</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 成交额缩量分析栏 -->
+            <div class="border-t border-white/5 pt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <span class="text-[10px] text-slate-500 block">两市真实总成交</span>
+                <div class="flex items-baseline gap-1.5 mt-0.5">
+                  <span class="text-2xl font-black font-mono text-white">1.54</span>
+                  <span class="text-xs text-slate-400 font-medium">万亿元</span>
+                  <!-- A股绿跌 -->
+                  <span class="text-xs font-mono text-emerald-400 font-bold ml-2">
+                    较上日 -3627 亿 (-19.0%)
+                  </span>
+                </div>
+              </div>
+              <div class="text-[11px] text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                <span class="text-amber-400 font-bold">三力拆解:</span> 买盘收缩 45% · 交易降温 35% · 抛压未尽 20%
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧 5 列：微观多空宽度与状态机 -->
+          <div class="col-span-12 lg:col-span-5 flex flex-col gap-3.5">
+            
+            <!-- 多空极性对决卡 -->
+            <div class="obsidian-card p-4 rounded-xl flex-1 flex flex-col justify-between">
+              <div class="flex items-center justify-between text-[11px] text-slate-400">
+                <span>多空广度极性对决</span>
+                <span class="text-slate-500 font-mono">上涨比例: 21.3%</span>
+              </div>
+              
+              <!-- 极性对比双色柱 (红涨绿跌) -->
+              <div class="my-2 space-y-1.5">
+                <div class="flex justify-between items-baseline font-mono text-xs font-bold">
+                  <!-- A股红涨 -->
+                  <span class="text-rose-400">1167 涨 (21%)</span>
+                  <!-- A股绿跌 -->
+                  <span class="text-emerald-400">4325 跌 (79%)</span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden flex">
+                  <!-- A股红涨 -->
+                  <div class="h-full bg-rose-500" style="width: 21.3%"></div>
+                  <!-- A股绿跌 -->
+                  <div class="h-full bg-emerald-500" style="width: 78.7%"></div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
+                <div class="bg-black/30 p-2 rounded border border-white/5">
+                  <div class="text-[10px] text-slate-400">涨停 / 炸板率</div>
+                  <!-- A股红涨 -->
+                  <div class="text-sm font-bold text-rose-400 mt-0.5">
+                    46 家 <span class="text-[10px] text-amber-400 font-normal">(炸板 42.5%)</span>
+                  </div>
+                </div>
+                <div class="bg-black/30 p-2 rounded border border-white/5">
+                  <div class="text-[10px] text-slate-400">主力净流出</div>
+                  <!-- A股绿跌 -->
+                  <div class="text-sm font-bold text-emerald-400 mt-0.5">-263.38 亿元</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 情绪状态机与波普尔警报 -->
+            <div class="obsidian-card p-4 rounded-xl border-l-4 border-l-amber-500 bg-amber-950/10">
+              <div class="flex items-center justify-between text-xs mb-1">
+                <span class="font-bold text-amber-400 tracking-wider">波普尔假说警戒</span>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50">
+                  退潮期防守
+                </span>
+              </div>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                <strong class="text-white">缩量非洗盘结束，谨防抽血陷阱：</strong> 
+                指数在银行护盘下拉升，但个股跌幅持续扩大。严控追高冲动，耐心等待右侧放量信号。
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- 00 昨日假说审判与认知校准 (纯净标题，无英文) -->
+      <section id="ch0" class="space-y-4 scroll-mt-20">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-amber-400">00</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            昨日假说判决书与认知校准
+          </h2>
+        </div>
+
+        <div class="editorial-quote text-slate-300">
+          “没有证伪机制的复盘，不过是事后诸葛亮的叙事狂欢。知见系统的第一铁律：先审判昨天的预测偏差，再构建今天的交易推断。”
+        </div>
+
+        <!-- 假说审判双联卡 (H1 证伪 vs H2 证实) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <!-- H1 假说判决卡 -->
+          <div class="obsidian-card p-5 rounded-xl relative overflow-hidden border-rose-900/40">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <span class="text-xs font-mono font-bold text-rose-400 tracking-wider">假说 01 · 科技反包</span>
+                <h3 class="text-sm font-bold text-white mt-0.5">科技硬件板块（光模块/算力）分歧后有望反包主升</h3>
+              </div>
+              <div class="audit-stamp-falsified px-2.5 py-1 text-[11px] font-black rounded">
+                方向性证伪
+              </div>
+            </div>
+            
+            <div class="space-y-2 text-xs leading-relaxed">
+              <div class="bg-black/30 p-2.5 rounded-lg border border-white/5 font-mono text-[11px]">
+                <strong class="text-slate-300">[物理事实]：</strong> 通信设备重挫 <span class="text-emerald-400 font-bold">-4.49%</span> (净流出 55.7亿)，电子大跌 <span class="text-emerald-400 font-bold">-3.20%</span> (净流出 81.7亿)。两板块合计流出近 137 亿元，断崖式破位。
+              </div>
+              <p class="text-slate-400 pt-1">
+                <strong class="text-amber-400">[认知校准]：</strong> 犯了“将愿望当假说”的错误。在两市缩量 19% 的硬约束下，高估值科技板块缺乏承接资金，分歧本质是机构出逃而非洗盘蓄力。
+              </p>
+            </div>
+          </div>
+
+          <!-- H2 假说判决卡 -->
+          <div class="obsidian-card p-5 rounded-xl relative overflow-hidden border-amber-900/40">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <span class="text-xs font-mono font-bold text-amber-400 tracking-wider">假说 02 · 权重防守</span>
+                <h3 class="text-sm font-bold text-white mt-0.5">银行拉升多为被动防守，难以带动成长题材</h3>
+              </div>
+              <div class="audit-stamp-confirmed px-2.5 py-1 text-[11px] font-black rounded">
+                假说证实
+              </div>
+            </div>
+            
+            <div class="space-y-2 text-xs leading-relaxed">
+              <div class="bg-black/30 p-2.5 rounded-lg border border-white/5 font-mono text-[11px]">
+                <strong class="text-slate-300">[物理事实]：</strong> 工商银行、中信银行盘中续创历史新高，银行主力净流入 <span class="text-rose-400 font-bold">+8.72 亿</span>；同日创业板暴跌 <span class="text-emerald-400 font-bold">-2.61%</span>，极度脱节。
+              </div>
+              <p class="text-slate-400 pt-1">
+                <strong class="text-amber-400">[认知校准]：</strong> 权重的“创新高”并非单纯被动护盘，而是险资社保等长钱在低估值高股息资产中主动避险的明确投票。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 01 宏观流动性缩量三层解构 -->
+      <section id="ch1" class="space-y-4 scroll-mt-20">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-slate-400">01</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            宏观流动性缩量三层解构
+            <span class="text-xs font-mono font-normal text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40 ml-2">-19.0%</span>
+          </h2>
+        </div>
+
+        <div class="editorial-quote text-slate-300">
+          今天的行情绝不能简单定性为一次普通的指数调整。其核心本质是：<strong class="text-amber-300 font-semibold">“低估值防御资产与高久期弹性成长资产的贴现率再定价”</strong>。在全市场成交额断崖收缩 3627 亿元的流动性挤压下，资金没有合力做多，而是在少数方向寻找防守庇护。
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
+          <div class="obsidian-card border-l-4 border-l-emerald-500 p-4 rounded-xl">
+            <div class="font-bold text-sm text-emerald-300 mb-1">
+              1. 买盘罢工 (核心主因)
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              全市场 4325 只下跌（占比 79%），但跌停仅 18 家。这证明并非大面积恐慌踩踏，而是成长股的买方资金突然离场，个股在极薄的流动性下自然下坠。
+            </p>
+          </div>
+
+          <div class="obsidian-card border-l-4 border-l-amber-500 p-4 rounded-xl">
+            <div class="font-bold text-sm text-amber-300 mb-1">
+              2. 交易降温 (炸板高企)
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              日内真实炸板率高达 <strong>42.50%</strong>。全天触碰涨停 80 家但收盘封死仅 46 家，反映短线活跃资金虽有试错动作，但极度缺乏后续接力买盘。
+            </p>
+          </div>
+
+          <div class="obsidian-card border-l-4 border-l-rose-500 p-4 rounded-xl">
+            <div class="font-bold text-sm text-rose-300 mb-1">
+              3. 抛压未尽 (防御陷阱)
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              上证仅跌 0.43% 营造了“指数抗跌”的虚幻安全感。上证抗跌与个股大面积亏钱的巨大剪刀差，是当前最容易引发诱多加仓的致命陷阱。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 02 微观宽度与天梯图谱 (纯净标题) -->
+      <section id="ch2" class="space-y-4 scroll-mt-20">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-slate-400">02</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            微观宽度与连板天际线天梯
+          </h2>
+        </div>
+
+        <p class="text-xs text-slate-400 leading-relaxed">
+          连板生态呈现典型的“高标抱团孤独冲顶、腰部接力大面积崩塌”断层结构：
+        </p>
+
+        <!-- 天际线连板梯队阶梯展示卡 -->
+        <div class="space-y-2.5 pt-1">
+          <!-- 10 连板 -->
+          <div class="obsidian-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-rose-500">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-10 rounded-lg bg-rose-950/60 border border-rose-800/40 flex flex-col items-center justify-center font-mono font-black text-rose-400">
+                <span class="text-xs">10板</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-white text-sm">新华传媒</span>
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">600825</span>
+                  <span class="text-[10px] text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded">空间总标杆 · 资产重组预期</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-1">独立于大盘涨跌的极致情绪溢价，但已进入缩量加速博弈区，高位流动性风险极大。</div>
+              </div>
+            </div>
+            <div class="text-right font-mono hidden md:block">
+              <!-- A股红涨 -->
+              <div class="text-sm font-bold text-rose-400">+10.02%</div>
+              <div class="text-[10px] text-slate-500">封单率: 极高</div>
+            </div>
+          </div>
+
+          <!-- 6 连板 -->
+          <div class="obsidian-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-amber-500">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-10 rounded-lg bg-amber-950/60 border border-amber-800/40 flex flex-col items-center justify-center font-mono font-black text-amber-400">
+                <span class="text-xs">6板</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-white text-sm">九阳股份</span>
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">002242</span>
+                  <span class="text-[10px] text-rose-400 bg-rose-950/40 px-1.5 py-0.5 rounded">盘中炸板 · 分歧预警</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-1">5进6早盘大幅炸板放量，尾盘勉强回封，提示中位接力买盘衰竭，次日计提风险高。</div>
+              </div>
+            </div>
+            <div class="text-right font-mono hidden md:block">
+              <!-- A股红涨 -->
+              <div class="text-sm font-bold text-amber-400">+9.98%</div>
+              <div class="text-[10px] text-rose-400">炸板破位预警</div>
+            </div>
+          </div>
+
+          <!-- 3 连板 -->
+          <div class="obsidian-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-slate-600">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-10 rounded-lg bg-slate-900 border border-slate-700 flex flex-col items-center justify-center font-mono font-black text-slate-300">
+                <span class="text-xs">3板</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-white text-sm">华北制药</span>
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">600812</span>
+                  <span class="text-[10px] text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">医药防御先锋</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-1">创新药概念，资金在防御方向寻找低位连板弹性，尚未形成板块级别板块效应。</div>
+              </div>
+            </div>
+            <div class="text-right font-mono hidden md:block">
+              <!-- A股红涨 -->
+              <div class="text-sm font-bold text-rose-400">+10.05%</div>
+              <div class="text-[10px] text-slate-500">弱分歧转强</div>
+            </div>
+          </div>
+
+          <!-- 2 连板 -->
+          <div class="obsidian-card p-4 rounded-xl flex items-center justify-between border-l-4 border-l-slate-700">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-10 rounded-lg bg-slate-900 border border-slate-800 flex flex-col items-center justify-center font-mono font-black text-slate-400">
+                <span class="text-xs">2板</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-white text-sm">吉视传媒 / 博纳影业</span>
+                  <span class="text-[10px] text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded">传媒影视扩散</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-1">短线资金向低位传媒、短剧及 AI 视频题材做广度扩散，为日内最活跃题材。</div>
+              </div>
+            </div>
+            <div class="text-right font-mono hidden md:block">
+              <!-- A股红涨 -->
+              <div class="text-sm font-bold text-rose-400">+10.01%</div>
+              <div class="text-[10px] text-slate-500">梯队扩散</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 03 板块强弱图谱与归因分析 (纯净标题) -->
+      <section id="ch3" class="space-y-4 scroll-mt-20">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-slate-400">03</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            板块强弱图谱与归因分析
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- 强势主攻方向 (A股红涨) -->
+          <div class="obsidian-card p-5 rounded-xl border-l-4 border-l-rose-500">
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-bold text-sm text-rose-400 flex items-center gap-2">
+                <span>强势第一梯队 (防守与题材主攻)</span>
+              </span>
+              <span class="text-[10px] text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded">净流入前列</span>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                <div class="flex justify-between items-baseline font-mono">
+                  <span class="text-white font-bold">银行 (权重防守)</span>
+                  <span class="text-rose-400">+8.72 亿元</span>
+                </div>
+                <p class="text-slate-400 text-[11px] mt-1">
+                  工商银行、中信银行创历史新高。险资、大资金将高股息资产作为避险港湾，但对市场整体流动性产生“抽血效应”。
+                </p>
+              </div>
+
+              <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                <div class="flex justify-between items-baseline font-mono">
+                  <span class="text-white font-bold">传媒 / 影视 / AI视频</span>
+                  <span class="text-rose-400">+23.65 亿元</span>
+                </div>
+                <p class="text-slate-400 text-[11px] mt-1">
+                  行业涨幅约 1.47%，博纳影业、吉视传媒连板，新华传媒10板提供高度标杆，资金在细分消费与AI应用端做结构性博弈。
+                </p>
+              </div>
+
+              <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                <div class="flex justify-between items-baseline font-mono">
+                  <span class="text-white font-bold">风电 / 电力设备</span>
+                  <span class="text-rose-400">+6.39 亿元</span>
+                </div>
+                <p class="text-slate-400 text-[11px] mt-1">
+                  天顺风能涨停，金冠电气录得 20% 涨幅，新能源内部呈现风电储能强、光伏锂电弱的结构化分化。
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 深度承压方向 (A股绿跌) -->
+          <div class="obsidian-card p-5 rounded-xl border-l-4 border-l-emerald-500">
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-bold text-sm text-emerald-400 flex items-center gap-2">
+                <span>承压出逃方向 (估值与流动性双杀)</span>
+              </span>
+              <span class="text-[10px] text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded">重灾区</span>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                <div class="flex justify-between items-baseline font-mono">
+                  <span class="text-white font-bold">通信设备 (光模块/算力)</span>
+                  <span class="text-emerald-400">-4.49% (-55.69 亿)</span>
+                </div>
+                <p class="text-slate-400 text-[11px] mt-1">
+                  中际旭创、新易盛等核心品种破位调整，机构资金单边出逃，缺乏左侧买盘承接。
+                </p>
+              </div>
+
+              <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                <div class="flex justify-between items-baseline font-mono">
+                  <span class="text-white font-bold">电子 (半导体/PCB/MLCC)</span>
+                  <span class="text-emerald-400">-3.20% (-81.68 亿)</span>
+                </div>
+                <p class="text-slate-400 text-[11px] mt-1">
+                  全天主力资金净流出最大的行业。前期获利筹码在缩量背景下集中兑现，引发负反馈链条。
+                </p>
+              </div>
+
+              <div class="bg-black/30 p-3 rounded-lg border border-white/5">
+                <div class="flex justify-between items-baseline font-mono">
+                  <span class="text-white font-bold">软件开发 / IT服务</span>
+                  <span class="text-emerald-400">-3.85% (-32.10 亿)</span>
+                </div>
+                <p class="text-slate-400 text-[11px] mt-1">
+                  泛科技板块全线熄火，高估值成长股在贴现率上升与成交萎缩的双重挤压下承受剧烈波动。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 05 六类机制样本个股深度剖析 (纯净标题) -->
+      <section id="ch5" class="space-y-4 scroll-mt-20">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-amber-400">05</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            六类机制微观样本切片
+          </h2>
+        </div>
+
+        <p class="text-xs text-slate-400 leading-relaxed">
+          从微观流动性机制中提炼出 6 个具有极端代表性的交易机制切片。点击卡片可联动将右侧证据链聚焦至对应样本：
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+          <!-- 样本 1 -->
+          <div onclick="focusStockEvidence('新华传媒')" class="obsidian-card p-4 rounded-xl cursor-pointer hover:border-amber-400/50 transition">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <span class="text-[10px] text-rose-400 font-bold">机制 1 · 高标抱团</span>
+                <h4 class="font-bold text-white text-sm">新华传媒 (600825)</h4>
+              </div>
+              <span class="text-xs font-mono font-black text-rose-400">+10.02%</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              10 连板空间龙。重组预期驱动，极度缩量加速，脱离板块基本面，纯粹的存量高风险筹码博弈标杆。
+            </p>
+          </div>
+
+          <!-- 样本 2 -->
+          <div onclick="focusStockEvidence('九阳股份')" class="obsidian-card p-4 rounded-xl cursor-pointer hover:border-amber-400/50 transition">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <span class="text-[10px] text-amber-400 font-bold">机制 2 · 弱势接力炸板</span>
+                <h4 class="font-bold text-white text-sm">九阳股份 (002242)</h4>
+              </div>
+              <span class="text-xs font-mono font-black text-amber-400">+9.98%</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              5进6早盘大幅炸板放巨量，尾盘勉强回封。体现中位连板接力资金枯竭，极易成为次日踩踏诱因。
+            </p>
+          </div>
+
+          <!-- 样本 3 -->
+          <div onclick="focusStockEvidence('工商银行')" class="obsidian-card p-4 rounded-xl cursor-pointer hover:border-amber-400/50 transition">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <span class="text-[10px] text-slate-300 font-bold">机制 3 · 防守型权重</span>
+                <h4 class="font-bold text-white text-sm">工商银行 (601398)</h4>
+              </div>
+              <span class="text-xs font-mono font-black text-rose-400">+1.25%</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              股价续创历史新高。险资配置型买盘持续推升，但造成大盘指数失真，加剧成长题材失血。
+            </p>
+          </div>
+
+          <!-- 样本 4 -->
+          <div onclick="focusStockEvidence('中际旭创')" class="obsidian-card p-4 rounded-xl cursor-pointer hover:border-amber-400/50 transition">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <!-- A股绿跌 -->
+                <span class="text-[10px] text-emerald-400 font-bold">机制 4 · 估值流动性双杀</span>
+                <h4 class="font-bold text-white text-sm">中际旭创 (300308)</h4>
+              </div>
+              <!-- A股绿跌 -->
+              <span class="text-xs font-mono font-black text-emerald-400">-5.82%</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              光模块算力中军，单日净流出超 10 亿。缩量周期下大机构主动降仓，呈现典型的单边下行破位形态。
+            </p>
+          </div>
+
+          <!-- 样本 5 -->
+          <div onclick="focusStockEvidence('天顺风能')" class="obsidian-card p-4 rounded-xl cursor-pointer hover:border-amber-400/50 transition">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <span class="text-[10px] text-rose-400 font-bold">机制 5 · 超跌脉冲轮动</span>
+                <h4 class="font-bold text-white text-sm">天顺风能 (002531)</h4>
+              </div>
+              <span class="text-xs font-mono font-black text-rose-400">+10.01%</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              风电新能源首板涨停。前期超跌低位反弹，资金在避开高位科技股后寻找估值洼地的防御性尝试。
+            </p>
+          </div>
+
+          <!-- 样本 6 -->
+          <div onclick="focusStockEvidence('华北制药')" class="obsidian-card p-4 rounded-xl cursor-pointer hover:border-amber-400/50 transition">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <span class="text-[10px] text-slate-300 font-bold">机制 6 · 独立题材孤岛</span>
+                <h4 class="font-bold text-white text-sm">华北制药 (600812)</h4>
+              </div>
+              <span class="text-xs font-mono font-black text-rose-400">+10.05%</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              3 连板创新药标的。逆市晋级，但所属医药板块并未联动大涨，属于典型的弱市“孤岛防御”结构。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 06 情绪周期状态机定位 (纯净标题) -->
+      <section id="ch6" class="space-y-4 scroll-mt-20">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-slate-400">06</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            情绪周期五阶段状态机
+          </h2>
+        </div>
+
+        <div class="obsidian-card p-5 rounded-xl space-y-4">
+          <div class="text-xs text-slate-400 tracking-wider flex justify-between items-center">
+            <span>五阶段情绪推进状态</span>
+            <span class="text-amber-400 font-bold">当前阶段：退潮分歧期</span>
+          </div>
+
+          <!-- 5 阶段状态指示条 -->
+          <div class="grid grid-cols-5 gap-2 text-center text-xs font-mono">
+            <div class="p-2.5 rounded bg-black/40 border border-white/5 text-slate-500">
+              <span class="block font-bold">1. 冰点出清</span>
+              <span class="text-[10px] text-slate-600">空头衰竭</span>
+            </div>
+            <div class="p-2.5 rounded bg-black/40 border border-white/5 text-slate-500">
+              <span class="block font-bold">2. 弱势修复</span>
+              <span class="text-[10px] text-slate-600">低位试错</span>
+            </div>
+            <div class="p-2.5 rounded bg-black/40 border border-white/5 text-slate-500">
+              <span class="block font-bold">3. 主线共振</span>
+              <span class="text-[10px] text-slate-600">量价齐升</span>
+            </div>
+            <div class="p-2.5 rounded bg-black/40 border border-white/5 text-slate-500">
+              <span class="block font-bold">4. 高潮过热</span>
+              <span class="text-[10px] text-slate-600">加速逼空</span>
+            </div>
+            <div class="p-2.5 rounded bg-amber-950/50 border border-amber-500/60 text-amber-300 font-bold relative shadow-lg shadow-amber-950/50">
+              <span class="w-2 h-2 rounded-full bg-amber-400 absolute top-1.5 right-1.5 animate-ping"></span>
+              <span class="block">5. 退潮分歧 ★</span>
+              <span class="text-[10px] text-amber-400/80">流动性抽血</span>
+            </div>
+          </div>
+
+          <div class="text-xs text-slate-300 leading-relaxed bg-black/30 p-3 rounded-lg border border-white/5 space-y-1">
+            <p><strong class="text-amber-400">盘面周期判定逻辑：</strong> 全天触板 80 只、封死 46 只、炸板率 42.50%，4325 只个股下跌但仅 18 只跌停。成交额由 1.9 万亿急剧缩减至 1.54 万亿。高位标的抱团但中位接力崩解，符合典型“退潮分歧期”特征。</p>
+            <p><strong class="text-amber-400">资金行动指引：</strong> 严控追高冲动，仓位压制至 3 成以下。拒绝在分时冲高时接力中位股，耐心等待市场放量或出现全市场冰点出清信号。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 08 次日情景推演与应变方案 (纯净标题) -->
+      <section id="ch8" class="space-y-4 scroll-mt-20">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-rose-400">08</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            次日推演：A / B / C 三大情景与应变底线
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
+          <!-- 情景 A -->
+          <div class="obsidian-card p-4 rounded-xl border-t-2 border-t-emerald-500">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-sm text-emerald-400">情景 A：惯性下探·弱修复</span>
+              <span class="text-[10px] text-slate-400">概率 55%</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              早盘受科技股杀跌惯性低开，随后在 3760-3780 获得买盘弱承接。成长股反弹但成交量依然不足 1.6 万亿。策略：逢高减仓，切忌追高。
+            </p>
+          </div>
+
+          <!-- 情景 B -->
+          <div class="obsidian-card p-4 rounded-xl border-t-2 border-t-rose-500">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-sm text-rose-400">情景 B：放量加速破位杀跌</span>
+              <span class="text-[10px] text-slate-400">概率 30%</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              银行补跌，高位抱团标的（如九阳、新华）大幅跌停补跌，带崩全市场。策略：空仓或极低仓位观望，等待恐慌盘彻底涌出。
+            </p>
+          </div>
+
+          <!-- 情景 C -->
+          <div class="obsidian-card p-4 rounded-xl border-t-2 border-t-amber-500">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-sm text-amber-400">情景 C：增量共振超预期反包</span>
+              <span class="text-[10px] text-slate-400">概率 15%</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              两市早盘放量并迅速重回 1.7 万亿以上，新主线带动全市场 3500+ 个股上涨。策略：右侧跟随新主线首板或最强中军。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 09 波普尔式假说证伪闭环 (纯净标题) -->
+      <section id="ch9" class="space-y-4 scroll-mt-20">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-amber-400">09</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            波普尔式核心假说与证伪指标闭环
+          </h2>
+        </div>
+
+        <div class="space-y-3 pt-1">
+          <div class="obsidian-card p-4 rounded-xl border-l-4 border-l-amber-500">
+            <div class="font-bold text-white text-sm mb-1">假说 H1：传媒/AI视频具有板块级主线持续性</div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              <strong class="text-amber-400">刚性证伪条件：</strong> 次日传媒行业资金净流出超过 15 亿元，或者新华传媒开盘大幅低开（低于 -3%）且未能迅速翻红。一旦触发，该做多假说即被证伪，严禁接力。
+            </p>
+          </div>
+
+          <div class="obsidian-card p-4 rounded-xl border-l-4 border-l-emerald-500">
+            <div class="font-bold text-white text-sm mb-1">假说 H2：科技成长股的抛压已在今日集中出清</div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              <strong class="text-amber-400">刚性证伪条件：</strong> 次日早盘 30 分钟内通信与电子板块继续净流出超过 30 亿元，或者创业板权重股创日内新低。一旦触发，判定为持续阴跌出清，禁止抄底。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10 次日 09:25 开盘探针系统 (纯净标题) -->
+      <section id="ch10" class="space-y-4 scroll-mt-20 pb-16">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono font-black text-emerald-400">10</span>
+          <h2 class="text-xl font-black text-white tracking-tight font-serif-sc">
+            09:25 集合竞价微观探针观测表
+          </h2>
+        </div>
+
+        <div class="obsidian-card p-4 rounded-xl space-y-3 font-mono text-xs">
+          <div class="flex items-center justify-between border-b border-white/5 pb-2 text-slate-400">
+            <span>观测靶点</span>
+            <span>临界观测值</span>
+            <span>触发结论</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-white/5 pb-2">
+            <span class="text-white">两市 09:25 竞价总成交金额</span>
+            <span class="text-amber-400">&lt; 140 亿元</span>
+            <span class="text-emerald-400">流动性严重匮乏，防御为先</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-white/5 pb-2">
+            <span class="text-white">空间高标新华传媒竞价溢价</span>
+            <span class="text-rose-400">&gt; +5% 且封单 &gt; 50万手</span>
+            <span class="text-rose-400">情绪高标锁仓良好</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-white">中际旭创竞价承接情况</span>
+            <span class="text-emerald-400">低开 &gt; -2% 且卖盘压单巨大</span>
+            <span class="text-emerald-400">大科技抛压未尽，禁止抢反弹</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 右侧：伴随式证据链与微观微表 (纯中文栏目标签，物理固定) -->
+    <aside id="evidenceDrawer" class="w-80 hidden lg:flex flex-col border-l border-white/5 bg-[#07090E]/90 shrink-0 h-full overflow-y-auto p-4 space-y-4 z-30">
+      <div class="flex items-center justify-between border-b border-white/5 pb-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span class="text-xs font-bold text-white tracking-wider">伴随式微观证据</span>
+        </div>
+        <span class="text-[10px] text-slate-500">实时联动</span>
+      </div>
+
+      <!-- 当前聚焦个股样本微观卡片 -->
+      <div class="obsidian-card p-3.5 rounded-xl border-amber-500/30">
+        <div class="flex justify-between items-center mb-1">
+          <span id="stockCardName" class="font-bold text-white text-sm">新华传媒 (600825)</span>
+          <span id="stockCardTag" class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">10连板标杆</span>
+        </div>
+        <p id="stockCardDesc" class="text-xs text-slate-400 leading-relaxed mt-2">
+          当前作为全市场情绪高度天花板。日内换手极低，属于独立庄股逻辑与重组题材共振，对全市场普涨带动效应较弱。
+        </p>
+      </div>
+
+      <!-- 盘后关键指标监控板 -->
+      <div class="space-y-2 text-xs">
+        <span class="text-[11px] text-slate-400 font-bold block">微观结构关键指标</span>
+        <div class="obsidian-card p-3 rounded-lg space-y-2">
+          <div class="flex justify-between">
+            <span class="text-slate-400">实际换手涨停家数:</span>
+            <!-- A股红涨 -->
+            <span class="text-rose-400 font-bold font-mono">39 家</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">一字板 / T字板:</span>
+            <!-- A股红涨 -->
+            <span class="text-rose-400 font-bold font-mono">7 家</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">大面股 (&gt; -10%):</span>
+            <!-- A股绿跌 -->
+            <span class="text-emerald-400 font-bold font-mono">14 家</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">昨日涨停今日收益率:</span>
+            <!-- A股绿跌 -->
+            <span class="text-emerald-400 font-bold font-mono">-1.24%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 快捷提问推荐 -->
+      <div class="space-y-2 pt-2">
+        <span class="text-[11px] text-slate-400 font-bold block">高频追问方向</span>
+        <div class="space-y-1.5 text-xs">
+          <button onclick="quickAsk('为什么今天缩量不能看作是洗盘结束？')" class="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition text-[11px]">
+            • 为什么缩量下跌不能视作洗盘结束？
+          </button>
+          <button onclick="quickAsk('传媒和风电谁更有可能接力主线？')" class="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition text-[11px]">
+            • 传媒与风电谁更具备持续接力空间？
+          </button>
+          <button onclick="quickAsk('明天集合竞价最应该先看哪个指标？')" class="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition text-[11px]">
+            • 09:25 集合竞价最核心的证伪指标？
+          </button>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- AI 伴随式交互抽屉 (唯一的全局对话终端) -->
+  <div id="aiDrawer" class="fixed inset-y-0 right-0 w-full sm:w-[500px] bg-[#0A0D15]/95 backdrop-blur-2xl border-l border-white/10 z-50 transform translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+    <div class="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold text-xs">知</div>
+        <div>
+          <h3 class="font-bold text-white text-sm">知见 · 智能问答助手</h3>
+          <p class="text-[10px] text-slate-400">依据今日盘面真实数据与推演逻辑解答</p>
+        </div>
+      </div>
+      <button onclick="toggleAiDrawer()" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition">
+        ✕
+      </button>
+    </div>
+
+    <!-- 对话历史区 -->
+    <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-4 text-xs leading-relaxed">
+      <div class="flex gap-3">
+        <div class="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold text-xs shrink-0">知</div>
+        <div class="bg-white/5 p-3.5 rounded-xl text-slate-300 border border-white/10 space-y-2">
+          <p class="font-bold text-white">您好！我是「知见」认知复盘推演助手。</p>
+          <p>我已经完整吸收了今天 10月12日的行情物理事实与 11 章假说闭环。您可以就今日缩量本质、连板接力风险、次日竞价探针或任何具体个股向我提问。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 输入区 -->
+    <form onsubmit="handleSend(event)" class="p-4 border-t border-white/10 bg-black/40 flex gap-2">
+      <input 
+        id="userInput"
+        type="text" 
+        placeholder="输入您的问题，如：新华传媒明日炸板风险有多大？..." 
+        class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 placeholder:text-slate-500"
+      >
+      <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg text-xs transition active:scale-95 shadow">
+        发送
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // 唯一的“复制全文”函数：一键复制所有 11 章
+    function copyFullReviewMarkdown() {
+      const fullText = document.getElementById('mainArticle').innerText;
+      navigator.clipboard.writeText(fullText).then(() => {
+        showToast("已成功复制知见全景复盘研报 (所有11全章)");
+      });
+    }
+
+    // 显示 Toast 提示
+    function showToast(msg) {
+      const toast = document.getElementById('copyToast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2200);
+    }
+
+    // 切换证据栏
+    function toggleEvidenceDrawer() {
+      const drawer = document.getElementById('evidenceDrawer');
+      const label = document.getElementById('evidenceStateLabel');
+      if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        drawer.classList.add('lg:flex');
+        label.innerText = '联动开启';
+        label.className = 'text-amber-400 font-semibold';
+      } else {
+        drawer.classList.add('hidden');
+        drawer.classList.remove('lg:flex');
+        label.innerText = '已隐藏';
+        label.className = 'text-slate-500';
+      }
+    }
+
+    // 唯一的“追问”抽屉切换
+    function toggleAiDrawer() {
+      const drawer = document.getElementById('aiDrawer');
+      if (drawer.classList.contains('translate-x-full')) {
+        drawer.classList.remove('translate-x-full');
+      } else {
+        drawer.classList.add('translate-x-full');
+      }
+    }
+
+    // 个股样本证据联动
+    const stockMap = {
+      '新华传媒': {
+        name: '新华传媒 (600825)',
+        tag: '10连板标杆',
+        desc: '全市场最高空间板。重组预期驱动，换手率持续低迷（锁仓严重）。已进入极端加速博弈区，一旦炸板易引发剧烈亏钱效应。'
+      },
+      '九阳股份': {
+        name: '九阳股份 (002242)',
+        tag: '6板·盘中炸板',
+        desc: '5进6早盘大幅炸板放巨量，换手率骤增。虽然尾盘回封，但中位接力疲态尽显，次日承接资金一旦不足将形成大面核按钮。'
+      },
+      '工商银行': {
+        name: '工商银行 (601398)',
+        tag: '权重创历史新高',
+        desc: '盘中续创历史新高，主力净流入8.72亿。险资等机构被动/主动避险，在稳定指数的同时吸纳流动性，导致题材股大面积失血。'
+      },
+      '中际旭创': {
+        name: '中际旭创 (300308)',
+        tag: '科技中军重挫 -5.82%',
+        desc: '单日主力净流出超10亿元，光模块板块集体承压。在两市缩量19%背景下，高估值白马成长股率先被大资金作为流动性提款机。'
+      },
+      '天顺风能': {
+        name: '天顺风能 (002531)',
+        tag: '风电首板涨停',
+        desc: '新能源超跌方向的首板先锋，带动金冠电气等20cm个股表现，资金在科技退潮期尝试寻找低位估值洼地进行短线避险。'
+      },
+      '华北制药': {
+        name: '华北制药 (600812)',
+        tag: '3连板医药防御',
+        desc: '在指数暴跌、4300+个股走弱背景下逆势晋级3板。但医药板块缺乏大面积涨停协同，属于典型的弱市独立防守标的。'
+      }
+    };
+
+    function focusStockEvidence(stockKey) {
+      const card = stockMap[stockKey];
+      if (card) {
+        document.getElementById('stockCardName').innerText = card.name;
+        document.getElementById('stockCardTag').innerText = card.tag;
+        document.getElementById('stockCardDesc').innerText = card.desc;
+        showToast(`已联动切换证据聚焦至: ${stockKey}`);
+      }
+    }
+
+    // 快捷提问
+    function quickAsk(q) {
+      toggleAiDrawer();
+      const input = document.getElementById('userInput');
+      input.value = q;
+      handleSend(new Event('submit'));
+    }
+
+    // 模拟对话交互
+    function handleSend(e) {
+      e.preventDefault();
+      const input = document.getElementById('userInput');
+      const query = input.value.trim();
+      if (!query) return;
+
+      const container = document.getElementById('chatMessages');
+
+      const userMsgDiv = document.createElement('div');
+      userMsgDiv.className = 'flex gap-3 justify-end';
+      userMsgDiv.innerHTML = `
+        <div class="bg-amber-600/90 text-black font-medium p-3 rounded-xl rounded-tr-sm max-w-[85%] leading-relaxed shadow">
+          ${query}
+        </div>
+      `;
+      container.appendChild(userMsgDiv);
+      input.value = '';
+
+      const aiMsgDiv = document.createElement('div');
+      aiMsgDiv.className = 'flex gap-3';
+      aiMsgDiv.innerHTML = `
+        <div class="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold text-xs shrink-0 shadow">知</div>
+        <div class="bg-white/5 p-3.5 rounded-xl text-slate-200 leading-relaxed border border-white/10 space-y-2 max-w-[90%]">
+          <p class="font-bold text-amber-300">知见认知推演反馈：</p>
+          <p class="text-slate-300">针对您的问题“${query}”，结合今日 10-12 物理事实与波普尔假说体系：</p>
+          <p class="text-slate-400">1. <strong>物理硬约束</strong>：两市成交额已萎缩至 1.54 万亿（环比 -19%）。没有 1.6 万亿以上的增量确认，任何局部分时冲高均定性为存量轮动诱多。</p>
+          <p class="text-slate-400">2. <strong>证伪监测指标</strong>：若次日 09:25 集合竞价总额低于 140 亿，且新华传媒开盘未能维持强势，高标抱团将面临退潮清算，务必严格执行防守纪律。</p>
+        </div>
+      `;
+      setTimeout(() => {
+        container.appendChild(aiMsgDiv);
+        container.scrollTop = container.scrollHeight;
+      }, 350);
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // 11 章快速锚点：平滑滚动正文容器，顶栏与左边栏完全物理固定不动
+    document.querySelectorAll('nav a[href^="#ch"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href').substring(1);
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
