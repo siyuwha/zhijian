@@ -105,24 +105,24 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
       case 'CONFIRMED':
         return {
           icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />,
-          label: '假说验证 · CONFIRMED',
-          subLabel: '正向共振强化',
+          label: '假设得到验证 · 龙头共振',
+          subLabel: '竞价符合预期，按原计划推进',
           badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/80',
           borderClass: 'border-emerald-900/40',
         };
       case 'DIVERGENT':
         return {
           icon: <AlertTriangle className="w-4 h-4 text-amber-400" />,
-          label: '中度分歧 · DIVERGENT',
-          subLabel: '量能/主线分化',
+          label: '盘前出现分歧 · 承接分化',
+          subLabel: '量能或主线出现偏离，严控追高',
           badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-800/80',
           borderClass: 'border-amber-900/40',
         };
       case 'FALSIFIED':
         return {
           icon: <XCircle className="w-4 h-4 text-rose-400" />,
-          label: '刚性证伪 · FALSIFIED',
-          subLabel: '空间破位 / 首选防守',
+          label: '核心假说被推翻 · 触发防守',
+          subLabel: '标的开盘不及预期，坚决执行防守',
           badgeClass: 'bg-rose-950/80 text-rose-300 border-rose-800/80',
           borderClass: 'border-rose-900/50',
         };
@@ -130,8 +130,8 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
       default:
         return {
           icon: <HelpCircle className="w-4 h-4 text-slate-400" />,
-          label: isMarketClosed ? '休市停牌 · MARKET CLOSED' : '证据不足 · INCONCLUSIVE',
-          subLabel: isMarketClosed ? '物理行情未开启' : '触发数据质量保护',
+          label: isMarketClosed ? '休市未开盘' : '数据观察中',
+          subLabel: isMarketClosed ? '非交易时段' : '待集合竞价撮合更新',
           badgeClass: 'bg-slate-800/80 text-slate-300 border-slate-700/80',
           borderClass: 'border-slate-800',
         };
@@ -289,26 +289,26 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
         </div>
       )}
 
-      {/* 3. 客观防守行动边界条件清单 */}
+      {/* 3. 盘前防守行动红线 */}
       {action_boundaries.length > 0 && (
-        <div className="my-2 bg-slate-950/80 border border-slate-800 rounded-lg p-2.5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+        <div className="my-2 bg-slate-950/80 border border-white/5 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
               <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-              机器推导客观防守行动边界 (Closed-Vocabulary)
+              盘前防守纪律与行动红线
             </span>
-            <span className="text-[9px] font-mono text-slate-500">
-              严禁买卖诱导指令
+            <span className="text-[10px] font-mono text-rose-400 bg-rose-950/40 px-1.5 py-0.2 rounded border border-rose-800/40">
+              触发条件严格执行
             </span>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             {action_boundaries.map((boundary, idx) => (
               <div
                 key={idx}
                 className="flex items-start gap-1.5 text-xs text-slate-300"
               >
-                <Lock className="w-3 h-3 text-slate-500 mt-0.5 shrink-0" />
-                <span className="font-medium text-[11px] leading-tight">
+                <Lock className="w-3 h-3 text-slate-400 mt-0.5 shrink-0" />
+                <span className="font-medium text-[11px] leading-relaxed">
                   {boundary}
                 </span>
               </div>
@@ -317,32 +317,26 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
         </div>
       )}
 
-      {/* 4. 五位一体数字水印防伪底栏 */}
-      <footer className="pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[10px] font-mono text-slate-500 gap-2">
+      {/* 4. 底栏核验状态与时间 */}
+      <footer className="pt-2.5 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-slate-400" title={trace_id}>
-            <Fingerprint className="w-3 h-3 text-indigo-400" />
-            <span className="text-slate-500">Trace:</span>
-            <span className="text-slate-300">{trace_id.slice(0, 24)}...</span>
+          <span className="flex items-center gap-1 text-slate-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+            <span>核验时点: 09:25:05 撮合完成</span>
           </span>
-          <span className="text-slate-500" title={hypothesis_id}>
-            Hypo: <span className="text-slate-400">{hypothesis_id}</span>
-          </span>
-          <span className="text-slate-500" title={verdict_fingerprint}>
-            FP: <span className="text-slate-400">{verdict_fingerprint.slice(0, 12)}...</span>
+          <span className="text-slate-600">|</span>
+          <span>
+            监控项: <strong className="text-slate-200 font-mono">{assertion_results.length}</strong> 项重点标的
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           {safety_audit_passed && (
-            <span className="flex items-center gap-1 text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.2 rounded text-[9px] font-sans">
-              <ShieldCheck className="w-2.5 h-2.5" />
-              安全守卫审查通过
+            <span className="flex items-center gap-1 text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded text-[10px]">
+              <ShieldCheck className="w-3 h-3" />
+              规则校验完毕
             </span>
           )}
-          <span className="text-slate-500">
-            {evaluated_at ? evaluated_at.replace('+08:00', '') : ''}
-          </span>
         </div>
       </footer>
     </div>

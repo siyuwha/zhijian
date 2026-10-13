@@ -381,6 +381,17 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       <FloatingPillNav
         activeNav="review"
         onNavChange={handleNavChange}
+        leftSlot={
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-xs shadow-md ring-1 ring-white/20 shrink-0">
+              知
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-xs tracking-wide text-white">知见 · 交易驾驶舱</span>
+              <span className="text-[9px] text-purple-300 font-mono">4+1 实战盯盘架构</span>
+            </div>
+          </div>
+        }
         rightSlot={
           <div className="flex items-center gap-1.5 sm:gap-2">
             {/* 日期选择器 */}
@@ -454,7 +465,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 <div className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
                   <span>+1 战术认知卡 · 假说与行动边界</span>
                   <span className="text-[10px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded-full">
-                    {biddingVerdict?.overall_verdict || (intradayVerdict?.stage ? 'LIVE TRACK' : 'EOD CANONICAL')}
+                    {biddingVerdict?.overall_verdict === 'CONFIRMED'
+                      ? '假设得到验证'
+                      : biddingVerdict?.overall_verdict === 'DIVERGENT'
+                      ? '盘前出现分歧'
+                      : biddingVerdict?.overall_verdict === 'FALSIFIED'
+                      ? '核心假设推翻'
+                      : intradayVerdict?.stage
+                      ? '盘中实时跟踪'
+                      : '盘后官方归档'}
                   </span>
                 </div>
               </div>
@@ -800,7 +819,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               </span>
             </span>
             <span className="font-mono text-slate-500 text-[10px]">
-              RFC 8785 校验完成
+              官方行情数据已核验
             </span>
           </div>
         </GlassCard>

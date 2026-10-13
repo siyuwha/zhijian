@@ -42,16 +42,16 @@ export const BiddingFalsificationModal: React.FC<BiddingFalsificationModalProps>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-black tracking-tight text-slate-100">
-                  09:25 集合竞价波普尔证伪自动对账单
+                  09:25 集合竞价假设核验与实盘对账
                 </h2>
                 {verdict && (
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-700/60">
+                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-700/60">
                     {verdict.trade_date}
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                昨晚假说 vs 今晨 09:25 物理实测 · 纯只读抗篡改权威裁决
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                昨夜多空预设 vs 今晨 09:25 撮合实测 · 客观检验关键标的开盘承接
               </p>
             </div>
           </div>

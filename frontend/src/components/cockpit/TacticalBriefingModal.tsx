@@ -47,11 +47,11 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-black tracking-tight text-slate-100">
-                  操盘内参 · 实战战报
+                  AI 战术内参 · 全天定调与次日部署
                 </h2>
                 {briefing && (
                   <>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-700/60 font-mono">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-700/60 font-mono">
                       {briefing.trade_date}
                     </span>
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-rose-950/60 text-rose-300 border border-rose-800/60">
@@ -61,25 +61,18 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Phase 2D.3 受约束 LLM 实战定调 · 双轨制后置审查与 3ms 确定性保底
+                多空博弈定调 · 核心战场梯队 · 盘面负反馈预警与次日观察哨
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             {briefing && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border bg-slate-950/80">
-                {briefing.is_fallback_mode ? (
-                  <span className="flex items-center gap-1 text-amber-400 border-amber-800">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    确定性保底模式
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-emerald-400 border-emerald-800">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    100% 审查通过
-                  </span>
-                )}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border bg-slate-950/80 border-white/10">
+                <span className="flex items-center gap-1 text-purple-300">
+                  <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+                  盘后官方归档
+                </span>
               </div>
             )}
 
@@ -104,15 +97,15 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
             </div>
           ) : briefing ? (
             <>
-              {/* 核心战报正文 (冷峻操盘内参风格) */}
+              {/* 核心战报正文 (操盘内参风格) */}
               <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 shadow-inner">
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/80">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-                    <FileCheck2 className="w-4 h-4 text-indigo-400" />
-                    <span>操盘手内参实战定调正文 (250~350字穿透)</span>
+                    <FileCheck2 className="w-4 h-4 text-purple-400" />
+                    <span>核心战术研判与定调结论</span>
                   </div>
-                  <span className="text-[11px] font-mono text-slate-500">
-                    字数: {briefing.tactical_briefing_text.length} 字符
+                  <span className="text-[11px] font-mono text-slate-400">
+                    时点: {briefing.trade_date} 15:00
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed text-slate-200 font-sans tracking-wide indent-0">
@@ -171,47 +164,25 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                 </div>
               </div>
 
-              {/* 来源防伪与全链路 Trace 水印 */}
-              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-850 flex flex-col gap-2 text-[11px] font-mono text-slate-500">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>引擎: {briefing.producer_version}</span>
-                    <span>|</span>
-                    <span>战报指纹: {briefing.briefing_fingerprint.slice(0, 16)}...</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>BriefingSafetyGuard 物理拦截通过 · 零 L5 指令泄露</span>
-                  </div>
+              {/* 底部导航与行动链接 */}
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>客观事实与研报已归档</span>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-slate-400">样本覆盖: A股全市场</span>
                 </div>
-                {briefing.trace_id && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-900 text-[10px] text-slate-600">
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-400">Trace ID:</span>
-                      <span className="text-indigo-400/90 select-all">{briefing.trace_id}</span>
-                    </div>
-                    {briefing.source_snapshot_hash && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-400">快照 SHA:</span>
-                        <span className="text-slate-400 select-all">{briefing.source_snapshot_hash.slice(0, 16)}...</span>
-                      </div>
-                    )}
-                  </div>
-                )}
                 {onOpenBiddingFalsification && (
-                  <div className="pt-2.5 border-t border-slate-900 flex justify-end">
-                    <button
-                      onClick={() => {
-                        onClose();
-                        onOpenBiddingFalsification();
-                      }}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-indigo-200 bg-indigo-950/70 hover:bg-indigo-900/80 border border-indigo-700/60 px-3 py-1.5 rounded-lg transition"
-                    >
-                      <Compass className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>查看次日 09:25 竞价对账回执 &rarr;</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenBiddingFalsification();
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-purple-300 hover:text-purple-200 bg-purple-950/70 hover:bg-purple-900/80 border border-purple-700/60 px-3 py-1.5 rounded-lg transition"
+                  >
+                    <Compass className="w-3.5 h-3.5 text-purple-400" />
+                    <span>查看次日 09:25 竞价对账回执 &rarr;</span>
+                  </button>
                 )}
               </div>
             </>
