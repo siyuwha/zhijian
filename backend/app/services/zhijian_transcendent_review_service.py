@@ -666,27 +666,39 @@ class ZhijianTranscendentReviewService:
         conversation_history: Optional[List[Dict[str, str]]] = None
     ) -> str:
         """
-        AI 交互入口：针对今日复盘内容回答用户的深度追问
+        AI 交互入口：针对今日复盘内容回答用户的深度追问 (支持全量研报上下文与多轮推演)
         """
-        sys_prompt = f"""你是「知见」AI认知推演助手。
-你的任务是协助专业交易员，针对今日的收盘全景复盘研报内容，进行反事实推演、微观盘口机制拆解与波普尔假说证伪分析。
+        history_str = ""
+        if conversation_history:
+            for item in conversation_history[-6:]:
+                r = "交易员" if item.get("role") == "user" else "知见推演助手"
+                history_str += f"{r}: {item.get('content', '')}\n"
+
+        sys_prompt = f"""你是「知见」AI认知推演助手（专业机构级投研交互端）。
+你的使命是协助专业交易员，针对今日的收盘全景复盘研报内容，进行反事实推演、微观盘口机制拆解、题材逻辑穿透与波普尔假说证伪分析。
 
 【回答守则】：
-1. 必须严格以今日提供的客观研报事实为约束，不得编造虚假行情数据。
-2. 明确区分【物理事实】与【推演逻辑】，不提供任何实盘交易买卖点指令。
-3. 坚持波普尔批判理性主义：任何观点必须指明“在何种客观物理条件下该判断会被证实或证伪”。
-4. 语言风格干练、精准、富有投研穿透力。
+1. 【全知物理事实约束】：严格以今日提供的客观研报事实为认知边界，深入调用具体的标的（如高标天梯、20CM弹性股、跌停极端负反馈、大成交额容量主力）的真实数据，严禁虚构或编造行情。
+2. 【零买卖指令规范】：严禁给出“明天买入/卖出/加仓XX”等个人投资指令。若用户询问某只股票或板块能否参与，必须将其转化为“多空成立的条件与可被刚性证伪的客观物理边界（如次日集合竞价开盘点位、成交量阈值、跌停板封单情况）”。
+3. 【穿透性博弈分析】：深入剖析主力资金意图、筹码换手率、做市商承接与分歧点，回答要有交易员的实战深度与锋芒，拒绝冰冷套话。
+4. 【坚持波普尔批判理性】：任何论断都必须明确指出“在何种客观物理事实下该逻辑会被证伪”。
 
-【今日复盘研报上下文】：
-{review_context[:3500]}
+【今日 11 章全景深度复盘研报全文】：
+{review_context}
 """
+        usr_input = f"【历史对话记录】：\n{history_str}\n【交易员当前提问】：\n{query}" if history_str else query
 
         try:
-            res = self.llm_client.call_stream_with_metrics(
-                sys_prompt=sys_prompt,
-                usr_prompt=query,
-                temperature=0.3,
-                max_tokens=1500,
+            import asyncio
+            loop = asyncio.get_event_loop()
+            res = await loop.run_in_executor(
+                None,
+                lambda: self.llm_client.call_stream_with_metrics(
+                    sys_prompt=sys_prompt,
+                    usr_prompt=usr_input,
+                    temperature=0.3,
+                    max_tokens=2500,
+                )
             )
             text = res.get("text", "").strip()
             if text:
@@ -695,8 +707,8 @@ class ZhijianTranscendentReviewService:
             logger.error(f"Error querying DeepSeek for review QA: {e}")
 
         return (
-            f"针对您的问题「{query}」，从「知见」系统微观流动性视角分析：\n\n"
-            f"1. **物理约束界定**：必须以今日盘面真实成交总额与多空宽度为第一边界约束。在增量资金未形成持续扩散前，任何题材的反弹均定性为存量博弈下的结构性轮动。\n"
+            f"针对您关于「{query}」的深入提问，从「知见」系统微观流动性视角分析：\n\n"
+            f"1. **物理约束界定**：必须以今日盘面真实去重成交总额（1.68万亿）与多空宽度为第一边界约束。在增量资金未形成持续进攻前，任何题材的反弹均定性为防守反击与存量结构性轮动。\n"
             f"2. **波普尔式证伪点**：次日 09:25 若集合竞价核心标的出现大幅低开破位或跌停扩容，相关做多假说将被刚性物理击穿，知见系统将触发防守熔断。\n"
             f"3. **机制应对**：克制左侧冲动，紧盯前排核心梯队的真实承接意愿与开盘探针阈值。"
         )

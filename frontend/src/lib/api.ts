@@ -88,10 +88,10 @@ export const api = {
     fetchAPI<DailyReviewDetail>(`/reports/daily-review/${date}`),
   generateDailyReview: (date?: string) => 
     fetchAPI<any>(`/reports/daily-review/generate${date ? `?date=${date}` : ''}`, { method: 'POST' }),
-  chatDailyReview: (date: string, query: string, chapter?: string) =>
+  chatDailyReview: (date: string, query: string, chapter?: string, history?: any[]) =>
     fetchAPI<{ query: string; answer: string; date: string }>(`/reports/daily-review/chat`, {
       method: 'POST',
-      body: JSON.stringify({ date, query, chapter }),
+      body: JSON.stringify({ date, query, chapter, history }),
     }),
   getPremarketBriefings: (limit?: number, offset?: number) =>
     fetchAPI<{ items: PremarketBriefingSummaryItem[]; total: number }>(

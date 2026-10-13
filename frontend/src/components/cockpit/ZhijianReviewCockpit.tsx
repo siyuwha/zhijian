@@ -258,12 +258,13 @@ export function ZhijianReviewCockpit({
     const q = (queryToSend || userInput).trim();
     if (!q || sendingAi) return;
 
+    const currentHistory = chatMessages.slice(-6);
     setChatMessages(prev => [...prev, { role: 'user', content: q }]);
     setUserInput('');
     setSendingAi(true);
 
     try {
-      const res: any = await api.chatDailyReview(date, q);
+      const res: any = await api.chatDailyReview(date, q, undefined, currentHistory);
       const answer = res?.answer || res?.data?.answer || '知见推演已完成，请严格遵循客观证伪条件防守。';
       setChatMessages(prev => [...prev, { role: 'ai', content: answer }]);
     } catch (err: any) {

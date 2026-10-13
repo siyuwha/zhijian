@@ -136,10 +136,11 @@ class ReviewChatRequest(BaseModel):
     date: str
     query: str
     chapter: Optional[str] = None
+    history: Optional[List[Dict[str, str]]] = None
 
 @router.post("/daily-review/chat")
 async def chat_daily_review(payload: ReviewChatRequest, db: AsyncSession = Depends(get_db)):
-    """向「知见」AI 认知推演助手深入提问接口"""
+    """向「知见」AI 认知推演助手深入提问接口 (支持全量研报上下文与多轮追问)"""
     service = DailyReviewService(db)
     review = await service.get_review_by_date(payload.date)
     context_text = ""
@@ -158,7 +159,8 @@ async def chat_daily_review(payload: ReviewChatRequest, db: AsyncSession = Depen
 
     answer = await zhijian_transcendent_service.ask_ai_cognitive_query(
         query=payload.query,
-        review_context=context_text
+        review_context=context_text,
+        conversation_history=payload.history
     )
     return {
         "code": 200,
