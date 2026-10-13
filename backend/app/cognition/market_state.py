@@ -85,10 +85,12 @@ class MarketStateComputer(CognitionLayerInterface):
         total_amount = 0.0
         sh_pct = None
         for idx in indices:
-            code = idx.get("code", "")
+            code = str(idx.get("code", ""))
             pct = idx.get("pct_change")
-            amount = idx.get("amount_wan", 0.0) / 10000.0  # 亿元
-            total_amount += amount
+            amount = float(idx.get("amount_wan", 0.0) or 0.0) / 10000.0  # 亿元
+            # 严格去重仅统计沪深两市核心基准 (上证+深证)
+            if "000001" in code or "399001" in code:
+                total_amount += amount
 
             if "sh000001" in code or "000001" in code:
                 metrics["sh_pct_change"] = pct

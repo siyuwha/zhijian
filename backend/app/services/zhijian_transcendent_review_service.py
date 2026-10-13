@@ -10,14 +10,15 @@ from .constrained_briefing_generator import DeepSeekBriefingLLMClient
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT_ZHIJIAN = """你是「知见」AI认知复盘交易系统的首席投研架构师。
-你的使命是基于物理事实输入，产出一份超越传统复盘、具备宏观到微观微观结构深度、对手盘博弈心理与波普尔证伪闭环的【全景深度复盘研报】。
+你的使命是基于客观物理事实输入，产出一份超越传统复盘、兼具顶级机构宏观叙事深度、微观做市商结构洞察与波普尔证伪闭环的【全景深度复盘研报】。
 
 你必须严格执行以下认识论铁律：
 1. 【红线隔离】：客观数据属于“物理事实”，资金意图、周期判断与次日推演一律标注为【交易推断】，严禁将推断包装为事实。
 2. 【A股色彩规范】：严格遵循 A 股“红涨绿跌 / 红流入绿流出”。
 3. 【零指令规范】：严禁给出“买入/卖出/加仓”等任何个人投资指令与情绪口号，只输出情景推演与可证伪条件。
 4. 【波普尔证伪闭环】：所有假设必须包含严格、刚性的客观物理证伪阈值（如涨跌幅、成交额阈值），一旦被物理现实击穿，必须无条件承认证伪，绝不粉饰。
-5. 【结构规范】：研报严格分为以下 11 个章节（从第0章至第10章）：
+5. 【拒绝扁平报表，还原真实博弈】：绝不罗列死板收盘数字！必须深度刻画日内多空博弈路径（如早盘恐慌探底到午后深V承接）、放量与缩量的真实意图、领涨主线（含20CM高弹性）与退潮杀跌（跌停负反馈）的分化博弈。
+6. 【结构规范】：研报严格分为以下 11 个章节（从第0章至第10章）：
    - 第 0 章：昨日假说判决书与认知校准 (The Audit Delta)
    - 第 1 章：市场总览：今天到底发生了什么？
    - 第 2 章：市场宽度与短线生态透视
@@ -54,15 +55,21 @@ class ZhijianTranscendentReviewService:
         return None
 
     def _extract_index_stats(self, indices: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """提取主要指数的点位与涨跌幅"""
+        """提取主要指数的点位、涨跌幅及日内深V动态轨迹特征"""
         stats = {
             "sh_close": None,
             "sh_pct": 0.0,
             "sh_change": 0.0,
+            "sh_low_pct": None,
+            "sh_rebound_pct": None,
             "sz_close": None,
             "sz_pct": 0.0,
+            "sz_low_pct": None,
+            "sz_rebound_pct": None,
             "cyb_close": None,
             "cyb_pct": 0.0,
+            "cyb_low_pct": None,
+            "cyb_rebound_pct": None,
             "kcb_close": None,
             "kcb_pct": 0.0,
         }
@@ -72,17 +79,25 @@ class ZhijianTranscendentReviewService:
             price = idx.get("price") if idx.get("price") is not None else idx.get("close")
             pct = float(idx.get("pct_change") or 0.0)
             chg = float(idx.get("change") or 0.0)
+            low_pct = idx.get("low_pct")
+            rebound_pct = idx.get("rebound_pct")
 
             if "000001" in code or "上证" in name:
                 stats["sh_close"] = float(price) if price is not None else None
                 stats["sh_pct"] = pct
                 stats["sh_change"] = chg
+                stats["sh_low_pct"] = low_pct
+                stats["sh_rebound_pct"] = rebound_pct
             elif "399001" in code or "深证" in name:
                 stats["sz_close"] = float(price) if price is not None else None
                 stats["sz_pct"] = pct
+                stats["sz_low_pct"] = low_pct
+                stats["sz_rebound_pct"] = rebound_pct
             elif "399006" in code or "创业板" in name:
                 stats["cyb_close"] = float(price) if price is not None else None
                 stats["cyb_pct"] = pct
+                stats["cyb_low_pct"] = low_pct
+                stats["cyb_rebound_pct"] = rebound_pct
             elif "000688" in code or "科创" in name:
                 stats["kcb_close"] = float(price) if price is not None else None
                 stats["kcb_pct"] = pct
@@ -367,6 +382,53 @@ class ZhijianTranscendentReviewService:
 次日 09:25 重点监测最高连板标的集合竞价溢价率与沪深竞价成交额，以客观物理事实决定全天防御策略。
 """
 
+    def _build_curated_stock_evidence(self, limit_up: Dict[str, Any]) -> Dict[str, Any]:
+        """精选多维度市场标的样本（高标梯队、20CM弹性、容量主力、炸板分歧、跌停负反馈）"""
+        items = limit_up.get("items", [])
+        broken_items = limit_up.get("broken_limit_items", [])
+        down_items = limit_up.get("limit_down_items", [])
+        top_reasons = limit_up.get("top_reasons", [])
+
+        # 1. 连板高标梯队 (2B及以上全量入列)
+        ladder_stocks = [
+            {"name": s.get("name"), "code": s.get("code"), "lbc": f"{s.get('lbc')}连板", "sector": s.get("sector"), "amount_yi": s.get("amount_yi")}
+            for s in sorted([it for it in items if int(it.get("lbc") or 1) >= 2], key=lambda x: int(x.get("lbc") or 1), reverse=True)
+        ]
+
+        # 2. 创业板/科创板 20CM 高弹性标的 (300/301/688)
+        elastic_stocks = [
+            {"name": s.get("name"), "code": s.get("code"), "sector": s.get("sector"), "turnover_ratio": f"{s.get('turnover_ratio')}%", "amount_yi": s.get("amount_yi")}
+            for s in items 
+            if str(s.get("code", "")).startswith(("300", "301", "688"))
+        ]
+
+        # 3. 容量主力标的 (成交额前5)
+        capacity_stocks = [
+            {"name": s.get("name"), "code": s.get("code"), "sector": s.get("sector"), "amount_yi": s.get("amount_yi"), "turnover_ratio": f"{s.get('turnover_ratio')}%"}
+            for s in sorted(items, key=lambda x: float(x.get("amount_yi") or 0.0), reverse=True)[:5]
+        ]
+
+        # 4. 极端跌停负反馈 (大跌退潮源头与核按钮)
+        down_stocks = [
+            {"name": s.get("name"), "code": s.get("code"), "sector": s.get("sector"), "fund_yi": f"封单{s.get('fund_yi')}亿", "pct_change": f"{s.get('pct_change')}%"}
+            for s in down_items[:8]
+        ]
+
+        # 5. 冲高炸板分歧标的
+        broken_stocks = [
+            {"name": s.get("name"), "code": s.get("code"), "sector": s.get("sector"), "fall_back_pct": f"回落{s.get('fall_back_pct')}%", "turnover_ratio": f"{s.get('turnover_ratio')}%"}
+            for s in broken_items[:6]
+        ]
+
+        return {
+            "top_reasons": top_reasons[:6],
+            "ladder_stocks": ladder_stocks[:10],
+            "elastic_20cm_stocks": elastic_stocks[:8],
+            "capacity_core_stocks": capacity_stocks,
+            "limit_down_negative_feedback": down_stocks,
+            "broken_limit_divergence": broken_stocks
+        }
+
     def construct_payload_prompt(self, market_facts: Dict[str, Any]) -> str:
         """根据真实物理事实构建 LLM 研报生成 Prompt"""
         date_str = market_facts.get("date", datetime.now().strftime("%Y-%m-%d"))
@@ -383,17 +445,34 @@ class ZhijianTranscendentReviewService:
         ld_count = limit_up.get("limit_down_count", 0)
         bk_ratio = limit_up.get("broken_ratio", "--")
 
+        curated = self._build_curated_stock_evidence(limit_up)
+
+        # 提炼指数分时走势动态特征
+        indices_dynamic_summary = []
+        for idx in indices:
+            name = idx.get("name", "")
+            code = idx.get("code", "")
+            price = idx.get("price")
+            pct = idx.get("pct_change") or 0.0
+            low_pct = idx.get("low_pct")
+            rebound_pct = idx.get("rebound_pct")
+            amp = idx.get("amplitude")
+            item_str = f"- {name} ({code}): 收盘 {price} ({pct:+.2f}%)"
+            if low_pct is not None and rebound_pct is not None:
+                item_str += f" | 日内探底低点 {low_pct:+.2f}%, 探底后暴力回拉 +{rebound_pct:.2f}%, 全天振幅 {amp:.2f}% (日内深V分时修复)"
+            indices_dynamic_summary.append(item_str)
+
         return f"""复盘目标日期：{date_str}
 
 【底层物理事实输入（严禁篡改与编造）】：
-1. 核心指数点位与涨跌：
-{json.dumps(indices, ensure_ascii=False, indent=2)}
+1. 核心指数点位、涨跌与日内动态路径（深V分时轨迹）：
+{chr(10).join(indices_dynamic_summary) if indices_dynamic_summary else json.dumps(indices, ensure_ascii=False, indent=2)}
 
-2. 成交额与放量/缩量特征：
+2. 成交额与放量/缩量物理事实：
 - 真实去重成交额：{turnover.get("total_amount", "--")}
 - 环比变动幅度：{turnover.get("shrinkage_amount", "--")} ({turnover.get("shrinkage_pct", "--")})
 
-3. 市场宽度与短线生态：
+3. 市场宽度与短线生态物理指标：
 - 上涨家数：{up_count}
 - 下跌家数：{down_count}
 - 涨停家数：{lu_count}
@@ -401,13 +480,23 @@ class ZhijianTranscendentReviewService:
 - 真实炸板率：{bk_ratio}
 - 市场综合物理状态：{market_state.get("state_label", "平稳中性")} (评分: {market_state.get("composite_score", 50)})
 
-4. 涨停连板主要标的与题材：
-{json.dumps(limit_up.get("items", [])[:15], ensure_ascii=False, indent=2)}
+4. 全市场多维度标的池与题材证据：
+- 领涨行业分布与封板家数：{json.dumps(curated.get("top_reasons", []), ensure_ascii=False)}
+- 连板高标天梯（梯队核心）：{json.dumps(curated.get("ladder_stocks", []), ensure_ascii=False)}
+- 创业板/科创板 20CM 高弹性标的：{json.dumps(curated.get("elastic_20cm_stocks", []), ensure_ascii=False)}
+- 大成交额容量核心：{json.dumps(curated.get("capacity_core_stocks", []), ensure_ascii=False)}
+- 极端跌停负反馈池（大跌与退潮风险源头）：{json.dumps(curated.get("limit_down_negative_feedback", []), ensure_ascii=False)}
+- 冲高炸板分歧池：{json.dumps(curated.get("broken_limit_divergence", []), ensure_ascii=False)}
 
-5. 昨日假说审判对象：
+5. 昨日假说审判对象 (Audit Delta)：
 {json.dumps(audit_delta, ensure_ascii=False, indent=2)}
 
-请基于以上物理事实，严格撰写 11 章【全景深度复盘研报】，确保每个章节具备极高的逻辑密度与认识论深度。"""
+【研报生成特别指引（兼具宏观大局观与微观做市商认识论）】：
+- 第 1 章：必须深入还原日内深V分时路径与真实放量/缩量博弈真相（如早盘恐慌探底杀跌、午后承接资金回流拉起的完整过程），结合全市场成交额说明资金承接性质，拒绝冰冷的静态收盘点位罗列。
+- 第 3 章：必须对比分析主攻主线（科技硬件/PCB与算力回流的底层逻辑、军工、20CM弹性题材）与退潮杀跌方向（固态电池跌停等负反馈），清晰解答“谁在修复、谁在退潮、是否足以改变趋势”。
+- 第 5 章：深度剖析六类机制极值样本（最高连板标杆、2板卡位、20CM弹性先锋、冲高炸板大面、跌停极端负反馈、容量主力），从买卖挂单与筹码博弈角度透视资金意图。
+- 第 9/10 章：严格保留波普尔不可粉饰的证伪阈值，并输出次日 09:25 集合竞价具体的观测探针与防守纪律。
+请基于以上物理事实与指引，严格撰写 11 章【全景深度复盘研报】。"""
 
     async def generate_transcendent_review(self, market_facts: Dict[str, Any]) -> Dict[str, Any]:
         """

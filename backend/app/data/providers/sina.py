@@ -74,13 +74,22 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                 if len(parts) >= 30:
                     # 完整指数格式: name(0), open(1), pre_close(2), price(3), high(4), low(5), ..., volume(8), amount(9), ..., date(30), time(31)
                     name = parts[0]
-                    price = float(parts[3]) if len(parts) > 3 and parts[3] != "" else None
+                    open_price = float(parts[1]) if len(parts) > 1 and parts[1] != "" else None
                     pre_close = float(parts[2]) if len(parts) > 2 and parts[2] != "" else None
+                    price = float(parts[3]) if len(parts) > 3 and parts[3] != "" else None
+                    high_price = float(parts[4]) if len(parts) > 4 and parts[4] != "" else None
+                    low_price = float(parts[5]) if len(parts) > 5 and parts[5] != "" else None
                     amount_yuan = float(parts[9]) if len(parts) > 9 and parts[9] != "" else None
                     trade_date = parts[30].strip() if len(parts) > 30 else None
                     change = (price - pre_close) if (price is not None and pre_close is not None) else None
                     pct_change = ((change / pre_close) * 100) if (change is not None and pre_close and pre_close > 0) else None
                     amount_wan = (amount_yuan / 10000.0) if amount_yuan is not None else None
+
+                    # 计算日内动态极值与探底回升特征 (深V分时路径还原)
+                    low_pct = round(((low_price - pre_close) / pre_close) * 100, 2) if (low_price is not None and pre_close and pre_close > 0) else None
+                    high_pct = round(((high_price - pre_close) / pre_close) * 100, 2) if (high_price is not None and pre_close and pre_close > 0) else None
+                    rebound_pct = round(((price - low_price) / pre_close) * 100, 2) if (price is not None and low_price is not None and pre_close and pre_close > 0) else None
+                    amplitude = round(((high_price - low_price) / pre_close) * 100, 2) if (high_price is not None and low_price is not None and pre_close and pre_close > 0) else None
 
                     if price is not None and price > 0:
                         quotes.append({
@@ -89,8 +98,15 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                             "name": name,
                             "price": round(price, 2),
                             "pre_close": round(pre_close, 2) if pre_close is not None else None,
+                            "open": round(open_price, 2) if open_price is not None else None,
+                            "high": round(high_price, 2) if high_price is not None else None,
+                            "low": round(low_price, 2) if low_price is not None else None,
                             "change": round(change, 2) if change is not None else None,
                             "pct_change": round(pct_change, 2) if pct_change is not None else None,
+                            "low_pct": low_pct,
+                            "high_pct": high_pct,
+                            "rebound_pct": rebound_pct,
+                            "amplitude": amplitude,
                             "amount_wan": round(amount_wan, 2) if amount_wan is not None else None,
                             "trade_date": trade_date,
                         })

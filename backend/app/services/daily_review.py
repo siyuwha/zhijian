@@ -250,7 +250,16 @@ class DailyReviewService:
         if prev_review and prev_review.market_overview:
             try:
                 prev_indices = json.loads(prev_review.market_overview)
-                prev_total_amount = sum(float(idx.get("amount_wan", 0)) for idx in prev_indices) / 10000.0
+                # 严谨计算前日沪深两市去重总成交额 (仅累加上证 000001 与深证 399001，避免创业板/科创板重复叠加)
+                p_amt = 0.0
+                for idx in prev_indices:
+                    code = str(idx.get("code") or idx.get("symbol") or "")
+                    if "000001" in code or "399001" in code:
+                        p_amt += float(idx.get("amount_wan", 0)) / 10000.0
+                if p_amt > 0:
+                    prev_total_amount = p_amt
+                else:
+                    prev_total_amount = sum(float(idx.get("amount_wan", 0)) for idx in prev_indices[:2]) / 10000.0
             except Exception:
                 pass
         if prev_review and prev_review.limit_up_analysis:
