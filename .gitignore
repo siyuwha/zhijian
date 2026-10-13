@@ -48,3 +48,6 @@ baseline_evidence/recovery_points/
 # 临时测试与对抗执行脚本
 scratch/
 
+# 驾驶舱设计效果图与独立预览文件
+cockpit*preview*
+
