@@ -18,7 +18,6 @@ export default function ReviewPage() {
   const [currentDetail, setCurrentDetail] = useState<DailyReviewDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
@@ -67,26 +66,6 @@ export default function ReviewPage() {
 
   const handleSelectDate = (dateStr: string) => {
     loadDateDetail(dateStr);
-  };
-
-  const handleGenerateToday = async () => {
-    try {
-      setGenerating(true);
-      setError(null);
-      setNotice(null);
-      const res: any = await api.generateDailyReview();
-      if (res && (res.status === 'MARKET_CLOSED' || res.market_status === 'CLOSED')) {
-        setNotice(res.message || '数据通信正常：大盘点位与前一交易日收盘一致，物理确认为休市状态。');
-        setLastActiveDate(res.last_active_date || res.data?.last_active_date || null);
-      } else {
-        await fetchInitialData();
-      }
-    } catch (err: any) {
-      console.error('生成复盘失败:', err);
-      setError(err.message || '生成今日复盘失败');
-    } finally {
-      setGenerating(false);
-    }
   };
 
   // 物理状态标签颜色映射
@@ -173,9 +152,7 @@ export default function ReviewPage() {
           transcendentData={(currentDetail as any)?.transcendent_review || (currentDetail as any)?.report_content?.transcendent_review}
           historicalDates={reviews}
           onSelectDate={handleSelectDate}
-          onGenerateToday={handleGenerateToday}
           onToggleArchiveView={() => setViewMode('archive')}
-          generating={generating}
         />
       </div>
     );
@@ -207,15 +184,10 @@ export default function ReviewPage() {
             </button>
           )}
 
-          <button
-            onClick={handleGenerateToday}
-            disabled={generating}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
-            title="抓取并计算今日收盘客观复盘"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
-            {generating ? '正在抓取计算...' : '一键生成今日复盘'}
-          </button>
+          <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 text-xs font-mono">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>交易日 16:30 自动结算归档</span>
+          </div>
         </div>
       </div>
 
@@ -293,17 +265,9 @@ export default function ReviewPage() {
           <div className="space-y-1">
             <h3 className="text-base font-medium text-slate-200">暂无复盘历史记录</h3>
             <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              点击上方“一键生成今日复盘”按钮，系统将立即从真实数据源抓取并计算今日六维状态。
+              系统将在交易日 16:30 自动抓取收盘行情、推演六维认知状态并持久化归档。
             </p>
           </div>
-          <button
-            onClick={handleGenerateToday}
-            disabled={generating}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/30 transition-all"
-          >
-            <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
-            立即生成第一期复盘
-          </button>
         </div>
       ) : (
         <div className="space-y-3">

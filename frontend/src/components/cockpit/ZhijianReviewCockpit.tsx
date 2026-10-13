@@ -15,9 +15,7 @@ interface ZhijianReviewCockpitProps {
   dailyReview?: any;
   historicalDates?: Array<{ date: string; state_label?: string; composite_score?: number | null }>;
   onSelectDate?: (date: string) => void;
-  onGenerateToday?: () => void;
   onToggleArchiveView?: () => void;
-  generating?: boolean;
 }
 
 export function ZhijianReviewCockpit({ 
@@ -26,9 +24,7 @@ export function ZhijianReviewCockpit({
   dailyReview,
   historicalDates,
   onSelectDate,
-  onGenerateToday,
-  onToggleArchiveView,
-  generating
+  onToggleArchiveView
 }: ZhijianReviewCockpitProps) {
   const [evidenceOpen, setEvidenceOpen] = useState(true);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
@@ -321,17 +317,10 @@ export function ZhijianReviewCockpit({
 
         {/* 顶部工具链 */}
         <div className="flex items-center gap-2">
-          {onGenerateToday && (
-            <button
-              onClick={onGenerateToday}
-              disabled={generating}
-              className="text-xs px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium border border-purple-500/30 flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50 shadow-md shadow-purple-950/40"
-              title="一键抓取并重新计算今日收盘客观复盘"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{generating ? '生成中...' : '生成今日复盘'}</span>
-            </button>
-          )}
+          <span className="hidden xl:inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded bg-emerald-950/40 text-emerald-400 font-mono border border-emerald-800/40">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            16:30 自动收盘结算
+          </span>
 
           {onToggleArchiveView && (
             <button
