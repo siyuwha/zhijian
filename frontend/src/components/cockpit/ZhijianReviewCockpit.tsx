@@ -30,6 +30,7 @@ export function ZhijianReviewCockpit({
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // 1. 解析指数数据
   const overviewList: any[] = Array.isArray(dailyReview?.market_overview)
@@ -180,14 +181,56 @@ export function ZhijianReviewCockpit({
     }, 2800);
   };
 
-  // 一键复制所有 11 个章节
-  const copyFullMarkdown = () => {
-    const md = transcendentData?.markdown_content || `# ${date} A股全景深度复盘\n\n复盘生成中...`;
-    navigator.clipboard.writeText(md).then(() => {
-      showToast('已成功复制「知见」11章全景复盘全文 (纯净 Markdown) 到剪贴板！');
-    }).catch(() => {
-      showToast('复制成功！可直接粘贴至研报笔记或飞书');
-    });
+  // 一键复制所有 11 个章节 (严格兼容 HTTPS 与局域网 HTTP 非安全上下文)
+  const copyFullMarkdown = async () => {
+    const md =
+      transcendentData?.markdown_content ||
+      (dailyReview as any)?.transcendent_review?.markdown_content ||
+      (dailyReview as any)?.report_content?.transcendent_review?.markdown_content;
+
+    if (!md || md.trim().length === 0) {
+      showToast('暂无研报全文数据可供复制，请稍候...');
+      return;
+    }
+
+    let success = false;
+
+    // 方案 1: 现代 navigator.clipboard (需 HTTPS 或 localhost)
+    if (typeof window !== 'undefined' && navigator?.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(md);
+        success = true;
+      } catch (err) {
+        console.warn('navigator.clipboard failed, fallback to execCommand:', err);
+      }
+    }
+
+    // 方案 2: 经典 textarea execCommand 降级（兼容局域网 http://192.168.x.x 访问）
+    if (!success && typeof document !== 'undefined') {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = md;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        textarea.style.opacity = '0';
+        textarea.setAttribute('readonly', '');
+        document.body.appendChild(textarea);
+        textarea.select();
+        success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch (err) {
+        console.error('execCommand copy failed:', err);
+      }
+    }
+
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+      showToast(`已成功复制「知见」11章全景复盘全文（共 ${md.length} 字）！可直接粘贴至研报笔记或飞书`);
+    } else {
+      showToast('复制失败，请检查浏览器剪贴板权限或手动选中文本复制');
+    }
   };
 
   const handleStockClick = (key: string) => {
@@ -335,11 +378,24 @@ export function ZhijianReviewCockpit({
 
           <button
             onClick={copyFullMarkdown}
-            className="text-xs px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 font-medium border border-white/10 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+            className={`text-xs px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition active:scale-95 shadow-sm ${
+              copied
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700/80'
+                : 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10'
+            }`}
             title="一键复制全部 11 个章节的完整复盘 Markdown 正文"
           >
-            <Copy className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden md:inline">复制全文 (11章)</span>
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-300 font-bold">已复制全文 ✓</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden md:inline">复制全文 (11章)</span>
+              </>
+            )}
           </button>
 
           <button
