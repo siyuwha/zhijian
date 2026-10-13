@@ -18,26 +18,48 @@ Phase 2D.3-A: Narrative Context Extractor Service
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from backend.app.schemas.canonical_market import (
-    CanonicalMarketSnapshot,
-    CanonicalSecurityIdentity,
-)
-from backend.app.schemas.narrative_context import (
-    NarrativeContextContract,
-    NarrativeFactLayer,
-    NarrativeDerivedLayer,
-    NarrativeCognitionLayer,
-    NarrativeTurnoverFact,
-    NarrativeLadderTier,
-    NarrativeLadderFact,
-    NarrativeSentimentCountsFact,
-    NarrativeRegulatoryFact,
-    NarrativeStateCognition,
-    NarrativeMainlineItem,
-    SpeechBoundaryContract,
-)
-from backend.app.services.canonical_market_service import CanonicalSecurityMasterRegistry
-from backend.app.cognition.jcs import hash_jcs
+try:
+    from app.schemas.canonical_market import (
+        CanonicalMarketSnapshot,
+        CanonicalSecurityIdentity,
+    )
+    from app.schemas.narrative_context import (
+        NarrativeContextContract,
+        NarrativeFactLayer,
+        NarrativeDerivedLayer,
+        NarrativeCognitionLayer,
+        NarrativeTurnoverFact,
+        NarrativeLadderTier,
+        NarrativeLadderFact,
+        NarrativeSentimentCountsFact,
+        NarrativeRegulatoryFact,
+        NarrativeStateCognition,
+        NarrativeMainlineItem,
+        SpeechBoundaryContract,
+    )
+    from app.services.canonical_market_service import CanonicalSecurityMasterRegistry
+    from app.cognition.jcs import hash_jcs
+except ImportError:
+    from backend.app.schemas.canonical_market import (
+        CanonicalMarketSnapshot,
+        CanonicalSecurityIdentity,
+    )
+    from backend.app.schemas.narrative_context import (
+        NarrativeContextContract,
+        NarrativeFactLayer,
+        NarrativeDerivedLayer,
+        NarrativeCognitionLayer,
+        NarrativeTurnoverFact,
+        NarrativeLadderTier,
+        NarrativeLadderFact,
+        NarrativeSentimentCountsFact,
+        NarrativeRegulatoryFact,
+        NarrativeStateCognition,
+        NarrativeMainlineItem,
+        SpeechBoundaryContract,
+    )
+    from backend.app.services.canonical_market_service import CanonicalSecurityMasterRegistry
+    from backend.app.cognition.jcs import hash_jcs
 
 
 class NarrativeContextExtractor:
@@ -159,7 +181,7 @@ class NarrativeContextExtractor:
 
         fact_layer = NarrativeFactLayer(
             turnover=fact_turnover,
-            indices=truth.indices,
+            indices=[i.model_dump() if hasattr(i, "model_dump") else i for i in truth.indices],
             ladder=fact_ladder,
             sentiment_counts=fact_counts,
             regulatory=fact_regulatory,
@@ -189,7 +211,7 @@ class NarrativeContextExtractor:
             turnover_change_ratio=to_change,
             breadth_status=truth.cross_section_breadth_status,
             breadth_message=breadth_msg,
-            state_features=state_features,
+            state_features=state_features.model_dump() if hasattr(state_features, "model_dump") else state_features,
         )
 
         # =========================================================================

@@ -382,13 +382,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         activeNav="review"
         onNavChange={handleNavChange}
         leftSlot={
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-xs shadow-md ring-1 ring-white/20 shrink-0">
-              知
-            </div>
+          <div className="flex items-center gap-2 pl-1">
             <div className="flex flex-col">
-              <span className="font-bold text-xs tracking-wide text-white">知见 · 交易驾驶舱</span>
-              <span className="text-[9px] text-purple-300 font-mono">4+1 实战盯盘架构</span>
+              <span className="font-bold text-xs tracking-wide text-white">交易驾驶舱</span>
+              <span className="text-[9px] text-amber-400/80 font-mono">4+1 实战盯盘架构</span>
             </div>
           </div>
         }

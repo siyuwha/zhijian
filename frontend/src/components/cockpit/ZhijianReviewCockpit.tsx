@@ -91,19 +91,14 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
       {/* 顶部机构级研究报头 (Masthead) - 唯一定位“复制全文”与“向AI提问” */}
       <header className="sticky top-0 z-40 bg-[#07090E]/95 backdrop-blur-md border-b border-white/10 px-5 py-3 flex items-center justify-between shadow-2xl">
         <div className="flex items-center gap-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center font-black text-sm text-black shadow-md shadow-amber-900/30">
-              知
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-base tracking-widest text-white">知见 · 全景深度复盘</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold tracking-wider">
+                认知推演 v4.2
+              </span>
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-widest text-white">知见</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold tracking-wider">
-                  认知推演 v4.2
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-400 -mt-0.5">A股短线微观博弈 · 假说证伪闭环</span>
-            </div>
+            <span className="text-[10px] text-slate-400 -mt-0.5">A股短线微观博弈 · 假说证伪闭环</span>
           </div>
 
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
@@ -912,7 +907,9 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
         <div className="fixed inset-y-0 right-0 w-full sm:w-[500px] bg-[#0A0D15]/95 backdrop-blur-2xl border-l border-white/10 z-50 flex flex-col shadow-2xl animate-slide-left">
           <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold text-xs">知</div>
+              <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
               <div>
                 <h3 className="font-bold text-white text-sm">知见 · 智能问答助手</h3>
                 <p className="text-[10px] text-slate-400">依据今日盘面真实数据与推演逻辑解答</p>
@@ -930,7 +927,9 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             {chatMessages.map((msg, i) => (
               <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'ai' && (
-                  <div className="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold text-xs shrink-0 shadow">知</div>
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0 shadow">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
                 )}
                 <div className={`p-3.5 rounded-xl max-w-[85%] ${
                   msg.role === 'user'
@@ -943,7 +942,9 @@ export function ZhijianReviewCockpit({ date, transcendentData }: ZhijianReviewCo
             ))}
             {sendingAi && (
               <div className="flex gap-3">
-                <div className="w-7 h-7 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold text-xs shrink-0 animate-pulse">知</div>
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0 animate-pulse shadow">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
                 <div className="bg-white/5 p-3 rounded-xl text-slate-400 border border-white/10 flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 animate-spin text-amber-400" />
                   <span>知见推演生成中...</span>

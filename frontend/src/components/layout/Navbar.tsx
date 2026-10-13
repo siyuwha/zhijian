@@ -47,9 +47,9 @@ export function Navbar() {
     <>
       {/* Desktop Navigation (物理固定方案，不随二级/三级内容滚动) */}
       <nav className="hidden md:flex flex-col w-64 bg-[#07090E]/95 backdrop-blur-2xl border-r border-white/10 text-white h-screen select-none shrink-0 z-40 sticky top-0 left-0">
-        {/* 顶部品牌头：极光流光 Logo 徽标“知” + 标题 */}
+        {/* 顶部品牌头：系统唯一统一橙色 Logo 徽标“知” + 标题 */}
         <div className="p-5 border-b border-white/5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-base shadow-md ring-1 ring-white/20 shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center font-black text-black text-base shadow-lg shadow-amber-500/25 ring-1 ring-amber-300/40 shrink-0">
             知
           </div>
           <div className="flex flex-col min-w-0">
@@ -58,7 +58,7 @@ export function Navbar() {
                 知见 · 交易认知
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 leading-tight truncate">
+            <span className="text-[10px] text-amber-400/80 leading-tight truncate font-medium">
               A股个人量化复盘 · 极光暗夜版
             </span>
           </div>
@@ -78,7 +78,7 @@ export function Navbar() {
                 className={cn(
                   "group flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm",
                   isActive
-                    ? "bg-gradient-to-r from-purple-600/25 via-indigo-600/10 to-transparent border-l-2 border-purple-400 text-white font-semibold shadow-sm"
+                    ? "bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-transparent border-l-2 border-amber-400 text-white font-semibold shadow-sm"
                     : "text-slate-400 hover:bg-white/[0.04] hover:text-white border-l-2 border-transparent font-medium"
                 )}
               >
@@ -86,7 +86,7 @@ export function Navbar() {
                   className={cn(
                     "w-4 h-4 shrink-0 transition-colors",
                     isActive
-                      ? "text-cyan-400"
+                      ? "text-amber-400"
                       : "text-slate-400 group-hover:text-slate-200"
                   )}
                 />
@@ -146,14 +146,14 @@ export function Navbar() {
                 className={cn(
                   "flex flex-col items-center justify-center min-w-[4.25rem] px-2 py-1.5 rounded-xl transition-all flex-shrink-0 select-none text-[11px]",
                   isActive
-                    ? "bg-purple-600/20 text-white font-semibold border border-purple-500/30 shadow-sm"
+                    ? "bg-amber-500/20 text-white font-semibold border border-amber-500/30 shadow-sm"
                     : "text-slate-400 hover:text-slate-200 active:bg-white/[0.04] border border-transparent"
                 )}
               >
                 <Icon
                   className={cn(
                     "w-5 h-5 mb-1 flex-shrink-0 transition-colors",
-                    isActive ? "text-cyan-400" : "text-slate-400"
+                    isActive ? "text-amber-400" : "text-slate-400"
                   )}
                 />
                 <span className="whitespace-nowrap leading-none tracking-tight">

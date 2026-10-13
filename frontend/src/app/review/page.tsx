@@ -136,8 +136,8 @@ export default function ReviewPage() {
       {/* 核心亮点：「知见」11章全景深度复盘工作台 */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-[#0C1222] via-[#0E172E] to-[#0A0F1D] border border-indigo-500/40 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
         <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-base shadow-lg shadow-indigo-600/30 shrink-0">
-            知
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <Compass className="w-5 h-5" />
           </div>
           <div>
             <div className="font-extrabold text-base flex items-center gap-2">
