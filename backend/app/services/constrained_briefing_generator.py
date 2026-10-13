@@ -152,7 +152,7 @@ class DeepSeekBriefingLLMClient:
         if not self.api_key:
             raise ValueError("No valid LLM_API_KEY / DEEPSEEK_API_KEY configured for real LLM call.")
 
-        client = httpx.Client(timeout=self.timeout)
+        client = httpx.Client(timeout=self.timeout, trust_env=False)
         t0 = time.time()
         ttft = None
         full_text = ""

@@ -229,7 +229,11 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
             <span>📊 切换至分层指标审计视图</span>
           </button>
         </div>
-        <ZhijianReviewCockpit date={date} transcendentData={(data as any)?.transcendent_review} />
+        <ZhijianReviewCockpit 
+          date={date} 
+          transcendentData={(data as any)?.transcendent_review || (data as any)?.report_content?.transcendent_review} 
+          dailyReview={data}
+        />
       </div>
     );
   }

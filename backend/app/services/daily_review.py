@@ -347,33 +347,93 @@ class DailyReviewService:
             )
             self.session.add(daily_snapshot)
 
-        # 9.5 调用「知见」11章全景深度复盘生成引擎 (DeepSeek LLM 驱动)
+        # 9.5 动态组装「知见」11章全景深度复盘真实物理事实 (杜绝硬编码历史数据)
+        current_sh_sz_amount_yi = 0.0
+        sh_close = None
+        sh_pct = None
+        sz_close = None
+        sz_pct = None
+        cyb_close = None
+        cyb_pct = None
+        for idx in index_data:
+            code = str(idx.get("code") or idx.get("symbol") or "")
+            name = str(idx.get("name") or "")
+            amt_wan = float(idx.get("amount_wan") or 0.0)
+            if "000001" in code or "399001" in code:
+                current_sh_sz_amount_yi += (amt_wan / 10000.0)
+            if "000001" in code or "上证" in name:
+                sh_close = float(idx.get("price") if idx.get("price") is not None else (idx.get("close") or 0.0))
+                sh_pct = float(idx.get("pct_change") or 0.0)
+            elif "399001" in code or "深证" in name:
+                sz_close = float(idx.get("price") if idx.get("price") is not None else (idx.get("close") or 0.0))
+                sz_pct = float(idx.get("pct_change") or 0.0)
+            elif "399006" in code or "创业板" in name:
+                cyb_close = float(idx.get("price") if idx.get("price") is not None else (idx.get("close") or 0.0))
+                cyb_pct = float(idx.get("pct_change") or 0.0)
+
+        if current_sh_sz_amount_yi <= 0:
+            current_sh_sz_amount_yi = sum(float(idx.get("amount", 0.0)) for idx in index_data) / 1e8
+
+        turnover_str = f"{current_sh_sz_amount_yi / 10000.0:.2f} 万亿元" if current_sh_sz_amount_yi >= 10000 else f"{current_sh_sz_amount_yi:.0f} 亿元"
+        if prev_total_amount and prev_total_amount > 0:
+            delta_yi = current_sh_sz_amount_yi - prev_total_amount
+            delta_pct = (delta_yi / prev_total_amount) * 100.0
+            sign = "+" if delta_yi >= 0 else ""
+            delta_amount_str = f"{sign}{delta_yi:.0f} 亿元"
+            delta_pct_str = f"{sign}{delta_pct:.2f}%"
+        else:
+            delta_amount_str = "--"
+            delta_pct_str = "--"
+
+        turnover_facts = {
+            "total_amount": turnover_str,
+            "total_amount_yi": round(current_sh_sz_amount_yi, 2),
+            "shrinkage_amount": delta_amount_str,
+            "shrinkage_pct": delta_pct_str,
+        }
+
+        # 整理真实假说审判 (Audit Delta)
+        audit_delta_list = []
+        try:
+            from ..models.cognition import MarketHypothesis
+            hypo_stmt = select(MarketHypothesis).where(MarketHypothesis.target_date == today).order_by(MarketHypothesis.id.asc()).limit(4)
+            hypo_records = (await self.session.execute(hypo_stmt)).scalars().all()
+            for idx_h, h in enumerate(hypo_records):
+                audit_delta_list.append({
+                    "hypothesis": f"H{idx_h + 1}",
+                    "content": f"{h.target_asset}: {h.expected_phenomenon}",
+                    "reality": h.assertion_metrics_observed or "盘后客观核验完成",
+                    "verdict": "证实" if h.verification_status == "CONFIRMED" else ("证伪" if h.verification_status == "FALSIFIED" else "观察中"),
+                    "attribution": h.invalidation_condition or "按既定盘前推演纪律执行"
+                })
+        except Exception as e:
+            logger.debug(f"Audit delta query optional note: {e}")
+
+        if not audit_delta_list:
+            sh_pct_disp = f"{sh_pct:+.2f}%" if sh_pct is not None else "--"
+            cyb_pct_disp = f"{cyb_pct:+.2f}%" if cyb_pct is not None else "--"
+            audit_delta_list = [
+                {
+                    "hypothesis": "H1",
+                    "content": f"大盘核心指数均值（收盘状态：{market_state.state_label}）",
+                    "reality": f"上证 {sh_pct_disp}, 创业板 {cyb_pct_disp}, 全市场涨跌比 {breadth_data.get('up_count', '--')}/{breadth_data.get('down_count', '--')}",
+                    "verdict": "客观校准",
+                    "attribution": f"市场综合评分 {market_state.composite_score:.1f}，进入「{market_state.state_label}」运行通道"
+                }
+            ]
+
         transcendent_facts = {
             "date": today,
             "indices": index_data,
-            "turnover": {
-                "total_amount": "1.54 万亿元",
-                "shrinkage_amount": "-3627 亿元",
-                "shrinkage_pct": "-19.08%"
-            },
+            "turnover": turnover_facts,
             "breadth": breadth_data if isinstance(breadth_data, dict) else {},
             "limit_up": limit_up_summary if isinstance(limit_up_summary, dict) else {},
-            "audit_delta": [
-                {
-                    "hypothesis": "H1",
-                    "content": "科技硬件板块（光模块/算力）分歧后有望反包主升",
-                    "reality": "通信设备 -4.49%(净流出55.7亿)，电子 -3.20%(净流出81.7亿)",
-                    "verdict": "证伪",
-                    "attribution": "误将出逃当洗盘，忽视缩量环境下高估值资产流动性脆弱性"
-                },
-                {
-                    "hypothesis": "H2",
-                    "content": "银行等高股息权重拉升多为被动防守，难以带动成长风格跟涨",
-                    "reality": "工商银行、中信银行盘中续创历史新高；创业板重挫 -2.61%",
-                    "verdict": "证实",
-                    "attribution": "权重防御与成长杀跌并存兑现，银行未产生风格扩散"
-                }
-            ]
+            "market_state": {
+                "state_label": market_state.state_label,
+                "composite_score": market_state.composite_score,
+                "dimensions": dimensions_dump
+            },
+            "audit_delta": audit_delta_list
         }
         try:
             from .zhijian_transcendent_review_service import zhijian_transcendent_service
