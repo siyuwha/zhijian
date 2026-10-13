@@ -58,7 +58,29 @@ async def get_daily_review(date: str, db: AsyncSession = Depends(get_db)):
     if not transcendent_review:
         try:
             from ...services.zhijian_transcendent_review_service import zhijian_transcendent_service
-            transcendent_review = await zhijian_transcendent_service.generate_transcendent_review({"date": date})
+            raw_indices = report_content.get("indices") or market_overview or []
+            raw_limit_up = report_content.get("limit_up") or limit_up_analysis or {}
+            raw_breadth = report_content.get("breadth") or {}
+
+            # 计算两市去重成交额
+            total_turnover_str = "--"
+            if raw_indices:
+                sum_wan = sum(float(i.get("amount_wan") or 0) for i in raw_indices if "000001" in str(i.get("code", "")) or "399001" in str(i.get("code", "")))
+                if sum_wan > 100000000:
+                    total_turnover_str = f"{(sum_wan / 100000000):.2f} 万亿元"
+                elif sum_wan > 10000:
+                    total_turnover_str = f"{(sum_wan / 10000):.0f} 亿元"
+
+            facts = {
+                "date": date,
+                "indices": raw_indices,
+                "turnover": report_content.get("turnover") or {"total_amount": total_turnover_str, "shrinkage_amount": "--", "shrinkage_pct": "--"},
+                "breadth": raw_breadth,
+                "limit_up": raw_limit_up,
+                "audit_delta": report_content.get("audit_delta") or [],
+                "market_state": market_state or report_content.get("market_state") or {}
+            }
+            transcendent_review = await zhijian_transcendent_service.generate_transcendent_review(facts)
         except Exception:
             transcendent_review = None
 
