@@ -2,17 +2,37 @@
 
 import React, { useState } from 'react';
 import { api } from '@/lib/api';
-import { Copy, MessageSquare, Check, ChevronRight, X, Sparkles, Send, ShieldAlert, TrendingUp, TrendingDown, Eye, AlertCircle } from 'lucide-react';
+import { 
+  Copy, MessageSquare, Check, ChevronRight, X, Sparkles, Send, ShieldAlert, 
+  TrendingUp, TrendingDown, Eye, AlertCircle, Calendar, ChevronDown, RefreshCw, ListFilter 
+} from 'lucide-react';
+import { formatDateWithWeekday } from '@/lib/utils';
+import { ZhijianMarkdownArticle } from './ZhijianMarkdownArticle';
 
 interface ZhijianReviewCockpitProps {
   date: string;
   transcendentData?: any;
   dailyReview?: any;
+  historicalDates?: Array<{ date: string; state_label?: string; composite_score?: number | null }>;
+  onSelectDate?: (date: string) => void;
+  onGenerateToday?: () => void;
+  onToggleArchiveView?: () => void;
+  generating?: boolean;
 }
 
-export function ZhijianReviewCockpit({ date, transcendentData, dailyReview }: ZhijianReviewCockpitProps) {
+export function ZhijianReviewCockpit({ 
+  date, 
+  transcendentData, 
+  dailyReview,
+  historicalDates,
+  onSelectDate,
+  onGenerateToday,
+  onToggleArchiveView,
+  generating
+}: ZhijianReviewCockpitProps) {
   const [evidenceOpen, setEvidenceOpen] = useState(true);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // 1. 解析指数数据
@@ -235,34 +255,111 @@ export function ZhijianReviewCockpit({ date, transcendentData, dailyReview }: Zh
 
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
 
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="text-xs px-2.5 py-1 rounded bg-white/5 text-slate-300 font-mono border border-white/10">
-              {date} · 盘后复盘
-            </span>
-            <span className="text-xs px-2.5 py-1 rounded bg-amber-950/40 text-amber-300 font-medium border border-amber-800/40">
+          <div className="flex items-center gap-2">
+            {/* 历史日期快速选择下拉 */}
+            {historicalDates && historicalDates.length > 0 ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDatePickerOpen(!datePickerOpen)}
+                  className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-200 font-mono border border-white/10 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                  title="点击切换历史复盘日期"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{formatDateWithWeekday(date)}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${datePickerOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {datePickerOpen && (
+                  <div className="absolute left-0 mt-2 w-64 bg-[#0B0E17] border border-white/10 rounded-xl shadow-2xl py-1 z-50 divide-y divide-white/5 animate-fade-in backdrop-blur-xl">
+                    <div className="px-3 py-1.5 text-[10px] text-slate-500 font-mono uppercase tracking-wider">
+                      切换历史复盘日 ({historicalDates.length})
+                    </div>
+                    <div className="max-h-64 overflow-y-auto no-scrollbar">
+                      {historicalDates.map((item, idx) => (
+                        <button
+                          key={item.date}
+                          type="button"
+                          onClick={() => {
+                            setDatePickerOpen(false);
+                            if (onSelectDate) onSelectDate(item.date);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs font-mono flex items-center justify-between hover:bg-white/5 transition ${
+                            item.date === date
+                              ? 'text-amber-400 bg-amber-950/40 font-bold'
+                              : 'text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span>{formatDateWithWeekday(item.date)}</span>
+                            {idx === 0 && (
+                              <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded font-bold">
+                                最新
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-500">
+                            {item.state_label || (item.composite_score ? `${item.composite_score}分` : '')}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span className="text-xs px-2.5 py-1 rounded bg-white/5 text-slate-300 font-mono border border-white/10">
+                {formatDateWithWeekday(date) || `${date} · 盘后复盘`}
+              </span>
+            )}
+
+            <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded bg-amber-950/40 text-amber-300 font-medium border border-amber-800/40">
               周期定位：{cyclePhase}
             </span>
           </div>
         </div>
 
         {/* 顶部工具链 */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          {onGenerateToday && (
+            <button
+              onClick={onGenerateToday}
+              disabled={generating}
+              className="text-xs px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium border border-purple-500/30 flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50 shadow-md shadow-purple-950/40"
+              title="一键抓取并重新计算今日收盘客观复盘"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{generating ? '生成中...' : '生成今日复盘'}</span>
+            </button>
+          )}
+
+          {onToggleArchiveView && (
+            <button
+              onClick={onToggleArchiveView}
+              className="text-xs px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
+              title="切换至历史复盘列表视图"
+            >
+              <ListFilter className="w-3.5 h-3.5 text-slate-400" />
+              <span className="hidden sm:inline">历史归档</span>
+            </button>
+          )}
+
           <button
             onClick={copyFullMarkdown}
-            className="text-xs px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 font-medium border border-white/10 flex items-center gap-2 transition active:scale-95 shadow-sm"
+            className="text-xs px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 font-medium border border-white/10 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
             title="一键复制全部 11 个章节的完整复盘 Markdown 正文"
           >
             <Copy className="w-3.5 h-3.5 text-amber-400" />
-            <span>一键复制全文 (11章复盘)</span>
+            <span className="hidden md:inline">复制全文 (11章)</span>
           </button>
 
           <button
             onClick={() => setEvidenceOpen(!evidenceOpen)}
-            className="text-xs px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
+            className="text-xs px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
           >
-            <span>伴随证据栏:</span>
+            <span className="hidden lg:inline">伴随证据:</span>
             <span className={evidenceOpen ? "text-amber-400 font-semibold" : "text-slate-500"}>
-              {evidenceOpen ? '联动开启' : '已隐藏'}
+              {evidenceOpen ? '开' : '关'}
             </span>
           </button>
 
@@ -448,9 +545,18 @@ export function ZhijianReviewCockpit({ date, transcendentData, dailyReview }: Zh
             </div>
           </section>
 
-          {/* 第0章：昨日假说审判 */}
-          <section id="ch0" className="space-y-4 scroll-mt-20">
-            <div className="flex items-center gap-3">
+          {/* 研报正文区：若存在 11 章完整 Markdown 则优先展示全景深度研报，否则降级为摘要卡片 */}
+          {transcendentData?.markdown_content ? (
+            <ZhijianMarkdownArticle
+              markdownContent={transcendentData.markdown_content}
+              onStockClick={handleStockClick}
+              selectedStockName={selectedStock?.name}
+            />
+          ) : (
+            <>
+              {/* 第0章：昨日假说审判 */}
+              <section id="ch0" className="space-y-4 scroll-mt-20">
+                <div className="flex items-center gap-3">
               <span className="text-sm font-mono font-black text-amber-400">00</span>
               <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
                 昨日假说判决书与认知校准
@@ -785,6 +891,8 @@ export function ZhijianReviewCockpit({ date, transcendentData, dailyReview }: Zh
               ))}
             </div>
           </section>
+            </>
+          )}
 
         </main>
 

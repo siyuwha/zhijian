@@ -4,36 +4,70 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { api } from '@/lib/api';
-import { DailyReviewSummaryItem } from '@/types/report';
+import { DailyReviewSummaryItem, DailyReviewDetail } from '@/types/report';
 import { formatDateWithWeekday } from '@/lib/utils';
-import { RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, Activity, HelpCircle, Info, Compass } from 'lucide-react';
+import { 
+  RefreshCw, Calendar, ArrowRight, ShieldCheck, AlertTriangle, AlertCircle, 
+  Activity, HelpCircle, Info, Compass, ArrowLeft 
+} from 'lucide-react';
+import { ZhijianReviewCockpit } from '@/components/cockpit/ZhijianReviewCockpit';
 
 export default function ReviewPage() {
   const [reviews, setReviews] = useState<DailyReviewSummaryItem[]>([]);
+  const [activeDate, setActiveDate] = useState<string | null>(null);
+  const [currentDetail, setCurrentDetail] = useState<DailyReviewDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'cockpit' | 'archive'>('cockpit');
 
-  const fetchReviews = async () => {
+  const loadDateDetail = async (dateStr: string) => {
+    try {
+      setDetailLoading(true);
+      setError(null);
+      const detail = await api.getDailyReview(dateStr);
+      setCurrentDetail(detail);
+      setActiveDate(dateStr);
+    } catch (err: any) {
+      console.error(`获取 ${dateStr} 复盘详情失败:`, err);
+      setError(err.message || '获取复盘详情失败');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await api.getDailyReviews(30, 0);
-      setReviews(res.items || []);
+      const items = res.items || [];
+      setReviews(items);
+
+      if (items.length > 0) {
+        const latestDate = items[0].date;
+        setActiveDate(latestDate);
+        const detail = await api.getDailyReview(latestDate);
+        setCurrentDetail(detail);
+      }
     } catch (err: any) {
-      console.error('获取复盘列表失败:', err);
-      setError(err.message || '获取复盘列表失败');
+      console.error('获取复盘数据失败:', err);
+      setError(err.message || '获取复盘数据失败');
     } finally {
       setLoading(false);
     }
   };
 
-  const [notice, setNotice] = useState<string | null>(null);
-  const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
-
   useEffect(() => {
-    fetchReviews();
+    fetchInitialData();
   }, []);
+
+  const handleSelectDate = (dateStr: string) => {
+    loadDateDetail(dateStr);
+  };
 
   const handleGenerateToday = async () => {
     try {
@@ -45,11 +79,10 @@ export default function ReviewPage() {
         setNotice(res.message || '数据通信正常：大盘点位与前一交易日收盘一致，物理确认为休市状态。');
         setLastActiveDate(res.last_active_date || res.data?.last_active_date || null);
       } else {
-        await fetchReviews();
+        await fetchInitialData();
       }
     } catch (err: any) {
       console.error('生成复盘失败:', err);
-      // 严肃真实错误守卫：网络超时/服务不可用真实报错！
       setError(err.message || '生成今日复盘失败');
     } finally {
       setGenerating(false);
@@ -74,7 +107,7 @@ export default function ReviewPage() {
     }
   };
 
-  // 数据质量标签颜色与图标映射（严格判空与未知质量处理）
+  // 数据质量标签颜色与图标映射
   const renderQualityBadge = (quality?: string | null) => {
     const q = (quality || 'unknown').toLowerCase();
     if (q === 'full') {
@@ -108,33 +141,86 @@ export default function ReviewPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#07090E] flex flex-col items-center justify-center space-y-4">
+        <div className="relative">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 animate-pulse">
+            <Compass className="w-6 h-6 animate-spin" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <h2 className="text-base font-bold text-white tracking-wide">知见 · A股全景深度复盘工作台</h2>
+          <p className="text-xs text-slate-400 font-mono">正在装载最新交易日客观事实与认知推演数据...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 默认：直接进入最新深度的复盘工作台 (满足用户“复盘页面进去就是深度”的核心诉求)
+  if (viewMode === 'cockpit' && currentDetail && activeDate) {
+    return (
+      <div className="relative">
+        {detailLoading && (
+          <div className="fixed top-14 left-1/2 transform -translate-x-1/2 z-50 bg-[#0B0E17]/95 border border-amber-500/40 text-amber-300 px-4 py-2 rounded-xl text-xs shadow-2xl backdrop-blur-xl flex items-center gap-2">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+            <span>正在载入 {formatDateWithWeekday(activeDate)} 深度复盘...</span>
+          </div>
+        )}
+        <ZhijianReviewCockpit
+          date={activeDate}
+          dailyReview={currentDetail}
+          transcendentData={(currentDetail as any)?.transcendent_review || (currentDetail as any)?.report_content?.transcendent_review}
+          historicalDates={reviews}
+          onSelectDate={handleSelectDate}
+          onGenerateToday={handleGenerateToday}
+          onToggleArchiveView={() => setViewMode('archive')}
+          generating={generating}
+        />
+      </div>
+    );
+  }
+
+  // 历史复盘归档模式
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
       {/* 顶部标题与操作栏 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Activity className="w-6 h-6 text-purple-400" />
-            <h1 className="text-2xl font-bold tracking-tight text-white">收盘认知复盘</h1>
+            <Activity className="w-6 h-6 text-amber-400" />
+            <h1 className="text-2xl font-bold tracking-tight text-white">收盘认知复盘 · 历史归档</h1>
           </div>
           <p className="text-sm text-slate-400">
             真实多源行情驱动 · 六维正交状态向量 · 物理分级客观表征 · 零填充防伪
           </p>
         </div>
 
-        <button
-          onClick={handleGenerateToday}
-          disabled={generating}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
-          title="抓取并计算今日收盘客观复盘"
-        >
-          <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
-          {generating ? '正在抓取计算...' : '一键生成今日复盘'}
-        </button>
+        <div className="flex items-center gap-3">
+          {activeDate && (
+            <button
+              onClick={() => setViewMode('cockpit')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-bold text-xs transition shadow-lg shadow-amber-950/40"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>返回深度复盘工作台 ({activeDate})</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleGenerateToday}
+            disabled={generating}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
+            title="抓取并计算今日收盘客观复盘"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
+            {generating ? '正在抓取计算...' : '一键生成今日复盘'}
+          </button>
+        </div>
       </div>
 
-      {/* 核心亮点：「知见」11章全景深度复盘工作台 */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-[#0C1222] via-[#0E172E] to-[#0A0F1D] border border-indigo-500/40 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
+      {/* 核心亮点：快速进入知见深度复盘 */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-[#0C1222] via-[#0E172E] to-[#0A0F1D] border border-amber-500/40 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
             <Compass className="w-5 h-5" />
@@ -142,8 +228,8 @@ export default function ReviewPage() {
           <div>
             <div className="font-extrabold text-base flex items-center gap-2">
               <span>知见 · A股全景深度复盘工作台</span>
-              <span className="text-[10px] font-mono bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-2 py-0.5 rounded-full font-bold">
-                16:30 自动生成 · 11章全景
+              <span className="text-[10px] font-mono bg-amber-950 text-amber-300 border border-amber-700/60 px-2 py-0.5 rounded-full font-bold">
+                11章全景研报
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
@@ -151,16 +237,21 @@ export default function ReviewPage() {
             </p>
           </div>
         </div>
-        <Link
-          href={`/review/${reviews[0]?.date || '2026-10-12'}`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-xs font-bold text-white rounded-xl shadow-lg shadow-indigo-600/30 transition shrink-0 self-start sm:self-center active:scale-95"
+        <button
+          onClick={() => {
+            if (reviews.length > 0) {
+              handleSelectDate(reviews[0].date);
+            }
+            setViewMode('cockpit');
+          }}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-xs font-bold text-black rounded-xl shadow-lg shadow-amber-600/30 transition shrink-0 self-start sm:self-center active:scale-95"
         >
-          <span>进入全景深度复盘工作台</span>
+          <span>进入最新深度复盘 ({reviews[0]?.date || '今日'})</span>
           <ArrowRight className="w-4 h-4" />
-        </Link>
+        </button>
       </div>
 
-      {/* 物理确权休市状态通知（通信正常、物理事实确认为休市，不作为错误报警） */}
+      {/* 物理确权休市状态通知 */}
       {notice && (
         <div className="p-4 rounded-xl bg-cyan-950/40 border border-cyan-800/80 text-cyan-200 text-sm space-y-2">
           <div className="flex items-start gap-3">
@@ -170,13 +261,16 @@ export default function ReviewPage() {
               <p className="text-cyan-200/90 leading-relaxed">{notice}</p>
               {lastActiveDate && (
                 <div className="pt-1">
-                  <Link
-                    href={`/review/${lastActiveDate}`}
+                  <button
+                    onClick={() => {
+                      handleSelectDate(lastActiveDate);
+                      setViewMode('cockpit');
+                    }}
                     className="inline-flex items-center gap-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 underline underline-offset-4"
                   >
-                    查看最近有效交易日（{formatDateWithWeekday(lastActiveDate)}）复盘
+                    查看最近有效交易日（{formatDateWithWeekday(lastActiveDate)}）深度复盘
                     <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>
@@ -192,13 +286,8 @@ export default function ReviewPage() {
         </div>
       )}
 
-      {/* 复盘列表 */}
-      {loading ? (
-        <div className="py-24 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
-          <p className="text-slate-400 text-sm">正在加载复盘记录...</p>
-        </div>
-      ) : reviews.length === 0 ? (
+      {/* 历史复盘列表 */}
+      {reviews.length === 0 ? (
         <div className="py-24 text-center space-y-4 rounded-xl border border-dashed border-white/10 bg-slate-900/40">
           <Activity className="w-12 h-12 text-slate-600 mx-auto" />
           <div className="space-y-1">
@@ -224,8 +313,15 @@ export default function ReviewPage() {
 
           <div className="grid gap-3">
             {reviews.map((item) => (
-              <Link key={item.id} href={`/review/${item.date}`}>
-                <Card className="bg-slate-900/90 border-white/10 hover:border-purple-500/60 transition-all hover:shadow-lg hover:shadow-purple-950/30 cursor-pointer group">
+              <div
+                key={item.id}
+                onClick={() => {
+                  handleSelectDate(item.date);
+                  setViewMode('cockpit');
+                }}
+                className="cursor-pointer"
+              >
+                <Card className="bg-slate-900/90 border-white/10 hover:border-amber-500/60 transition-all hover:shadow-lg hover:shadow-amber-950/30 group">
                   <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-3">
@@ -259,13 +355,13 @@ export default function ReviewPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 text-sm font-medium text-purple-400 group-hover:text-purple-300 group-hover:translate-x-1 transition-all self-end sm:self-center">
-                      <span>查看认知全景</span>
+                    <div className="flex items-center gap-1 text-sm font-medium text-amber-400 group-hover:text-amber-300 group-hover:translate-x-1 transition-all self-end sm:self-center">
+                      <span>查看全景深度</span>
                       <ArrowRight className="w-4 h-4" />
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
+              </div>
             ))}
           </div>
         </div>

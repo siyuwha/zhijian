@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { DailyReviewDetail, SubDimensionState } from '@/types/report';
@@ -35,8 +36,10 @@ import { CognitionLoopVisualizer } from '@/components/cognition/CognitionLoopVis
 import { ZhijianReviewCockpit } from '@/components/cockpit/ZhijianReviewCockpit';
 
 export default function ReviewDetailPage({ params }: { params: Promise<{ date: string }> }) {
+  const router = useRouter();
   const { date } = use(params);
   const [data, setData] = useState<DailyReviewDetail | null>(null);
+  const [historicalReviews, setHistoricalReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'zhijian' | 'classical'>('zhijian');
@@ -94,6 +97,9 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
     }
     loadData();
     loadHypotheses();
+    api.getDailyReviews(30, 0)
+      .then(res => setHistoricalReviews(res.items || []))
+      .catch(() => {});
   }, [date]);
 
   // 创建推演假说
@@ -233,6 +239,9 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
           date={date} 
           transcendentData={(data as any)?.transcendent_review || (data as any)?.report_content?.transcendent_review} 
           dailyReview={data}
+          historicalDates={historicalReviews}
+          onSelectDate={(newDate) => router.push(`/review/${newDate}`)}
+          onToggleArchiveView={() => router.push('/review')}
         />
       </div>
     );
