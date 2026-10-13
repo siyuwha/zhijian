@@ -64,7 +64,7 @@ async def seed_20261008_test_sandbox():
         "SELECT date, snapshot_type, indices_snapshot, breadth_snapshot, "
         "limit_up_snapshot, micro_cap_snapshot, external_risk_snapshot, "
         "high_tier_snapshot, market_state_snapshot, data_quality, source_status "
-        "FROM market_daily_snapshot WHERE date='2026-10-08'"
+        "FROM market_daily_snapshot WHERE date='2026-10-08' AND snapshot_type='EOD_CLOSE'"
     ).fetchone()
 
     prod_rev = prod_conn.execute(

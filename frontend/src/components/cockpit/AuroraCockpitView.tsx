@@ -14,6 +14,7 @@ import {
   EnrichedLimitUpPoolData,
 } from '@/types/canonical';
 import { canonicalAPI, api } from '@/lib/api';
+import { getLatestTradingDateString } from '@/lib/utils';
 import {
   GlassCard,
   FloatingPillNav,
@@ -48,12 +49,12 @@ interface AuroraCockpitViewProps {
 }
 
 export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
-  initialDate = '2026-10-08',
+  initialDate,
 }) => {
   const router = useRouter();
 
-  // 日期与视图模式
-  const [selectedDate, setSelectedDate] = useState<string>(initialDate);
+  // 日期与视图模式：若未指定则默认为最近交易日
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate || getLatestTradingDateString());
   const [viewMode, setViewMode] = useState<'aurora' | 'classic'>('aurora');
 
   // 主数据状态
@@ -172,6 +173,40 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       setIsSectorsLoading(false);
     }
   };
+
+  // 自动探测并解析服务端最新的交易日期 (当外部未显式传入 initialDate 时)
+  useEffect(() => {
+    if (initialDate) {
+      setSelectedDate(initialDate);
+      return;
+    }
+
+    let isMounted = true;
+    canonicalAPI
+      .getLatestDate()
+      .then((res) => {
+        if (isMounted && res?.latest_date) {
+          setSelectedDate(res.latest_date);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to resolve latest date from canonicalAPI, falling back to dailyReviews:', err);
+        api
+          .getDailyReviews(1, 0)
+          .then((revs) => {
+            if (isMounted && revs?.items?.[0]?.date) {
+              setSelectedDate(revs.items[0].date);
+            }
+          })
+          .catch((e) => {
+            console.warn('Fallback to dailyReviews also failed:', e);
+          });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialDate]);
 
   useEffect(() => {
     fetchAllData(selectedDate);

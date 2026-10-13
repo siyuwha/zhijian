@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function CockpitPage() {
-  return <AuroraCockpitView initialDate="2026-10-08" />;
+  return <AuroraCockpitView />;
 }

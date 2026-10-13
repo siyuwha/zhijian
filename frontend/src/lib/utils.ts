@@ -123,3 +123,24 @@ export function formatDateWithWeekday(dateStr: string | null | undefined): strin
   return `${pure} (${wd})`;
 }
 
+/**
+ * 获取最新的交易日日期字符串（YYYY-MM-DD）。
+ * 如果当天是周末或法定节假日休市，则自动往前推导至最近的上一个交易日。
+ */
+export function getLatestTradingDateString(): string {
+  const now = new Date();
+  // 最多往前倒推 30 天，防止异常死循环
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const dStr = `${year}-${month}-${day}`;
+    if (isTradingDay(dStr)) {
+      return dStr;
+    }
+  }
+  return getTodayDateString();
+}
+
+

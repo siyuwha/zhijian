@@ -11,7 +11,7 @@ Market State Calibrator Service (DOC-78 Phase 2D.2)
 """
 
 from typing import List, Optional
-from backend.app.schemas.canonical_market import (
+from ..schemas.canonical_market import (
     MarketStateEnum,
     IndexVector,
     LadderVector,

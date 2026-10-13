@@ -26,15 +26,16 @@ import {
   FileText,
   Activity,
 } from 'lucide-react';
+import { getLatestTradingDateString } from '@/lib/utils';
 
 interface TraderCockpitViewProps {
   initialDate?: string;
 }
 
 export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
-  initialDate = '2026-10-08',
+  initialDate,
 }) => {
-  const [selectedDate, setSelectedDate] = useState<string>(initialDate);
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate || getLatestTradingDateString());
   const [snapshot, setSnapshot] = useState<CanonicalMarketSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -110,6 +111,12 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
       setIsIntradayLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (initialDate && initialDate !== selectedDate) {
+      setSelectedDate(initialDate);
+    }
+  }, [initialDate]);
 
   useEffect(() => {
     fetchSnapshot(selectedDate);

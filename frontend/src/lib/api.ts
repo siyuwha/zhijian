@@ -225,6 +225,8 @@ export const api = {
 // Phase 2D.0 / 2D.1: Canonical Market Truth & Cognition 统一信封消费接口
 // =========================================================================
 export const canonicalAPI = {
+  getLatestDate: () =>
+    fetchAPI<{ latest_date: string }>('/canonical/latest-date'),
   getCanonicalMarketSnapshot: (date: string) =>
     fetchAPI<import('@/types/canonical').CanonicalMarketSnapshot>(`/canonical/market-snapshot/${date}`),
   getTacticalBriefing: (date: string) =>

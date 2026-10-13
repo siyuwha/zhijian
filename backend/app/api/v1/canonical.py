@@ -4,12 +4,15 @@ GET /api/v1/canonical/market-snapshot/{date}
 前端未来唯一合法单向消费的数据载体！
 严格分离并承载 MarketTruthSnapshot (FACT + DERIVED) 与 CognitionSnapshot (COGNITION)
 """
-
 import logging
 from typing import Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.database import get_db
+from ...models.market import MarketDailySnapshot
+from ...models.report import DailyReview
 from ...services.canonical_market_service import CanonicalMarketService
 from ...schemas.canonical_market import CanonicalMarketSnapshot
 from ...schemas.tactical_briefing import TacticalBriefingReport
@@ -19,6 +22,46 @@ from ...services.constrained_briefing_generator import ConstrainedBriefingGenera
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/canonical", tags=["Canonical Market Truth & Cognition"])
+
+
+@router.get("/latest-date")
+async def get_latest_market_date(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取系统中最新的市场复盘/快照基准日期
+    """
+    stmt = (
+        select(MarketDailySnapshot.date)
+        .where(MarketDailySnapshot.snapshot_type == "EOD_CLOSE")
+        .order_by(MarketDailySnapshot.date.desc())
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    latest = result.scalar_one_or_none()
+
+    if not latest:
+        stmt_any = (
+            select(MarketDailySnapshot.date)
+            .order_by(MarketDailySnapshot.date.desc())
+            .limit(1)
+        )
+        res_any = await db.execute(stmt_any)
+        latest = res_any.scalar_one_or_none()
+
+    if not latest:
+        stmt_rev = (
+            select(DailyReview.date)
+            .order_by(DailyReview.date.desc())
+            .limit(1)
+        )
+        res_rev = await db.execute(stmt_rev)
+        latest = res_rev.scalar_one_or_none()
+
+    if not latest:
+        latest = datetime.now().strftime("%Y-%m-%d")
+
+    return {"code": 200, "data": {"latest_date": str(latest)}}
 
 
 @router.get("/market-snapshot/{date}", response_model=CanonicalMarketSnapshot)
