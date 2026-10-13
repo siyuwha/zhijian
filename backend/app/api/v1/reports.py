@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict
 from ...core.database import get_db
 from ...services.daily_review import DailyReviewService
 from ...services.premarket import PremarketService
