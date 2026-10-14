@@ -44,6 +44,9 @@ class DataService:
         "concept_blocks": 15000,
         "price_anomaly": 15000,
         "settlement": 10000,
+        "limit_up": 15000,
+        "high_tier_performance": 15000,
+        "market_breadth": 10000,
     }
 
     # 全局内存快照缓存与最后已知有效快照 (Last Known Good Snapshot)

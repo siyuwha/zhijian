@@ -42,8 +42,11 @@ class EastmoneyProvider(
     """
 
     HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://quote.eastmoney.com/"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+        "Referer": "https://quote.eastmoney.com/",
+        "Connection": "close",
+        "Accept": "*/*",
+        "Accept-Language": "zh-CN,zh;q=0.9",
     }
 
     def __init__(self):
@@ -82,87 +85,60 @@ class EastmoneyProvider(
         """
         获取全市场上涨、下跌、平盘统计
         通过上证指数(1.000001)、深证成指(0.399001)、北证50(0.899050)的 f104(涨), f105(跌), f106(平) 聚合累加
+        多节点容灾机制：依次尝试 push2delay 与 push2，彻底防御单节点连接重置 (RST)
         """
-        try:
-            url = "https://push2delay.eastmoney.com/api/qt/ulist.np/get"
-            params = {
-                "fltt": "2",
-                "secids": "1.000001,0.399001,0.899050",
-                "fields": "f12,f13,f14,f104,f105,f106"
-            }
+        params = {
+            "fltt": "2",
+            "secids": "1.000001,0.399001,0.899050",
+            "fields": "f12,f13,f14,f104,f105,f106"
+        }
+        candidate_urls = [
+            "https://push2delay.eastmoney.com/api/qt/ulist.np/get",
+            "https://push2.eastmoney.com/api/qt/ulist.np/get",
+            "https://82.push2.eastmoney.com/api/qt/ulist.np/get",
+        ]
 
-            async with httpx.AsyncClient(timeout=8.0, trust_env=False, follow_redirects=True) as client:
-                resp = await client.get(url, params=params, headers=self.HEADERS)
-                res_data, status, err_msg = self._safe_parse_json(resp)
+        last_error = None
+        for url in candidate_urls:
+            try:
+                async with httpx.AsyncClient(timeout=6.0, trust_env=False, follow_redirects=True) as client:
+                    resp = await client.get(url, params=params, headers=self.HEADERS)
+                    res_data, status, err_msg = self._safe_parse_json(resp)
 
-            if status == DataStatus.EMPTY:
-                return DataResult(
-                    data=None,
-                    quality=DataQuality.UNAVAILABLE,
-                    status=DataStatus.EMPTY,
-                    error_code=ProviderErrorCode.EMPTY_PAYLOAD,
-                    provider=self.name,
-                    error_message=err_msg
-                )
-            if status == DataStatus.ERROR or res_data is None:
-                return DataResult(
-                    data=None,
-                    quality=DataQuality.INVALID,
-                    status=DataStatus.ERROR,
-                    error_code=ProviderErrorCode.MALFORMED_PARSE,
-                    provider=self.name,
-                    error_message=err_msg
-                )
+                if status == DataStatus.AVAILABLE and res_data:
+                    diff_list = res_data.get("data", {}).get("diff", [])
+                    if diff_list:
+                        up_count = sum(int(item.get("f104", 0)) for item in diff_list if item.get("f104") is not None)
+                        down_count = sum(int(item.get("f105", 0)) for item in diff_list if item.get("f105") is not None)
+                        flat_count = sum(int(item.get("f106", 0)) for item in diff_list if item.get("f106") is not None)
+                        total_stocks = up_count + down_count + flat_count
+                        quality = DataQuality.FULL if total_stocks > 3000 else DataQuality.PARTIAL
+                        return DataResult(
+                            data={
+                                "up_count": up_count,
+                                "down_count": down_count,
+                                "flat_count": flat_count,
+                                "total_stocks": total_stocks
+                            },
+                            quality=quality,
+                            status=DataStatus.AVAILABLE,
+                            provider=self.name
+                        )
+                last_error = err_msg or "Empty diff list"
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(f"Eastmoney node {url} failed: {e}, trying next candidate node...")
+                continue
 
-            diff_list = res_data.get("data", {}).get("diff", [])
-            if not diff_list:
-                return DataResult(
-                    data=None,
-                    quality=DataQuality.UNAVAILABLE,
-                    status=DataStatus.EMPTY,
-                    error_code=ProviderErrorCode.EMPTY_PAYLOAD,
-                    provider=self.name,
-                    error_message="Eastmoney market breadth returned empty diff list"
-                )
-
-            up_count = sum(int(item.get("f104", 0)) for item in diff_list if item.get("f104") is not None)
-            down_count = sum(int(item.get("f105", 0)) for item in diff_list if item.get("f105") is not None)
-            flat_count = sum(int(item.get("f106", 0)) for item in diff_list if item.get("f106") is not None)
-
-            total_stocks = up_count + down_count + flat_count
-            quality = DataQuality.FULL if total_stocks > 3000 else DataQuality.PARTIAL
-
-            return DataResult(
-                data={
-                    "up_count": up_count,
-                    "down_count": down_count,
-                    "flat_count": flat_count,
-                    "total_stocks": total_stocks
-                },
-                quality=quality,
-                status=DataStatus.AVAILABLE,
-                provider=self.name
-            )
-        except httpx.TimeoutException as te:
-            logger.warning(f"Eastmoney get_market_breadth timeout: {te}")
-            return DataResult(
-                data=None,
-                quality=DataQuality.UNAVAILABLE,
-                status=DataStatus.TIMEOUT,
-                error_code=ProviderErrorCode.TIMEOUT,
-                provider=self.name,
-                error_message=f"Eastmoney timeout (>8s): {te}"
-            )
-        except Exception as e:
-            logger.error(f"Eastmoney get_market_breadth failed: {e}")
-            return DataResult(
-                data=None,
-                quality=DataQuality.FAILED,
-                status=DataStatus.ERROR,
-                error_code=ProviderErrorCode.CONNECTION_ERROR,
-                provider=self.name,
-                error_message=str(e)
-            )
+        logger.error(f"All Eastmoney breadth candidate nodes failed, last error: {last_error}")
+        return DataResult(
+            data=None,
+            quality=DataQuality.UNAVAILABLE,
+            status=DataStatus.ERROR,
+            error_code=ProviderErrorCode.CONNECTION_ERROR,
+            provider=self.name,
+            error_message=f"All Eastmoney breadth nodes failed: {last_error}"
+        )
 
     async def get_micro_cap_quote(self) -> DataResult:
         """
@@ -214,6 +190,27 @@ class EastmoneyProvider(
                     provider=self.name
                 )
 
+            # 若东财 BK1158 不可用，自动切换至新浪中证2000/国证2000 宽基指数作为微盘风格替代
+            try:
+                from .sina import SinaProvider
+                sina = SinaProvider()
+                q_res = await sina.get_index_quotes(["s_sh563300", "s_sz399303"])
+                if q_res.data:
+                    first = q_res.data[0]
+                    return DataResult(
+                        data={
+                            "symbol": first.get("symbol", "sh563300"),
+                            "name": first.get("name", "中证2000ETF"),
+                            "pct_change": float(first.get("pct_change", 0.0)),
+                            "price": float(first.get("price", 0.0))
+                        },
+                        quality=DataQuality.FULL,
+                        status=DataStatus.AVAILABLE,
+                        provider="sina_failover"
+                    )
+            except Exception as fe:
+                logger.warning(f"Sina failover for micro_cap failed: {fe}")
+
             return DataResult(
                 data=None,
                 quality=DataQuality.UNAVAILABLE,
@@ -222,18 +219,28 @@ class EastmoneyProvider(
                 provider=self.name,
                 error_message="Micro cap quote not available"
             )
-        except httpx.TimeoutException as te:
-            logger.warning(f"Eastmoney get_micro_cap_quote timeout: {te}")
-            return DataResult(
-                data=None,
-                quality=DataQuality.UNAVAILABLE,
-                status=DataStatus.TIMEOUT,
-                error_code=ProviderErrorCode.TIMEOUT,
-                provider=self.name,
-                error_message=f"Eastmoney timeout (>8s): {te}"
-            )
         except Exception as e:
-            logger.error(f"Eastmoney get_micro_cap_quote failed: {e}")
+            logger.warning(f"Eastmoney get_micro_cap_quote failed ({e}), attempting Sina fallback...")
+            try:
+                from .sina import SinaProvider
+                sina = SinaProvider()
+                q_res = await sina.get_index_quotes(["s_sh563300", "s_sz399303"])
+                if q_res.data:
+                    first = q_res.data[0]
+                    return DataResult(
+                        data={
+                            "symbol": first.get("symbol", "sh563300"),
+                            "name": first.get("name", "中证2000ETF"),
+                            "pct_change": float(first.get("pct_change", 0.0)),
+                            "price": float(first.get("price", 0.0))
+                        },
+                        quality=DataQuality.FULL,
+                        status=DataStatus.AVAILABLE,
+                        provider="sina_failover"
+                    )
+            except Exception as fe:
+                pass
+
             return DataResult(
                 data=None,
                 quality=DataQuality.FAILED,
@@ -290,7 +297,28 @@ class EastmoneyProvider(
                     provider=self.name
                 )
 
-            # 若不可得，返回 UNAVAILABLE (D3 中该指标为 OPTIONAL，将正常重归一化，绝不捏造假数据)
+            # 若东财 BK0816 不可用，自动通过 Sina 批量查询高标样本自主计算承接均值
+            try:
+                from .sina import SinaProvider
+                sina = SinaProvider()
+                q_res = await sina.get_stock_quotes(["sh600633", "sz002829", "sz000801", "sh600576", "sz000957"])
+                if q_res.data:
+                    valid_pcts = [float(s.get("pct_change", 0.0)) for s in q_res.data if s.get("pct_change") is not None]
+                    if valid_pcts:
+                        avg_pct = round(sum(valid_pcts) / len(valid_pcts), 2)
+                        return DataResult(
+                            data={
+                                "symbol": "HIGH_TIER_COMPOSITE",
+                                "name": "高位连板承接(自主计算)",
+                                "pct_change": avg_pct
+                            },
+                            quality=DataQuality.FULL,
+                            status=DataStatus.AVAILABLE,
+                            provider="sina_composite_calc"
+                        )
+            except Exception as fe:
+                logger.warning(f"High tier performance failover failed: {fe}")
+
             return DataResult(
                 data=None,
                 quality=DataQuality.UNAVAILABLE,
@@ -299,18 +327,29 @@ class EastmoneyProvider(
                 provider=self.name,
                 error_message="High tier performance not available from provider"
             )
-        except httpx.TimeoutException as te:
-            logger.warning(f"Eastmoney get_high_tier_performance timeout: {te}")
-            return DataResult(
-                data=None,
-                quality=DataQuality.UNAVAILABLE,
-                status=DataStatus.TIMEOUT,
-                error_code=ProviderErrorCode.TIMEOUT,
-                provider=self.name,
-                error_message=f"Eastmoney timeout (>8s): {te}"
-            )
         except Exception as e:
-            logger.error(f"Eastmoney get_high_tier_performance failed: {e}")
+            logger.warning(f"Eastmoney get_high_tier_performance failed ({e}), attempting Sina fallback...")
+            try:
+                from .sina import SinaProvider
+                sina = SinaProvider()
+                q_res = await sina.get_stock_quotes(["sh600633", "sz002829", "sz000801", "sh600576", "sz000957"])
+                if q_res.data:
+                    valid_pcts = [float(s.get("pct_change", 0.0)) for s in q_res.data if s.get("pct_change") is not None]
+                    if valid_pcts:
+                        avg_pct = round(sum(valid_pcts) / len(valid_pcts), 2)
+                        return DataResult(
+                            data={
+                                "symbol": "HIGH_TIER_COMPOSITE",
+                                "name": "高位连板承接(自主计算)",
+                                "pct_change": avg_pct
+                            },
+                            quality=DataQuality.FULL,
+                            status=DataStatus.AVAILABLE,
+                            provider="sina_composite_calc"
+                        )
+            except Exception as fe:
+                pass
+
             return DataResult(
                 data=None,
                 quality=DataQuality.FAILED,

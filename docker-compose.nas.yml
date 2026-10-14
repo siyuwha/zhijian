@@ -1,0 +1,52 @@
+# ==============================================================================
+# “知见”认知交易系统 - 飞牛私有云 (fnOS) 生产镜像版 Compose 配置
+# 使用 GitHub Container Registry (ghcr.io) 镜像，支持飞牛界面一键检测更新升级
+# ==============================================================================
+
+services:
+  backend:
+    image: ghcr.io/siyuwha/zhijian-backend:latest
+    container_name: trading-ai-backend
+    restart: always
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/trading.db
+      - TZ=Asia/Shanghai
+      - PYTHONPATH=/:/app
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    networks:
+      - trading-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\""]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    image: ghcr.io/siyuwha/zhijian-frontend:latest
+    container_name: trading-ai-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - trading-net
+
+networks:
+  trading-net:
+    driver: bridge

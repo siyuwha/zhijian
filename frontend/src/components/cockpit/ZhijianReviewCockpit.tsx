@@ -74,11 +74,14 @@ export function ZhijianReviewCockpit({
   // 3. 多空广度与赚钱效应
   const lua = dailyReview?.limit_up_analysis || {};
   const breadth = dailyReview?.report_content?.breadth || {};
-  const upCount = Number(lua.up_count ?? breadth.up_count ?? transcendentData?.stats_summary?.up_count ?? 2938);
-  const downCount = Number(lua.down_count ?? breadth.down_count ?? transcendentData?.stats_summary?.down_count ?? 2515);
-  const totalBreadth = upCount + downCount;
-  const upRatio = totalBreadth > 0 ? ((upCount / totalBreadth) * 100).toFixed(1) : '52.1';
-  const downRatio = totalBreadth > 0 ? (100 - Number(upRatio)).toFixed(1) : '47.9';
+  const candUp = lua.up_count ?? breadth.up_count ?? transcendentData?.stats_summary?.up_count;
+  const candDown = lua.down_count ?? breadth.down_count ?? transcendentData?.stats_summary?.down_count;
+  const isBreadthAvailable = candUp != null && candDown != null && (Number(candUp) + Number(candDown) > 0);
+  const upCount = isBreadthAvailable ? Number(candUp) : null;
+  const downCount = isBreadthAvailable ? Number(candDown) : null;
+  const totalBreadth = (upCount ?? 0) + (downCount ?? 0);
+  const upRatio = totalBreadth > 0 ? (((upCount ?? 0) / totalBreadth) * 100).toFixed(1) : '--';
+  const downRatio = totalBreadth > 0 ? (100 - Number(upRatio)).toFixed(1) : '--';
 
   const limitUpCount = Number(lua.total_count ?? lua.limit_up_count ?? transcendentData?.stats_summary?.limit_up_count ?? 67);
   const limitDownCount = Number(lua.limit_down_count ?? transcendentData?.stats_summary?.limit_down_count ?? 8);
@@ -549,12 +552,16 @@ export function ZhijianReviewCockpit({
                   {/* 极性对比双色柱 (红涨绿跌) */}
                   <div className="my-2 space-y-1.5">
                     <div className="flex justify-between items-baseline font-mono text-xs font-bold">
-                      <span className="text-rose-400">{upCount} 涨 ({upRatio}%)</span>
-                      <span className="text-emerald-400">{downCount} 跌 ({downRatio}%)</span>
+                      <span className="text-rose-400">
+                        {upCount !== null ? `${upCount} 涨 (${upRatio}%)` : '上涨 -- (数据降级)'}
+                      </span>
+                      <span className="text-emerald-400">
+                        {downCount !== null ? `${downCount} 跌 (${downRatio}%)` : '下跌 -- (数据降级)'}
+                      </span>
                     </div>
                     <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden flex">
-                      <div className="h-full bg-rose-500" style={{ width: `${upRatio}%` }} />
-                      <div className="h-full bg-emerald-500" style={{ width: `${downRatio}%` }} />
+                      <div className="h-full bg-rose-500" style={{ width: upRatio !== '--' ? `${upRatio}%` : '50%' }} />
+                      <div className="h-full bg-emerald-500" style={{ width: downRatio !== '--' ? `${downRatio}%` : '50%' }} />
                     </div>
                   </div>
 

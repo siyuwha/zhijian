@@ -44,11 +44,11 @@ class TaskScheduler:
             id="daily_review",
             misfire_grace_time=600
         )
-        # 盘中动态监控与异动感知 (交易时段每 60 秒轮询采样与异动扫描)
+        # 盘中动态监控与异动感知 (最佳防封安全区间：每 180 秒采样一次，防止上游接口被识别封禁)
         self.scheduler.add_job(
             self._run_intraday_monitor,
             "interval",
-            seconds=60,
+            seconds=180,
             id="intraday_monitor",
             max_instances=1,
             coalesce=True

@@ -1,10 +1,8 @@
 # 构建阶段
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:20-alpine AS builder
+ARG BASE_IMAGE=node:20-alpine
+FROM ${BASE_IMAGE} AS builder
 
 WORKDIR /app
-
-# 设置国内 npm 镜像源加速构建
-RUN npm config set registry https://registry.npmmirror.com
 
 COPY package.json package-lock.json ./
 RUN npm install
@@ -15,7 +13,7 @@ COPY . .
 RUN npm run build
 
 # 生产运行阶段
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:20-alpine AS runner
+FROM ${BASE_IMAGE} AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
