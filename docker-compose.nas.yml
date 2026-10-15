@@ -6,6 +6,7 @@
 services:
   backend:
     image: ghcr.nju.edu.cn/siyuwha/zhijian-backend:v0.4.3
+    pull_policy: always
     container_name: trading-ai-backend
     restart: always
     ports:
@@ -34,6 +35,7 @@ services:
 
   frontend:
     image: ghcr.nju.edu.cn/siyuwha/zhijian-frontend:v0.4.3
+    pull_policy: always
     container_name: trading-ai-frontend
     restart: always
     ports:
