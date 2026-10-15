@@ -21,7 +21,6 @@ import { canonicalAPI, api } from '@/lib/api';
 import { getLatestTradingDateString } from '@/lib/utils';
 import {
   GlassCard,
-  FloatingPillNav,
   StatusBadge,
 } from '@/components/ui/aurora';
 import { AuditDrawer } from './AuditDrawer';
@@ -52,6 +51,7 @@ import {
   ArrowRight,
   Plus,
   X,
+  FileText,
 } from 'lucide-react';
 
 export interface StockComparisonItem {
@@ -640,25 +640,6 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     setIsAddStockOpen(false);
   };
 
-  // 导航切换
-  const handleNavChange = (key: string) => {
-    if (key === 'overview') {
-      router.push('/');
-    } else if (key === 'review') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (key === 'audit') {
-      setIsAuditOpen(true);
-    } else if (key === 'battleground') {
-      const el = document.getElementById('bento-battleground');
-      el?.scrollIntoView({ behavior: 'smooth' });
-    } else if (key === 'ladder') {
-      const el = document.getElementById('bento-ladder');
-      el?.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      router.push(`/${key}`);
-    }
-  };
-
   // 获取核心快照与连板
   const fetchAllData = async (date: string) => {
     setIsLoading(true);
@@ -956,89 +937,137 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       <div className="fixed top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-purple-600/10 blur-[150px] pointer-events-none -z-10" />
       <div className="fixed bottom-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-cyan-500/08 blur-[160px] pointer-events-none -z-10" />
 
-      {/* 顶部悬浮胶囊灵动岛导航 (Floating Island Nav) */}
-      <FloatingPillNav
-        activeNav="review"
-        onNavChange={handleNavChange}
-        leftSlot={
-          <div className="flex items-center gap-2 pl-1">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white text-xs shadow-md">
-              舱
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-xs tracking-wide text-white">知见 · 交易员驾驶舱</span>
-                {timeProgress.isAfterClose ? (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    全天收盘 · 战局终局 ({selectedDate})
-                  </span>
-                ) : timeProgress.isMidday ? (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                    午间休市 · 盘中态势锁定 (11:30~13:00)
-                  </span>
-                ) : timeProgress.isPreOpen ? (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                    未开盘 · 集合竞价准备期
-                  </span>
-                ) : (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                    实盘交易中 · {timeProgress.timeLabel}
-                  </span>
-                )}
-              </div>
-              <span className="text-[9px] text-slate-400 font-mono">
-                宏观流动性投影 + 微观天际线 + Top 5 题材分时资金争夺 + 4 时段内参
-              </span>
-            </div>
+      {/* 顶部统一控制台标头 (彻底消除多余 Logo、系统名重复、安全药丸重复与头像冗余) */}
+      <header className="max-w-7xl mx-auto w-full bg-[#090D16]/90 backdrop-blur-2xl border border-white/10 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-2xl z-30 sticky top-2 select-none">
+        {/* 左侧：页面标题与交易态势胶囊 */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-300 shadow-inner shrink-0">
+            <Compass className="w-4 h-4 text-purple-400" />
           </div>
-        }
-        rightSlot={
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* 日期选择器 */}
-            <div className="h-8 flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-full px-2.5 text-xs shadow-inner">
-              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent border-none text-[11px] font-mono text-slate-200 focus:outline-none cursor-pointer"
-              />
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="font-bold text-sm tracking-wide text-white">交易员驾驶舱</h1>
+              {timeProgress.isAfterClose ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  全天收盘 · 战局终局 ({selectedDate})
+                </span>
+              ) : timeProgress.isMidday ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  午间休市 · 盘中态势锁定 (11:30~13:00)
+                </span>
+              ) : timeProgress.isPreOpen ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                  未开盘 · 集合竞价准备期
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1.5 font-semibold shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                  实盘交易中 · {timeProgress.timeLabel}
+                </span>
+              )}
             </div>
-
-            {/* 自动快照指标 */}
-            <div className="h-8 hidden sm:flex items-center gap-1 bg-black/30 border border-white/10 px-2.5 rounded-full text-[10px] font-mono text-slate-300">
-              <span className="text-emerald-400">● 自动快照</span>
-              <span className="text-slate-400">3s</span>
-            </div>
-
-            {/* 刷新按钮 */}
-            <button
-              onClick={() => {
-                fetchAllData(selectedDate);
-                fetchSectors(sectorType);
-              }}
-              disabled={isLoading}
-              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition disabled:opacity-50 shrink-0"
-              title="刷新全量事实与认知数据"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-
-            {/* 切换经典版 */}
-            <button
-              onClick={() => setViewMode('classic')}
-              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-400 hover:text-slate-200 text-xs transition shrink-0"
-              title="切换为经典三层驾驶舱布局"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-            </button>
+            <span className="text-[10px] text-slate-400 font-mono mt-0.5 hidden sm:block">
+              极光暗夜流光版 · 盘中 4 时段决策内参 + 核心个股分时走势 + 题材主力资金争夺
+            </span>
           </div>
-        }
-      />
+        </div>
+
+        {/* 中间：页面内 Bento 模块快速平滑直达锚点 (取代与全局侧边栏冲突的路由导航) */}
+        <nav className="hidden lg:flex items-center gap-1 bg-black/40 border border-white/10 rounded-full p-1 text-xs font-medium text-slate-400">
+          <button
+            onClick={() => document.getElementById('bento-briefing')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2.5 py-1 rounded-full hover:text-white hover:bg-white/5 transition"
+          >
+            操盘内参
+          </button>
+          <button
+            onClick={() => document.getElementById('bento-temperature')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2.5 py-1 rounded-full hover:text-white hover:bg-white/5 transition"
+          >
+            市场温度
+          </button>
+          <button
+            onClick={() => document.getElementById('bento-stocks')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2.5 py-1 rounded-full hover:text-white hover:bg-white/5 transition"
+          >
+            核心个股
+          </button>
+          <button
+            onClick={() => document.getElementById('bento-battleground')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2.5 py-1 rounded-full hover:text-white hover:bg-white/5 transition"
+          >
+            题材战场
+          </button>
+          <button
+            onClick={() => document.getElementById('bento-ladder')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2.5 py-1 rounded-full hover:text-white hover:bg-white/5 transition"
+          >
+            连板天梯
+          </button>
+          <button
+            onClick={() => document.getElementById('bento-mines')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-2.5 py-1 rounded-full hover:text-white hover:bg-white/5 transition"
+          >
+            地雷雷达
+          </button>
+        </nav>
+
+        {/* 右侧：纯功能控制台 (无多余安全药丸、无孤立头像，纯粹专业工具链) */}
+        <div className="flex items-center gap-2">
+          {/* 日期选择器 */}
+          <div className="h-8 flex items-center gap-1.5 bg-black/50 border border-white/10 rounded-xl px-2.5 text-xs shadow-inner">
+            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent border-none text-[11px] font-mono text-slate-200 focus:outline-none cursor-pointer"
+            />
+          </div>
+
+          {/* 自动快照指标 */}
+          <div className="h-8 hidden sm:flex items-center gap-1.5 bg-black/40 border border-white/10 px-2.5 rounded-xl text-[10px] font-mono text-slate-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>快照 3s</span>
+          </div>
+
+          {/* 刷新按钮 */}
+          <button
+            onClick={() => {
+              fetchAllData(selectedDate);
+              fetchSectors(sectorType);
+            }}
+            disabled={isLoading}
+            className="h-8 px-2.5 flex items-center gap-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs font-medium transition disabled:opacity-50 shrink-0"
+            title="刷新全量事实与认知数据"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">刷新</span>
+          </button>
+
+          {/* 审计留痕抽屉入口 */}
+          <button
+            onClick={() => setIsAuditOpen(true)}
+            className="h-8 px-2.5 flex items-center gap-1.5 rounded-xl bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/30 text-purple-300 hover:text-purple-200 text-xs font-medium transition shrink-0"
+            title="查看完整事实与推理审计留痕"
+          >
+            <FileText className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden sm:inline">审计留痕</span>
+          </button>
+
+          {/* 切换经典版 */}
+          <button
+            onClick={() => setViewMode('classic')}
+            className="h-8 w-8 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-slate-200 text-xs transition shrink-0"
+            title="切换为经典三层驾驶舱布局"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </header>
 
       {/* 异常警示栏 */}
       {errorMsg && (
@@ -1061,6 +1090,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       {/* ========================================================================= */}
       <section className="max-w-7xl mx-auto w-full">
         <GlassCard
+          id="bento-briefing"
           rounded="3xl"
           padding="md"
           className="w-full border border-purple-500/35 bg-gradient-to-r from-slate-950/95 via-[#0B0F19] to-purple-950/20 relative shadow-2xl"
@@ -1240,6 +1270,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
           {/* Bento ①【市场温度 · 宏观流动性与多空极性】 */}
           <GlassCard
+            id="bento-temperature"
             rounded="3xl"
             padding="md"
             className="flex flex-col justify-between relative overflow-hidden"
@@ -1430,6 +1461,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         {/* 第二排【新增 · 横向全幅】：核心个股分时涨跌幅走势对比曲线 */}
         {/* --------------------------------------------------------------------- */}
         <GlassCard
+          id="bento-stocks"
           rounded="3xl"
           padding="lg"
           className="border border-cyan-500/30 bg-gradient-to-r from-slate-950/95 via-[#0A101D] to-cyan-950/15 shadow-2xl relative w-full"
@@ -1808,6 +1840,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         {/* 第四排【地雷雷达】：动态炸板率与跳水排雷 (横向全幅呈现) */}
         {/* --------------------------------------------------------------------- */}
         <GlassCard
+          id="bento-mines"
           rounded="3xl"
           padding="lg"
           className="border border-amber-500/30 bg-slate-950/90 shadow-2xl relative w-full"
