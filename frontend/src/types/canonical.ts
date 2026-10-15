@@ -464,4 +464,78 @@ export interface IntradayDriftVerdict {
   verdict_fingerprint: string;
 }
 
+// =========================================================================
+// Phase 3B: 4 大固定时段盘中内参时间轴与 Top 5 题材分时资金类型
+// =========================================================================
+
+export type IntradayBriefingStageKey =
+  | 'STAGE_1_AUCTION'
+  | 'STAGE_2_MORNING'
+  | 'STAGE_3_MIDDAY'
+  | 'STAGE_4_AFTERNOON';
+
+export interface IntradayQuantitativeIndicators {
+  projected_volume: string;
+  breadth_divergence: string;
+  broken_ratio: string;
+  space_height: string;
+  action_advice: string;
+}
+
+export interface IntradayBriefingRecord {
+  stage: IntradayBriefingStageKey;
+  stage_label: string;
+  status_badge: string;
+  status_color: string;
+  timing: string;
+  confidence: string;
+  strong_weak_judgment: string;
+  resonance_attribution: string;
+  action_inference: string;
+  falsification_criteria: string;
+  content_html: string;
+  quantitative_indicators: IntradayQuantitativeIndicators;
+  evaluated_at: string;
+  trade_date: string;
+  trace_id: string;
+  fingerprint: string;
+}
+
+export interface IntradayBriefingTimelineResponse {
+  trade_date: string;
+  current_active_stage: IntradayBriefingStageKey;
+  stages: IntradayBriefingRecord[];
+}
+
+export interface SectorTrendPoint {
+  time: string;
+  net_inflow_yi: number;
+  pct_change: number;
+}
+
+export interface TopSectorLeaderStock {
+  code: string;
+  name: string;
+  pct_change: number;
+  status_desc: string;
+}
+
+export interface TopSectorTrendItem {
+  code: string;
+  name: string;
+  rank: number;
+  color: string;
+  current_net_inflow_yi: number;
+  current_pct_change: number;
+  leader: TopSectorLeaderStock;
+  trends: SectorTrendPoint[];
+}
+
+export interface TopSectorsTrendResponse {
+  trade_date: string;
+  snapshot_time: string;
+  sectors: TopSectorTrendItem[];
+}
+
+
 

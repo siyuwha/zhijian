@@ -244,3 +244,62 @@ async def get_intraday_drift_verdict(
             detail={"error_code": "ERR_UPSTREAM_INTRADAY_UNAVAILABLE", "message": str(e)},
         )
 
+
+# =========================================================================
+# Phase 3B: 4 大固定时段 LLM 盘中操盘内参时间轴与 Top 5 题材分时资金接口
+# =========================================================================
+from ...schemas.intraday_briefing import IntradayBriefingTimelineResponse, TopSectorsTrendResponse
+from ...services.intraday_briefing_service import IntradayBriefingService
+
+
+@router.get("/intraday-briefings/{date}", response_model=IntradayBriefingTimelineResponse)
+async def get_intraday_briefings_timeline(
+    date: str,
+    time: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取指定交易日的 4 大固定时段盘中操盘内参时间轴 (绝不覆盖早先时段)
+    时段 1: 09:26:00 竞价定调
+    时段 2: 10:15:00 早盘初战
+    时段 3: 11:30:30 午盘综述
+    时段 4: 14:15:00 变盘前哨
+    """
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        raise HTTPException(
+            status_code=400,
+            detail={"error_code": "ERR_INVALID_DATE_FORMAT", "message": f"Date '{date}' is invalid, must be YYYY-MM-DD"},
+        )
+
+    try:
+        service = IntradayBriefingService(db)
+        timeline = await service.get_or_compute_timeline(trade_date=date, current_time=time)
+        return timeline
+    except Exception as e:
+        logger.error(f"[INTRADAY BRIEFING ERROR] {type(e)}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={"error_code": "ERR_INTRADAY_BRIEFING_FAILED", "message": str(e)},
+        )
+
+
+@router.get("/intraday-top-sectors-trend", response_model=TopSectorsTrendResponse)
+async def get_intraday_top_sectors_trend(
+    date: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取 Top 5 题材分时资金走势曲线与领涨核心龙头联动数据
+    """
+    try:
+        service = IntradayBriefingService(db)
+        res = await service.get_top_sectors_trend(trade_date=date)
+        return res
+    except Exception as e:
+        logger.error(f"[TOP SECTORS TREND ERROR] {type(e)}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={"error_code": "ERR_TOP_SECTORS_TREND_FAILED", "message": str(e)},
+        )
+
+

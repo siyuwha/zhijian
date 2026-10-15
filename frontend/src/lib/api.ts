@@ -237,6 +237,14 @@ export const canonicalAPI = {
     fetchAPI<import('@/types/canonical').IntradayDriftVerdict>(
       `/canonical/intraday-drift/${date}${timeStr ? `?time=${timeStr}` : ''}`
     ),
+  getIntradayBriefings: (date: string, timeStr?: string) =>
+    fetchAPI<import('@/types/canonical').IntradayBriefingTimelineResponse>(
+      `/canonical/intraday-briefings/${date}${timeStr ? `?time=${timeStr}` : ''}`
+    ),
+  getTopSectorsTrend: (date?: string) =>
+    fetchAPI<import('@/types/canonical').TopSectorsTrendResponse>(
+      `/canonical/intraday-top-sectors-trend${date ? `?date=${date}` : ''}`
+    ),
 };
 
 
