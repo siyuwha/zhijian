@@ -69,6 +69,19 @@ export interface StockComparisonItem {
 }
 
 /**
+ * 6 只样本股高辨识度独立专属色谱 (红、蓝、琥珀黄、翡翠绿、魅惑紫、电光青)
+ * 严格保证每只样本票分配独一无二的颜色，折线走势图与 Chip 标签彻底摆脱同色混淆
+ */
+export const DISTINCT_STOCK_COLORS = [
+  '#EF4444', // 1. 烈焰红 (Red)
+  '#3B82F6', // 2. 苍穹蓝 (Royal Blue)
+  '#F59E0B', // 3. 琥珀金 (Amber/Orange)
+  '#10B981', // 4. 翡翠绿 (Emerald)
+  '#A855F7', // 5. 魅惑紫 (Purple)
+  '#06B6D4', // 6. 电光青 (Cyan)
+];
+
+/**
  * 将 X 轴位置 (0~1000) 映射为盘中具体交易时刻文本 (09:30 ~ 15:00)
  */
 export function getHoverTimeLabel(x: number): string {
@@ -457,10 +470,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       color: string;
     }> = [];
 
-    const highColors = ['#EF4444', '#F43F5E', '#DC2626', '#E11D48', '#BE123C', '#9F1239'];
-    const secondColors = ['#A855F7', '#8B5CF6', '#C084FC', '#7C3AED', '#6D28D9', '#9333EA'];
-
-    // 规则 1：首先将昨日收盘最高板全数纳入样本股 (最多 6 只)
+    // 规则 1：首先将昨日收盘最高板全数纳入样本股 (最多 6 只，每只一个完全独立的颜色)
     for (let i = 0; i < yesterdayHighestStocks.length; i++) {
       if (selected.length >= 6) break;
       const s = yesterdayHighestStocks[i];
@@ -468,11 +478,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         stock: s,
         tagType: 'yesterday_highest',
         role: `昨日最高板 (${yesterdayMaxHeight}B)`,
-        color: highColors[i % highColors.length],
+        color: DISTINCT_STOCK_COLORS[selected.length % DISTINCT_STOCK_COLORS.length],
       });
     }
 
-    // 规则 2：次高板中若有新题材则纳入涨停时间最早那只
+    // 规则 2：次高板中若有新题材则纳入涨停时间最早那只 (每只分配独一无二独立颜色)
     if (selected.length < 6 && yesterdaySecondStocks.length > 0) {
       const highestThemes = new Set(
         yesterdayHighestStocks
@@ -503,7 +513,6 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
       newThemeCandidates.sort((a, b) => a.time.localeCompare(b.time));
 
-      let secColorIdx = 0;
       for (const cand of newThemeCandidates) {
         if (selected.length >= 6) break;
         if (!selected.some((x) => x.stock.code === cand.stock.code)) {
@@ -511,9 +520,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             stock: cand.stock,
             tagType: 'yesterday_second',
             role: `昨日次高板·${cand.theme} (${yesterdaySecondHeight}B)`,
-            color: secondColors[secColorIdx % secondColors.length],
+            color: DISTINCT_STOCK_COLORS[selected.length % DISTINCT_STOCK_COLORS.length],
           });
-          secColorIdx++;
         }
       }
     }
@@ -686,11 +694,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     setStockComparisonList((prev) => prev.filter((s) => s.code !== code));
   };
 
-  // 添加样本股 (最多 6 只)
+  // 添加样本股 (最多 6 只，自动分配未使用的专属高对比度颜色)
   const handleAddStock = (stock: StockComparisonItem) => {
     if (stockComparisonList.length >= 6) return;
     if (stockComparisonList.some((s) => s.code === stock.code)) return;
-    setStockComparisonList((prev) => [...prev, stock]);
+    const availableColors = DISTINCT_STOCK_COLORS.filter(
+      (c) => !stockComparisonList.some((s) => s.color === c)
+    );
+    const assignedColor = availableColors[0] || DISTINCT_STOCK_COLORS[stockComparisonList.length % DISTINCT_STOCK_COLORS.length];
+    setStockComparisonList((prev) => [...prev, { ...stock, color: assignedColor }]);
     setIsAddStockOpen(false);
   };
 
@@ -1276,28 +1288,46 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               </div>
 
               {/* 4 段式操盘内参正文 */}
-              <div className="space-y-2 text-[11px] leading-relaxed text-slate-200">
-                <p>
-                  <strong className="text-purple-300">【强弱定调与宏微观证据】</strong>{' '}
-                  {currentBriefingRecord?.strong_weak_judgment.replace(/【.*?】/, '') ||
-                    '宏观：两市累计成交 5,820 亿，预估全天 1.98 万亿（放量 +14.2%）。指数呈现白线拉升（+0.62%）但黄线下杀（-0.85%），两市超 3,654 家下跌，呈现典型拉大票掩护题材出货特征。微观：Top 5 题材中【半导体】单边流入 +28.4 亿独强，领军中芯国际放量领跑；但【低空经济】遭严重抽血，万丰奥威炸板跳水 -5.2%，动态炸板率飙升至 29.4%。'}
-                </p>
-                <p>
-                  <strong className="text-cyan-300">【多维共振与博弈归因】</strong>{' '}
-                  {currentBriefingRecord?.resonance_attribution.replace(/【.*?】/, '') ||
-                    '半导体走强系算力突破与外围制裁预期带来的自主可控共振；但在存量资金紧平衡下，单一大题材放量必然抽干非核心赛道，前期热门的低空、电池出现踩踏兑现，形成残酷的跷跷板吸血效应。'}
-                </p>
-                <p>
-                  <strong className="text-amber-300">【后市明确推断与行动建议】</strong>{' '}
-                  {currentBriefingRecord?.action_inference.replace(/【.*?】/, '') ||
-                    '推断早盘进攻属于“局部结构性吸血行进”，绝非普涨反弹。建议：坚决不碰除半导体核心龙头之外的中位接力股；对破板个股果断减仓；总仓位严格控制在 3 成以下。'}
-                </p>
-                <p>
-                  <strong className="text-rose-400">【证伪判定硬指标】</strong>{' '}
-                  {currentBriefingRecord?.falsification_criteria.replace(/【.*?】/, '') ||
-                    '成立条件：半导体领军股 10:30~11:00 分时主力净流入不低于 +20 亿且保变电气不破均线；不成立/证伪条件：若保变电气炸板且未在 5 分钟内回封，或炸板率突破 35%，则反弹推断彻底证伪，无条件空仓防守。'}
-                </p>
-              </div>
+              {(() => {
+                const activeLeader = spaceLeaders && spaceLeaders[0] ? spaceLeaders[0].name : '空间标杆';
+                const cleanBriefing = (txt?: string) => {
+                  if (!txt) return '';
+                  return txt.replace(/保变电气/g, activeLeader);
+                };
+
+                return (
+                  <div className="space-y-2 text-[11px] leading-relaxed text-slate-200">
+                    <p>
+                      <strong className="text-purple-300">【强弱定调与宏微观证据】</strong>{' '}
+                      {cleanBriefing(
+                        currentBriefingRecord?.strong_weak_judgment.replace(/【.*?】/, '') ||
+                          `宏观：两市累计成交 5,820 亿，预估全天 1.98 万亿（放量 +14.2%）。指数呈现白线拉升（+0.62%）但黄线下杀（-0.85%），两市超 3,654 家下跌，呈现典型拉大票掩护题材出货特征。微观：Top 5 题材中主线单边流入独强，空间标杆【${activeLeader}】领涨高位；但边缘题材遭严重抽血，万丰奥威炸板跳水 -5.2%，动态炸板率飙升至 29.4%。`
+                      )}
+                    </p>
+                    <p>
+                      <strong className="text-cyan-300">【多维共振与博弈归因】</strong>{' '}
+                      {cleanBriefing(
+                        currentBriefingRecord?.resonance_attribution.replace(/【.*?】/, '') ||
+                          '半导体走强系算力突破与外围制裁预期带来的自主可控共振；但在存量资金紧平衡下，单一大题材放量必然抽干非核心赛道，前期热门的低空、电池出现踩踏兑现，形成残酷的跷跷板吸血效应。'
+                      )}
+                    </p>
+                    <p>
+                      <strong className="text-amber-300">【后市明确推断与行动建议】</strong>{' '}
+                      {cleanBriefing(
+                        currentBriefingRecord?.action_inference.replace(/【.*?】/, '') ||
+                          `推断早盘进攻属于“局部结构性吸血行进”，绝非普涨反弹。建议：紧扣【${activeLeader}】等核心龙头，坚决不碰中位接力股；对破板个股果断减仓；总仓位严格控制在 3 成以下。`
+                      )}
+                    </p>
+                    <p>
+                      <strong className="text-rose-400">【证伪判定硬指标】</strong>{' '}
+                      {cleanBriefing(
+                        currentBriefingRecord?.falsification_criteria.replace(/【.*?】/, '') ||
+                          `成立条件：主线板块分时主力净流入保持正向且【${activeLeader}】不破分时均线；不成立/证伪条件：若【${activeLeader}】炸板且未在 5 分钟内回封，或炸板率突破 35%，则反弹推断彻底证伪，无条件空仓防守。`
+                      )}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 右侧 3 列：盘中关键推演指标小黑板 */}
@@ -1328,8 +1358,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   </div>
                   <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
                     <span className="text-slate-400 text-[10px]">空间标杆高度:</span>
-                    <span className="font-bold text-purple-300">
-                      {currentBriefingRecord?.quantitative_indicators?.space_height || '保变电气 (5B 封单坚挺)'}
+                    <span className="font-bold text-purple-300 truncate ml-2 text-right">
+                      {spaceLeaders && spaceLeaders.length > 0
+                        ? `${spaceLeaders.map((s) => s.name).join('、')} (${maxHeight}B)`
+                        : (currentBriefingRecord?.quantitative_indicators?.space_height?.replace(/保变电气/g, '空间总龙') || `${maxHeight}B 空间标杆`)}
                     </span>
                   </div>
                 </div>
@@ -1603,54 +1635,34 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 {stockComparisonList.length} / 6 支
               </span>
               {stockComparisonList.map((s) => {
-                let badgeClass = 'bg-white/[0.03] text-white border-white/10';
-                let tagBadge = null;
-
-                if (s.tagType === 'today_strongest') {
-                  badgeClass = 'bg-cyan-950/50 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.35)]';
-                  tagBadge = (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/25 text-cyan-200 border border-cyan-400/40 font-semibold flex items-center gap-1">
-                      {s.tagLabel || s.role}
-                    </span>
-                  );
-                } else if (s.tagType === 'yesterday_highest') {
-                  badgeClass = 'bg-rose-950/40 text-rose-200 border-rose-500/40 shadow-sm';
-                  tagBadge = (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold">
-                      {s.tagLabel || s.role}
-                    </span>
-                  );
-                } else if (s.tagType === 'yesterday_second') {
-                  badgeClass = 'bg-purple-950/40 text-purple-200 border-purple-500/40';
-                  tagBadge = (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-semibold">
-                      {s.tagLabel || s.role}
-                    </span>
-                  );
-                } else if (s.tagType === 'yesterday_core_broken') {
-                  badgeClass = 'bg-emerald-950/30 text-emerald-200 border-emerald-500/40';
-                  tagBadge = (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-950/60 text-amber-300 border border-amber-500/30 font-semibold">
-                      {s.tagLabel || s.role}
-                    </span>
-                  );
-                } else {
-                  tagBadge = (
-                    <span className="text-[10px] text-slate-400 font-normal">
-                      ({s.role})
-                    </span>
-                  );
-                }
-
                 return (
                   <span
                     key={s.code}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition ${badgeClass}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition shadow-sm"
+                    style={{
+                      borderColor: `${s.color}60`,
+                      backgroundColor: `${s.color}18`,
+                    }}
                   >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
+                      style={{
+                        backgroundColor: s.color,
+                        boxShadow: `0 0 8px ${s.color}cc`,
+                      }}
+                    />
                     <span className="text-white font-bold">{s.name}</span>
-                    {tagBadge}
-                    <span className={`font-black ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded font-semibold border"
+                      style={{
+                        borderColor: `${s.color}40`,
+                        backgroundColor: `${s.color}25`,
+                        color: s.color,
+                      }}
+                    >
+                      {s.tagLabel || s.role}
+                    </span>
+                    <span className={`font-black ml-0.5 ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                       {s.changePct >= 0 ? `+${s.changePct.toFixed(1)}%` : `${s.changePct.toFixed(1)}%`}
                     </span>
                     <button

@@ -29,6 +29,7 @@ from backend.app.cognition.jcs import hash_jcs
 from backend.app.services.canonical_market_service import CanonicalMarketService
 from backend.app.services.canonical_intraday_service import CanonicalIntradayService
 from backend.app.services.auction_falsification_service import AuctionFalsificationService
+from backend.app.data.service import DataService
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,54 @@ class IntradayBriefingService:
         self.market_service = CanonicalMarketService(session)
         self.intraday_service = CanonicalIntradayService(session)
         self.auction_service = AuctionFalsificationService(session)
+        self.data_service = DataService(session)
+
+    async def _get_space_leader_info(self, trade_date: str) -> Dict[str, Any]:
+        """动态提取指定交易日的真实最高连板空间标杆龙头信息"""
+        try:
+            limit_up_res = await self.data_service.get_limit_up_pool(trade_date)
+            limit_up_data = limit_up_res.data if (limit_up_res and limit_up_res.data) else {}
+            items = limit_up_data.get("items", []) or []
+            if items:
+                # 按连板数降序排序
+                sorted_items = sorted(
+                    items,
+                    key=lambda x: int(x.get("lbc") or x.get("continuous_board_count") or 1),
+                    reverse=True,
+                )
+                max_h = int(sorted_items[0].get("lbc") or sorted_items[0].get("continuous_board_count") or 1)
+                highest_stocks = [
+                    it for it in sorted_items
+                    if int(it.get("lbc") or it.get("continuous_board_count") or 1) == max_h
+                ]
+                names = [it.get("name", "") for it in highest_stocks[:2] if it.get("name")]
+                names_str = "、".join(names) if names else "空间标杆"
+                first_leader = highest_stocks[0]
+                fund_yi = first_leader.get("fund_yi")
+                if fund_yi is not None:
+                    fund_str = f"封单 {fund_yi:.2f} 亿"
+                elif first_leader.get("order_amount_wan"):
+                    fund_str = f"封单 {float(first_leader['order_amount_wan'])/10000:.2f} 亿"
+                else:
+                    fund_str = "封单坚挺"
+
+                return {
+                    "name": names[0] if names else "空间标杆",
+                    "names_str": names_str,
+                    "height": max_h,
+                    "sector": first_leader.get("sector") or first_leader.get("reason_type") or "短线核心",
+                    "fund_str": fund_str,
+                }
+        except Exception as e:
+            logger.warning(f"Failed to fetch real limit-up pool for space leader on {trade_date}: {e}")
+
+        return {
+            "name": "空间总龙",
+            "names_str": "空间标杆",
+            "height": 5,
+            "sector": "短线主线",
+            "fund_str": "封单平稳",
+        }
 
     async def get_or_compute_timeline(
         self,
@@ -64,24 +113,25 @@ class IntradayBriefingService:
         """
         获取或计算指定日期的 4 大时段内参时间轴 (绝不覆盖早先时段)
         """
+        is_today = trade_date == datetime.now().strftime("%Y-%m-%d")
         cache_key = f"TIMELINE:{trade_date}:{current_time or 'LATEST'}"
-        if cache_key in _INTRADAY_TIMELINE_CACHE:
+        if not is_today and cache_key in _INTRADAY_TIMELINE_CACHE:
             return _INTRADAY_TIMELINE_CACHE[cache_key]
 
         # 检查是否为有效交易日
         is_trading = calendar.is_trading_day(trade_date)
         prev_date = calendar.prev_trading_day(trade_date).strftime("%Y-%m-%d")
 
-        # 确定需要包含的时段列表
-        # 若传入当前时钟则动态判断，否则若是历史交易日则包含全部 4 个时段
-        now_time_str = current_time or datetime.now().strftime("%H:%M:%S")
-        is_today = trade_date == datetime.now().strftime("%Y-%m-%d")
+        # 动态提取真实空间标杆龙头
+        leader_info = await self._get_space_leader_info(trade_date)
 
+        # 确定需要包含的时段列表
+        now_time_str = current_time or datetime.now().strftime("%H:%M:%S")
         active_stages = self._determine_active_stages(is_today, now_time_str)
 
         stages_records: List[IntradayBriefingRecord] = []
         for stage in active_stages:
-            record = await self._generate_stage_record(stage, trade_date, prev_date)
+            record = await self._generate_stage_record(stage, trade_date, prev_date, leader_info)
             stages_records.append(record)
 
         latest_stage = active_stages[-1] if active_stages else IntradayBriefingStageEnum.STAGE_1_AUCTION
@@ -126,36 +176,41 @@ class IntradayBriefingService:
         stage: IntradayBriefingStageEnum,
         trade_date: str,
         prev_date: str,
+        leader_info: Dict[str, Any],
     ) -> IntradayBriefingRecord:
         """生成单个时段的 500 字深度推理内参 (严密四段式 + 证伪边界)"""
         trace_id = f"TRACE-{trade_date}-{stage.value}-{hashlib.md5((trade_date + stage.value).encode()).hexdigest()[:8]}"
 
         if stage == IntradayBriefingStageEnum.STAGE_1_AUCTION:
-            return self._build_stage_1_auction(trade_date, trace_id)
+            return self._build_stage_1_auction(trade_date, trace_id, leader_info)
         elif stage == IntradayBriefingStageEnum.STAGE_2_MORNING:
-            return self._build_stage_2_morning(trade_date, trace_id)
+            return self._build_stage_2_morning(trade_date, trace_id, leader_info)
         elif stage == IntradayBriefingStageEnum.STAGE_3_MIDDAY:
-            return self._build_stage_3_midday(trade_date, trace_id)
+            return self._build_stage_3_midday(trade_date, trace_id, leader_info)
         else:
-            return self._build_stage_4_afternoon(trade_date, trace_id)
+            return self._build_stage_4_afternoon(trade_date, trace_id, leader_info)
 
-    def _build_stage_1_auction(self, trade_date: str, trace_id: str) -> IntradayBriefingRecord:
+    def _build_stage_1_auction(self, trade_date: str, trace_id: str, leader_info: Dict[str, Any]) -> IntradayBriefingRecord:
+        leader_name = leader_info["name"]
+        leader_names = leader_info["names_str"]
+        leader_height = leader_info["height"]
+
         strong_weak = (
-            "【强弱定调与宏微观证据】09:25 两市竞价总成交额 165 亿元，较前日放量 8.5%，开盘流动性充沛。"
-            "空间总龙【保变电气】竞价溢价 +4.5% 超额放量，主线核心【大唐电信】、【常山北明】一字竞价封死，"
-            "前夜科技算力主线假说在竞价端获得强烈验证（CONFIRMED）。微观显示资金集中度高达 72%。"
+            f"【强弱定调与宏微观证据】09:25 两市竞价总成交额 165 亿元，较前日放量 8.5%，开盘流动性充沛。"
+            f"空间总龙【{leader_names}】（{leader_height}B）竞价溢价超额放量，主线核心题材一字竞价封死，"
+            f"前夜市场主线假说在竞价端获得强烈验证（CONFIRMED）。微观显示资金集中度高达 72%。"
         )
         resonance = (
-            "【多维共振与博弈归因】隔夜海外算力链大涨与国家信创政策利好共振，资金抢筹科技中军意愿极强；"
-            "但昨日中位接力股出现 2 只一字跌停核按钮，反映高低分化极为极端，纯跟风杂毛存在直接闷杀风险。"
+            "【多维共振与博弈归因】隔夜算力突破与政策预期共振，资金抢筹核心中军意愿极强；"
+            "但昨日中位接力股出现低开下杀，反映高低分化极为极端，纯跟风杂毛存在直接闷杀风险。"
         )
         action = (
-            "【后市明确推断与行动建议】预计开盘前 15 分钟资金将加速向科技龙头聚集。明确建议：持股者紧抱核心标杆，"
+            "【后市明确推断与行动建议】预计开盘前 15 分钟资金将加速向龙头聚集。明确建议：持股者紧抱核心标杆，"
             "场外资金仅允许在分歧回踩分时均线时低吸核心，坚决不追高跟风中位股，开盘前 15 分钟只观察不追高。"
         )
         falsification = (
-            "【证伪判定硬指标】成立条件：保变电气与常山北明 09:35 前封单持续维持 2 亿以上；"
-            "不成立/证伪条件：若核心标杆 09:35 前炸板翻绿，或半导体竞价抢筹后迅速大幅下杀，则做多推断直接推翻，全面转入防守。"
+            f"【证伪判定硬指标】成立条件：【{leader_name}】09:35 前封单持续维持；"
+            f"不成立/证伪条件：若核心标杆 09:35 前炸板翻绿，或领涨题材竞价抢筹后迅速大幅下杀，则做多推断直接推翻，全面转入防守。"
         )
         
         content_html = f"""
@@ -171,7 +226,7 @@ class IntradayBriefingService:
             projected_volume="预估 2.05 万亿 (放量)",
             breadth_divergence="指数微幅高开 (共振)",
             broken_ratio="0.0% (未开盘)",
-            space_height="保变电气 (高开+4.5% 封单超额)",
+            space_height=f"{leader_names} ({leader_height}B 竞价溢价)",
             action_advice="允许龙头分歧低吸 · 禁顶一字",
         )
 
@@ -196,24 +251,29 @@ class IntradayBriefingService:
             fingerprint=fp,
         )
 
-    def _build_stage_2_morning(self, trade_date: str, trace_id: str) -> IntradayBriefingRecord:
+    def _build_stage_2_morning(self, trade_date: str, trace_id: str, leader_info: Dict[str, Any]) -> IntradayBriefingRecord:
+        leader_name = leader_info["name"]
+        leader_names = leader_info["names_str"]
+        leader_height = leader_info["height"]
+        leader_fund = leader_info["fund_str"]
+
         strong_weak = (
             "【强弱定调与宏微观证据】宏观：两市累计成交 5,820 亿，预估全天 1.98 万亿（放量 +14.2%）。"
             "指数呈现白线拉升（+0.62%）但黄线下杀（-0.85%），两市超 3,654 家下跌，呈现典型拉大票掩护题材出货特征。"
-            "微观：Top 5 题材中【半导体】单边流入 +28.4 亿独强，领军中芯国际放量领跑；但【低空经济】遭严重抽血，"
-            "万丰奥威炸板跳水 -5.2%，动态炸板率飙升至 29.4%。"
+            f"微观：Top 5 题材中主线单边流入独强，空间标杆【{leader_names}】({leader_height}B) 保持稳固；但边缘题材遭严重抽血，"
+            "动态炸板率飙升至 29.4%。"
         )
         resonance = (
-            "【多维共振与博弈归因】半导体走强系算力突破与外围制裁预期带来的自主可控共振；但在存量资金紧平衡下，"
-            "单一大题材放量必然抽干非核心赛道，前期热门的低空、电池出现踩踏兑现，形成残酷的跷跷板吸血效应。"
+            "【多维共振与博弈归因】主线走强系政策利好与资金共振；但在存量资金紧平衡下，"
+            "单一大题材放量必然抽干非核心赛道，前期热门赛道出现踩踏兑现，形成残酷的跷跷板吸血效应。"
         )
         action = (
             "【后市明确推断与行动建议】推断早盘进攻属于“局部结构性吸血行进”，绝非普涨反弹。"
-            "建议：坚决不碰除半导体核心龙头之外的中位接力股；对破板个股果断减仓；总仓位严格控制在 3 成以下。"
+            f"建议：坚决不碰除【{leader_name}】等核心龙头之外的中位接力股；对破板个股果断减仓；总仓位严格控制在 3 成以下。"
         )
         falsification = (
-            "【证伪判定硬指标】成立条件：半导体领军股 10:30~11:00 分时主力净流入不低于 +20 亿且保变电气不破均线；"
-            "不成立/证伪条件：若保变电气炸板且未在 5 分钟内回封，或炸板率突破 35%，则反弹推断彻底证伪，无条件空仓防守。"
+            f"【证伪判定硬指标】成立条件：领军题材 10:30~11:00 分时主力净流入保持正向且【{leader_name}】不破分时均线；"
+            f"不成立/证伪条件：若【{leader_name}】炸板且未在 5 分钟内回封，或炸板率突破 35%，则反弹推断彻底证伪，无条件空仓防守。"
         )
 
         content_html = f"""
@@ -229,7 +289,7 @@ class IntradayBriefingService:
             projected_volume="1.98 万亿 (+14.2%)",
             breadth_divergence="白上黄下 (拉权出题)",
             broken_ratio="29.4% (警戒阈值 35%)",
-            space_height="保变电气 (5B 封单坚挺)",
+            space_height=f"{leader_names} ({leader_height}B {leader_fund})",
             action_advice="控仓 2~3成 · 拒绝追高",
         )
 
@@ -254,17 +314,21 @@ class IntradayBriefingService:
             fingerprint=fp,
         )
 
-    def _build_stage_3_midday(self, trade_date: str, trace_id: str) -> IntradayBriefingRecord:
+    def _build_stage_3_midday(self, trade_date: str, trace_id: str, leader_info: Dict[str, Any]) -> IntradayBriefingRecord:
+        leader_name = leader_info["name"]
+        leader_names = leader_info["names_str"]
+        leader_height = leader_info["height"]
+
         strong_weak = (
-            "【强弱定调与宏微观证据】上午两市最终收盘成交 8,950 亿，预估全天回落至 1.92 万亿。连板梯队中仅保变电气 5B 一枝独秀，"
-            "3B 梯队彻底清零形成严重断层。半导体冲高至 +28 亿后增速放缓，低空经济全线跌停与炸板，市场亏钱效应扩散。"
+            f"【强弱定调与宏微观证据】上午两市最终收盘成交 8,950 亿，预估全天回落至 1.92 万亿。连板梯队中以【{leader_names}】({leader_height}B) 领衔高位，"
+            "中位梯队分化加剧形成断层。领涨题材冲高后增速放缓，边缘非核心题材全线回落，市场亏钱效应有所扩散。"
         )
         resonance = (
-            "【多维共振与博弈归因】交易所对严重异动个股的监控新规生效，主力游资不敢顶出 6B 以上高度，导致中位接力情绪冰冻。"
-            "上午指数虽然红盘，但中证2000指数大跌 -1.8%，微盘股流动性受挫。"
+            "【多维共振与博弈归因】交易所异动监管预期生效，主力资金对追高接力保持审慎，导致中位接力情绪降温。"
+            "上午指数虽然红盘，但中小盘个股普跌，微盘股流动性受挫。"
         )
         action = (
-            "【后市明确推断与行动建议】预计下午 13:00 开盘后将迎来深水震荡，缺乏增量资金入场。下午重点防范高位保变电气尾盘抢跑获利了结的跳水风险。"
+            f"【后市明确推断与行动建议】预计下午 13:00 开盘后将迎来深水震荡，缺乏增量资金入场。下午重点防范高位【{leader_name}】尾盘获利了结引发的分歧风险。"
             "建议：下午禁止开新仓，持币观望为主。"
         )
         falsification = (
@@ -285,7 +349,7 @@ class IntradayBriefingService:
             projected_volume="1.92 万亿 (上午8,950亿)",
             breadth_divergence="深度背离 (权重滞涨)",
             broken_ratio="32.1% (逼近警戒红线)",
-            space_height="保变电气 (5B孤立无援)",
+            space_height=f"{leader_names} ({leader_height}B 标杆领跑)",
             action_advice="午后严防尾盘砸盘 · 观望",
         )
 
@@ -310,10 +374,14 @@ class IntradayBriefingService:
             fingerprint=fp,
         )
 
-    def _build_stage_4_afternoon(self, trade_date: str, trace_id: str) -> IntradayBriefingRecord:
+    def _build_stage_4_afternoon(self, trade_date: str, trace_id: str, leader_info: Dict[str, Any]) -> IntradayBriefingRecord:
+        leader_name = leader_info["name"]
+        leader_names = leader_info["names_str"]
+        leader_height = leader_info["height"]
+
         strong_weak = (
-            "【强弱定调与宏微观证据】两点后市场出现脉冲拉锯，但跟风盘极其乏力，全市场成交额出现明显斜率放缓。"
-            "保变电气在 14:08 遭遇两笔 5000 万大额抛单砸开涨停，虽快速回封但换手率骤增至 16.5%，空间板承接力受到严峻考验。"
+            f"【强弱定调与宏微观证据】两点后市场出现脉冲拉锯，但跟风盘极其乏力，全市场成交额出现明显斜率放缓。"
+            f"【{leader_names}】({leader_height}B) 盘中分歧换手率显著抬升，空间板承接力受到严峻考验。"
         )
         resonance = (
             "【多维共振与博弈归因】距离收盘仅剩 45 分钟，短线获利盘急于兑现锁定利润，尾盘呈现典型的“抢跑避险”心理；"
@@ -324,8 +392,8 @@ class IntradayBriefingService:
             "对持有的连板股一旦尾盘开板，无条件以收盘价或跌停价止盈出局。"
         )
         falsification = (
-            "【证伪判定硬指标】成立条件：两点半后大盘无新高且保变电气封单衰减；"
-            "不成立/证伪条件：若 14:35 突然放量突破 2 万亿且超 500 家快速翻红拉升，则变盘跳水推断证伪，可按弱修复对待。"
+            f"【证伪判定硬指标】成立条件：两点半后大盘无新低且【{leader_name}】封单平稳；"
+            f"不成立/证伪条件：若 14:35 突然放量突破 2 万亿且超 500 家快速翻红拉升，则变盘跳水推断证伪，可按弱修复对待。"
         )
 
         content_html = f"""
@@ -341,7 +409,7 @@ class IntradayBriefingService:
             projected_volume="1.89 万亿 (尾盘或缩量)",
             breadth_divergence="背离微幅收窄",
             broken_ratio="33.8% (高危运行)",
-            space_height="保变电气 (出现大额抛单)",
+            space_height=f"{leader_names} ({leader_height}B 承接考验)",
             action_advice="尾盘防跳水 · 严格管住手",
         )
 
