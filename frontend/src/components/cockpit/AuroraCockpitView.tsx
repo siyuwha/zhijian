@@ -58,6 +58,9 @@ export interface StockComparisonItem {
   code: string;
   name: string;
   role: string;
+  tagType?: 'today_strongest' | 'yesterday_highest' | 'yesterday_second' | 'yesterday_core_broken' | 'normal';
+  tagLabel?: string;
+  isDynamic?: boolean;
   changePct: number;
   color: string;
   pathD: string;
@@ -69,62 +72,73 @@ const DEFAULT_STOCKS: StockComparisonItem[] = [
   {
     code: '600550',
     name: '保变电气',
-    role: '5B最高板',
+    role: '昨日最高板 (5B)',
+    tagType: 'yesterday_highest',
+    tagLabel: '昨日最高板 (5B)',
     changePct: 10.0,
-    color: '#F43F5E',
-    pathD: 'M 0,70 C 15,30 25,12 35,12 L 187.5,12',
+    color: '#EF4444',
+    pathD: 'M 0,70 C 10,40 20,10 40,8 L 187.5,8',
     endX: 187.5,
-    endY: 12,
+    endY: 8,
   },
   {
     code: '600198',
     name: '大唐电信',
-    role: '4B次高板',
+    role: '昨日次高板 (4B)',
+    tagType: 'yesterday_second',
+    tagLabel: '昨日次高板 (4B)',
     changePct: 9.9,
     color: '#A855F7',
-    pathD: 'M 0,70 C 20,40 40,16 65,13 L 187.5,13',
+    pathD: 'M 0,70 C 30,50 60,30 100,10 L 187.5,10',
     endX: 187.5,
-    endY: 13,
+    endY: 10,
   },
   {
     code: '000158',
     name: '常山北明',
-    role: '2B算力',
+    role: '今日最强涨停 (2B)',
+    tagType: 'today_strongest',
+    tagLabel: '今日最强涨停 (2B)',
+    isDynamic: true,
     changePct: 9.9,
     color: '#06B6D4',
-    pathD: 'M 0,70 C 25,55 50,28 90,20 L 140,14 L 187.5,13',
+    pathD: 'M 0,70 C 40,60 80,40 120,20 L 187.5,10',
     endX: 187.5,
-    endY: 13,
-  },
-  {
-    code: '688981',
-    name: '中芯国际',
-    role: '芯片中军',
-    changePct: 4.8,
-    color: '#F59E0B',
-    pathD: 'M 0,70 C 35,62 70,48 110,42 C 145,38 165,36 187.5,36.4',
-    endX: 187.5,
-    endY: 36.4,
+    endY: 10,
   },
   {
     code: '002085',
     name: '万丰奥威',
-    role: '3B低空炸板',
+    role: '昨日核心分歧 (3B)',
+    tagType: 'yesterday_core_broken',
+    tagLabel: '昨日核心分歧 (3B)',
     changePct: -5.2,
     color: '#10B981',
-    pathD: 'M 0,70 C 20,30 35,12 60,12 C 90,12 110,75 140,92 C 165,102 175,106 187.5,106.4',
+    pathD: 'M 0,70 C 20,40 40,15 70,10 C 90,10 110,60 140,90 L 187.5,106',
     endX: 187.5,
-    endY: 106.4,
+    endY: 106,
+  },
+  {
+    code: '688981',
+    name: '中芯国际',
+    role: '科技容量中军',
+    tagType: 'normal',
+    changePct: 4.8,
+    color: '#F59E0B',
+    pathD: 'M 0,70 C 50,60 90,45 130,40 C 160,36 175,36 187.5,36',
+    endX: 187.5,
+    endY: 36,
   },
   {
     code: '300750',
     name: '宁德时代',
-    role: '电池中军',
+    role: '创指核心权重',
+    tagType: 'normal',
     changePct: -1.8,
     color: '#38BDF8',
-    pathD: 'M 0,70 C 40,73 80,78 120,80 C 150,81 170,82 187.5,82.6',
+    pathD: 'M 0,70 C 40,75 80,80 120,82 C 150,84 170,82 187.5,82',
     endX: 187.5,
-    endY: 82.6,
+    endY: 82,
   },
 ];
 
@@ -1000,40 +1014,136 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm font-bold text-white tracking-wide">
-                    核心个股分时涨跌幅对比 · 梯队标杆与不同题材跨界博弈
+                    核心个股分时走势对比 · 前日核心(最高/次高) vs 当日最强涨停动态博弈
                   </h2>
-                  <span className="text-xs font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 rounded-full">
-                    横向全幅呈现 · 09:30~15:00 全天 X 轴
+                  <span className="text-xs font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                    横向全幅 · 09:30~15:00 标准轴 · 盘中动态更新
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-mono">
-                  以前日最高板与次高板为样本基准 · 对比不同高度与板块龙头强弱分化 · 支持自定义增删 (上限 6 支)
+                  基准自动锁定前日最高板与次高板 · 开盘根据连板梯队动态更新当日最强涨停 · 直观透视昨日核心今日表现与新涨停的涨跌共振/抽血博弈 (&lt;=6支)
                 </p>
               </div>
             </div>
 
             {/* 样本股管理与 Chip 标签 */}
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              {stockComparisonList.map((s) => (
-                <span
-                  key={s.code}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/90 border border-white/10 text-xs font-mono transition"
-                >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                  <span className="font-bold text-white">{s.name}</span>
-                  <span className="text-[11px] text-slate-400">({s.role})</span>
-                  <span className={`font-bold ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                    {s.changePct >= 0 ? `+${s.changePct}%` : `${s.changePct}%`}
-                  </span>
-                  <button
-                    onClick={() => handleRemoveStock(s.code)}
-                    className="ml-0.5 text-slate-500 hover:text-rose-400 transition"
-                    title={`删除 ${s.name}`}
+              <span className="text-xs font-mono text-cyan-300/80 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-full mr-1 font-semibold">
+                {stockComparisonList.length} / 6 支
+              </span>
+              {stockComparisonList.map((s) => {
+                if (s.tagType === 'today_strongest') {
+                  return (
+                    <span
+                      key={s.code}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition bg-cyan-950/50 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.35)]"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                      <span className="text-white font-black">{s.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/25 text-cyan-200 border border-cyan-400/40 font-semibold flex items-center gap-1">
+                        今日最强涨停 (2B)
+                      </span>
+                      <span className="text-rose-400 font-black">+{s.changePct}%</span>
+                      <button
+                        onClick={() => handleRemoveStock(s.code)}
+                        className="ml-1 text-slate-400 hover:text-white transition"
+                        title={`移除 ${s.name}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                }
+                if (s.tagType === 'yesterday_highest') {
+                  return (
+                    <span
+                      key={s.code}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition bg-rose-950/40 text-rose-200 border-rose-500/40 shadow-sm"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-rose-500" />
+                      <span className="text-white font-black">{s.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold">
+                        昨日最高板 (5B)
+                      </span>
+                      <span className="text-rose-400 font-black">+{s.changePct}%</span>
+                      <button
+                        onClick={() => handleRemoveStock(s.code)}
+                        className="ml-1 text-slate-400 hover:text-white transition"
+                        title={`移除 ${s.name}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                }
+                if (s.tagType === 'yesterday_second') {
+                  return (
+                    <span
+                      key={s.code}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition bg-purple-950/40 text-purple-200 border-purple-500/40"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-purple-400" />
+                      <span className="text-white font-bold">{s.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-semibold">
+                        昨日次高板 (4B)
+                      </span>
+                      <span className="text-rose-400 font-black">+{s.changePct}%</span>
+                      <button
+                        onClick={() => handleRemoveStock(s.code)}
+                        className="ml-1 text-slate-400 hover:text-white transition"
+                        title={`移除 ${s.name}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                }
+                if (s.tagType === 'yesterday_core_broken') {
+                  return (
+                    <span
+                      key={s.code}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition bg-emerald-950/30 text-emerald-200 border-emerald-500/40"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="text-white font-bold">{s.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-950/60 text-rose-300 border border-rose-500/30 font-semibold">
+                        昨日核心分歧 (3B)
+                      </span>
+                      <span className="text-emerald-400 font-black">{s.changePct}%</span>
+                      <button
+                        onClick={() => handleRemoveStock(s.code)}
+                        className="ml-1 text-slate-400 hover:text-white transition"
+                        title={`移除 ${s.name}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                }
+                return (
+                  <span
+                    key={s.code}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-bold border transition ${
+                      s.changePct >= 0 ? 'bg-white/[0.03] text-white border-white/10' : 'bg-emerald-950/20 text-emerald-300 border-emerald-500/30'
+                    }`}
                   >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                    <span>{s.name}</span>
+                    <span className="text-[10px] text-slate-400 font-normal">({s.role})</span>
+                    <span className={`${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'} font-black`}>
+                      {s.changePct >= 0 ? `+${s.changePct}%` : `${s.changePct}%`}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveStock(s.code)}
+                      className="ml-1 text-slate-500 hover:text-white transition"
+                      title={`移除 ${s.name}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
 
               {stockComparisonList.length < 6 ? (
                 <div className="relative">
@@ -1111,10 +1221,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       d={s.pathD}
                       fill="none"
                       stroke={s.color}
-                      strokeWidth={s.code === '600550' ? '3' : '2.2'}
+                      strokeWidth={s.tagType === 'today_strongest' || s.tagType === 'yesterday_highest' ? '3' : '2.2'}
                       strokeLinecap="round"
                     />
-                    <circle cx={s.endX} cy={s.endY} r="4" fill={s.color} stroke="#fff" strokeWidth="1.5" />
+                    <circle cx={s.endX} cy={s.endY} r={s.tagType === 'today_strongest' ? 5 : 4} fill={s.color} stroke="#fff" strokeWidth="1.5" />
                   </g>
                 ))}
                 {isStockHovering && (
@@ -1138,12 +1248,28 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/5 font-mono">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-              <span>博弈观察结论: <strong className="text-white">保变电气(5B)与大唐电信(4B)高标坚挺，但万丰奥威(-5.2%)炸板带崩低空分支</strong></span>
-            </span>
-            <span className="text-slate-400">个股样本数: <strong className="text-cyan-300">{stockComparisonList.length} / 6 支</strong></span>
+          {/* 底部双轨博弈透视结论卡片 (前日核心今日表现 + 今日最强涨停涨跌博弈) */}
+          <div className="mt-2 pt-2.5 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+            {/* 轨道 1：昨日核心在今日的表现 */}
+            <div className="bg-purple-950/20 border border-purple-500/30 rounded-xl p-2.5 flex items-start gap-2.5">
+              <div className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0 mt-0.5">
+                昨日核心今日表现
+              </div>
+              <p className="text-slate-300 leading-relaxed text-xs">
+                前日最高板<strong className="text-rose-400">保变电气(5B)</strong>与次高板<strong className="text-rose-400">大唐电信(4B)</strong>开盘均获高溢价并快速秒封，高位未现核按钮；但前日3B标的<strong className="text-emerald-400">万丰奥威(-5.2%)</strong>破板跳水，暴露中位断层接力缺乏承接。
+              </p>
+            </div>
+
+            {/* 轨道 2：当天当时最强涨停与昨日核心的涨跌关系 */}
+            <div className="bg-cyan-950/20 border border-cyan-500/30 rounded-xl p-2.5 flex items-start gap-2.5">
+              <div className="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shrink-0 mt-0.5 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                今日最强 vs 昨日核心
+              </div>
+              <p className="text-cyan-200 leading-relaxed text-xs">
+                盘中实时最强涨停<strong className="text-cyan-300">常山北明(+9.9%)</strong>09:31顶死封单1.8亿，与前日科技高标大唐电信形成同向正反馈助攻；但与前日低空核心万丰奥威形成尖锐的“资金抽血反向剪刀差”——资金弃老追新，全面聚拢科技主线。
+              </p>
+            </div>
           </div>
         </GlassCard>
 
