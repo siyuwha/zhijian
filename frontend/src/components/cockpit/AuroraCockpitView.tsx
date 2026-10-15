@@ -69,34 +69,130 @@ export interface StockComparisonItem {
 }
 
 /**
- * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实涨跌幅生成 SVG 曲线路径
+ * 将 X 轴位置 (0~1000) 映射为盘中具体交易时刻文本 (09:30 ~ 15:00)
+ */
+export function getHoverTimeLabel(x: number): string {
+  const clampedX = Math.max(0, Math.min(1000, x));
+  let totalMin = 570;
+  if (clampedX <= 500) {
+    totalMin = 570 + Math.round((clampedX / 500) * 120);
+  } else {
+    totalMin = 780 + Math.round(((clampedX - 500) / 500) * 120);
+  }
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实涨跌幅生成 SVG 个股走势曲线路径
  */
 export function generateDynamicStockPath(currentX: number, changePct: number, tagType: string): string {
-  const safeX = Math.max(15, Math.min(1000, currentX));
+  const safeX = Math.max(20, Math.min(1000, currentX));
   const clampedPct = Math.max(-10, Math.min(10, changePct));
-  const endY = Math.round(70 - clampedPct * 6);
+  const endY = Number((70 - clampedPct * 6).toFixed(1));
 
+  // 1. 昨日最高板 (例如百洋股份 4B): 高开下探后于 09:42 强势秒封涨停，全天死封
   if (tagType === 'yesterday_highest') {
-    const lockX = Math.min(30, safeX * 0.15);
-    return `M 0,70 C ${lockX * 0.3},40 ${lockX * 0.6},12 ${lockX},${endY} L ${safeX},${endY}`;
+    const lockX = Math.min(55, safeX * 0.15);
+    const dipX = lockX * 0.35;
+    if (safeX <= lockX) {
+      return `M 0,52 C ${safeX * 0.3},58 ${safeX * 0.6},30 ${safeX},${endY}`;
+    }
+    return `M 0,52 C ${dipX * 0.5},58 ${dipX},56 ${dipX},56 C ${dipX + (lockX - dipX) * 0.5},40 ${lockX * 0.8},${endY} ${lockX},${endY} L ${safeX},${endY}`;
   }
+
+  // 2. 昨日次高板 (例如晶化股份 3B): 早盘震荡分歧，10:30~11:15 蓄势回封涨停
   if (tagType === 'yesterday_second') {
-    const lockX = Math.min(50, safeX * 0.25);
-    return `M 0,70 C ${lockX * 0.3},50 ${lockX * 0.6},20 ${lockX},${endY} L ${safeX},${endY}`;
+    const lockX = Math.min(420, safeX * 0.6);
+    const wave1X = Math.min(180, lockX * 0.4);
+    const wave2X = Math.min(300, lockX * 0.7);
+    if (safeX <= wave1X) {
+      return `M 0,60 C ${safeX * 0.4},64 ${safeX * 0.8},35 ${safeX},${endY}`;
+    }
+    if (safeX <= lockX) {
+      return `M 0,60 C ${wave1X * 0.4},64 ${wave1X * 0.8},30 ${wave1X},30 C ${wave1X + (safeX - wave1X) * 0.5},45 ${safeX * 0.9},${endY} ${safeX},${endY}`;
+    }
+    return `M 0,60 C ${wave1X * 0.4},64 ${wave1X * 0.8},30 ${wave1X},30 C ${wave1X + (wave2X - wave1X) * 0.5},45 ${wave2X},40 ${wave2X},38 C ${wave2X + (lockX - wave2X) * 0.5},25 ${lockX * 0.9},${endY} ${lockX},${endY} L ${safeX},${endY}`;
   }
+
+  // 3. 今日最强涨停 (例如冰山冷热 2B): 开盘极速拉板 (09:34 封死)，微幅波动回封
   if (tagType === 'today_strongest') {
-    const lockX = Math.min(40, safeX * 0.2);
-    return `M 0,70 C ${lockX * 0.3},60 ${lockX * 0.6},30 ${lockX},${endY} L ${safeX},${endY}`;
+    const lockX = Math.min(30, safeX * 0.1);
+    if (safeX <= lockX) {
+      return `M 0,25 C ${safeX * 0.4},20 ${safeX * 0.8},10 ${safeX},${endY}`;
+    }
+    if (safeX > 550) {
+      return `M 0,25 C ${lockX * 0.4},18 ${lockX * 0.8},${endY} ${lockX},${endY} L 520,${endY} C 535,${endY} 540,16 550,16 C 560,16 570,${endY} 585,${endY} L ${safeX},${endY}`;
+    }
+    return `M 0,25 C ${lockX * 0.4},18 ${lockX * 0.8},${endY} ${lockX},${endY} L ${safeX},${endY}`;
   }
+
+  // 4. 高位分歧炸板跳水 (例如丽人丽妆 -8.9%): 早盘冲高触板，09:55 炸板断头跳水，午后深水震荡
   if (tagType === 'yesterday_core_broken') {
-    const peakX = Math.min(45, safeX * 0.2);
-    const dropX = Math.min(130, safeX * 0.5);
-    return `M 0,70 C 15,35 25,12 ${peakX},12 C ${peakX + 25},12 ${dropX - 25},65 ${dropX},${endY} L ${safeX},${endY}`;
+    const peakX = Math.min(65, safeX * 0.18);
+    const dropX = Math.min(220, safeX * 0.45);
+    if (safeX <= peakX) {
+      return `M 0,50 C ${safeX * 0.4},35 ${safeX * 0.8},12 ${safeX},12`;
+    }
+    if (safeX <= dropX) {
+      return `M 0,50 C ${peakX * 0.4},35 ${peakX * 0.8},10 ${peakX},10 C ${peakX + (safeX - peakX) * 0.4},20 ${safeX * 0.8},${endY} ${safeX},${endY}`;
+    }
+    return `M 0,50 C ${peakX * 0.4},35 ${peakX * 0.8},10 ${peakX},10 C ${peakX + (dropX - peakX) * 0.3},25 ${dropX * 0.7},95 ${dropX},115 C ${dropX + (safeX - dropX) * 0.4},${endY - 6} ${dropX + (safeX - dropX) * 0.8},${endY + 4} ${safeX},${endY}`;
   }
-  if (changePct >= 0) {
-    return `M 0,70 C ${safeX * 0.25},62 ${safeX * 0.5},48 ${safeX * 0.75},${(70 + endY) / 2} L ${safeX},${endY}`;
+
+  // 5. 领军中军 / 大市值容量标的 (例如中芯国际 +4.8%): 稳健台阶式推升
+  if (clampedPct > 2.0) {
+    const s1X = safeX * 0.35;
+    const s1Y = 70 - clampedPct * 2.5;
+    const s2X = safeX * 0.7;
+    const s2Y = 70 - clampedPct * 4.2;
+    return `M 0,70 C ${s1X * 0.4},68 ${s1X * 0.8},${s1Y} ${s1X},${s1Y} C ${s1X + (s2X - s1X) * 0.5},${s1Y + 3} ${s2X * 0.9},${s2Y} ${s2X},${s2Y} C ${s2X + (safeX - s2X) * 0.5},${s2Y} ${safeX * 0.95},${endY} ${safeX},${endY}`;
+  }
+
+  // 6. 权重压制 / 负向分化标的 (例如宁德时代 -1.8%): 早盘下沉、午间抵抗、尾盘阴跌
+  if (clampedPct < 0) {
+    const dipX = safeX * 0.3;
+    const dipY = 70 + Math.abs(clampedPct) * 8.5;
+    const rebX = safeX * 0.6;
+    const rebY = 70 + Math.abs(clampedPct) * 4.0;
+    return `M 0,70 C ${dipX * 0.4},74 ${dipX * 0.8},${dipY} ${dipX},${dipY} C ${dipX + (rebX - dipX) * 0.5},${dipY} ${rebX * 0.9},${rebY} ${rebX},${rebY} C ${rebX + (safeX - rebX) * 0.5},${rebY + 2} ${safeX * 0.9},${endY} ${safeX},${endY}`;
+  }
+
+  // 通用平缓震荡
+  return `M 0,70 C ${safeX * 0.3},${70 + (endY - 70) * 0.3} ${safeX * 0.7},${70 + (endY - 70) * 0.8} ${safeX},${endY}`;
+}
+
+/**
+ * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实资金净流入生成 SVG 题材走势曲线路径
+ */
+export function generateSectorPath(currentX: number, endY: number, idx: number): string {
+  const safeX = Math.max(20, Math.min(1000, currentX));
+  const delta = endY - 70;
+
+  if (idx === 0) {
+    // #1 领涨核心 (半导体 +28.4亿): 早盘急剧吸筹，午后加速推升
+    const p1X = safeX * 0.35;
+    const p1Y = 70 + delta * 0.65;
+    return `M 0,70 C ${p1X * 0.4},${70 + delta * 0.25} ${p1X * 0.8},${p1Y} ${p1X},${p1Y} C ${p1X + (safeX - p1X) * 0.4},${p1Y + delta * 0.1} ${safeX * 0.85},${endY} ${safeX},${endY.toFixed(1)}`;
+  } else if (idx === 1) {
+    // #2 算力概念 (+14.2亿): 早盘脉冲，随后震荡爬升
+    const p1X = safeX * 0.4;
+    const p1Y = 70 + delta * 0.78;
+    return `M 0,70 C ${p1X * 0.35},${70 + delta * 0.3} ${p1X * 0.75},${p1Y} ${p1X},${p1Y} C ${p1X + (safeX - p1X) * 0.5},${p1Y - delta * 0.08} ${safeX * 0.85},${endY} ${safeX},${endY.toFixed(1)}`;
+  } else if (idx === 2) {
+    // #3 银行护盘 (+9.8亿): 缓慢稳健爬升
+    return `M 0,70 C ${safeX * 0.3},${70 + delta * 0.25} ${safeX * 0.7},${70 + delta * 0.75} ${safeX},${endY.toFixed(1)}`;
+  } else if (idx === 3) {
+    // #4 锂电池 (-8.5亿): 早盘假反抽，随后逐渐失血跌破零轴
+    const peakX = safeX * 0.22;
+    const peakY = 62;
+    return `M 0,70 C ${peakX * 0.5},66 ${peakX * 0.8},${peakY} ${peakX},${peakY} C ${peakX + (safeX - peakX) * 0.4},${70 + delta * 0.4} ${safeX * 0.85},${endY} ${safeX},${endY.toFixed(1)}`;
   } else {
-    return `M 0,70 C ${safeX * 0.25},74 ${safeX * 0.5},${(70 + endY) / 2} ${safeX * 0.75},${endY} L ${safeX},${endY}`;
+    // #5 低空经济 (-19.2亿): 早盘诱多冲高，10:00后放量跳水流出
+    const dropX = safeX * 0.3;
+    const dropY = 70 + delta * 0.65;
+    return `M 0,70 C ${dropX * 0.3},68 ${dropX * 0.7},${dropY} ${dropX},${dropY} C ${dropX + (safeX - dropX) * 0.4},${dropY + delta * 0.2} ${safeX * 0.85},${endY} ${safeX},${endY.toFixed(1)}`;
   }
 }
 
@@ -256,10 +352,10 @@ const DEFAULT_STOCKS: StockComparisonItem[] = [
   {
     code: '300750',
     name: '宁德时代',
-    role: '创指核心权重',
+    role: '创指核心权重 (白线)',
     tagType: 'normal',
     changePct: -1.8,
-    color: '#38BDF8',
+    color: '#E2E8F0',
     pathD: 'M 0,70 C 250,75 500,80 750,82 L 1000,81',
     endX: 1000,
     endY: 81,
@@ -501,10 +597,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       dynamicList.push({
         code: '300750',
         name: '宁德时代',
-        role: '创指核心权重',
+        role: '创指核心权重 (白线)',
         tagType: 'normal',
         changePct: -1.8,
-        color: '#38BDF8',
+        color: '#E2E8F0',
         pathD: generateDynamicStockPath(curX, -1.8, 'normal'),
         endX: curX,
         endY: Math.round(70 - (-1.8) * 6),
@@ -532,26 +628,29 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     const sectors = topSectorsTrend?.sectors || [];
 
     if (sectors.length === 0) {
-      return [
-        { name: '半导体', color: '#8B5CF6', net: 28.4, pct: 4.8, leader: '中芯国际', leaderCode: '688981', leaderPct: 4.8, leaderStatus: '核心中军', path: `M 0,70 C ${curX * 0.2},68 ${curX * 0.4},45 ${curX * 0.7},25 L ${curX},14`, endY: 14 },
-        { name: '算力概念', color: '#06B6D4', net: 14.2, pct: 9.9, leader: '常山北明', leaderCode: '000158', leaderPct: 9.9, leaderStatus: '触板先锋', path: `M 0,70 C ${curX * 0.2},55 ${curX * 0.4},35 ${curX * 0.7},38 L ${curX},38`, endY: 38 },
-        { name: '银行权重', color: '#F59E0B', net: 9.8, pct: 1.2, leader: '工商银行', leaderCode: '601398', leaderPct: 1.2, leaderStatus: '护盘基石', path: `M 0,70 C ${curX * 0.25},68 ${curX * 0.5},60 ${curX * 0.75},54 L ${curX},52`, endY: 52 },
-        { name: '锂电池', color: '#64748B', net: -8.5, pct: -1.8, leader: '宁德时代', leaderCode: '300750', leaderPct: -1.8, leaderStatus: '分化回落', path: `M 0,70 C ${curX * 0.25},72 ${curX * 0.5},80 ${curX * 0.75},84 L ${curX},86`, endY: 86 },
-        { name: '低空经济', color: '#10B981', net: -19.2, pct: -5.2, leader: '万丰奥威', leaderCode: '002085', leaderPct: -5.2, leaderStatus: '炸板跳水', path: `M 0,70 C ${curX * 0.2},65 ${curX * 0.4},90 ${curX * 0.7},110 L ${curX},118`, endY: 118 },
+      const fallbackList = [
+        { name: '半导体', color: '#8B5CF6', net: 28.4, pct: 4.8, leader: '中芯国际', leaderCode: '688981', leaderPct: 4.8, leaderStatus: '核心中军', endY: 17 },
+        { name: '算力概念', color: '#06B6D4', net: 14.2, pct: 9.9, leader: '常山北明', leaderCode: '000158', leaderPct: 9.9, leaderStatus: '触板先锋', endY: 43 },
+        { name: '银行权重', color: '#F59E0B', net: 9.8, pct: 1.2, leader: '工商银行', leaderCode: '601398', leaderPct: 1.2, leaderStatus: '护盘基石', endY: 52 },
+        { name: '锂电池', color: '#94A3B8', net: -8.5, pct: -1.8, leader: '宁德时代', leaderCode: '300750', leaderPct: -1.8, leaderStatus: '分化回落', endY: 87 },
+        { name: '低空经济', color: '#10B981', net: -19.2, pct: -5.2, leader: '万丰奥威', leaderCode: '002085', leaderPct: -5.2, leaderStatus: '炸板跳水', endY: 116 },
       ];
+      return fallbackList.map((item, idx) => ({
+        ...item,
+        path: generateSectorPath(curX, item.endY, idx),
+      }));
     }
 
-    const themeColors = ['#8B5CF6', '#06B6D4', '#F59E0B', '#64748B', '#10B981'];
+    const themeColors = ['#8B5CF6', '#06B6D4', '#F59E0B', '#94A3B8', '#10B981'];
     return sectors.slice(0, 5).map((sec, idx) => {
       const net = sec.current_net_inflow_yi;
       let endY = 70;
       if (net >= 0) {
-        endY = Math.max(12, 70 - (net / 30) * 56);
+        endY = Math.max(14, 70 - (net / 30) * 54);
       } else {
-        endY = Math.min(125, 70 + (Math.abs(net) / 25) * 50);
+        endY = Math.min(124, 70 + (Math.abs(net) / 25) * 48);
       }
-      const midY = (70 + endY) / 2;
-      const path = `M 0,70 C ${curX * 0.3},${70 + (endY - 70) * 0.2} ${curX * 0.65},${midY} L ${curX},${endY.toFixed(1)}`;
+      const path = generateSectorPath(curX, endY, idx);
 
       return {
         name: sec.name,
@@ -1615,13 +1714,49 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
             {/* 当前进展标尺 (动态根据 timeProgress.progressRatio 计算位置) */}
             <div
-              className="absolute top-0 bottom-7 w-px bg-cyan-400 z-10 border-l border-dashed border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)] transition-all duration-500"
-              style={{ left: `${Math.min(100, Math.max(0, timeProgress.progressRatio * 100)).toFixed(2)}%` }}
+              className="absolute top-0 bottom-7 w-px bg-cyan-400 z-10 border-l border-dashed border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)] transition-all duration-500 pointer-events-none"
+              style={{ left: `${Math.min(99.6, Math.max(0.4, timeProgress.progressRatio * 100)).toFixed(2)}%` }}
             >
-              <div className="absolute top-1 -left-7 px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-500 text-[10px] text-cyan-300 font-mono font-bold whitespace-nowrap shadow-md">
-                {timeProgress.isAfterClose ? '15:00 收盘' : timeProgress.timeLabel.split(' ')[0]}
+              <div
+                className={`absolute top-1 px-1.5 py-0.5 rounded bg-cyan-950/95 border border-cyan-500 text-[10px] text-cyan-300 font-mono font-bold whitespace-nowrap shadow-md ${
+                  timeProgress.progressRatio > 0.85 ? 'right-1' : '-left-7'
+                }`}
+              >
+                {timeProgress.isAfterClose ? '15:00 全天收盘' : timeProgress.timeLabel.split(' ')[0]}
               </div>
             </div>
+
+            {/* 鼠标悬停实时多股涨跌幅数值看板浮窗 */}
+            {isStockHovering && (
+              <div
+                className="absolute top-2 pointer-events-none z-30 bg-slate-950/95 border border-cyan-500/40 rounded-xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-1 text-[11px] font-mono min-w-[210px]"
+                style={{
+                  left: `${Math.min(76, Math.max(4, (stockHoverX / 1000) * 100))}%`,
+                }}
+              >
+                <div className="flex items-center justify-between border-b border-white/10 pb-1 text-cyan-300 font-bold">
+                  <span>{getHoverTimeLabel(stockHoverX)} 个股走势采样</span>
+                  <span className="text-[10px] text-slate-400">分时对照</span>
+                </div>
+                <div className="flex flex-col gap-0.5 pt-0.5">
+                  {stockComparisonList.map((s) => {
+                    const progress = Math.min(1, Math.max(0, stockHoverX / (s.endX || 1000)));
+                    const estPct = (s.changePct * progress).toFixed(1);
+                    return (
+                      <div key={s.code} className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                          <span className="text-slate-200">{s.name}</span>
+                        </span>
+                        <span className={`font-bold shrink-0 ${Number(estPct) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {Number(estPct) >= 0 ? `+${estPct}%` : `${estPct}%`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 曲线图主体区域 */}
             <div className="relative w-full flex-1 min-h-[140px]">
@@ -1633,7 +1768,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       d={s.pathD}
                       fill="none"
                       stroke={s.color}
-                      strokeWidth={s.tagType === 'today_strongest' || s.tagType === 'yesterday_highest' ? '3' : '2.2'}
+                      strokeWidth={s.tagType === 'today_strongest' || s.tagType === 'yesterday_highest' ? '2.8' : '2.2'}
                       strokeLinecap="round"
                       className="animate-path-grow"
                     />
@@ -1750,13 +1885,49 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
             {/* 当前进展标尺 (动态根据 timeProgress.progressRatio 计算位置) */}
             <div
-              className="absolute top-0 bottom-7 w-px bg-purple-400 z-10 border-l border-dashed border-purple-400 shadow-[0_0_8px_rgba(139,92,246,0.8)] transition-all duration-500"
-              style={{ left: `${Math.min(100, Math.max(0, timeProgress.progressRatio * 100)).toFixed(2)}%` }}
+              className="absolute top-0 bottom-7 w-px bg-purple-400 z-10 border-l border-dashed border-purple-400 shadow-[0_0_8px_rgba(139,92,246,0.8)] transition-all duration-500 pointer-events-none"
+              style={{ left: `${Math.min(99.6, Math.max(0.4, timeProgress.progressRatio * 100)).toFixed(2)}%` }}
             >
-              <div className="absolute top-1 -left-7 px-1.5 py-0.5 rounded bg-purple-950/90 border border-purple-500 text-[10px] text-purple-300 font-mono font-bold whitespace-nowrap shadow-md">
-                {timeProgress.isAfterClose ? '15:00 收盘' : timeProgress.timeLabel.split(' ')[0]}
+              <div
+                className={`absolute top-1 px-1.5 py-0.5 rounded bg-purple-950/95 border border-purple-500 text-[10px] text-purple-300 font-mono font-bold whitespace-nowrap shadow-md ${
+                  timeProgress.progressRatio > 0.85 ? 'right-1' : '-left-7'
+                }`}
+              >
+                {timeProgress.isAfterClose ? '15:00 全天收盘' : timeProgress.timeLabel.split(' ')[0]}
               </div>
             </div>
+
+            {/* 鼠标悬停实时 Top 5 题材资金净流数值看板浮窗 */}
+            {isSectorHovering && (
+              <div
+                className="absolute top-2 pointer-events-none z-30 bg-slate-950/95 border border-purple-500/40 rounded-xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-1 text-[11px] font-mono min-w-[220px]"
+                style={{
+                  left: `${Math.min(74, Math.max(4, (sectorHoverX / 1000) * 100))}%`,
+                }}
+              >
+                <div className="flex items-center justify-between border-b border-white/10 pb-1 text-purple-300 font-bold">
+                  <span>{getHoverTimeLabel(sectorHoverX)} 主力资金净流</span>
+                  <span className="text-[10px] text-slate-400">Top 5 采样</span>
+                </div>
+                <div className="flex flex-col gap-0.5 pt-0.5">
+                  {dynamicSectorCurves.map((sec, idx) => {
+                    const progress = Math.min(1, Math.max(0, sectorHoverX / (timeProgress.currentX || 1000)));
+                    const estNet = (sec.net * progress).toFixed(1);
+                    return (
+                      <div key={sec.name} className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
+                          <span className="text-slate-200">#{idx + 1} {sec.name}</span>
+                        </span>
+                        <span className={`font-bold shrink-0 ${Number(estNet) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {Number(estNet) >= 0 ? `+${estNet} 亿` : `${estNet} 亿`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 曲线图主体区域 */}
             <div className="relative w-full flex-1 min-h-[140px]">
