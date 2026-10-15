@@ -17,12 +17,12 @@ class TaskScheduler:
         self.scheduler = AsyncIOScheduler()
 
     def setup(self):
-        # 08:00 盘前简报
+        # 08:30 盘前简报
         self.scheduler.add_job(
             self._run_premarket,
             "cron",
             hour=8,
-            minute=0,
+            minute=30,
             id="premarket_briefing",
             misfire_grace_time=300
         )

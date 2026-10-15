@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { PremarketBriefingSummaryItem, OvernightIndexItem } from '@/types/report';
-import { formatDateWithWeekday } from '@/lib/utils';
+import { formatDateWithWeekday, formatBriefingTime } from '@/lib/utils';
 import { 
   RefreshCw, 
   Calendar, 
@@ -211,7 +211,7 @@ export default function BriefingPage() {
                     <div className="text-xs text-slate-400">
                       生成时间:{' '}
                       <span className="font-mono text-slate-400">
-                        {item.generated_at ? item.generated_at.replace('T', ' ').slice(0, 19) : '--'}
+                        {formatBriefingTime(item.generated_at, item.date)}
                       </span>
                     </div>
                     <div className="inline-flex items-center gap-1 text-sm font-medium text-amber-400 group-hover:translate-x-1 transition-transform">

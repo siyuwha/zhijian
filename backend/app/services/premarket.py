@@ -266,11 +266,21 @@ class PremarketService:
         yesterday_json = json.dumps(prev_summary_dict, ensure_ascii=False)
         focus_json = json.dumps(today_focus, ensure_ascii=False)
 
+        now_dt = datetime.now()
+        if date_str and date_str != now_dt.strftime("%Y-%m-%d"):
+            try:
+                report_dt = datetime.strptime(date_str, "%Y-%m-%d").replace(hour=8, minute=30, second=0)
+            except Exception:
+                report_dt = now_dt
+        else:
+            report_dt = now_dt
+
         if existing:
             existing.overnight_summary = overnight_json
             existing.news_digest = news_json
             existing.yesterday_review_summary = yesterday_json
             existing.today_focus = focus_json
+            existing.generated_at = report_dt
             briefing_record = existing
         else:
             briefing_record = PremarketBriefing(
@@ -279,6 +289,7 @@ class PremarketService:
                 news_digest=news_json,
                 yesterday_review_summary=yesterday_json,
                 today_focus=focus_json,
+                generated_at=report_dt,
             )
             self.session.add(briefing_record)
 

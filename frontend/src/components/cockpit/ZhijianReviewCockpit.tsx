@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { 
   Copy, MessageSquare, Check, ChevronRight, X, Sparkles, Send, ShieldAlert, 
-  TrendingUp, TrendingDown, Eye, AlertCircle, Calendar, ChevronDown, RefreshCw, ListFilter 
+  TrendingUp, TrendingDown, Eye, AlertCircle, Calendar, ChevronDown, RefreshCw, ListFilter,
+  RotateCcw
 } from 'lucide-react';
 import { formatDateWithWeekday } from '@/lib/utils';
 import { ZhijianMarkdownArticle } from './ZhijianMarkdownArticle';
@@ -167,13 +168,75 @@ export function ZhijianReviewCockpit({
     }
   );
 
-  // AI 对话状态
-  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'ai'; content: string }>>([
-    {
-      role: 'ai',
-      content: `您好！我是「知见」AI 认知推演助手。我已经吸收了 ${date} 的全部物理事实（两市总成交 ${totalTurnoverStr}，大盘状态「${cyclePhase}」）。您可以针对 11 章研报中的任何梯队、机制样本或波普尔刚性证伪红线向我深入提问！`
+  const defaultAiGreeting = {
+    role: 'ai' as const,
+    content: `您好！我是「知见」AI 认知推演助手。我已经吸收了 ${date} 的全部物理事实（两市总成交 ${totalTurnoverStr}，大盘状态「${cyclePhase}」）。您可以针对 11 章研报中的任何梯队、机制样本或波普尔刚性证伪红线向我深入提问！`
+  };
+
+  const getChatStorageKey = (d: string) => `zhijian_review_chat_${d}`;
+
+  // AI 对话状态 (依据日期持久化至 localStorage)
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'ai'; content: string }>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`zhijian_review_chat_${date}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse saved chat messages:', e);
+      }
     }
-  ]);
+    return [defaultAiGreeting];
+  });
+
+  // 日期切换时自动载入对应日期的聊天记录
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(getChatStorageKey(date));
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setChatMessages(parsed);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load chat for date:', e);
+      }
+      setChatMessages([defaultAiGreeting]);
+    }
+  }, [date]);
+
+  // 更新并持久化聊天记录
+  const updateAndPersistChat = (newMsgs: Array<{ role: 'user' | 'ai'; content: string }>) => {
+    setChatMessages(newMsgs);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(getChatStorageKey(date), JSON.stringify(newMsgs));
+      } catch (e) {
+        console.warn('Failed to persist chat messages:', e);
+      }
+    }
+  };
+
+  // 清空当前日期的对话记录
+  const handleClearChat = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(getChatStorageKey(date));
+      } catch (e) {
+        console.warn('Failed to remove chat storage:', e);
+      }
+    }
+    setChatMessages([defaultAiGreeting]);
+    showToast(`已清空 ${date} 的推演对话记录`);
+  };
+
   const [userInput, setUserInput] = useState('');
   const [sendingAi, setSendingAi] = useState(false);
 
@@ -262,17 +325,18 @@ export function ZhijianReviewCockpit({
     if (!q || sendingAi) return;
 
     const currentHistory = chatMessages.slice(-6);
-    setChatMessages(prev => [...prev, { role: 'user', content: q }]);
+    const newWithUser = [...chatMessages, { role: 'user' as const, content: q }];
+    updateAndPersistChat(newWithUser);
     setUserInput('');
     setSendingAi(true);
 
     try {
       const res: any = await api.chatDailyReview(date, q, undefined, currentHistory);
       const answer = res?.answer || res?.data?.answer || '知见推演已完成，请严格遵循客观证伪条件防守。';
-      setChatMessages(prev => [...prev, { role: 'ai', content: answer }]);
+      updateAndPersistChat([...newWithUser, { role: 'ai' as const, content: answer }]);
     } catch (err: any) {
-      setChatMessages(prev => [...prev, {
-        role: 'ai',
+      updateAndPersistChat([...newWithUser, {
+        role: 'ai' as const,
         content: `【知见推演】：当前两市全天总成交为 ${totalTurnoverStr}，全局物理状态处于「${cyclePhase}」。次日集合竞价若核心高标破位或增量衰竭，做多假说将被刚性物理击穿。`
       }]);
     } finally {
@@ -1032,12 +1096,22 @@ export function ZhijianReviewCockpit({
                 <p className="text-[10px] text-slate-400">依据 {date} 盘面真实数据与推演逻辑解答</p>
               </div>
             </div>
-            <button
-              onClick={() => setAiDrawerOpen(false)}
-              className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleClearChat}
+                className="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-amber-400 hover:bg-white/10 transition flex items-center gap-1 font-mono border border-white/5"
+                title="清空当前日期的 AI 深入推演记录"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>清空记录</span>
+              </button>
+              <button
+                onClick={() => setAiDrawerOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs leading-relaxed">

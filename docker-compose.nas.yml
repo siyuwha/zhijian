@@ -5,7 +5,7 @@
 
 services:
   backend:
-    image: ghcr.nju.edu.cn/siyuwha/zhijian-backend:v0.4.6
+    image: ghcr.nju.edu.cn/siyuwha/zhijian-backend:v0.4.7
     pull_policy: always
     container_name: trading-ai-backend
     restart: always
@@ -34,7 +34,7 @@ services:
       start_period: 10s
 
   frontend:
-    image: ghcr.nju.edu.cn/siyuwha/zhijian-frontend:v0.4.6
+    image: ghcr.nju.edu.cn/siyuwha/zhijian-frontend:v0.4.7
     pull_policy: always
     container_name: trading-ai-frontend
     restart: always

@@ -335,11 +335,21 @@ class AuctionService:
         high_open_json = json.dumps(high_open_stats, ensure_ascii=False)
         emotion_json = json.dumps(emotion_judgment_dict, ensure_ascii=False)
 
+        now_dt = datetime.now()
+        if date_str and date_str != now_dt.strftime("%Y-%m-%d"):
+            try:
+                report_dt = datetime.strptime(date_str, "%Y-%m-%d").replace(hour=9, minute=26, second=0)
+            except Exception:
+                report_dt = now_dt
+        else:
+            report_dt = now_dt
+
         if existing:
             existing.index_open_data = index_json
             existing.one_word_count = one_word_up_count
             existing.high_open_stats = high_open_json
             existing.emotion_judgment = emotion_json
+            existing.generated_at = report_dt
             report_record = existing
         else:
             report_record = AuctionReport(
@@ -348,6 +358,7 @@ class AuctionService:
                 one_word_count=one_word_up_count,
                 high_open_stats=high_open_json,
                 emotion_judgment=emotion_json,
+                generated_at=report_dt,
             )
             self.session.add(report_record)
 

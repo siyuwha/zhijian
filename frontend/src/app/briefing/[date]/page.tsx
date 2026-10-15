@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { PremarketBriefingDetail, OvernightIndexItem, NewsDigestItem, TodayFocusItem } from '@/types/report';
-import { formatDateWithWeekday } from '@/lib/utils';
+import { formatDateWithWeekday, formatBriefingTime } from '@/lib/utils';
 import {
   ArrowLeft,
   RefreshCw,
@@ -178,7 +178,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
           </Link>
           <div className="flex items-center gap-1 text-xs text-slate-400 font-mono">
             <Clock className="w-3.5 h-3.5" />
-            生成时间: {generated_at ? generated_at.replace('T', ' ').slice(0, 19) : '--'}
+            生成时间: {formatBriefingTime(generated_at, date)}
           </div>
         </div>
 

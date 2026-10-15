@@ -143,4 +143,54 @@ export function getLatestTradingDateString(): string {
   return getTodayDateString();
 }
 
+/**
+ * 获取指定日期的前一个有效交易日（YYYY-MM-DD）
+ */
+export function getPrevTradingDay(dateStr: string): string {
+  if (!dateStr) return '';
+  const pure = dateStr.split('T')[0].split(' ')[0];
+  const parts = pure.split('-');
+  if (parts.length !== 3) return pure;
+  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  for (let i = 0; i < 20; i++) {
+    d.setDate(d.getDate() - 1);
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    const checkStr = `${yr}-${mo}-${da}`;
+    if (isTradingDay(checkStr)) {
+      return checkStr;
+    }
+  }
+  return pure;
+}
+
+/**
+ * 格式化盘前简报生成时间：若原时间为 00:00:00 或无具体时间，保底显示当天交易日早上 08:30:00
+ */
+export function formatBriefingTime(generated_at?: string | null, date?: string): string {
+  if (!generated_at && date) return `${date} 08:30:00`;
+  if (!generated_at) return '--';
+  const clean = generated_at.replace('T', ' ').slice(0, 19);
+  if (clean.endsWith('00:00:00') && date) {
+    return `${date} 08:30:00`;
+  }
+  return clean;
+}
+
+/**
+ * 格式化集合竞价生成时间：如果包含 UTC 01:26:00 则校准为北京时间 09:26:00；若为 00:00:00 则保底为 09:26:00
+ */
+export function formatAuctionTime(generated_at?: string | null, date?: string): string {
+  if (!generated_at && date) return `${date} 09:26:00`;
+  if (!generated_at) return '--';
+  const clean = generated_at.replace('T', ' ').slice(0, 19);
+  if (clean.includes('01:26:00') || clean.endsWith('00:00:00')) {
+    const d = clean.slice(0, 10);
+    return `${d} 09:26:00`;
+  }
+  return clean;
+}
+
+
 
