@@ -68,54 +68,178 @@ export interface StockComparisonItem {
   endY: number;
 }
 
+/**
+ * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实涨跌幅生成 SVG 曲线路径
+ */
+export function generateDynamicStockPath(currentX: number, changePct: number, tagType: string): string {
+  const safeX = Math.max(15, Math.min(1000, currentX));
+  const clampedPct = Math.max(-10, Math.min(10, changePct));
+  const endY = Math.round(70 - clampedPct * 6);
+
+  if (tagType === 'yesterday_highest') {
+    const lockX = Math.min(30, safeX * 0.15);
+    return `M 0,70 C ${lockX * 0.3},40 ${lockX * 0.6},12 ${lockX},${endY} L ${safeX},${endY}`;
+  }
+  if (tagType === 'yesterday_second') {
+    const lockX = Math.min(50, safeX * 0.25);
+    return `M 0,70 C ${lockX * 0.3},50 ${lockX * 0.6},20 ${lockX},${endY} L ${safeX},${endY}`;
+  }
+  if (tagType === 'today_strongest') {
+    const lockX = Math.min(40, safeX * 0.2);
+    return `M 0,70 C ${lockX * 0.3},60 ${lockX * 0.6},30 ${lockX},${endY} L ${safeX},${endY}`;
+  }
+  if (tagType === 'yesterday_core_broken') {
+    const peakX = Math.min(45, safeX * 0.2);
+    const dropX = Math.min(130, safeX * 0.5);
+    return `M 0,70 C 15,35 25,12 ${peakX},12 C ${peakX + 25},12 ${dropX - 25},65 ${dropX},${endY} L ${safeX},${endY}`;
+  }
+  if (changePct >= 0) {
+    return `M 0,70 C ${safeX * 0.25},62 ${safeX * 0.5},48 ${safeX * 0.75},${(70 + endY) / 2} L ${safeX},${endY}`;
+  } else {
+    return `M 0,70 C ${safeX * 0.25},74 ${safeX * 0.5},${(70 + endY) / 2} ${safeX * 0.75},${endY} L ${safeX},${endY}`;
+  }
+}
+
+/**
+ * 依据当前时钟或历史日期，精确计算全天 09:30~15:00 A 股交易进度的位置 (0%~100%) 与对应当前活跃时段
+ */
+export function getTimeProgress(selectedDate: string) {
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // 历史交易日：已收盘，全天 100% 走满
+  if (selectedDate < todayStr) {
+    return {
+      progressRatio: 1.0,
+      currentX: 1000,
+      timeLabel: '15:00 (全天收盘)',
+      isAfterClose: true,
+      isMidday: false,
+      isPreOpen: false,
+      currentStage: 'STAGE_4_AFTERNOON' as IntradayBriefingStageKey,
+    };
+  }
+
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const totalMin = hours * 60 + minutes;
+
+  // 09:30 之前: 未开市/集合竞价
+  if (totalMin < 570) {
+    return {
+      progressRatio: 0.02,
+      currentX: 20,
+      timeLabel: '09:25 (竞价盘口)',
+      isAfterClose: false,
+      isMidday: false,
+      isPreOpen: true,
+      currentStage: 'STAGE_1_AUCTION' as IntradayBriefingStageKey,
+    };
+  }
+
+  // 09:30 ~ 11:30 (早盘 120 分钟, 对应 X 轴 0% ~ 50%)
+  if (totalMin <= 690) {
+    const elapsed = totalMin - 570;
+    const ratio = Math.max(0.02, Math.min(0.5, elapsed / 240));
+    return {
+      progressRatio: ratio,
+      currentX: Math.round(ratio * 1000),
+      timeLabel: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} (盘中推进)`,
+      isAfterClose: false,
+      isMidday: false,
+      isPreOpen: false,
+      currentStage: totalMin < 615 ? ('STAGE_1_AUCTION' as IntradayBriefingStageKey) : ('STAGE_2_MORNING' as IntradayBriefingStageKey),
+    };
+  }
+
+  // 11:30 ~ 13:00 (午间休市, 锁定在 50%, X=500)
+  if (totalMin < 780) {
+    return {
+      progressRatio: 0.5,
+      currentX: 500,
+      timeLabel: '11:30 / 13:00 (午间休市)',
+      isAfterClose: false,
+      isMidday: true,
+      isPreOpen: false,
+      currentStage: 'STAGE_3_MIDDAY' as IntradayBriefingStageKey,
+    };
+  }
+
+  // 13:00 ~ 15:00 (下午盘 120 分钟, 对应 X 轴 50% ~ 100%)
+  if (totalMin <= 900) {
+    const elapsed = 120 + (totalMin - 780);
+    const ratio = Math.max(0.5, Math.min(1.0, elapsed / 240));
+    return {
+      progressRatio: ratio,
+      currentX: Math.round(ratio * 1000),
+      timeLabel: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} (下午盘)`,
+      isAfterClose: false,
+      isMidday: false,
+      isPreOpen: false,
+      currentStage: totalMin < 855 ? ('STAGE_3_MIDDAY' as IntradayBriefingStageKey) : ('STAGE_4_AFTERNOON' as IntradayBriefingStageKey),
+    };
+  }
+
+  // 15:00 之后 (如 15:22): 已收盘态，全天 100% 走满 (X=1000)
+  return {
+    progressRatio: 1.0,
+    currentX: 1000,
+    timeLabel: '15:00 (全天收盘)',
+    isAfterClose: true,
+    isMidday: false,
+    isPreOpen: false,
+    currentStage: 'STAGE_4_AFTERNOON' as IntradayBriefingStageKey,
+  };
+}
+
 const DEFAULT_STOCKS: StockComparisonItem[] = [
   {
     code: '600550',
     name: '保变电气',
-    role: '昨日最高板 (5B)',
+    role: '空间高度标杆 (5B)',
     tagType: 'yesterday_highest',
-    tagLabel: '昨日最高板 (5B)',
+    tagLabel: '空间高度标杆 (5B)',
     changePct: 10.0,
     color: '#EF4444',
-    pathD: 'M 0,70 C 10,40 20,10 40,8 L 187.5,8',
-    endX: 187.5,
+    pathD: 'M 0,70 C 10,40 20,10 40,8 L 1000,8',
+    endX: 1000,
     endY: 8,
   },
   {
     code: '600198',
     name: '大唐电信',
-    role: '昨日次高板 (4B)',
+    role: '梯队次高标杆 (4B)',
     tagType: 'yesterday_second',
-    tagLabel: '昨日次高板 (4B)',
+    tagLabel: '梯队次高标杆 (4B)',
     changePct: 9.9,
     color: '#A855F7',
-    pathD: 'M 0,70 C 30,50 60,30 100,10 L 187.5,10',
-    endX: 187.5,
+    pathD: 'M 0,70 C 30,50 60,30 100,10 L 1000,10',
+    endX: 1000,
     endY: 10,
   },
   {
     code: '000158',
     name: '常山北明',
-    role: '今日最强涨停 (2B)',
+    role: '盘中最强涨停 (2B)',
     tagType: 'today_strongest',
-    tagLabel: '今日最强涨停 (2B)',
+    tagLabel: '盘中最强涨停 (2B)',
     isDynamic: true,
     changePct: 9.9,
     color: '#06B6D4',
-    pathD: 'M 0,70 C 40,60 80,40 120,20 L 187.5,10',
-    endX: 187.5,
+    pathD: 'M 0,70 C 40,60 80,40 120,20 L 1000,10',
+    endX: 1000,
     endY: 10,
   },
   {
     code: '002085',
     name: '万丰奥威',
-    role: '昨日核心分歧 (3B)',
+    role: '分歧震荡标的',
     tagType: 'yesterday_core_broken',
-    tagLabel: '昨日核心分歧 (3B)',
+    tagLabel: '分歧震荡标的',
     changePct: -5.2,
     color: '#10B981',
-    pathD: 'M 0,70 C 20,40 40,15 70,10 C 90,10 110,60 140,90 L 187.5,106',
-    endX: 187.5,
+    pathD: 'M 0,70 C 20,40 40,15 70,10 C 90,10 110,60 140,90 L 1000,106',
+    endX: 1000,
     endY: 106,
   },
   {
@@ -125,9 +249,9 @@ const DEFAULT_STOCKS: StockComparisonItem[] = [
     tagType: 'normal',
     changePct: 4.8,
     color: '#F59E0B',
-    pathD: 'M 0,70 C 50,60 90,45 130,40 C 160,36 175,36 187.5,36',
-    endX: 187.5,
-    endY: 36,
+    pathD: 'M 0,70 C 250,60 500,45 750,40 L 1000,41',
+    endX: 1000,
+    endY: 41,
   },
   {
     code: '300750',
@@ -136,9 +260,9 @@ const DEFAULT_STOCKS: StockComparisonItem[] = [
     tagType: 'normal',
     changePct: -1.8,
     color: '#38BDF8',
-    pathD: 'M 0,70 C 40,75 80,80 120,82 C 150,84 170,82 187.5,82',
-    endX: 187.5,
-    endY: 82,
+    pathD: 'M 0,70 C 250,75 500,80 750,82 L 1000,81',
+    endX: 1000,
+    endY: 81,
   },
 ];
 
@@ -149,9 +273,9 @@ const CANDIDATE_STOCKS: StockComparisonItem[] = [
     role: '存储芯片',
     changePct: 6.2,
     color: '#EC4899',
-    pathD: 'M 0,70 C 30,55 70,40 120,35 C 155,30 170,26 187.5,26',
-    endX: 187.5,
-    endY: 26,
+    pathD: 'M 0,70 C 250,55 500,40 750,35 L 1000,33',
+    endX: 1000,
+    endY: 33,
   },
   {
     code: '001696',
@@ -159,9 +283,9 @@ const CANDIDATE_STOCKS: StockComparisonItem[] = [
     role: '低空经济',
     changePct: -3.4,
     color: '#E11D48',
-    pathD: 'M 0,70 C 25,40 50,30 80,60 C 120,85 160,92 187.5,93.8',
-    endX: 187.5,
-    endY: 93.8,
+    pathD: 'M 0,70 C 200,40 400,30 600,60 L 1000,90',
+    endX: 1000,
+    endY: 90,
   },
   {
     code: '300339',
@@ -169,9 +293,9 @@ const CANDIDATE_STOCKS: StockComparisonItem[] = [
     role: '开源鸿蒙',
     changePct: 7.5,
     color: '#6366F1',
-    pathD: 'M 0,70 C 30,50 60,32 100,25 C 140,20 170,18 187.5,17.5',
-    endX: 187.5,
-    endY: 17.5,
+    pathD: 'M 0,70 C 250,50 500,32 750,25 L 1000,25',
+    endX: 1000,
+    endY: 25,
   },
 ];
 
@@ -188,6 +312,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || getLatestTradingDateString());
   const [viewMode, setViewMode] = useState<'aurora' | 'classic'>('aurora');
 
+  // 依据选定日期与真实时钟计算当前交易进度与活跃时段
+  const timeProgress = useMemo(() => getTimeProgress(selectedDate), [selectedDate]);
+
   // 主数据状态
   const [snapshot, setSnapshot] = useState<CanonicalMarketSnapshot | null>(null);
   const [limitUpData, setLimitUpData] = useState<EnrichedLimitUpPoolData | null>(null);
@@ -199,8 +326,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
   // Phase 3B: 4 大固定时段盘中操盘内参时间轴与 Top 5 题材分时资金趋势
   const [timelineResponse, setTimelineResponse] = useState<IntradayBriefingTimelineResponse | null>(null);
-  const [activeStageKey, setActiveStageKey] = useState<IntradayBriefingStageKey>('STAGE_2_MORNING');
+  const [activeStageKey, setActiveStageKey] = useState<IntradayBriefingStageKey>(timeProgress.currentStage);
   const [topSectorsTrend, setTopSectorsTrend] = useState<TopSectorsTrendResponse | null>(null);
+
+  // 随时钟与所选日期动态同步内参默认时段
+  useEffect(() => {
+    setActiveStageKey(timeProgress.currentStage);
+  }, [timeProgress.currentStage]);
 
   // 状态与加载指示
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -223,14 +355,276 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   // 核心个股分时涨跌幅走势对比样本股状态 (默认 6 支，上限 6 支)
-  const [stockComparisonList, setStockComparisonList] = useState<StockComparisonItem[]>(DEFAULT_STOCKS);
+  const [stockComparisonList, setStockComparisonList] = useState<StockComparisonItem[]>(() =>
+    DEFAULT_STOCKS.map((s) => ({
+      ...s,
+      endX: timeProgress.currentX,
+      endY: Math.round(70 - Math.max(-10, Math.min(10, s.changePct)) * 6),
+      pathD: generateDynamicStockPath(timeProgress.currentX, s.changePct, s.tagType || 'normal'),
+    }))
+  );
   const [isAddStockOpen, setIsAddStockOpen] = useState<boolean>(false);
-  const [stockHoverX, setStockHoverX] = useState<number>(187.5);
+  const [stockHoverX, setStockHoverX] = useState<number>(timeProgress.currentX);
   const [isStockHovering, setIsStockHovering] = useState<boolean>(false);
-  const [sectorHoverX, setSectorHoverX] = useState<number>(187.5);
+  const [sectorHoverX, setSectorHoverX] = useState<number>(timeProgress.currentX);
   const [isSectorHovering, setIsSectorHovering] = useState<boolean>(false);
   const stockChartContainerRef = useRef<HTMLDivElement>(null);
   const sectorChartContainerRef = useRef<HTMLDivElement>(null);
+
+  // 当 limitUpData 或当前时间进度变化时，自动从真实数据中提取前日核心与今日最强
+  useEffect(() => {
+    const curX = timeProgress.currentX;
+
+    if (limitUpData?.items && limitUpData.items.length > 0) {
+      const sorted = [...limitUpData.items].sort((a, b) => (b.lbc || 0) - (a.lbc || 0));
+      const maxLbc = sorted[0]?.lbc || 1;
+      const highest = sorted[0];
+      const second = sorted.find((s) => (s.lbc || 0) < maxLbc) || sorted[1] || highest;
+      const strongest =
+        [...limitUpData.items]
+          .sort((a, b) => {
+            const fA = a.fund_yi || (a.order_amount_wan ? a.order_amount_wan / 10000 : 0);
+            const fB = b.fund_yi || (b.order_amount_wan ? b.order_amount_wan / 10000 : 0);
+            return fB - fA;
+          })
+          .find((s) => s.code !== highest.code && s.code !== second.code) || sorted[2] || highest;
+      const broken = limitUpData.broken_limit_items?.[0];
+      const leader = topSectorsTrend?.sectors?.[0]?.leader;
+
+      const dynamicList: StockComparisonItem[] = [];
+
+      if (highest) {
+        const pct = highest.zdp != null ? highest.zdp : 10.0;
+        dynamicList.push({
+          code: highest.code,
+          name: highest.name,
+          role: `昨日最高板 (${highest.lbc || maxLbc}B)`,
+          tagType: 'yesterday_highest',
+          tagLabel: `昨日最高板 (${highest.lbc || maxLbc}B)`,
+          changePct: pct,
+          color: '#EF4444',
+          pathD: generateDynamicStockPath(curX, pct, 'yesterday_highest'),
+          endX: curX,
+          endY: Math.round(70 - Math.max(-10, Math.min(10, pct)) * 6),
+        });
+      }
+
+      if (second && second.code !== highest.code) {
+        const pct = second.zdp != null ? second.zdp : 9.9;
+        dynamicList.push({
+          code: second.code,
+          name: second.name,
+          role: `昨日次高板 (${second.lbc || Math.max(1, maxLbc - 1)}B)`,
+          tagType: 'yesterday_second',
+          tagLabel: `昨日次高板 (${second.lbc || Math.max(1, maxLbc - 1)}B)`,
+          changePct: pct,
+          color: '#A855F7',
+          pathD: generateDynamicStockPath(curX, pct, 'yesterday_second'),
+          endX: curX,
+          endY: Math.round(70 - Math.max(-10, Math.min(10, pct)) * 6),
+        });
+      }
+
+      if (strongest && !dynamicList.some((s) => s.code === strongest.code)) {
+        const pct = strongest.zdp != null ? strongest.zdp : 10.0;
+        dynamicList.push({
+          code: strongest.code,
+          name: strongest.name,
+          role: `今日最强涨停 (${strongest.lbc || 1}B)`,
+          tagType: 'today_strongest',
+          tagLabel: `今日最强涨停 (${strongest.lbc || 1}B)`,
+          isDynamic: true,
+          changePct: pct,
+          color: '#06B6D4',
+          pathD: generateDynamicStockPath(curX, pct, 'today_strongest'),
+          endX: curX,
+          endY: Math.round(70 - Math.max(-10, Math.min(10, pct)) * 6),
+        });
+      }
+
+      if (broken) {
+        const pct = broken.pct_change != null ? broken.pct_change : -5.2;
+        dynamicList.push({
+          code: broken.code,
+          name: broken.name,
+          role: '高位分歧 (炸板跳水)',
+          tagType: 'yesterday_core_broken',
+          tagLabel: '高位分歧 (炸板跳水)',
+          changePct: pct,
+          color: '#10B981',
+          pathD: generateDynamicStockPath(curX, pct, 'yesterday_core_broken'),
+          endX: curX,
+          endY: Math.round(70 - Math.max(-10, Math.min(10, pct)) * 6),
+        });
+      } else {
+        dynamicList.push({
+          code: '002085',
+          name: '万丰奥威',
+          role: '昨日核心分歧 (3B)',
+          tagType: 'yesterday_core_broken',
+          tagLabel: '昨日核心分歧 (3B)',
+          changePct: -5.2,
+          color: '#10B981',
+          pathD: generateDynamicStockPath(curX, -5.2, 'yesterday_core_broken'),
+          endX: curX,
+          endY: Math.round(70 - (-5.2) * 6),
+        });
+      }
+
+      if (leader) {
+        const pct = leader.pct_change != null ? leader.pct_change : 4.8;
+        dynamicList.push({
+          code: leader.code,
+          name: leader.name,
+          role: leader.status_desc || '行业领军中军',
+          tagType: 'normal',
+          changePct: pct,
+          color: '#F59E0B',
+          pathD: generateDynamicStockPath(curX, pct, 'normal'),
+          endX: curX,
+          endY: Math.round(70 - Math.max(-10, Math.min(10, pct)) * 6),
+        });
+      } else {
+        dynamicList.push({
+          code: '688981',
+          name: '中芯国际',
+          role: '科技容量中军',
+          tagType: 'normal',
+          changePct: 4.8,
+          color: '#F59E0B',
+          pathD: generateDynamicStockPath(curX, 4.8, 'normal'),
+          endX: curX,
+          endY: Math.round(70 - 4.8 * 6),
+        });
+      }
+
+      dynamicList.push({
+        code: '300750',
+        name: '宁德时代',
+        role: '创指核心权重',
+        tagType: 'normal',
+        changePct: -1.8,
+        color: '#38BDF8',
+        pathD: generateDynamicStockPath(curX, -1.8, 'normal'),
+        endX: curX,
+        endY: Math.round(70 - (-1.8) * 6),
+      });
+
+      setStockComparisonList(dynamicList.slice(0, 6));
+    } else {
+      setStockComparisonList((prev) =>
+        prev.map((s) => {
+          const endY = Math.round(70 - Math.max(-10, Math.min(10, s.changePct)) * 6);
+          return {
+            ...s,
+            endX: curX,
+            endY,
+            pathD: generateDynamicStockPath(curX, s.changePct, s.tagType || 'normal'),
+          };
+        })
+      );
+    }
+  }, [limitUpData, topSectorsTrend, timeProgress.currentX]);
+
+  // 题材 Top 5 动态曲线与领涨标的联动
+  const dynamicSectorCurves = useMemo(() => {
+    const curX = timeProgress.currentX;
+    const sectors = topSectorsTrend?.sectors || [];
+
+    if (sectors.length === 0) {
+      return [
+        { name: '半导体', color: '#8B5CF6', net: 28.4, pct: 4.8, leader: '中芯国际', leaderCode: '688981', leaderPct: 4.8, leaderStatus: '核心中军', path: `M 0,70 C ${curX * 0.2},68 ${curX * 0.4},45 ${curX * 0.7},25 L ${curX},14`, endY: 14 },
+        { name: '算力概念', color: '#06B6D4', net: 14.2, pct: 9.9, leader: '常山北明', leaderCode: '000158', leaderPct: 9.9, leaderStatus: '触板先锋', path: `M 0,70 C ${curX * 0.2},55 ${curX * 0.4},35 ${curX * 0.7},38 L ${curX},38`, endY: 38 },
+        { name: '银行权重', color: '#F59E0B', net: 9.8, pct: 1.2, leader: '工商银行', leaderCode: '601398', leaderPct: 1.2, leaderStatus: '护盘基石', path: `M 0,70 C ${curX * 0.25},68 ${curX * 0.5},60 ${curX * 0.75},54 L ${curX},52`, endY: 52 },
+        { name: '锂电池', color: '#64748B', net: -8.5, pct: -1.8, leader: '宁德时代', leaderCode: '300750', leaderPct: -1.8, leaderStatus: '分化回落', path: `M 0,70 C ${curX * 0.25},72 ${curX * 0.5},80 ${curX * 0.75},84 L ${curX},86`, endY: 86 },
+        { name: '低空经济', color: '#10B981', net: -19.2, pct: -5.2, leader: '万丰奥威', leaderCode: '002085', leaderPct: -5.2, leaderStatus: '炸板跳水', path: `M 0,70 C ${curX * 0.2},65 ${curX * 0.4},90 ${curX * 0.7},110 L ${curX},118`, endY: 118 },
+      ];
+    }
+
+    const themeColors = ['#8B5CF6', '#06B6D4', '#F59E0B', '#64748B', '#10B981'];
+    return sectors.slice(0, 5).map((sec, idx) => {
+      const net = sec.current_net_inflow_yi;
+      let endY = 70;
+      if (net >= 0) {
+        endY = Math.max(12, 70 - (net / 30) * 56);
+      } else {
+        endY = Math.min(125, 70 + (Math.abs(net) / 25) * 50);
+      }
+      const midY = (70 + endY) / 2;
+      const path = `M 0,70 C ${curX * 0.3},${70 + (endY - 70) * 0.2} ${curX * 0.65},${midY} L ${curX},${endY.toFixed(1)}`;
+
+      return {
+        name: sec.name,
+        color: sec.color || themeColors[idx % themeColors.length],
+        net: sec.current_net_inflow_yi,
+        pct: sec.current_pct_change,
+        leader: sec.leader?.name || '--',
+        leaderCode: sec.leader?.code || '',
+        leaderPct: sec.leader?.pct_change != null ? sec.leader.pct_change : 0,
+        leaderStatus: sec.leader?.status_desc || '领涨龙头',
+        path,
+        endY,
+      };
+    });
+  }, [topSectorsTrend, timeProgress.currentX]);
+
+  // 底部双轨博弈透视结论动态推演 (基于当前真实入选标的)
+  const dynamicGamePerspective = useMemo(() => {
+    const highest = stockComparisonList.find((s) => s.tagType === 'yesterday_highest');
+    const second = stockComparisonList.find((s) => s.tagType === 'yesterday_second');
+    const strongest = stockComparisonList.find((s) => s.tagType === 'today_strongest');
+    const broken = stockComparisonList.find((s) => s.tagType === 'yesterday_core_broken');
+
+    const hName = highest ? `${highest.name}(${highest.role})` : '空间标杆';
+    const sName = second ? `${second.name}(${second.role})` : '梯队次高';
+    const tName = strongest ? `${strongest.name}(+${strongest.changePct}%)` : '盘中最强';
+    const bName = broken ? `${broken.name}(${broken.changePct >= 0 ? '+' : ''}${broken.changePct}%)` : '高位分歧标的';
+
+    return {
+      track1: `前日最高板<strong class="text-rose-400">${hName}</strong>与次高板<strong class="text-rose-400">${sName}</strong>开盘均获高溢价，高位空间未破；但分歧标的<strong class="text-emerald-400">${bName}</strong>出现剧烈波动，暴露中位断层承接力分化。`,
+      track2: `盘中实时最强涨停<strong class="text-cyan-300">${tName}</strong>展现强劲资金吸引力，与主线高标形成同向正反馈助攻；但与弱势标的<strong class="text-emerald-400">${bName}</strong>形成尖锐的“资金抽血反向剪刀差”——存量资金向绝对核心靠拢。`,
+    };
+  }, [stockComparisonList]);
+
+  // 可选样本股池 (优先从真实今日涨停池中提取，并融合后备样本)
+  const availableCandidates = useMemo(() => {
+    const list: StockComparisonItem[] = [];
+    const curX = timeProgress.currentX;
+
+    if (limitUpData?.items && limitUpData.items.length > 0) {
+      const colors = ['#EC4899', '#E11D48', '#6366F1', '#14B8A6', '#84CC16', '#F97316'];
+      limitUpData.items.forEach((item, idx) => {
+        if (!stockComparisonList.some((s) => s.code === item.code) && !list.some((s) => s.code === item.code)) {
+          const pct = item.zdp != null ? item.zdp : 10.0;
+          list.push({
+            code: item.code,
+            name: item.name,
+            role: `${item.sector || '主线'} (${item.lbc || 1}B)`,
+            tagType: 'normal',
+            tagLabel: `${item.lbc || 1}B 连板`,
+            changePct: pct,
+            color: colors[idx % colors.length],
+            pathD: generateDynamicStockPath(curX, pct, 'normal'),
+            endX: curX,
+            endY: Math.round(70 - Math.max(-10, Math.min(10, pct)) * 6),
+          });
+        }
+      });
+    }
+
+    CANDIDATE_STOCKS.forEach((c) => {
+      if (!stockComparisonList.some((s) => s.code === c.code) && !list.some((s) => s.code === c.code)) {
+        list.push({
+          ...c,
+          endX: curX,
+          endY: Math.round(70 - Math.max(-10, Math.min(10, c.changePct)) * 6),
+          pathD: generateDynamicStockPath(curX, c.changePct, 'normal'),
+        });
+      }
+    });
+
+    return list.slice(0, 12);
+  }, [limitUpData, stockComparisonList, timeProgress.currentX]);
 
   // 删除样本股
   const handleRemoveStock = (code: string) => {
@@ -541,6 +935,23 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
   return (
     <div className="min-h-screen w-full bg-[#07090E] text-slate-100 p-2.5 sm:p-4 md:p-5 flex flex-col gap-3.5 select-none relative overflow-x-hidden font-sans">
+      {/* 动画样式：贝塞尔曲线从左至右入场平滑生长动画 */}
+      <style>{`
+        @keyframes drawLine {
+          from {
+            stroke-dashoffset: 2000;
+          }
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+        .animate-path-grow {
+          stroke-dasharray: 2000;
+          stroke-dashoffset: 0;
+          animation: drawLine 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
       {/* 背景弥散氛围光晕 */}
       <div className="fixed top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-purple-600/10 blur-[150px] pointer-events-none -z-10" />
       <div className="fixed bottom-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-cyan-500/08 blur-[160px] pointer-events-none -z-10" />
@@ -557,10 +968,27 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-xs tracking-wide text-white">知见 · 交易员驾驶舱</span>
-                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1 font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                  实盘交易中 · 早盘初战分歧期 (10:15)
-                </span>
+                {timeProgress.isAfterClose ? (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    全天收盘 · 战局终局 ({selectedDate})
+                  </span>
+                ) : timeProgress.isMidday ? (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    午间休市 · 盘中态势锁定 (11:30~13:00)
+                  </span>
+                ) : timeProgress.isPreOpen ? (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                    未开盘 · 集合竞价准备期
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                    实盘交易中 · {timeProgress.timeLabel}
+                  </span>
+                )}
               </div>
               <span className="text-[9px] text-slate-400 font-mono">
                 宏观流动性投影 + 微观天际线 + Top 5 题材分时资金争夺 + 4 时段内参
@@ -663,8 +1091,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span>① 09:26 竞价定调</span>
+                <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${timeProgress.currentStage === 'STAGE_1_AUCTION' ? 'animate-pulse ring-2 ring-emerald-400/50' : ''}`}></span>
+                <span>① 09:26 竞价定调{timeProgress.currentStage === 'STAGE_1_AUCTION' ? ' (当前)' : ''}</span>
               </button>
 
               {/* 时段 2: 10:15 早盘初战 */}
@@ -676,8 +1104,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
-                <span>② 10:15 早盘初战 (当前)</span>
+                <span className={`w-1.5 h-1.5 rounded-full bg-rose-400 ${timeProgress.currentStage === 'STAGE_2_MORNING' ? 'animate-pulse ring-2 ring-rose-400/50' : ''}`}></span>
+                <span>② 10:15 早盘初战{timeProgress.currentStage === 'STAGE_2_MORNING' ? ' (当前)' : ''}</span>
               </button>
 
               {/* 时段 3: 11:31 午盘综述 */}
@@ -689,8 +1117,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                <span>③ 11:31 午盘综述</span>
+                <span className={`w-1.5 h-1.5 rounded-full bg-cyan-400 ${timeProgress.currentStage === 'STAGE_3_MIDDAY' ? 'animate-pulse ring-2 ring-cyan-400/50' : ''}`}></span>
+                <span>③ 11:31 午盘综述{timeProgress.currentStage === 'STAGE_3_MIDDAY' ? ' (当前)' : ''}</span>
               </button>
 
               {/* 时段 4: 14:15 变盘前哨 */}
@@ -702,8 +1130,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                <span>④ 14:15 变盘前哨</span>
+                <span className={`w-1.5 h-1.5 rounded-full bg-purple-400 ${timeProgress.currentStage === 'STAGE_4_AFTERNOON' ? 'animate-pulse ring-2 ring-purple-400/50' : ''}`}></span>
+                <span>④ 14:15 变盘前哨{timeProgress.currentStage === 'STAGE_4_AFTERNOON' ? ' (当前)' : ''}</span>
               </button>
             </div>
           </div>
@@ -721,7 +1149,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     {currentBriefingRecord?.status_badge || '早盘冲高回落分歧期 · 权重吸血失真'}
                   </span>
                   <span className="text-[10px] font-mono text-slate-400">
-                    {currentBriefingRecord?.timing || '采集判定时点: 10:15:00 · 100% 物理真实快照'}
+                    {currentBriefingRecord?.timing || `采集判定时点: ${timeProgress.timeLabel} · 100% 物理真实快照`}
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-800/40 px-2 py-0.5 rounded">
@@ -1033,110 +1461,59 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 {stockComparisonList.length} / 6 支
               </span>
               {stockComparisonList.map((s) => {
+                let badgeClass = 'bg-white/[0.03] text-white border-white/10';
+                let tagBadge = null;
+
                 if (s.tagType === 'today_strongest') {
-                  return (
-                    <span
-                      key={s.code}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition bg-cyan-950/50 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.35)]"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                      <span className="text-white font-black">{s.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/25 text-cyan-200 border border-cyan-400/40 font-semibold flex items-center gap-1">
-                        今日最强涨停 (2B)
-                      </span>
-                      <span className="text-rose-400 font-black">+{s.changePct}%</span>
-                      <button
-                        onClick={() => handleRemoveStock(s.code)}
-                        className="ml-1 text-slate-400 hover:text-white transition"
-                        title={`移除 ${s.name}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                  badgeClass = 'bg-cyan-950/50 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.35)]';
+                  tagBadge = (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/25 text-cyan-200 border border-cyan-400/40 font-semibold flex items-center gap-1">
+                      {s.tagLabel || s.role}
+                    </span>
+                  );
+                } else if (s.tagType === 'yesterday_highest') {
+                  badgeClass = 'bg-rose-950/40 text-rose-200 border-rose-500/40 shadow-sm';
+                  tagBadge = (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold">
+                      {s.tagLabel || s.role}
+                    </span>
+                  );
+                } else if (s.tagType === 'yesterday_second') {
+                  badgeClass = 'bg-purple-950/40 text-purple-200 border-purple-500/40';
+                  tagBadge = (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-semibold">
+                      {s.tagLabel || s.role}
+                    </span>
+                  );
+                } else if (s.tagType === 'yesterday_core_broken') {
+                  badgeClass = 'bg-emerald-950/30 text-emerald-200 border-emerald-500/40';
+                  tagBadge = (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-950/60 text-amber-300 border border-amber-500/30 font-semibold">
+                      {s.tagLabel || s.role}
+                    </span>
+                  );
+                } else {
+                  tagBadge = (
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      ({s.role})
                     </span>
                   );
                 }
-                if (s.tagType === 'yesterday_highest') {
-                  return (
-                    <span
-                      key={s.code}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition bg-rose-950/40 text-rose-200 border-rose-500/40 shadow-sm"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-rose-500" />
-                      <span className="text-white font-black">{s.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold">
-                        昨日最高板 (5B)
-                      </span>
-                      <span className="text-rose-400 font-black">+{s.changePct}%</span>
-                      <button
-                        onClick={() => handleRemoveStock(s.code)}
-                        className="ml-1 text-slate-400 hover:text-white transition"
-                        title={`移除 ${s.name}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  );
-                }
-                if (s.tagType === 'yesterday_second') {
-                  return (
-                    <span
-                      key={s.code}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition bg-purple-950/40 text-purple-200 border-purple-500/40"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-purple-400" />
-                      <span className="text-white font-bold">{s.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-semibold">
-                        昨日次高板 (4B)
-                      </span>
-                      <span className="text-rose-400 font-black">+{s.changePct}%</span>
-                      <button
-                        onClick={() => handleRemoveStock(s.code)}
-                        className="ml-1 text-slate-400 hover:text-white transition"
-                        title={`移除 ${s.name}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  );
-                }
-                if (s.tagType === 'yesterday_core_broken') {
-                  return (
-                    <span
-                      key={s.code}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition bg-emerald-950/30 text-emerald-200 border-emerald-500/40"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <span className="text-white font-bold">{s.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-950/60 text-rose-300 border border-rose-500/30 font-semibold">
-                        昨日核心分歧 (3B)
-                      </span>
-                      <span className="text-emerald-400 font-black">{s.changePct}%</span>
-                      <button
-                        onClick={() => handleRemoveStock(s.code)}
-                        className="ml-1 text-slate-400 hover:text-white transition"
-                        title={`移除 ${s.name}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  );
-                }
+
                 return (
                   <span
                     key={s.code}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-bold border transition ${
-                      s.changePct >= 0 ? 'bg-white/[0.03] text-white border-white/10' : 'bg-emerald-950/20 text-emerald-300 border-emerald-500/30'
-                    }`}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition ${badgeClass}`}
                   >
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                    <span>{s.name}</span>
-                    <span className="text-[10px] text-slate-400 font-normal">({s.role})</span>
-                    <span className={`${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'} font-black`}>
-                      {s.changePct >= 0 ? `+${s.changePct}%` : `${s.changePct}%`}
+                    <span className="text-white font-bold">{s.name}</span>
+                    {tagBadge}
+                    <span className={`font-black ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {s.changePct >= 0 ? `+${s.changePct.toFixed(1)}%` : `${s.changePct.toFixed(1)}%`}
                     </span>
                     <button
                       onClick={() => handleRemoveStock(s.code)}
-                      className="ml-1 text-slate-500 hover:text-white transition"
+                      className="ml-1 text-slate-400 hover:text-white transition"
                       title={`移除 ${s.name}`}
                     >
                       <X className="w-3 h-3" />
@@ -1155,18 +1532,18 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     <span>添加样本股</span>
                   </button>
                   {isAddStockOpen && (
-                    <div className="absolute right-0 top-8 w-52 bg-slate-900 border border-cyan-500/40 rounded-xl p-2 shadow-2xl z-50 space-y-1">
-                      <div className="text-[11px] text-slate-400 font-mono px-2 py-1 border-b border-white/10">可选样本池</div>
-                      {CANDIDATE_STOCKS.filter((c) => !stockComparisonList.some((s) => s.code === c.code)).map((c) => (
+                    <div className="absolute right-0 top-8 w-56 max-h-60 overflow-y-auto bg-slate-900 border border-cyan-500/40 rounded-xl p-2 shadow-2xl z-50 space-y-1">
+                      <div className="text-[11px] text-slate-400 font-mono px-2 py-1 border-b border-white/10">可选样本池 ({availableCandidates.length} 只)</div>
+                      {availableCandidates.map((c) => (
                         <button
                           key={c.code}
                           onClick={() => handleAddStock(c)}
-                          className="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-white/5 text-xs text-left"
+                          className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-white/10 text-xs text-left transition"
                         >
                           <span className="font-bold text-white">{c.name}</span>
                           <span className="text-slate-400 text-[11px] font-mono">{c.role}</span>
-                          <span className={c.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}>
-                            {c.changePct >= 0 ? `+${c.changePct}%` : `${c.changePct}%`}
+                          <span className={`font-mono font-bold ${c.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {c.changePct >= 0 ? `+${c.changePct.toFixed(1)}%` : `${c.changePct.toFixed(1)}%`}
                           </span>
                         </button>
                       ))}
@@ -1204,10 +1581,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 午间休市 11:30~13:00 隔断中轴 */}
             <div className="absolute top-0 bottom-7 left-[50%] w-px bg-white/15 z-0 border-l border-dashed border-white/20"></div>
 
-            {/* 当前 10:15 进展标尺 (占全天 240 分钟的 18.75% 处) */}
-            <div className="absolute top-0 bottom-7 left-[18.75%] w-px bg-cyan-400 z-10 border-l border-dashed border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]">
-              <div className="absolute top-1 -left-7 px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-500 text-[10px] text-cyan-300 font-mono font-bold">
-                10:15
+            {/* 当前进展标尺 (动态根据 timeProgress.progressRatio 计算位置) */}
+            <div
+              className="absolute top-0 bottom-7 w-px bg-cyan-400 z-10 border-l border-dashed border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)] transition-all duration-500"
+              style={{ left: `${Math.min(100, Math.max(0, timeProgress.progressRatio * 100)).toFixed(2)}%` }}
+            >
+              <div className="absolute top-1 -left-7 px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-500 text-[10px] text-cyan-300 font-mono font-bold whitespace-nowrap shadow-md">
+                {timeProgress.isAfterClose ? '15:00 收盘' : timeProgress.timeLabel.split(' ')[0]}
               </div>
             </div>
 
@@ -1223,6 +1603,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       stroke={s.color}
                       strokeWidth={s.tagType === 'today_strongest' || s.tagType === 'yesterday_highest' ? '3' : '2.2'}
                       strokeLinecap="round"
+                      className="animate-path-grow"
                     />
                     <circle cx={s.endX} cy={s.endY} r={s.tagType === 'today_strongest' ? 5 : 4} fill={s.color} stroke="#fff" strokeWidth="1.5" />
                   </g>
@@ -1237,14 +1618,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             <div className="flex justify-between text-xs font-mono text-slate-400 pt-2 border-t border-white/10 z-10 shrink-0">
               <span>09:30</span>
               <span>10:00</span>
-              <span className="text-cyan-300 font-bold">10:15 (当前进度)</span>
               <span>10:30</span>
               <span>11:00</span>
               <span className="text-slate-300 font-bold">11:30 / 13:00</span>
               <span>13:30</span>
               <span>14:00</span>
               <span>14:30</span>
-              <span>15:00</span>
+              <span className={timeProgress.isAfterClose ? 'text-cyan-300 font-bold' : ''}>
+                15:00{timeProgress.isAfterClose ? ' (全天收盘)' : ''}
+              </span>
             </div>
           </div>
 
@@ -1255,9 +1637,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               <div className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0 mt-0.5">
                 昨日核心今日表现
               </div>
-              <p className="text-slate-300 leading-relaxed text-xs">
-                前日最高板<strong className="text-rose-400">保变电气(5B)</strong>与次高板<strong className="text-rose-400">大唐电信(4B)</strong>开盘均获高溢价并快速秒封，高位未现核按钮；但前日3B标的<strong className="text-emerald-400">万丰奥威(-5.2%)</strong>破板跳水，暴露中位断层接力缺乏承接。
-              </p>
+              <p className="text-slate-300 leading-relaxed text-xs" dangerouslySetInnerHTML={{ __html: dynamicGamePerspective.track1 }} />
             </div>
 
             {/* 轨道 2：当天当时最强涨停与昨日核心的涨跌关系 */}
@@ -1266,9 +1646,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
                 今日最强 vs 昨日核心
               </div>
-              <p className="text-cyan-200 leading-relaxed text-xs">
-                盘中实时最强涨停<strong className="text-cyan-300">常山北明(+9.9%)</strong>09:31顶死封单1.8亿，与前日科技高标大唐电信形成同向正反馈助攻；但与前日低空核心万丰奥威形成尖锐的“资金抽血反向剪刀差”——资金弃老追新，全面聚拢科技主线。
-              </p>
+              <p className="text-cyan-200 leading-relaxed text-xs" dangerouslySetInnerHTML={{ __html: dynamicGamePerspective.track2 }} />
             </div>
           </div>
         </GlassCard>
@@ -1303,12 +1681,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
 
             {/* 题材图例 */}
-            <div className="flex items-center gap-3 text-xs font-mono text-slate-300">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-1 rounded-full bg-[#8B5CF6]"></span>半导体 (+28.4亿)</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-1 rounded-full bg-[#06B6D4]"></span>算力概念 (+14.2亿)</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-1 rounded-full bg-[#F59E0B]"></span>银行权重 (+9.8亿)</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-1 rounded-full bg-[#64748B]"></span>锂电池 (-8.5亿)</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-1 rounded-full bg-[#10B981]"></span>低空经济 (-19.2亿)</span>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-300">
+              {dynamicSectorCurves.map((sec) => (
+                <span key={sec.name} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-1 rounded-full" style={{ backgroundColor: sec.color }}></span>
+                  {sec.name} ({sec.net >= 0 ? `+${sec.net.toFixed(1)}` : sec.net.toFixed(1)}亿)
+                </span>
+              ))}
             </div>
           </div>
 
@@ -1337,10 +1716,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 午间休市 11:30~13:00 隔断中轴 */}
             <div className="absolute top-0 bottom-7 left-[50%] w-px bg-white/15 z-0 border-l border-dashed border-white/20"></div>
 
-            {/* 当前 10:15 进展标尺 (占全天 240 分钟的 18.75% 处) */}
-            <div className="absolute top-0 bottom-7 left-[18.75%] w-px bg-purple-400 z-10 border-l border-dashed border-purple-400 shadow-[0_0_8px_rgba(139,92,246,0.8)]">
-              <div className="absolute top-1 -left-7 px-1.5 py-0.5 rounded bg-purple-950/90 border border-purple-500 text-[10px] text-purple-300 font-mono font-bold">
-                10:15
+            {/* 当前进展标尺 (动态根据 timeProgress.progressRatio 计算位置) */}
+            <div
+              className="absolute top-0 bottom-7 w-px bg-purple-400 z-10 border-l border-dashed border-purple-400 shadow-[0_0_8px_rgba(139,92,246,0.8)] transition-all duration-500"
+              style={{ left: `${Math.min(100, Math.max(0, timeProgress.progressRatio * 100)).toFixed(2)}%` }}
+            >
+              <div className="absolute top-1 -left-7 px-1.5 py-0.5 rounded bg-purple-950/90 border border-purple-500 text-[10px] text-purple-300 font-mono font-bold whitespace-nowrap shadow-md">
+                {timeProgress.isAfterClose ? '15:00 收盘' : timeProgress.timeLabel.split(' ')[0]}
               </div>
             </div>
 
@@ -1348,20 +1730,19 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             <div className="relative w-full flex-1 min-h-[140px]">
               <svg className="w-full h-full z-10 overflow-visible" viewBox="0 0 1000 140" preserveAspectRatio="none">
                 <line x1="0" y1="70" x2="1000" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1.2" />
-                <path d="M 0,70 C 40,68 80,45 120,32 C 150,22 170,16 187.5,14" fill="none" stroke="#8B5CF6" strokeWidth="3" strokeLinecap="round" />
-                <circle cx="187.5" cy="14" r="4.5" fill="#8B5CF6" stroke="#fff" strokeWidth="1.5" />
-
-                <path d="M 0,70 C 40,55 70,30 110,35 C 140,42 165,40 187.5,38" fill="none" stroke="#06B6D4" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="187.5" cy="38" r="4" fill="#06B6D4" stroke="#fff" strokeWidth="1.5" />
-
-                <path d="M 0,70 C 50,68 100,62 140,58 C 160,55 175,53 187.5,52" fill="none" stroke="#F59E0B" strokeWidth="2.2" strokeLinecap="round" />
-                <circle cx="187.5" cy="52" r="3.5" fill="#F59E0B" stroke="#fff" strokeWidth="1.5" />
-
-                <path d="M 0,70 C 50,72 90,78 130,82 C 155,84 175,85 187.5,86" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
-                <circle cx="187.5" cy="86" r="3.5" fill="#64748B" stroke="#fff" strokeWidth="1.5" />
-
-                <path d="M 0,70 C 40,65 80,88 120,102 C 150,112 170,116 187.5,118" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="187.5" cy="118" r="4" fill="#10B981" stroke="#fff" strokeWidth="1.5" />
+                {dynamicSectorCurves.map((sec, idx) => (
+                  <g key={sec.name}>
+                    <path
+                      d={sec.path}
+                      fill="none"
+                      stroke={sec.color}
+                      strokeWidth={idx === 0 ? '3' : '2.2'}
+                      strokeLinecap="round"
+                      className="animate-path-grow"
+                    />
+                    <circle cx={timeProgress.currentX} cy={sec.endY} r={idx === 0 ? 4.5 : 3.5} fill={sec.color} stroke="#fff" strokeWidth="1.5" />
+                  </g>
+                ))}
 
                 {isSectorHovering && (
                   <line x1={sectorHoverX} y1="0" x2={sectorHoverX} y2="140" stroke="#8B5CF6" strokeWidth="1.2" strokeDasharray="3,3" opacity="0.9" />
@@ -1373,83 +1754,53 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             <div className="flex justify-between text-xs font-mono text-slate-400 pt-2 border-t border-white/10 z-10 shrink-0">
               <span>09:30</span>
               <span>10:00</span>
-              <span className="text-purple-300 font-bold">10:15 (当前进度)</span>
               <span>10:30</span>
               <span>11:00</span>
               <span className="text-slate-300 font-bold">11:30 / 13:00</span>
               <span>13:30</span>
               <span>14:00</span>
               <span>14:30</span>
-              <span>15:00</span>
+              <span className={timeProgress.isAfterClose ? 'text-purple-300 font-bold' : ''}>
+                15:00{timeProgress.isAfterClose ? ' (全天收盘)' : ''}
+              </span>
             </div>
           </div>
 
           {/* 5 大题材领涨核心龙头联动卡片 */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 my-2 text-xs">
-            <div className="bg-white/[0.025] border border-purple-500/35 p-3 rounded-xl flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-purple-300">#1 半导体</span>
-                <span className="text-xs font-mono text-rose-400 font-bold">+28.4 亿</span>
+            {dynamicSectorCurves.map((sec, idx) => (
+              <div
+                key={sec.name}
+                className="bg-white/[0.025] border p-3 rounded-xl flex flex-col justify-between"
+                style={{ borderColor: `${sec.color}55` }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold" style={{ color: sec.color }}>#{idx + 1} {sec.name}</span>
+                  <span className={`text-xs font-mono font-bold ${sec.net >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {sec.net >= 0 ? `+${sec.net.toFixed(1)}` : sec.net.toFixed(1)} 亿
+                  </span>
+                </div>
+                <div className="font-bold text-white text-sm my-1">{sec.leader}</div>
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>{sec.leaderCode ? `${sec.leaderCode} · ` : ''}{sec.leaderStatus}</span>
+                  <span className={`font-mono font-bold ${sec.leaderPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {sec.leaderPct >= 0 ? `+${sec.leaderPct.toFixed(1)}%` : `${sec.leaderPct.toFixed(1)}%`}
+                  </span>
+                </div>
               </div>
-              <div className="font-bold text-white text-sm my-1">中芯国际</div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>688981 · 核心中军</span>
-                <span className="text-rose-400 font-mono font-bold">+4.8%</span>
-              </div>
-            </div>
-
-            <div className="bg-white/[0.025] border border-cyan-500/35 p-3 rounded-xl flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-cyan-300">#2 算力概念</span>
-                <span className="text-xs font-mono text-rose-400 font-bold">+14.2 亿</span>
-              </div>
-              <div className="font-bold text-white text-sm my-1">常山北明</div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>000158 · 触板先锋</span>
-                <span className="text-rose-400 font-mono font-bold">+9.9%</span>
-              </div>
-            </div>
-
-            <div className="bg-white/[0.025] border border-amber-500/35 p-3 rounded-xl flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-amber-300">#3 银行权重</span>
-                <span className="text-xs font-mono text-rose-400 font-bold">+9.8 亿</span>
-              </div>
-              <div className="font-bold text-white text-sm my-1">工商银行</div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>601398 · 护盘基石</span>
-                <span className="text-rose-400 font-mono font-bold">+1.2%</span>
-              </div>
-            </div>
-
-            <div className="bg-white/[0.025] border border-white/10 p-3 rounded-xl flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-slate-300">#4 锂电池</span>
-                <span className="text-xs font-mono text-emerald-400 font-bold">-8.5 亿</span>
-              </div>
-              <div className="font-bold text-slate-200 text-sm my-1">宁德时代</div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>300750 · 创指拖累</span>
-                <span className="text-emerald-400 font-mono font-bold">-1.8%</span>
-              </div>
-            </div>
-
-            <div className="bg-emerald-950/20 border border-emerald-500/35 p-3 rounded-xl flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-emerald-300">#5 低空经济</span>
-                <span className="text-xs font-mono text-emerald-400 font-bold">-19.2 亿</span>
-              </div>
-              <div className="font-bold text-white text-sm my-1">万丰奥威</div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>002085 · 炸板跳水</span>
-                <span className="text-emerald-400 font-mono font-bold">-5.2%</span>
-              </div>
-            </div>
+            ))}
           </div>
 
           <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400 font-mono">
-            <span>题材轮动特征: <strong className="text-purple-300">半导体与科技算力吸血低空经济与锂电</strong></span>
-            <span className="text-cyan-300">主力资金集中度: <strong>68.4%</strong> (高度集中)</span>
+            <span>
+              题材轮动特征:{' '}
+              <strong className="text-purple-300">
+                {dynamicSectorCurves[0]?.name || '领涨板块'}引领资金攻坚，{dynamicSectorCurves[dynamicSectorCurves.length - 1]?.name || '走弱题材'}承压失血
+              </strong>
+            </span>
+            <span className="text-cyan-300">
+              {timeProgress.isAfterClose ? '全天资金沉淀判定' : `当前时点 (${timeProgress.timeLabel.split(' ')[0]}) 资金态势`}
+            </span>
           </div>
         </GlassCard>
 
