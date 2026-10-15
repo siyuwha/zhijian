@@ -39,11 +39,17 @@ class ZhijianTranscendentReviewService:
     """
 
     def __init__(self, llm_client: Optional[DeepSeekBriefingLLMClient] = None):
-        self.llm_client = llm_client or DeepSeekBriefingLLMClient(
+        self._llm_client = llm_client
+        self.baseline_path = PROJECT_ROOT / "baseline_evidence" / "2026-10-12-transcendent-review.md"
+
+    @property
+    def llm_client(self) -> DeepSeekBriefingLLMClient:
+        if self._llm_client is not None:
+            return self._llm_client
+        return DeepSeekBriefingLLMClient(
             timeout=120.0,
             model=settings.LLM_MODEL or "deepseek-chat"
         )
-        self.baseline_path = PROJECT_ROOT / "baseline_evidence" / "2026-10-12-transcendent-review.md"
 
     def get_baseline_review_md(self) -> Optional[str]:
         """读取基准研报全文 (用于 2026-10-12 重放或参考)"""

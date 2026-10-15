@@ -219,7 +219,65 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  // =========================================================================
+  // 系统 LLM 与兼容 OpenAI 中转站 API 配置与测试
+  // =========================================================================
+  getLLMConfig: () => fetchAPI<LLMConfigData>('/system/llm-config'),
+  updateLLMConfig: (data: LLMConfigUpdatePayload) =>
+    fetchAPI<LLMConfigData>('/system/llm-config', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  testLLMConnection: (data: LLMTestPayload) =>
+    fetchAPI<LLMTestResult>('/system/llm-config/test', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  resetLLMConfig: () =>
+    fetchAPI<LLMConfigData>('/system/llm-config/reset', {
+      method: 'POST',
+    }),
 };
+
+export interface LLMConfigData {
+  provider_type: string;
+  base_url: string;
+  model: string;
+  api_key_masked: string;
+  has_api_key: boolean;
+  temperature: number;
+  max_tokens: number;
+  timeout_seconds: number;
+  is_customized: boolean;
+  updated_at?: string | null;
+}
+
+export interface LLMConfigUpdatePayload {
+  provider_type?: string;
+  base_url: string;
+  model: string;
+  api_key?: string | null;
+  temperature?: number;
+  max_tokens?: number;
+  timeout_seconds?: number;
+}
+
+export interface LLMTestPayload {
+  base_url: string;
+  api_key?: string | null;
+  model: string;
+  timeout_seconds?: number;
+}
+
+export interface LLMTestResult {
+  success: boolean;
+  latency_ms: number;
+  message: string;
+  model_used?: string | null;
+  reply_preview?: string | null;
+  error?: string | null;
+}
 
 // =========================================================================
 // Phase 2D.0 / 2D.1: Canonical Market Truth & Cognition 统一信封消费接口

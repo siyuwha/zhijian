@@ -33,6 +33,8 @@ from .tasks.scheduler import task_scheduler
 from .services.monitor import MonitorService
 from .data.providers import init_providers
 
+from .services.llm_config_service import LLMConfigService
+
 setup_logging(debug=settings.DEBUG)
 logger = logging.getLogger("trading_system")
 
@@ -42,6 +44,7 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing system...")
     await init_db()
     init_providers()
+    LLMConfigService.load_and_apply_on_startup()
     task_scheduler.start()
     MonitorService.start_background_daemon(async_session)
     logger.info(f"{settings.PROJECT_NAME} backend started successfully.")
