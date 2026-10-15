@@ -91,6 +91,30 @@ class LLMConfigService:
         )
 
     @classmethod
+    def get_runtime_credentials(cls) -> Dict[str, Any]:
+        """获取当前系统运行时调用的真实完整凭证与参数（含未脱敏 key）"""
+        persisted = cls._load_persisted_data()
+        if persisted and persisted.get("api_key"):
+            return {
+                "api_key": str(persisted.get("api_key", "")).strip(),
+                "base_url": str(persisted.get("base_url") or settings.LLM_BASE_URL).rstrip("/"),
+                "model": str(persisted.get("model") or settings.LLM_MODEL or "deepseek-chat").strip(),
+                "temperature": float(persisted.get("temperature", 0.3)),
+                "max_tokens": int(persisted.get("max_tokens", 4000)),
+                "timeout_seconds": float(persisted.get("timeout_seconds", 60.0)),
+            }
+
+        default_key = settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY or os.environ.get("OPENAI_API_KEY", "")
+        return {
+            "api_key": default_key.strip(),
+            "base_url": (settings.LLM_BASE_URL or "https://api.deepseek.com/v1").rstrip("/"),
+            "model": (settings.LLM_MODEL or "deepseek-chat").strip(),
+            "temperature": float(os.environ.get("LLM_TEMPERATURE", 0.3)),
+            "max_tokens": 4000,
+            "timeout_seconds": float(os.environ.get("LLM_TIMEOUT_SECONDS", 60.0)),
+        }
+
+    @classmethod
     def save_config(cls, req: LLMConfigUpdateRequest) -> LLMConfigResponse:
         """保存并热加载新 LLM 配置"""
         existing = cls._load_persisted_data() or {}

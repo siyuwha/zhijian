@@ -337,7 +337,7 @@ export function ZhijianReviewCockpit({
     } catch (err: any) {
       updateAndPersistChat([...newWithUser, {
         role: 'ai' as const,
-        content: `【知见推演】：当前两市全天总成交为 ${totalTurnoverStr}，全局物理状态处于「${cyclePhase}」。次日集合竞价若核心高标破位或增量衰竭，做多假说将被刚性物理击穿。`
+        content: `⚠️ 【网络连接或服务异常】：未能获取推演响应（${err?.message || '网络连接超时'}）。请确认后端服务运行正常，并在系统状态页面检查 LLM API Key 设置。`
       }]);
     } finally {
       setSendingAi(false);

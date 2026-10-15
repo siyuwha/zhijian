@@ -160,7 +160,8 @@ async def chat_daily_review(payload: ReviewChatRequest, db: AsyncSession = Depen
     answer = await zhijian_transcendent_service.ask_ai_cognitive_query(
         query=payload.query,
         review_context=context_text,
-        conversation_history=payload.history
+        conversation_history=payload.history,
+        target_date=payload.date
     )
     return {
         "code": 200,
