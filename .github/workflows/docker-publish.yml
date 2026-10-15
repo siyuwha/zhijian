@@ -78,5 +78,8 @@ jobs:
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_GIT_COMMIT=${{ github.sha }}
+            NEXT_PUBLIC_BUILD_DATE=2026.10.15
           cache-from: type=gha
           cache-to: type=gha,mode=max

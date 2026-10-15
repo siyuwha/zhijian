@@ -7,6 +7,7 @@ import pkg from "../../package.json";
 export const APP_VERSION = `v${pkg.version}`;
 export const STAGE_NAME = "知见·极光盘中驾驶舱与四大时段操盘内参实战版";
 export const BUILD_DATE = process.env.NEXT_PUBLIC_BUILD_DATE || "2026.10.15";
-export const GIT_COMMIT = process.env.NEXT_PUBLIC_GIT_COMMIT || "8cc6d18";
+const rawCommit = process.env.NEXT_PUBLIC_GIT_COMMIT || "v0.4.6";
+export const GIT_COMMIT = rawCommit.length > 7 ? rawCommit.slice(0, 7) : rawCommit;
 
 export const FULL_VERSION_STRING = `${APP_VERSION} (${GIT_COMMIT})`;
