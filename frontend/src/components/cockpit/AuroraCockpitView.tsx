@@ -18,7 +18,7 @@ import {
   TopSectorTrendItem,
 } from '@/types/canonical';
 import { canonicalAPI, api } from '@/lib/api';
-import { getLatestTradingDateString, getPrevTradingDay } from '@/lib/utils';
+import { getLatestTradingDateString, getPrevTradingDay, getTodayDateString, isTradingDay } from '@/lib/utils';
 import {
   GlassCard,
   StatusBadge,
@@ -349,8 +349,21 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || getLatestTradingDateString());
   const [viewMode, setViewMode] = useState<'aurora' | 'classic'>('aurora');
 
-  // 依据选定日期与真实时钟计算当前交易进度与活跃时段
-  const timeProgress = useMemo(() => getTimeProgress(selectedDate), [selectedDate]);
+  // 盘中动态时钟与自动轮询状态 (15 秒/次静默轮询)
+  const [clockTick, setClockTick] = useState<number>(0);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+  const [lastRefreshTime, setLastRefreshTime] = useState<string>('');
+
+  // 真实时钟秒级心跳：每 5 秒推进一次时间标尺
+  useEffect(() => {
+    const clockTimer = setInterval(() => {
+      setClockTick((t) => t + 1);
+    }, 5000);
+    return () => clearInterval(clockTimer);
+  }, []);
+
+  // 依据选定日期与真实时钟计算当前交易进度与活跃时段 (随 clockTick 实时推进)
+  const timeProgress = useMemo(() => getTimeProgress(selectedDate), [selectedDate, clockTick]);
 
   // 主数据状态
   const [snapshot, setSnapshot] = useState<CanonicalMarketSnapshot | null>(null);
@@ -707,8 +720,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   };
 
   // 获取核心快照与连板
-  const fetchAllData = async (date: string) => {
-    setIsLoading(true);
+  const fetchAllData = async (date: string, silent: boolean = false) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
     setErrorMsg(null);
     try {
       const prevDate = getPrevTradingDay(date);
@@ -764,6 +779,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         setTopSectorsTrend(topTrendRes.value);
       }
 
+      const now = new Date();
+      setLastRefreshTime(
+        `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+      );
+
       if (
         snapRes.status === 'rejected' &&
         limitUpRes.status === 'rejected' &&
@@ -772,15 +792,21 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         throw new Error('核心数据获取失败，请检查网络或后端服务');
       }
     } catch (err: any) {
-      setErrorMsg(err.message || '获取数据异常');
+      if (!silent) {
+        setErrorMsg(err.message || '获取数据异常');
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   };
 
   // 单独获取板块资金流
-  const fetchSectors = async (type: 'concept' | 'industry') => {
-    setIsSectorsLoading(true);
+  const fetchSectors = async (type: 'concept' | 'industry', silent: boolean = false) => {
+    if (!silent) {
+      setIsSectorsLoading(true);
+    }
     try {
       const data = await api.getSectors(type, 12);
       if (Array.isArray(data)) {
@@ -789,7 +815,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     } catch (err) {
       console.warn('Failed to fetch sector flows:', err);
     } finally {
-      setIsSectorsLoading(false);
+      if (!silent) {
+        setIsSectorsLoading(false);
+      }
     }
   };
 
@@ -799,6 +827,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       setSelectedDate(initialDate);
       return;
     }
+
+    const latestTradingDay = getLatestTradingDateString();
+    setSelectedDate(latestTradingDay);
 
     let isMounted = true;
     canonicalAPI
@@ -814,7 +845,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           .getDailyReviews(1, 0)
           .then((revs) => {
             if (isMounted && revs?.items?.[0]?.date) {
-              setSelectedDate(revs.items[0].date);
+              const todayStr = getTodayDateString();
+              if (!isTradingDay(todayStr)) {
+                setSelectedDate(revs.items[0].date);
+              }
             }
           })
           .catch((e) => {
@@ -834,6 +868,23 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   useEffect(() => {
     fetchSectors(sectorType);
   }, [sectorType]);
+
+  // 盘中交易时段静默高频轮询 (15 秒/次静默更新最新盘口、走势与内参)
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // 仅在当前查看的是今日实时盘口时开启轮询，历史收盘日无需高频轮询
+    if (selectedDate !== todayStr) return;
+
+    const pollTimer = setInterval(() => {
+      fetchAllData(selectedDate, true);
+      fetchSectors(sectorType, true);
+    }, 15000);
+
+    return () => clearInterval(pollTimer);
+  }, [autoRefresh, selectedDate, sectorType]);
 
   // 计算连板天梯层级
   const ladderTiers = useMemo(() => {
@@ -983,22 +1034,26 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     );
   }
 
-  // 成交额数据
+  // 成交额数据：优先从 snapshot 读取，若缺失则从分项读取真实值
   const turnover = snapshot?.truth?.turnover;
-  const twoMarketsTotal = turnover?.two_markets_total_yi ?? 5820.4;
-  const shAmount = turnover?.sh_amount_yi ?? 2410.2;
-  const szAmount = turnover?.sz_total_amount_yi ?? 3410.2;
+  const twoMarketsTotal = turnover?.two_markets_total_yi ?? (
+    (snapshot?.truth?.indices && snapshot.truth.indices.length >= 2)
+      ? Number((snapshot.truth.indices[0].amount_yi + snapshot.truth.indices[1].amount_yi).toFixed(1))
+      : 0
+  );
+  const shAmount = turnover?.sh_amount_yi ?? (snapshot?.truth?.indices?.[0]?.amount_yi ?? 0);
+  const szAmount = turnover?.sz_total_amount_yi ?? (snapshot?.truth?.indices?.[1]?.amount_yi ?? 0);
 
   // 情绪上下界统计
   const bounds = snapshot?.truth?.sentiment_bounds;
-  const limitUpCount = bounds?.limit_up_count ?? limitUpData?.total_count ?? 24;
-  const limitDownCount = bounds?.limit_down_count ?? limitUpData?.limit_down_count ?? 3;
-  const brokenLimitCount = bounds?.broken_limit_count ?? limitUpData?.broken_limit_count ?? 10;
+  const limitUpCount = bounds?.limit_up_count ?? limitUpData?.total_count ?? (limitUpData?.items?.length ?? 0);
+  const limitDownCount = bounds?.limit_down_count ?? limitUpData?.limit_down_count ?? (limitUpData?.limit_down_items?.length ?? 0);
+  const brokenLimitCount = bounds?.broken_limit_count ?? limitUpData?.broken_limit_count ?? (limitUpData?.broken_limit_items?.length ?? 0);
   const touchedTotalCount = limitUpCount + brokenLimitCount;
   const brokenLimitRatio =
     bounds?.broken_limit_ratio ??
     limitUpData?.broken_limit_ratio ??
-    0.294;
+    (touchedTotalCount > 0 ? Number((brokenLimitCount / touchedTotalCount).toFixed(3)) : 0.0);
 
   // 分时图鼠标移动处理
   const handleChartMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1128,11 +1183,19 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             />
           </div>
 
-          {/* 自动快照指标 */}
-          <div className="h-8 hidden sm:flex items-center gap-1.5 bg-black/40 border border-white/10 px-2.5 rounded-xl text-[10px] font-mono text-slate-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>快照 3s</span>
-          </div>
+          {/* 实时自动推送切换药丸 */}
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl border text-[11px] font-mono transition shrink-0 ${
+              autoRefresh
+                ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/40'
+                : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+            }`}
+            title={autoRefresh ? `正在自动轮询最新盘口 (15秒/次)${lastRefreshTime ? ` · 上次同步: ${lastRefreshTime}` : ''}，点击可暂停` : '已暂停自动轮询，点击可恢复'}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+            <span>{autoRefresh ? (lastRefreshTime ? `实时 ${lastRefreshTime.slice(0, 5)}` : '实时 15s') : '已暂停推送'}</span>
+          </button>
 
           {/* 刷新按钮 */}
           <button

@@ -19,6 +19,8 @@ from ...schemas.tactical_briefing import TacticalBriefingReport
 from ...services.narrative_context_service import NarrativeContextExtractor
 from ...services.constrained_briefing_generator import ConstrainedBriefingGenerator
 
+from ...core.calendar import calendar
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/canonical", tags=["Canonical Market Truth & Cognition"])
@@ -30,7 +32,17 @@ async def get_latest_market_date(
 ):
     """
     获取系统中最新的市场复盘/快照基准日期
+    当今日为有效交易日且已到盘前准备时间 (>= 08:30)，返回今日；
+    当今日为周末或休市日，返回数据库中最近的完整交易日。
     """
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+
+    # 1. 如果今天是A股正常交易日，且已经过了早上 08:30，优先认定今天为最新基准交易日
+    if calendar.is_trading_day(now.date()) and (now.hour > 8 or (now.hour == 8 and now.minute >= 30)):
+        return {"code": 200, "data": {"latest_date": today_str}}
+
+    # 2. 否则查找历史最近的 EOD_CLOSE
     stmt = (
         select(MarketDailySnapshot.date)
         .where(MarketDailySnapshot.snapshot_type == "EOD_CLOSE")
@@ -59,7 +71,10 @@ async def get_latest_market_date(
         latest = res_rev.scalar_one_or_none()
 
     if not latest:
-        latest = datetime.now().strftime("%Y-%m-%d")
+        if calendar.is_trading_day(now.date()):
+            latest = today_str
+        else:
+            latest = calendar.prev_trading_day(now.date()).strftime("%Y-%m-%d")
 
     return {"code": 200, "data": {"latest_date": str(latest)}}
 

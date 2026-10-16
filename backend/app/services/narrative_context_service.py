@@ -19,27 +19,6 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 try:
-    from app.schemas.canonical_market import (
-        CanonicalMarketSnapshot,
-        CanonicalSecurityIdentity,
-    )
-    from app.schemas.narrative_context import (
-        NarrativeContextContract,
-        NarrativeFactLayer,
-        NarrativeDerivedLayer,
-        NarrativeCognitionLayer,
-        NarrativeTurnoverFact,
-        NarrativeLadderTier,
-        NarrativeLadderFact,
-        NarrativeSentimentCountsFact,
-        NarrativeRegulatoryFact,
-        NarrativeStateCognition,
-        NarrativeMainlineItem,
-        SpeechBoundaryContract,
-    )
-    from app.services.canonical_market_service import CanonicalSecurityMasterRegistry
-    from app.cognition.jcs import hash_jcs
-except ImportError:
     from backend.app.schemas.canonical_market import (
         CanonicalMarketSnapshot,
         CanonicalSecurityIdentity,
@@ -60,6 +39,27 @@ except ImportError:
     )
     from backend.app.services.canonical_market_service import CanonicalSecurityMasterRegistry
     from backend.app.cognition.jcs import hash_jcs
+except ImportError:
+    from app.schemas.canonical_market import (
+        CanonicalMarketSnapshot,
+        CanonicalSecurityIdentity,
+    )
+    from app.schemas.narrative_context import (
+        NarrativeContextContract,
+        NarrativeFactLayer,
+        NarrativeDerivedLayer,
+        NarrativeCognitionLayer,
+        NarrativeTurnoverFact,
+        NarrativeLadderTier,
+        NarrativeLadderFact,
+        NarrativeSentimentCountsFact,
+        NarrativeRegulatoryFact,
+        NarrativeStateCognition,
+        NarrativeMainlineItem,
+        SpeechBoundaryContract,
+    )
+    from app.services.canonical_market_service import CanonicalSecurityMasterRegistry
+    from app.cognition.jcs import hash_jcs
 
 
 class NarrativeContextExtractor:
@@ -195,10 +195,17 @@ class NarrativeContextExtractor:
             4
         ) if sb.touched_limit_total_count > 0 else 0.0
 
+        cal = cog.market_state_calibration
+        if not cal:
+            from .market_state_calibrator import MarketStateCalibrator
+            calibrator = MarketStateCalibrator()
+            state_features = calibrator.extract_feature_vector(truth)
+            cal = calibrator.calibrate(features=state_features)
+        else:
+            state_features = cal.feature_vector if cal else None
+
         to_change = None
-        state_features = None
-        if cog.market_state_calibration and cog.market_state_calibration.feature_vector:
-            state_features = cog.market_state_calibration.feature_vector
+        if state_features:
             to_change = state_features.index_vector.turnover_change_ratio
 
         breadth_msg = None
@@ -217,7 +224,6 @@ class NarrativeContextExtractor:
         # =========================================================================
         # 3. 构建 COGNITION LAYER (顶层认知假说层，只读透传，绝对不重新排序或重筛)
         # =========================================================================
-        cal = cog.market_state_calibration
         cognition_state = NarrativeStateCognition(
             primary_state=cal.primary_state,
             state_display_name=cal.state_display_name,
