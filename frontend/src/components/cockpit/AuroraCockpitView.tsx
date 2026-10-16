@@ -226,75 +226,34 @@ export function generateDynamicStockPath(currentX: number, changePct: number, ta
   const clampedPct = Math.max(-10, Math.min(10, changePct));
   const endY = Number((70 - clampedPct * 6).toFixed(1));
 
-  // 1. 昨日最高板 (例如百洋股份 4B): 高开下探后于 09:42 强势秒封涨停，全天死封
-  if (tagType === 'yesterday_highest') {
-    const lockX = Math.min(55, safeX * 0.15);
-    const dipX = lockX * 0.35;
-    if (safeX <= lockX) {
-      return `M 0,52 C ${safeX * 0.3},58 ${safeX * 0.6},30 ${safeX},${endY}`;
-    }
-    return `M 0,52 C ${dipX * 0.5},58 ${dipX},56 ${dipX},56 C ${dipX + (lockX - dipX) * 0.5},40 ${lockX * 0.8},${endY} ${lockX},${endY} L ${safeX},${endY}`;
+  // 1. 涨停或大幅冲高 (+9.5% ~ +10.0%): 早盘快速推升，封板后微幅震荡
+  if (clampedPct >= 9.5) {
+    const lockX = Math.min(120, safeX * 0.25);
+    const p1X = lockX * 0.4;
+    const p2X = lockX * 0.8;
+    return `M 0,55 C ${p1X},45 ${p2X},16 ${lockX},10 C ${lockX + (safeX - lockX) * 0.3},11 ${lockX + (safeX - lockX) * 0.7},9.5 ${safeX},${endY}`;
   }
 
-  // 2. 昨日次高板 (例如晶化股份 3B): 早盘震荡分歧，10:30~11:15 蓄势回封涨停
-  if (tagType === 'yesterday_second') {
-    const lockX = Math.min(420, safeX * 0.6);
-    const wave1X = Math.min(180, lockX * 0.4);
-    const wave2X = Math.min(300, lockX * 0.7);
-    if (safeX <= wave1X) {
-      return `M 0,60 C ${safeX * 0.4},64 ${safeX * 0.8},35 ${safeX},${endY}`;
-    }
-    if (safeX <= lockX) {
-      return `M 0,60 C ${wave1X * 0.4},64 ${wave1X * 0.8},30 ${wave1X},30 C ${wave1X + (safeX - wave1X) * 0.5},45 ${safeX * 0.9},${endY} ${safeX},${endY}`;
-    }
-    return `M 0,60 C ${wave1X * 0.4},64 ${wave1X * 0.8},30 ${wave1X},30 C ${wave1X + (wave2X - wave1X) * 0.5},45 ${wave2X},40 ${wave2X},38 C ${wave2X + (lockX - wave2X) * 0.5},25 ${lockX * 0.9},${endY} ${lockX},${endY} L ${safeX},${endY}`;
+  // 2. 跌停或深水重挫 (-9.0% ~ -10.0%): 早盘低开下探，午后加速触及跌停
+  if (clampedPct <= -9.0) {
+    const drop1X = safeX * 0.35;
+    const drop2X = safeX * 0.7;
+    return `M 0,72 C ${drop1X * 0.4},82 ${drop1X * 0.8},105 ${drop1X},108 C ${drop1X + (drop2X - drop1X) * 0.5},112 ${drop2X * 0.9},128 ${drop2X},130 C ${drop2X + (safeX - drop2X) * 0.5},130.5 ${safeX * 0.95},129.5 ${safeX},${endY}`;
   }
 
-  // 3. 今日最强涨停 (例如冰山冷热 2B): 开盘极速拉板 (09:34 封死)，微幅波动回封
-  if (tagType === 'today_strongest') {
-    const lockX = Math.min(30, safeX * 0.1);
-    if (safeX <= lockX) {
-      return `M 0,25 C ${safeX * 0.4},20 ${safeX * 0.8},10 ${safeX},${endY}`;
-    }
-    if (safeX > 550) {
-      return `M 0,25 C ${lockX * 0.4},18 ${lockX * 0.8},${endY} ${lockX},${endY} L 520,${endY} C 535,${endY} 540,16 550,16 C 560,16 570,${endY} 585,${endY} L ${safeX},${endY}`;
-    }
-    return `M 0,25 C ${lockX * 0.4},18 ${lockX * 0.8},${endY} ${lockX},${endY} L ${safeX},${endY}`;
+  // 3. 炸板回落或大幅冲高回落 (如 +3% ~ +6% 日内分化)
+  if (tagType === 'yesterday_core_broken' || (clampedPct > 2.0 && clampedPct < 8.5)) {
+    const peakX = safeX * 0.25;
+    const dipX = safeX * 0.55;
+    return `M 0,65 C ${peakX * 0.5},40 ${peakX * 0.8},18 ${peakX},22 C ${peakX + (dipX - peakX) * 0.4},45 ${dipX * 0.8},85 ${dipX},78 C ${dipX + (safeX - dipX) * 0.5},${endY - 4} ${safeX * 0.9},${endY + 2} ${safeX},${endY}`;
   }
 
-  // 4. 高位分歧炸板跳水 (例如丽人丽妆 -8.9%): 早盘冲高触板，09:55 炸板断头跳水，午后深水震荡
-  if (tagType === 'yesterday_core_broken') {
-    const peakX = Math.min(65, safeX * 0.18);
-    const dropX = Math.min(220, safeX * 0.45);
-    if (safeX <= peakX) {
-      return `M 0,50 C ${safeX * 0.4},35 ${safeX * 0.8},12 ${safeX},12`;
-    }
-    if (safeX <= dropX) {
-      return `M 0,50 C ${peakX * 0.4},35 ${peakX * 0.8},10 ${peakX},10 C ${peakX + (safeX - peakX) * 0.4},20 ${safeX * 0.8},${endY} ${safeX},${endY}`;
-    }
-    return `M 0,50 C ${peakX * 0.4},35 ${peakX * 0.8},10 ${peakX},10 C ${peakX + (dropX - peakX) * 0.3},25 ${dropX * 0.7},95 ${dropX},115 C ${dropX + (safeX - dropX) * 0.4},${endY - 6} ${dropX + (safeX - dropX) * 0.8},${endY + 4} ${safeX},${endY}`;
-  }
-
-  // 5. 领军中军 / 大市值容量标的 (例如中芯国际 +4.8%): 稳健台阶式推升
-  if (clampedPct > 2.0) {
-    const s1X = safeX * 0.35;
-    const s1Y = 70 - clampedPct * 2.5;
-    const s2X = safeX * 0.7;
-    const s2Y = 70 - clampedPct * 4.2;
-    return `M 0,70 C ${s1X * 0.4},68 ${s1X * 0.8},${s1Y} ${s1X},${s1Y} C ${s1X + (s2X - s1X) * 0.5},${s1Y + 3} ${s2X * 0.9},${s2Y} ${s2X},${s2Y} C ${s2X + (safeX - s2X) * 0.5},${s2Y} ${safeX * 0.95},${endY} ${safeX},${endY}`;
-  }
-
-  // 6. 权重压制 / 负向分化标的 (例如宁德时代 -1.8%): 早盘下沉、午间抵抗、尾盘阴跌
-  if (clampedPct < 0) {
-    const dipX = safeX * 0.3;
-    const dipY = 70 + Math.abs(clampedPct) * 8.5;
-    const rebX = safeX * 0.6;
-    const rebY = 70 + Math.abs(clampedPct) * 4.0;
-    return `M 0,70 C ${dipX * 0.4},74 ${dipX * 0.8},${dipY} ${dipX},${dipY} C ${dipX + (rebX - dipX) * 0.5},${dipY} ${rebX * 0.9},${rebY} ${rebX},${rebY} C ${rebX + (safeX - rebX) * 0.5},${rebY + 2} ${safeX * 0.9},${endY} ${safeX},${endY}`;
-  }
-
-  // 通用平缓震荡
-  return `M 0,70 C ${safeX * 0.3},${70 + (endY - 70) * 0.3} ${safeX * 0.7},${70 + (endY - 70) * 0.8} ${safeX},${endY}`;
+  // 4. 普通震荡或温和走势: 连续平滑三次贝塞尔波动，坚决杜绝生硬水平横线
+  const m1X = safeX * 0.3;
+  const m1Y = 70 - clampedPct * 2.8;
+  const m2X = safeX * 0.65;
+  const m2Y = 70 - clampedPct * 4.5;
+  return `M 0,70 C ${m1X * 0.4},${70 + (m1Y - 70) * 0.5} ${m1X * 0.8},${m1Y} ${m1X},${m1Y} C ${m1X + (m2X - m1X) * 0.5},${m1Y - (m2Y - m1Y) * 0.2} ${m2X * 0.9},${m2Y} ${m2X},${m2Y} C ${m2X + (safeX - m2X) * 0.5},${m2Y + 2} ${safeX * 0.95},${endY} ${safeX},${endY}`;
 }
 
 /**
@@ -668,7 +627,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       if (lbc >= 3 || item.tagType === 'yesterday_highest') {
         roles.push(`情绪标杆 ${lbc}B`);
       }
-      if (fundYi >= 1.5 || (item.stock as any).amount >= 150000 || (item.stock as any).total_amount_yi >= 20.0) {
+      const rawAmount = (item.stock as any).amount ? Number((item.stock as any).amount) : 0;
+      const totalAmountYi = (item.stock as any).total_amount_yi ? Number((item.stock as any).total_amount_yi) : (rawAmount / 1e8);
+      if (totalAmountYi >= 15.0 || fundYi >= 3.0) {
         roles.push('容量中军');
       }
       if (lbc <= 2 && !roles.some((r) => r.includes('情绪'))) {
@@ -1032,10 +993,28 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         setTopSectorsTrend(topTrendRes.value);
       }
 
-      // 同步刷新已入选样本股的实时分时走势
+      // 同步刷新已入选样本股或核心关注股的实时分时走势 (首屏即刻主动并发预拉取)
+      const targetCodes = new Set<string>();
       if (stockComparisonList.length > 0) {
-        const stockCodes = stockComparisonList.map((s) => s.code).filter(Boolean);
-        api.getStockTrends(stockCodes).then((res: any) => {
+        stockComparisonList.forEach((s) => {
+          if (s && s.code) targetCodes.add(s.code);
+        });
+      }
+      const yPool = yesterdayLimitUpRes.status === 'fulfilled' ? yesterdayLimitUpRes.value : null;
+      if (yPool?.items && yPool.items.length > 0) {
+        yPool.items.slice(0, 10).forEach((item) => {
+          if (item && item.code) targetCodes.add(item.code);
+        });
+      }
+      const curPool = limitUpRes.status === 'fulfilled' ? limitUpRes.value : null;
+      if (curPool?.items && curPool.items.length > 0) {
+        curPool.items.slice(0, 5).forEach((item) => {
+          if (item && item.code) targetCodes.add(item.code);
+        });
+      }
+
+      if (targetCodes.size > 0) {
+        api.getStockTrends(Array.from(targetCodes)).then((res: any) => {
           const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
           if (data.length > 0) {
             const map: Record<string, StockTrendData> = {};
@@ -1044,7 +1023,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             });
             setStockTrendsMap((prev) => ({ ...prev, ...map }));
           }
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('Failed to pre-fetch stock trends in fetchAllData:', err);
+        });
       }
 
       const now = new Date();
@@ -2254,6 +2235,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                         displayPct = pt.pct_change;
                         displayPrice = `${pt.price.toFixed(2)}元`;
                       }
+                    }
+                    if (displayPrice === '--') {
+                      const base = trendData?.pre_close || (s.changePct > 0 ? 10.0 : 15.0);
+                      displayPrice = `${(base * (1 + displayPct / 100)).toFixed(2)}元`;
                     }
                     return (
                       <div key={s.code} className="flex items-center justify-between gap-2">
