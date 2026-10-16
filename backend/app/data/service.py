@@ -37,6 +37,7 @@ class DataService:
         "security_search": 300.0,
         "price_anomaly": 60.0,
         "concept_blocks": 300.0,
+        "stock_trends": 15.0,
     }
 
     # 业务能力硬超时配置 (毫秒)
@@ -47,6 +48,7 @@ class DataService:
         "limit_up": 15000,
         "high_tier_performance": 15000,
         "market_breadth": 10000,
+        "stock_trends": 10000,
     }
 
     # 全局内存快照缓存与最后已知有效快照 (Last Known Good Snapshot)
@@ -228,3 +230,7 @@ class DataService:
 
     async def get_concept_blocks(self, code: str) -> DataResult:
         return await self._execute_pipeline("concept_blocks", "get_concept_blocks", code)
+
+    async def get_stock_trends(self, codes: list[str]) -> DataResult:
+        return await self._execute_pipeline("stock_trends", "get_stock_trends", codes)
+

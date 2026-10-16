@@ -43,3 +43,14 @@ async def get_sectors(
     service = DataService(db)
     res = await service.get_sector_ranking(sector_type=sector_type)
     return {"code": 200, "data": res.data, "quality": res.quality.value, "provider": res.provider}
+
+@router.get("/stock-trends")
+async def get_stock_trends(
+    codes: str = Query(..., description="逗号分隔的股票/板块代码列表，例如 002696,002343,BK0480"),
+    db: AsyncSession = Depends(get_db)
+):
+    code_list = [c.strip() for c in codes.split(",") if c.strip()]
+    service = DataService(db)
+    res = await service.get_stock_trends(code_list)
+    return {"code": 200, "data": res.data, "quality": res.quality.value, "provider": res.provider}
+

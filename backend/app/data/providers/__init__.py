@@ -54,4 +54,8 @@ def init_providers():
     # 板块排行与主力资金流 (Sector & Money Flow)
     registry.register("sector", "eastmoney", east, is_primary=True)
 
+    # 个股与板块分时分钟走势 (Intraday Minute Trends)
+    registry.register("stock_trends", "eastmoney", east, is_primary=True)
+
 init_providers()
+

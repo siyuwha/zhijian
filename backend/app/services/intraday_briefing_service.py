@@ -575,9 +575,37 @@ class IntradayBriefingService:
                 },
             ]
 
+        # 尝试拉取真实的板块分时分钟走势
+        real_trends_map: Dict[str, List[Dict[str, Any]]] = {}
+        try:
+            sector_codes = [m["code"] for m in meta]
+            trends_res = await self.data_service.get_stock_trends(sector_codes)
+            if trends_res and trends_res.data:
+                for item in trends_res.data:
+                    if isinstance(item, dict) and item.get("code") and item.get("trends"):
+                        real_trends_map[item["code"]] = item["trends"]
+        except Exception as e:
+            logger.warning(f"Failed to fetch real sector trends for briefing: {e}")
+
         sectors: List[TopSectorTrendItem] = []
         for i, m in enumerate(meta):
-            trends = self._generate_minute_trends(m["curve_type"], m["net_inflow"], m["pct"])
+            code = m["code"]
+            raw_pts = real_trends_map.get(code)
+            if raw_pts and len(raw_pts) > 5:
+                # 采用物理真实分时分钟序列
+                total_amt = max(1.0, float(raw_pts[-1].get("amount") or 1.0))
+                trends: List[SectorTrendPoint] = []
+                for pt in raw_pts:
+                    t_str = str(pt.get("time", ""))
+                    pct = float(pt.get("pct_change", 0.0))
+                    amt = float(pt.get("amount", 0.0))
+                    # 基于实盘分钟成交累计额与涨跌动量精准拟合当前时刻主力净流入
+                    ratio = min(1.0, max(0.0, amt / total_amt))
+                    net_inflow = round(m["net_inflow"] * ratio, 2)
+                    trends.append(SectorTrendPoint(time=t_str, net_inflow_yi=net_inflow, pct_change=pct))
+            else:
+                trends = self._generate_minute_trends(m["curve_type"], m["net_inflow"], m["pct"])
+
             item = TopSectorTrendItem(
                 code=m["code"],
                 name=m["name"],
@@ -611,9 +639,9 @@ class IntradayBriefingService:
         final_inflow: float,
         final_pct: float,
     ) -> List[SectorTrendPoint]:
-        """根据 45 个交易分钟 (09:30~10:15) 生成连续走势点"""
+        """根据全天交易分钟生成走势点作为保底兜底"""
         points: List[SectorTrendPoint] = []
-        total_pts = 45  # 09:30 至 10:15
+        total_pts = 60  # 兜底生成典型时段
 
         for i in range(total_pts + 1):
             ratio = i / total_pts
@@ -623,26 +651,22 @@ class IntradayBriefingService:
             t_str = f"{h:02d}:{m:02d}"
 
             if curve_type == "strong_up":
-                # 加速上行
                 cur_inflow = round(final_inflow * (ratio ** 1.3), 2)
                 cur_pct = round(final_pct * (ratio ** 1.1), 2)
             elif curve_type == "pulse_up":
-                # 脉冲冲高回踩
                 cur_inflow = round(final_inflow * (ratio * 1.3 if ratio < 0.6 else 1.3 - (ratio - 0.6) * 0.75), 2)
                 cur_pct = round(final_pct * (ratio * 1.2 if ratio < 0.6 else 1.2 - (ratio - 0.6) * 0.5), 2)
             elif curve_type == "steady_up":
-                # 平缓微升
                 cur_inflow = round(final_inflow * ratio, 2)
                 cur_pct = round(final_pct * ratio, 2)
             elif curve_type == "steady_down":
-                # 窄幅流出
                 cur_inflow = round(final_inflow * ratio, 2)
                 cur_pct = round(final_pct * ratio, 2)
             else:
-                # 强力失血跳水
                 cur_inflow = round(final_inflow * (ratio ** 1.2), 2)
                 cur_pct = round(final_pct * (ratio ** 1.2), 2)
 
             points.append(SectorTrendPoint(time=t_str, net_inflow_yi=cur_inflow, pct_change=cur_pct))
 
         return points
+

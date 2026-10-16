@@ -321,3 +321,11 @@ class ConceptBlocksCapability(ABC):
         """获取标的归属的三维板块映射集"""
         pass
 
+class StockTrendsCapability(ABC):
+    """个股与板块分时走势分钟数据能力 (Intraday Minute Trends)"""
+    @abstractmethod
+    async def get_stock_trends(self, codes: list[str]) -> DataResult:
+        """获取指定股票代码的分时走势分钟数据"""
+        pass
+
+

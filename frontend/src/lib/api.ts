@@ -78,6 +78,8 @@ export const api = {
     fetchAPI<IndexData[]>(`/market/indices${codes ? `?codes=${codes}` : ''}`),
   getLimitUpPool: (date?: string) => 
     fetchAPI<EnrichedLimitUpPoolData>(`/market/limit-up${date ? `?date=${date}` : ''}`),
+  getStockTrends: (codes: string[]) =>
+    fetchAPI<import('@/types/canonical').StockTrendData[]>(`/market/stock-trends?codes=${codes.join(',')}`),
   getSectors: (sectorType: 'industry' | 'concept' = 'industry', limit: number = 15) =>
     fetchAPI<SectorFlowItem[]>(`/market/sectors?sector_type=${sectorType}&limit=${limit}`),
   getDailyReviews: (limit?: number, offset?: number) =>

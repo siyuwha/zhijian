@@ -537,5 +537,29 @@ export interface TopSectorsTrendResponse {
   sectors: TopSectorTrendItem[];
 }
 
+export interface StockMinutePoint {
+  time: string;
+  price: number;
+  pct_change: number;
+  avg_price: number;
+  volume: number;
+  amount: number;
+}
+
+export interface StockTrendData {
+  code: string;
+  name: string;
+  pre_close: number;
+  trends: StockMinutePoint[];
+}
+
+export interface StockTrendsResponse {
+  code: number;
+  data: StockTrendData[];
+  quality: string;
+  provider: string;
+}
+
+
 
 

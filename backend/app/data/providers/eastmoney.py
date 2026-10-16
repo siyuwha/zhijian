@@ -2,6 +2,7 @@ import json
 import logging
 import urllib.parse
 from typing import Optional, List, Dict, Any, Tuple
+import asyncio
 import httpx
 from .base import BaseProvider
 from ..capabilities import (
@@ -17,6 +18,7 @@ from ..capabilities import (
     PriceAnomalyCapability,
     ConceptBlocksCapability,
     SectorCapability,
+    StockTrendsCapability,
 )
 from ...core.canonical_fact import MarketAnomalyFact, BlockMappingFact
 from ...core.block_registry import BlockRegistry
@@ -32,6 +34,7 @@ class EastmoneyProvider(
     PriceAnomalyCapability,
     ConceptBlocksCapability,
     SectorCapability,
+    StockTrendsCapability,
 ):
     """
     东方财富全市场广度、风格及高标数据适配器
@@ -912,4 +915,106 @@ class EastmoneyProvider(
             status=DataStatus.AVAILABLE if facts else DataStatus.EMPTY,
             provider=self.name,
         )
+
+    async def get_stock_trends(self, codes: list[str]) -> DataResult:
+        """
+        获取指定股票/板块的分时走势分钟数据 (Intraday Minute Trends)
+        支持个股 (002696, 600000) 与概念板块 (BK0480)
+        """
+        if not codes:
+            return DataResult(
+                data=[],
+                quality=DataQuality.FULL,
+                status=DataStatus.AVAILABLE,
+                provider=self.name,
+            )
+
+        results: List[Dict[str, Any]] = []
+
+        async def _fetch_single_trend(client: httpx.AsyncClient, code_str: str) -> Optional[Dict[str, Any]]:
+            clean_code = str(code_str).strip()
+            if not clean_code:
+                return None
+
+            if "." in clean_code:
+                secid = clean_code
+                pure_code = clean_code.split(".")[-1]
+            elif clean_code.upper().startswith("BK"):
+                secid = f"90.{clean_code.upper()}"
+                pure_code = clean_code.upper()
+            elif clean_code.startswith(("60", "68", "900")):
+                secid = f"1.{clean_code}"
+                pure_code = clean_code
+            else:
+                secid = f"0.{clean_code}"
+                pure_code = clean_code
+
+            url = "https://push2delay.eastmoney.com/api/qt/stock/trends2/get"
+            params = {
+                "secid": secid,
+                "fields1": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
+                "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
+                "iscr": "0",
+            }
+
+            try:
+                resp = await client.get(url, params=params, headers=self.HEADERS)
+                if resp.status_code != 200:
+                    return None
+                data_json = resp.json() or {}
+                data = data_json.get("data")
+                if not data:
+                    return None
+
+                pre_price = float(data.get("prePrice") or data.get("preClose") or 0.0)
+                raw_trends = data.get("trends") or []
+                name = str(data.get("name") or pure_code)
+
+                trend_points: List[Dict[str, Any]] = []
+                for row in raw_trends:
+                    parts = row.split(",")
+                    if len(parts) >= 8:
+                        t_full = parts[0].strip()
+                        t_hhmm = t_full.split(" ")[-1] if " " in t_full else t_full
+                        c_price = float(parts[2])
+                        pct = round((c_price - pre_price) / pre_price * 100.0, 2) if pre_price > 0 else 0.0
+                        trend_points.append({
+                            "time": t_hhmm,
+                            "price": c_price,
+                            "pct_change": pct,
+                            "avg_price": float(parts[7]),
+                            "volume": int(float(parts[5])),
+                            "amount": float(parts[6]),
+                        })
+
+                return {
+                    "code": pure_code,
+                    "name": name,
+                    "pre_close": pre_price,
+                    "trends": trend_points,
+                }
+            except Exception as e:
+                logger.warning(f"Failed to fetch stock trend for {code_str}: {e}")
+                return None
+
+        try:
+            async with httpx.AsyncClient(
+                limits=httpx.Limits(max_keepalive_connections=15, max_connections=20),
+                timeout=6.0
+            ) as client:
+                tasks = [_fetch_single_trend(client, c) for c in codes]
+                fetched = await asyncio.gather(*tasks, return_exceptions=True)
+                for item in fetched:
+                    if isinstance(item, dict) and item.get("trends"):
+                        results.append(item)
+        except Exception as e:
+            logger.error(f"Eastmoney get_stock_trends batch failed: {e}")
+
+        return DataResult(
+            data=results,
+            quality=DataQuality.FULL if results else DataQuality.UNAVAILABLE,
+            status=DataStatus.AVAILABLE if results else DataStatus.EMPTY,
+            provider=self.name,
+        )
+
 

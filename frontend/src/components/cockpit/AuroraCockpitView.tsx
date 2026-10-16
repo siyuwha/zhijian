@@ -16,6 +16,9 @@ import {
   IntradayBriefingStageKey,
   TopSectorsTrendResponse,
   TopSectorTrendItem,
+  SectorTrendPoint,
+  StockMinutePoint,
+  StockTrendData,
 } from '@/types/canonical';
 import { canonicalAPI, api } from '@/lib/api';
 import { getLatestTradingDateString, getPrevTradingDay, getTodayDateString, isTradingDay } from '@/lib/utils';
@@ -68,6 +71,22 @@ export interface StockComparisonItem {
   endY: number;
 }
 
+export interface DynamicSectorCurveItem {
+  name: string;
+  color: string;
+  net: number;
+  pct: number;
+  leader: string;
+  leaderCode: string;
+  leaderPct: number;
+  leaderStatus: string;
+  path: string;
+  endX?: number;
+  endY: number;
+  trends?: SectorTrendPoint[];
+}
+
+
 /**
  * 6 只样本股高辨识度独立专属色谱 (红、蓝、琥珀黄、翡翠绿、魅惑紫、电光青)
  * 严格保证每只样本票分配独一无二的颜色，折线走势图与 Chip 标签彻底摆脱同色混淆
@@ -80,6 +99,30 @@ export const DISTINCT_STOCK_COLORS = [
   '#A855F7', // 5. 魅惑紫 (Purple)
   '#06B6D4', // 6. 电光青 (Cyan)
 ];
+
+/**
+ * 将盘中具体交易时刻文本 (09:30 ~ 15:00) 映射为 X 轴位置 (0~1000)
+ */
+export function timeToX(timeStr: string): number {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return 0;
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const totalMin = h * 60 + m;
+
+  if (totalMin <= 570) return 0;
+  if (totalMin <= 690) {
+    return Number((((totalMin - 570) / 120) * 500).toFixed(1));
+  }
+  if (totalMin < 780) {
+    return 500;
+  }
+  if (totalMin <= 900) {
+    return Number((500 + ((totalMin - 780) / 120) * 500).toFixed(1));
+  }
+  return 1000;
+}
 
 /**
  * 将 X 轴位置 (0~1000) 映射为盘中具体交易时刻文本 (09:30 ~ 15:00)
@@ -98,7 +141,78 @@ export function getHoverTimeLabel(x: number): string {
 }
 
 /**
- * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实涨跌幅生成 SVG 个股走势曲线路径
+ * 基于物理真实分钟点阵生成真实个股分时走势 SVG 路径
+ */
+export function generateRealStockSvgPath(
+  points: StockMinutePoint[],
+  maxTimeProgressX: number
+): { path: string; endX: number; endY: number } {
+  if (!points || points.length === 0) {
+    return { path: 'M 0,70 L 1000,70', endX: 1000, endY: 70 };
+  }
+
+  const coords: [number, number][] = [];
+  for (const pt of points) {
+    const x = timeToX(pt.time);
+    if (x > maxTimeProgressX + 3) break;
+    const clampedPct = Math.max(-10, Math.min(10, pt.pct_change));
+    const y = Number((70 - clampedPct * 6).toFixed(1));
+    coords.push([x, y]);
+  }
+
+  if (coords.length === 0) {
+    return { path: 'M 0,70 L 0,70', endX: 0, endY: 70 };
+  }
+
+  let d = `M ${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
+  for (let i = 1; i < coords.length; i++) {
+    d += ` L ${coords[i][0].toFixed(1)},${coords[i][1].toFixed(1)}`;
+  }
+
+  const last = coords[coords.length - 1];
+  return { path: d, endX: last[0], endY: last[1] };
+}
+
+/**
+ * 基于物理真实分钟点阵生成真实题材主力资金净流走势 SVG 路径
+ */
+export function generateRealSectorSvgPath(
+  trends: SectorTrendPoint[],
+  maxTimeProgressX: number
+): { path: string; endX: number; endY: number } {
+  if (!trends || trends.length === 0) {
+    return { path: 'M 0,70 L 1000,70', endX: 1000, endY: 70 };
+  }
+
+  const coords: [number, number][] = [];
+  for (const pt of trends) {
+    const x = timeToX(pt.time);
+    if (x > maxTimeProgressX + 3) break;
+    const net = pt.net_inflow_yi;
+    let y = 70;
+    if (net >= 0) {
+      y = Math.max(12, 70 - (Math.min(30, net) / 30) * 54);
+    } else {
+      y = Math.min(128, 70 + (Math.min(25, Math.abs(net)) / 25) * 48);
+    }
+    coords.push([x, Number(y.toFixed(1))]);
+  }
+
+  if (coords.length === 0) {
+    return { path: 'M 0,70 L 0,70', endX: 0, endY: 70 };
+  }
+
+  let d = `M ${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
+  for (let i = 1; i < coords.length; i++) {
+    d += ` L ${coords[i][0].toFixed(1)},${coords[i][1].toFixed(1)}`;
+  }
+
+  const last = coords[coords.length - 1];
+  return { path: d, endX: last[0], endY: last[1] };
+}
+
+/**
+ * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实涨跌幅生成 SVG 个股走势曲线路径 (离线保底)
  */
 export function generateDynamicStockPath(currentX: number, changePct: number, tagType: string): string {
   const safeX = Math.max(20, Math.min(1000, currentX));
@@ -376,6 +490,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
   // 核心个股分时涨跌幅走势对比样本股状态 (最少 0 支，上限 6 支)
   const [stockComparisonList, setStockComparisonList] = useState<StockComparisonItem[]>([]);
+  const [stockTrendsMap, setStockTrendsMap] = useState<Record<string, StockTrendData>>({});
   const [isAddStockOpen, setIsAddStockOpen] = useState<boolean>(false);
   const [stockHoverX, setStockHoverX] = useState<number>(timeProgress.currentX);
   const [isStockHovering, setIsStockHovering] = useState<boolean>(false);
@@ -534,7 +649,22 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         }
       }
 
-      const endY = Math.round(70 - Math.max(-10, Math.min(10, todayPct)) * 6);
+      const trendData = stockTrendsMap[item.stock.code];
+      let pathD = generateDynamicStockPath(curX, todayPct, item.tagType);
+      let endX = curX;
+      let endY = Math.round(70 - Math.max(-10, Math.min(10, todayPct)) * 6);
+
+      if (trendData?.trends && trendData.trends.length > 0) {
+        const realRes = generateRealStockSvgPath(trendData.trends, curX);
+        pathD = realRes.path;
+        endX = realRes.endX;
+        endY = realRes.endY;
+        const lastPt = trendData.trends[trendData.trends.length - 1];
+        if (lastPt) {
+          todayPct = lastPt.pct_change;
+        }
+      }
+
       return {
         code: item.stock.code,
         name: item.stock.name,
@@ -543,14 +673,46 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         tagLabel: item.role,
         changePct: todayPct,
         color: item.color,
-        pathD: generateDynamicStockPath(curX, todayPct, item.tagType),
-        endX: curX,
+        pathD,
+        endX,
         endY,
       };
     });
 
     setStockComparisonList(dynamicList);
-  }, [limitUpData, yesterdayLimitUpData, timeProgress.currentX]);
+  }, [limitUpData, yesterdayLimitUpData, timeProgress.currentX, stockTrendsMap]);
+
+  // 动态自动拉取入选样本股真实分钟分时走势
+  useEffect(() => {
+    const codes = stockComparisonList.map((s) => s.code).filter(Boolean);
+    if (codes.length === 0) return;
+    const missingCodes = codes.filter((c) => !stockTrendsMap[c]);
+    if (missingCodes.length === 0) return;
+
+    let isMounted = true;
+    api.getStockTrends(missingCodes)
+      .then((res: any) => {
+        if (!isMounted) return;
+        const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
+        if (data.length > 0) {
+          const map: Record<string, StockTrendData> = {};
+          data.forEach((item) => {
+            if (item && item.code) {
+              map[item.code] = item;
+            }
+          });
+          setStockTrendsMap((prev) => ({ ...prev, ...map }));
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch stock trends:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [stockComparisonList.map((s) => s.code).join(',')]);
+
 
   // 题材 Top 5 动态曲线与领涨标的联动 (彻底杜绝硬编码静态题材与假龙头)
   const dynamicSectorCurves = useMemo(() => {
@@ -578,7 +740,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             leaderPct: 10.0,
             leaderStatus: `${leaderHeight}B 核心龙头`,
             path: generateSectorPath(curX, endY, idx),
+            endX: curX,
             endY,
+            trends: [] as SectorTrendPoint[],
           };
         });
       }
@@ -617,7 +781,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               leaderPct: secInfo.leader.zdp ?? 10.0,
               leaderStatus: `${secInfo.maxHeight}B 领涨龙头`,
               path: generateSectorPath(curX, endY, idx),
+              endX: curX,
               endY,
+              trends: [] as SectorTrendPoint[],
             };
           });
         }
@@ -636,7 +802,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       } else {
         endY = Math.min(124, 70 + (Math.abs(net) / 25) * 48);
       }
-      const path = generateSectorPath(curX, endY, idx);
+      let path = generateSectorPath(curX, endY, idx);
+      let endX = curX;
+
+      if (sec.trends && sec.trends.length > 0) {
+        const realRes = generateRealSectorSvgPath(sec.trends, curX);
+        path = realRes.path;
+        endX = realRes.endX;
+        endY = realRes.endY;
+      }
 
       return {
         name: sec.name,
@@ -648,7 +822,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         leaderPct: sec.leader?.pct_change != null ? sec.leader.pct_change : 0,
         leaderStatus: sec.leader?.status_desc || '领涨龙头',
         path,
+        endX,
         endY,
+        trends: sec.trends,
       };
     });
   }, [topSectorsTrend, snapshot, limitUpData, timeProgress.currentX]);
@@ -802,6 +978,21 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
       if (topTrendRes.status === 'fulfilled') {
         setTopSectorsTrend(topTrendRes.value);
+      }
+
+      // 同步刷新已入选样本股的实时分时走势
+      if (stockComparisonList.length > 0) {
+        const stockCodes = stockComparisonList.map((s) => s.code).filter(Boolean);
+        api.getStockTrends(stockCodes).then((res: any) => {
+          const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
+          if (data.length > 0) {
+            const map: Record<string, StockTrendData> = {};
+            data.forEach((item) => {
+              if (item && item.code) map[item.code] = item;
+            });
+            setStockTrendsMap((prev) => ({ ...prev, ...map }));
+          }
+        }).catch(() => {});
       }
 
       const now = new Date();
@@ -1936,6 +2127,51 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               </div>
             </div>
 
+            {/* 鼠标悬停实时核心个股分时走势透视看板浮窗 */}
+            {isStockHovering && (
+              <div
+                className="absolute top-2 pointer-events-none z-30 bg-slate-950/95 border border-cyan-500/40 rounded-xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-1 text-[11px] font-mono min-w-[240px]"
+                style={{
+                  left: `${Math.min(74, Math.max(4, (stockHoverX / 1000) * 100))}%`,
+                }}
+              >
+                <div className="flex items-center justify-between border-b border-white/10 pb-1 text-cyan-300 font-bold">
+                  <span>{getHoverTimeLabel(stockHoverX)} 真实分时走势透视</span>
+                  <span className="text-[10px] text-slate-400 font-normal">多股实时对比</span>
+                </div>
+                <div className="flex flex-col gap-0.5 pt-0.5">
+                  {stockComparisonList.map((s) => {
+                    const timeStr = getHoverTimeLabel(stockHoverX);
+                    const trendData = stockTrendsMap[s.code];
+                    let displayPct = s.changePct;
+                    let displayPrice = '--';
+                    if (trendData?.trends && trendData.trends.length > 0) {
+                      const pt = [...trendData.trends].reverse().find((p) => p.time <= timeStr) || trendData.trends[0];
+                      if (pt) {
+                        displayPct = pt.pct_change;
+                        displayPrice = `${pt.price.toFixed(2)}元`;
+                      }
+                    }
+                    return (
+                      <div key={s.code} className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                          <span className="text-slate-200 font-bold">{s.name}</span>
+                          <span className="text-[10px] text-slate-400 font-normal truncate max-w-[75px]">{s.tagLabel || s.role}</span>
+                        </span>
+                        <div className="flex items-center gap-2 font-mono shrink-0">
+                          <span className="text-slate-300">{displayPrice}</span>
+                          <span className={`font-black ${displayPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {displayPct >= 0 ? `+${displayPct.toFixed(2)}%` : `${displayPct.toFixed(2)}%`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* 曲线图主体区域 */}
             <div className="relative w-full flex-1 min-h-[140px] flex items-center justify-center">
               {stockComparisonList.length === 0 ? (
@@ -2084,28 +2320,44 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 鼠标悬停实时 Top 5 题材资金净流数值看板浮窗 */}
             {isSectorHovering && (
               <div
-                className="absolute top-2 pointer-events-none z-30 bg-slate-950/95 border border-purple-500/40 rounded-xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-1 text-[11px] font-mono min-w-[220px]"
+                className="absolute top-2 pointer-events-none z-30 bg-slate-950/95 border border-purple-500/40 rounded-xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-1 text-[11px] font-mono min-w-[240px]"
                 style={{
                   left: `${Math.min(74, Math.max(4, (sectorHoverX / 1000) * 100))}%`,
                 }}
               >
                 <div className="flex items-center justify-between border-b border-white/10 pb-1 text-purple-300 font-bold">
-                  <span>{getHoverTimeLabel(sectorHoverX)} 主力资金净流</span>
+                  <span>{getHoverTimeLabel(sectorHoverX)} 主力资金净流 (实盘)</span>
                   <span className="text-[10px] text-slate-400">Top 5 采样</span>
                 </div>
                 <div className="flex flex-col gap-0.5 pt-0.5">
                   {dynamicSectorCurves.map((sec, idx) => {
-                    const progress = Math.min(1, Math.max(0, sectorHoverX / (timeProgress.currentX || 1000)));
-                    const estNet = (sec.net * progress).toFixed(1);
+                    const timeStr = getHoverTimeLabel(sectorHoverX);
+                    let displayNet = sec.net;
+                    let displayPct = sec.pct;
+                    if (sec.trends && sec.trends.length > 0) {
+                      const pt = [...sec.trends].reverse().find((p) => p.time <= timeStr) || sec.trends[0];
+                      if (pt) {
+                        displayNet = pt.net_inflow_yi;
+                        displayPct = pt.pct_change;
+                      }
+                    } else {
+                      const progress = Math.min(1, Math.max(0, sectorHoverX / (timeProgress.currentX || 1000)));
+                      displayNet = Number((sec.net * progress).toFixed(1));
+                    }
                     return (
                       <div key={sec.name} className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 truncate">
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
                           <span className="text-slate-200">#{idx + 1} {sec.name}</span>
                         </span>
-                        <span className={`font-bold shrink-0 ${Number(estNet) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {Number(estNet) >= 0 ? `+${estNet} 亿` : `${estNet} 亿`}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`font-bold ${displayNet >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {displayNet >= 0 ? `+${displayNet.toFixed(1)} 亿` : `${displayNet.toFixed(1)} 亿`}
+                          </span>
+                          <span className={`text-[10px] ${displayPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            ({displayPct >= 0 ? `+${displayPct.toFixed(2)}%` : `${displayPct.toFixed(2)}%`})
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
@@ -2127,7 +2379,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       strokeLinecap="round"
                       className="animate-path-grow"
                     />
-                    <circle cx={timeProgress.currentX} cy={sec.endY} r={idx === 0 ? 4.5 : 3.5} fill={sec.color} stroke="#fff" strokeWidth="1.5" />
+                    <circle cx={sec.endX ?? timeProgress.currentX} cy={sec.endY} r={idx === 0 ? 4.5 : 3.5} fill={sec.color} stroke="#fff" strokeWidth="1.5" />
                   </g>
                 ))}
 
