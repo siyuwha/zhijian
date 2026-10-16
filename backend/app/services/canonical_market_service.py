@@ -314,11 +314,6 @@ class CanonicalMarketService:
         review = (await self.session.execute(rev_stmt)).scalars().first()
 
         if not snapshot:
-            from datetime import datetime
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            if date_str == today_str:
-                return await self._synthesize_intraday_snapshot(date_str)
-
             from pathlib import Path
             date_compact = date_str.replace("-", "")
             for candidate_name in [
@@ -333,7 +328,12 @@ class CanonicalMarketService:
                     except Exception as ge:
                         logger.warning(f"Failed to load golden fixture {golden_path}: {ge}")
 
-            logger.warning(f"No EOD_CLOSE MarketDailySnapshot found for {date_str}")
+            # 动态现场按需合成 (无论今日盘中还是最近有效交易日，若无预存快照均通过底层数据网关即时保真合成)
+            synthesized = await self._synthesize_intraday_snapshot(date_str)
+            if synthesized:
+                return synthesized
+
+            logger.warning(f"No EOD_CLOSE MarketDailySnapshot found for {date_str} and synthesis failed")
             return None
 
         # 提取底层 JSON 数据
@@ -418,10 +418,19 @@ class CanonicalMarketService:
 
         # 1.3 L1 情绪与炸板率 Universe (GATE-2D0-04)
         lu_count = int(lu_dict.get("total_count") or len(lu_dict.get("items", [])))
-        broken_count = int(lu_dict.get("broken_limit_count") or 0)
+        broken_count = int(
+            lu_dict.get("broken_limit_count")
+            or lu_dict.get("broken_count")
+            or len(lu_dict.get("broken_limit_items", []))
+            or 0
+        )
         touched_total = lu_count + broken_count
         broken_ratio = round(broken_count / touched_total, 4) if touched_total > 0 else 0.0
-        limit_down_count = int(lu_dict.get("limit_down_count") or 0)
+        limit_down_count = int(
+            lu_dict.get("limit_down_count")
+            or len(lu_dict.get("limit_down_items", []))
+            or 0
+        )
         max_height = int(lu_dict.get("max_height") or 1)
 
         sentiment_envelope = ProvenanceEnvelope(
@@ -1082,9 +1091,25 @@ class CanonicalMarketService:
         try:
             from ..data.service import DataService
             from datetime import datetime
-            now = datetime.now()
+            try:
+                from zoneinfo import ZoneInfo
+                cst = ZoneInfo("Asia/Shanghai")
+                now = datetime.now(cst)
+            except Exception:
+                now = datetime.now()
+            today_str = now.strftime("%Y-%m-%d")
             time_str = now.strftime("%H:%M:%S")
             observed_time = f"{date_str}T{time_str}.000+08:00"
+
+            # 校验是否为合法交易日
+            try:
+                from ..core.calendar import calendar
+                dt = datetime.strptime(date_str, "%Y-%m-%d").date()
+                if not calendar.is_trading_day(dt):
+                    logger.warning(f"Date {date_str} is not a valid trading day")
+                    return None
+            except Exception:
+                pass
 
             data_svc = DataService(self.session)
             idx_res = await data_svc.get_index_quotes(["s_sh000001", "s_sz399001", "s_sz399006", "s_sh000688"])
@@ -1160,10 +1185,23 @@ class CanonicalMarketService:
             lu_dict = lu_res.data or {}
 
             lu_count = int(lu_dict.get("total_count") or len(lu_dict.get("items", [])))
-            broken_count = int(lu_dict.get("broken_limit_count") or lu_dict.get("broken_count") or 0)
+            # 若非今日盘中且毫无涨停或行情数据（如非法历史日期 1990-01-01），拒绝无意义合成
+            if date_str != today_str and lu_count == 0:
+                logger.warning(f"No limit up pool data available to synthesize snapshot for historical date {date_str}")
+                return None
+            broken_count = int(
+                lu_dict.get("broken_limit_count")
+                or lu_dict.get("broken_count")
+                or len(lu_dict.get("broken_limit_items", []))
+                or 0
+            )
             touched_total = lu_count + broken_count
             broken_ratio = round(broken_count / touched_total, 4) if touched_total > 0 else 0.0
-            limit_down_count = int(lu_dict.get("limit_down_count") or 0)
+            limit_down_count = int(
+                lu_dict.get("limit_down_count")
+                or len(lu_dict.get("limit_down_items", []))
+                or 0
+            )
             max_height = int(lu_dict.get("max_height") or 1)
 
             sentiment_envelope = ProvenanceEnvelope(

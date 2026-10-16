@@ -35,10 +35,15 @@ async def get_latest_market_date(
     当今日为有效交易日且已到盘前准备时间 (>= 08:30)，返回今日；
     当今日为周末或休市日，返回数据库中最近的完整交易日。
     """
-    now = datetime.now()
+    try:
+        from zoneinfo import ZoneInfo
+        cst = ZoneInfo("Asia/Shanghai")
+        now = datetime.now(cst)
+    except Exception:
+        now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
 
-    # 1. 如果今天是A股正常交易日，且已经过了早上 08:30，优先认定今天为最新基准交易日
+    # 1. 如果今天是A股正常交易日，且已经过了早上 08:30 (北京时间)，优先认定今天为最新基准交易日
     if calendar.is_trading_day(now.date()) and (now.hour > 8 or (now.hour == 8 and now.minute >= 30)):
         return {"code": 200, "data": {"latest_date": today_str}}
 

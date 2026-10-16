@@ -1069,16 +1069,32 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   const shAmount = turnover?.sh_amount_yi ?? (snapshot?.truth?.indices?.[0]?.amount_yi ?? 0);
   const szAmount = turnover?.sz_total_amount_yi ?? (snapshot?.truth?.indices?.[1]?.amount_yi ?? 0);
 
-  // 情绪上下界统计
+  // 情绪上下界统计 (双源多层级容错计算：snapshot.truth.sentiment_bounds 与 limitUpData 智能融合)
   const bounds = snapshot?.truth?.sentiment_bounds;
-  const limitUpCount = bounds?.limit_up_count ?? limitUpData?.total_count ?? (limitUpData?.items?.length ?? 0);
-  const limitDownCount = bounds?.limit_down_count ?? limitUpData?.limit_down_count ?? (limitUpData?.limit_down_items?.length ?? 0);
-  const brokenLimitCount = bounds?.broken_limit_count ?? limitUpData?.broken_limit_count ?? (limitUpData?.broken_limit_items?.length ?? 0);
-  const touchedTotalCount = limitUpCount + brokenLimitCount;
-  const brokenLimitRatio =
-    bounds?.broken_limit_ratio ??
-    limitUpData?.broken_limit_ratio ??
-    (touchedTotalCount > 0 ? Number((brokenLimitCount / touchedTotalCount).toFixed(3)) : 0.0);
+  const rawLimitUp = bounds?.limit_up_count ?? limitUpData?.total_count ?? (limitUpData?.items?.length ?? 0);
+  const limitUpCount = (bounds?.limit_up_count && bounds.limit_up_count > 0)
+    ? bounds.limit_up_count
+    : (limitUpData?.total_count || limitUpData?.items?.length || rawLimitUp);
+
+  const rawBroken = bounds?.broken_limit_count ?? limitUpData?.broken_limit_count ?? (limitUpData?.broken_limit_items?.length ?? 0);
+  const brokenLimitCount = (bounds?.broken_limit_count && bounds.broken_limit_count > 0)
+    ? bounds.broken_limit_count
+    : (limitUpData?.broken_limit_count || limitUpData?.broken_limit_items?.length || rawBroken);
+
+  const rawDown = bounds?.limit_down_count ?? limitUpData?.limit_down_count ?? (limitUpData?.limit_down_items?.length ?? 0);
+  const limitDownCount = (bounds?.limit_down_count && bounds.limit_down_count > 0)
+    ? bounds.limit_down_count
+    : (limitUpData?.limit_down_count || limitUpData?.limit_down_items?.length || rawDown);
+
+  const touchedTotalCount = bounds?.touched_limit_total_count && bounds.touched_limit_total_count > 0
+    ? bounds.touched_limit_total_count
+    : (limitUpCount + brokenLimitCount);
+
+  const brokenLimitRatio = bounds?.broken_limit_ratio != null && bounds.broken_limit_ratio > 0
+    ? bounds.broken_limit_ratio
+    : (limitUpData?.broken_limit_ratio != null && limitUpData.broken_limit_ratio > 0
+        ? limitUpData.broken_limit_ratio
+        : (touchedTotalCount > 0 ? Number((brokenLimitCount / touchedTotalCount).toFixed(4)) : 0.0));
 
   // 指数真实行情数据 (优先从标准快照 indices 提取，杜绝静态数字)
   const indices = snapshot?.truth?.indices || [];
@@ -1613,13 +1629,51 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               </div>
             </div>
 
-            {/* 底部体征指标 */}
-            <div className="flex items-center justify-between text-xs text-slate-400 pt-2.5 border-t border-white/5 font-mono">
-              <span>涨跌停对比: <strong className="text-rose-400">{limitUpCount}</strong> / <strong className="text-emerald-400">{limitDownCount}</strong></span>
-              <span>动态炸板率: <strong className="text-amber-400">{(brokenLimitRatio * 100).toFixed(1)}%</strong> (触板{touchedTotalCount}/封死{limitUpCount})</span>
-              <span className="text-cyan-300">
-                {currentBriefingRecord?.quantitative_indicators?.breadth_divergence || (upCount >= downCount ? '盘面多头占优' : '盘面分化承压')}
-              </span>
+            {/* 底部体征指标 (机构级微型态势胶囊) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-2.5 border-t border-white/5 font-mono">
+              <div className="flex items-center gap-2.5">
+                <span className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1 rounded-lg">
+                  <span className="text-slate-400">涨跌停对比:</span>
+                  {isLoading && limitUpCount === 0 && limitDownCount === 0 ? (
+                    <span className="text-slate-500 animate-pulse font-normal">同步中...</span>
+                  ) : (
+                    <span className="tabular-nums">
+                      <strong className="text-rose-400 font-bold">{limitUpCount}</strong>
+                      <span className="text-slate-500 text-[11px] ml-0.5">涨停</span>
+                      <span className="text-slate-600 mx-1.5">/</span>
+                      {limitDownCount === 0 ? (
+                        <span className="text-slate-400 font-normal">0 跌停 <span className="text-slate-500 text-[10px]">(无核按钮)</span></span>
+                      ) : (
+                        <>
+                          <strong className="text-emerald-400 font-bold">{limitDownCount}</strong>
+                          <span className="text-emerald-400 text-[11px] ml-0.5">跌停</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </span>
+
+                <span className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1 rounded-lg">
+                  <span className="text-slate-400">动态炸板率:</span>
+                  {isLoading && touchedTotalCount === 0 ? (
+                    <span className="text-slate-500 animate-pulse font-normal">计算中...</span>
+                  ) : (
+                    <span className="tabular-nums">
+                      <strong className="text-amber-400 font-bold">{(brokenLimitRatio * 100).toFixed(1)}%</strong>
+                      <span className="text-slate-400 text-[11px] ml-1">
+                        (触板 {touchedTotalCount} / 封死 {limitUpCount} / 炸板 {brokenLimitCount})
+                      </span>
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/30 border border-cyan-800/30 text-cyan-300 text-xs font-sans">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                <span>
+                  {currentBriefingRecord?.quantitative_indicators?.breadth_divergence || (upCount >= downCount ? '盘面多头占优' : '盘面分化承压')}
+                </span>
+              </div>
             </div>
           </GlassCard>
 
@@ -2227,7 +2281,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               </div>
 
               <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400 font-mono mt-2">
-                <span>跌停核按钮: <strong className="text-emerald-400">{limitDownCount} 只</strong> (ST已剔除)</span>
+                <span>
+                  跌停核按钮:{' '}
+                  {limitDownCount === 0 ? (
+                    <strong className="text-slate-400 font-normal">0 只 (无跌停核按钮)</strong>
+                  ) : (
+                    <strong className="text-emerald-400 font-bold">{limitDownCount} 只</strong>
+                  )}{' '}
+                  <span className="text-slate-500 text-[10px]">(ST已剔除)</span>
+                </span>
                 <span className="text-rose-400 font-bold">防守触发: 炸板率突破 35% 即刻减仓</span>
               </div>
             </div>
