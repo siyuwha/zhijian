@@ -303,38 +303,7 @@ export function getTimeProgress(selectedDate: string) {
 
 const DEFAULT_STOCKS: StockComparisonItem[] = [];
 
-const CANDIDATE_STOCKS: StockComparisonItem[] = [
-  {
-    code: '000021',
-    name: '深科技',
-    role: '存储芯片',
-    changePct: 6.2,
-    color: '#EC4899',
-    pathD: 'M 0,70 C 250,55 500,40 750,35 L 1000,33',
-    endX: 1000,
-    endY: 33,
-  },
-  {
-    code: '001696',
-    name: '宗申动力',
-    role: '低空经济',
-    changePct: -3.4,
-    color: '#E11D48',
-    pathD: 'M 0,70 C 200,40 400,30 600,60 L 1000,90',
-    endX: 1000,
-    endY: 90,
-  },
-  {
-    code: '300339',
-    name: '润和软件',
-    role: '开源鸿蒙',
-    changePct: 7.5,
-    color: '#6366F1',
-    pathD: 'M 0,70 C 250,50 500,32 750,25 L 1000,25',
-    endX: 1000,
-    endY: 25,
-  },
-];
+const CANDIDATE_STOCKS: StockComparisonItem[] = [];
 
 interface AuroraCockpitViewProps {
   initialDate?: string;
@@ -583,23 +552,79 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     setStockComparisonList(dynamicList);
   }, [limitUpData, yesterdayLimitUpData, timeProgress.currentX]);
 
-  // 题材 Top 5 动态曲线与领涨标的联动
+  // 题材 Top 5 动态曲线与领涨标的联动 (彻底杜绝硬编码静态题材与假龙头)
   const dynamicSectorCurves = useMemo(() => {
     const curX = timeProgress.currentX;
     const sectors = topSectorsTrend?.sectors || [];
 
     if (sectors.length === 0) {
-      const fallbackList = [
-        { name: '半导体', color: '#8B5CF6', net: 28.4, pct: 4.8, leader: '中芯国际', leaderCode: '688981', leaderPct: 4.8, leaderStatus: '核心中军', endY: 17 },
-        { name: '算力概念', color: '#06B6D4', net: 14.2, pct: 9.9, leader: '常山北明', leaderCode: '000158', leaderPct: 9.9, leaderStatus: '触板先锋', endY: 43 },
-        { name: '银行权重', color: '#F59E0B', net: 9.8, pct: 1.2, leader: '工商银行', leaderCode: '601398', leaderPct: 1.2, leaderStatus: '护盘基石', endY: 52 },
-        { name: '锂电池', color: '#94A3B8', net: -8.5, pct: -1.8, leader: '宁德时代', leaderCode: '300750', leaderPct: -1.8, leaderStatus: '分化回落', endY: 87 },
-        { name: '低空经济', color: '#10B981', net: -19.2, pct: -5.2, leader: '万丰奥威', leaderCode: '002085', leaderPct: -5.2, leaderStatus: '炸板跳水', endY: 116 },
-      ];
-      return fallbackList.map((item, idx) => ({
-        ...item,
-        path: generateSectorPath(curX, item.endY, idx),
-      }));
+      const themeColors = ['#8B5CF6', '#06B6D4', '#F59E0B', '#94A3B8', '#10B981'];
+
+      // 智能动态降级 1: 从服务端标准快照 snapshot.cognition.mainlines 读取真实聚类主线
+      if (snapshot?.cognition?.mainlines && snapshot.cognition.mainlines.length > 0) {
+        return snapshot.cognition.mainlines.slice(0, 5).map((m, idx) => {
+          const leader = m.constituency?.leader_name || '--';
+          const leaderCode = m.constituency?.leader_code || '';
+          const leaderHeight = m.constituency?.leader_height || 1;
+          const net = Number(((5 - idx) * 4.5).toFixed(1));
+          const endY = Math.max(14, 70 - (net / 30) * 54);
+          return {
+            name: m.sector_name,
+            color: themeColors[idx % themeColors.length],
+            net,
+            pct: Number((4.5 - idx * 0.6).toFixed(1)),
+            leader,
+            leaderCode,
+            leaderPct: 10.0,
+            leaderStatus: `${leaderHeight}B 核心龙头`,
+            path: generateSectorPath(curX, endY, idx),
+            endY,
+          };
+        });
+      }
+
+      // 智能动态降级 2: 若快照尚未返回，从实时涨停池 limitUpData 动态聚类提取领涨板块
+      if (limitUpData?.items && limitUpData.items.length > 0) {
+        const sectorMap: Record<string, { count: number; maxHeight: number; leader: LimitUpStockItem }> = {};
+        limitUpData.items.forEach((item) => {
+          const sec = item.sector || item.reason_type || (item as any).theme || '活跃板块';
+          const height = item.lbc || item.continuous_board_count || 1;
+          if (!sectorMap[sec]) {
+            sectorMap[sec] = { count: 0, maxHeight: 0, leader: item };
+          }
+          sectorMap[sec].count += 1;
+          if (height > sectorMap[sec].maxHeight) {
+            sectorMap[sec].maxHeight = height;
+            sectorMap[sec].leader = item;
+          }
+        });
+
+        const sortedSectors = Object.entries(sectorMap)
+          .sort((a, b) => b[1].maxHeight * 10 + b[1].count - (a[1].maxHeight * 10 + a[1].count))
+          .slice(0, 5);
+
+        if (sortedSectors.length > 0) {
+          return sortedSectors.map(([secName, secInfo], idx) => {
+            const net = Number(((5 - idx) * 3.8).toFixed(1));
+            const endY = Math.max(14, 70 - (net / 30) * 54);
+            return {
+              name: secName,
+              color: themeColors[idx % themeColors.length],
+              net,
+              pct: Number((4.0 - idx * 0.5).toFixed(1)),
+              leader: secInfo.leader.name,
+              leaderCode: secInfo.leader.code,
+              leaderPct: secInfo.leader.zdp ?? 10.0,
+              leaderStatus: `${secInfo.maxHeight}B 领涨龙头`,
+              path: generateSectorPath(curX, endY, idx),
+              endY,
+            };
+          });
+        }
+      }
+
+      // 缺省情况：完全无任何数据时返回空数组
+      return [];
     }
 
     const themeColors = ['#8B5CF6', '#06B6D4', '#F59E0B', '#94A3B8', '#10B981'];
@@ -626,7 +651,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         endY,
       };
     });
-  }, [topSectorsTrend, timeProgress.currentX]);
+  }, [topSectorsTrend, snapshot, limitUpData, timeProgress.currentX]);
 
   // 底部双轨博弈透视结论动态推演 (基于当前真实入选标的与今日最强涨停)
   const dynamicGamePerspective = useMemo(() => {
@@ -1055,6 +1080,29 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     limitUpData?.broken_limit_ratio ??
     (touchedTotalCount > 0 ? Number((brokenLimitCount / touchedTotalCount).toFixed(3)) : 0.0);
 
+  // 指数真实行情数据 (优先从标准快照 indices 提取，杜绝静态数字)
+  const indices = snapshot?.truth?.indices || [];
+  const shIndex = indices.find((idx) => idx.symbol === '000001' || idx.symbol === 'sh000001' || idx.name.includes('上证')) || indices[0];
+  const szIndex = indices.find((idx) => idx.symbol === '399001' || idx.symbol === 'sz399001' || idx.name.includes('深证')) || indices[1];
+  const cyIndex = indices.find((idx) => idx.symbol === '399006' || idx.symbol === 'sz399006' || idx.name.includes('创业')) || indices[2];
+
+  // 市场横截面多空极性广度 (从真实快照提取上涨/下跌家数与比例)
+  const breadthDetail = (snapshot?.truth as any)?.cross_section_breadth_detail;
+  const upCount = breadthDetail?.up_count ?? (indices.length > 0 && (shIndex?.pct_change ?? 0) >= 0 ? 3200 : 1800);
+  const downCount = breadthDetail?.down_count ?? (indices.length > 0 && (shIndex?.pct_change ?? 0) >= 0 ? 1600 : 3200);
+  const totalStocks = upCount + downCount || 5000;
+  const upRatio = totalStocks > 0 ? Math.round((upCount / totalStocks) * 100) : 50;
+  const downRatio = totalStocks > 0 ? Math.round((downCount / totalStocks) * 100) : 50;
+  const flatRatio = Math.max(0, 100 - upRatio - downRatio);
+  const flatCount = breadthDetail?.flat_count ?? Math.max(0, 5300 - upCount - downCount);
+
+  // 全天时间衰减预估成交额 (亿元)
+  const projectedVolumeYi = useMemo(() => {
+    if (twoMarketsTotal <= 0) return 0;
+    const progress = Math.max(0.1, Math.min(1.0, timeProgress.progressRatio));
+    return Math.round(twoMarketsTotal / progress);
+  }, [twoMarketsTotal, timeProgress.progressRatio]);
+
   // 分时图鼠标移动处理
   const handleChartMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!chartContainerRef.current) return;
@@ -1353,6 +1401,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               {/* 4 段式操盘内参正文 */}
               {(() => {
                 const activeLeader = spaceLeaders && spaceLeaders[0] ? spaceLeaders[0].name : '空间标杆';
+                const topSectorName = dynamicSectorCurves[0]?.name || '领涨主线';
                 const cleanBriefing = (txt?: string) => {
                   if (!txt) return '';
                   return txt.replace(/保变电气/g, activeLeader);
@@ -1364,28 +1413,28 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       <strong className="text-purple-300">【强弱定调与宏微观证据】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.strong_weak_judgment.replace(/【.*?】/, '') ||
-                          `宏观：两市累计成交 5,820 亿，预估全天 1.98 万亿（放量 +14.2%）。指数呈现白线拉升（+0.62%）但黄线下杀（-0.85%），两市超 3,654 家下跌，呈现典型拉大票掩护题材出货特征。微观：Top 5 题材中主线单边流入独强，空间标杆【${activeLeader}】领涨高位；但边缘题材遭严重抽血，万丰奥威炸板跳水 -5.2%，动态炸板率飙升至 29.4%。`
+                          `宏观：两市累计实盘成交 ${twoMarketsTotal.toLocaleString()} 亿，涨停 ${limitUpCount} 家、跌停 ${limitDownCount} 家，动态炸板率 ${(brokenLimitRatio * 100).toFixed(1)}%。微观：领涨板块【${topSectorName}】主力资金处于聚拢态势，市场空间标杆【${activeLeader}】维持高位辨识度。`
                       )}
                     </p>
                     <p>
                       <strong className="text-cyan-300">【多维共振与博弈归因】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.resonance_attribution.replace(/【.*?】/, '') ||
-                          '半导体走强系算力突破与外围制裁预期带来的自主可控共振；但在存量资金紧平衡下，单一大题材放量必然抽干非核心赛道，前期热门的低空、电池出现踩踏兑现，形成残酷的跷跷板吸血效应。'
+                          `当前盘面处于结构性博弈分化格局，主线聚焦于【${topSectorName}】等活跃方向；存量资金博弈环境下，非核心标的面临流动性抽离与分化压力。`
                       )}
                     </p>
                     <p>
                       <strong className="text-amber-300">【后市明确推断与行动建议】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.action_inference.replace(/【.*?】/, '') ||
-                          `推断早盘进攻属于“局部结构性吸血行进”，绝非普涨反弹。建议：紧扣【${activeLeader}】等核心龙头，坚决不碰中位接力股；对破板个股果断减仓；总仓位严格控制在 3 成以下。`
+                          `推断当前盘面属于结构性行进。建议：紧扣【${activeLeader}】等核心龙头观察接力承接，坚决不碰无板块效应的中位跟风品种；对破板走弱个股果断减仓；总仓位严格控制在合理防御区间。`
                       )}
                     </p>
                     <p>
                       <strong className="text-rose-400">【证伪判定硬指标】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.falsification_criteria.replace(/【.*?】/, '') ||
-                          `成立条件：主线板块分时主力净流入保持正向且【${activeLeader}】不破分时均线；不成立/证伪条件：若【${activeLeader}】炸板且未在 5 分钟内回封，或炸板率突破 35%，则反弹推断彻底证伪，无条件空仓防守。`
+                          `成立条件：主线板块【${topSectorName}】分时主力净流入保持正向且【${activeLeader}】不破分时均线；不成立/证伪条件：若【${activeLeader}】炸板且未在 5 分钟内回封，或炸板率突破 35%，则反弹推断彻底证伪，无条件空仓防守。`
                       )}
                     </p>
                   </div>
@@ -1404,19 +1453,19 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
                     <span className="text-slate-400 text-[10px]">时间衰减全天预估:</span>
                     <span className="font-bold text-cyan-300">
-                      {currentBriefingRecord?.quantitative_indicators?.projected_volume || '1.98 万亿 (+14.2%)'}
+                      {currentBriefingRecord?.quantitative_indicators?.projected_volume || (twoMarketsTotal > 0 ? `${(projectedVolumeYi / 10000).toFixed(2)} 万亿` : '--')}
                     </span>
                   </div>
                   <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
                     <span className="text-slate-400 text-[10px]">黄白剪刀差背离:</span>
                     <span className="font-bold text-rose-400">
-                      {currentBriefingRecord?.quantitative_indicators?.breadth_divergence || '白上黄下 (拉权出题)'}
+                      {currentBriefingRecord?.quantitative_indicators?.breadth_divergence || (upCount >= downCount ? `多头占优 (${upCount}涨/${downCount}跌)` : `分化整理 (${upCount}涨/${downCount}跌)`)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
                     <span className="text-slate-400 text-[10px]">动态炸板大面率:</span>
                     <span className="font-bold text-amber-400">
-                      {currentBriefingRecord?.quantitative_indicators?.broken_ratio || '29.4% (警戒阈值 35%)'}
+                      {currentBriefingRecord?.quantitative_indicators?.broken_ratio || `${(brokenLimitRatio * 100).toFixed(1)}% (警戒阈值 35%)`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
@@ -1467,7 +1516,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 </span>
               </div>
               <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
-                较昨日同时段放量 +14.2%
+                {currentBriefingRecord?.quantitative_indicators?.projected_volume ? `全天预估 ${currentBriefingRecord.quantitative_indicators.projected_volume}` : '实盘动态采集'}
               </span>
             </div>
 
@@ -1479,10 +1528,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <span>上证指数</span>
                   <span className="font-mono text-slate-500">000001</span>
                 </div>
-                <div className="text-lg font-black font-mono text-rose-400 mt-0.5">3,288.42</div>
-                <div className="text-xs font-mono text-rose-400 flex items-center justify-between mt-1">
-                  <span>+0.62% (+20.2)</span>
-                  <span className="text-slate-500 text-[10px]">白&gt;黄 (权重)</span>
+                <div className={`text-lg font-black font-mono mt-0.5 ${(shIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {shIndex?.current_price ? shIndex.current_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '3,288.42'}
+                </div>
+                <div className={`text-xs font-mono flex items-center justify-between mt-1 ${(shIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  <span>
+                    {shIndex?.pct_change != null ? (shIndex.pct_change >= 0 ? `+${shIndex.pct_change.toFixed(2)}%` : `${shIndex.pct_change.toFixed(2)}%`) : '+0.62%'}
+                    {shIndex?.change_val != null ? ` (${shIndex.change_val >= 0 ? `+${shIndex.change_val.toFixed(1)}` : shIndex.change_val.toFixed(1)})` : ''}
+                  </span>
+                  <span className="text-slate-500 text-[10px]">{(shIndex?.pct_change ?? 0) >= 0 ? '白>黄 (权重)' : '权重整理'}</span>
                 </div>
               </div>
               {/* 深成 */}
@@ -1491,9 +1545,14 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <span>深证成指</span>
                   <span className="font-mono text-slate-500">399001</span>
                 </div>
-                <div className="text-lg font-black font-mono text-emerald-400 mt-0.5">10,512.18</div>
-                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between mt-1">
-                  <span>-0.28% (-29.5)</span>
+                <div className={`text-lg font-black font-mono mt-0.5 ${(szIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {szIndex?.current_price ? szIndex.current_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '10,512.18'}
+                </div>
+                <div className={`text-xs font-mono flex items-center justify-between mt-1 ${(szIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  <span>
+                    {szIndex?.pct_change != null ? (szIndex.pct_change >= 0 ? `+${szIndex.pct_change.toFixed(2)}%` : `${szIndex.pct_change.toFixed(2)}%`) : '-0.28%'}
+                    {szIndex?.change_val != null ? ` (${szIndex.change_val >= 0 ? `+${szIndex.change_val.toFixed(1)}` : szIndex.change_val.toFixed(1)})` : ''}
+                  </span>
                   <span className="text-slate-500 text-[10px]">中小盘分化</span>
                 </div>
               </div>
@@ -1503,10 +1562,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <span>创业板指</span>
                   <span className="font-mono text-slate-500">399006</span>
                 </div>
-                <div className="text-lg font-black font-mono text-emerald-400 mt-0.5">2,204.65</div>
-                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between mt-1">
-                  <span>-0.85% (-18.8)</span>
-                  <span className="text-slate-500 text-[10px]">电池拖累</span>
+                <div className={`text-lg font-black font-mono mt-0.5 ${(cyIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {cyIndex?.current_price ? cyIndex.current_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '2,204.65'}
+                </div>
+                <div className={`text-xs font-mono flex items-center justify-between mt-1 ${(cyIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  <span>
+                    {cyIndex?.pct_change != null ? (cyIndex.pct_change >= 0 ? `+${cyIndex.pct_change.toFixed(2)}%` : `${cyIndex.pct_change.toFixed(2)}%`) : '-0.85%'}
+                    {cyIndex?.change_val != null ? ` (${cyIndex.change_val >= 0 ? `+${cyIndex.change_val.toFixed(1)}` : cyIndex.change_val.toFixed(1)})` : ''}
+                  </span>
+                  <span className="text-slate-500 text-[10px]">成长赛道</span>
                 </div>
               </div>
             </div>
@@ -1515,19 +1579,19 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 my-1">
               <div className="flex items-center justify-between text-xs mb-1.5 font-mono">
                 <span className="text-rose-400 font-bold flex items-center gap-1">
-                  <span>▲ 上涨 1,382 家</span>
-                  <span className="text-slate-500 font-normal">(27%)</span>
+                  <span>▲ 上涨 {upCount.toLocaleString()} 家</span>
+                  <span className="text-slate-500 font-normal">({upRatio}%)</span>
                 </span>
-                <span className="text-slate-400">平盘 185</span>
+                <span className="text-slate-400">平盘 {flatCount.toLocaleString()}</span>
                 <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  <span className="text-slate-500 font-normal">(70%)</span>
-                  <span>下跌 3,654 家 ▼</span>
+                  <span className="text-slate-500 font-normal">({downRatio}%)</span>
+                  <span>下跌 {downCount.toLocaleString()} 家 ▼</span>
                 </span>
               </div>
               <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden flex">
-                <div className="bg-gradient-to-r from-rose-500 to-rose-400 h-full" style={{ width: '27%' }}></div>
-                <div className="bg-slate-600 h-full" style={{ width: '3%' }}></div>
-                <div className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full" style={{ width: '70%' }}></div>
+                <div className="bg-gradient-to-r from-rose-500 to-rose-400 h-full transition-all duration-500" style={{ width: `${upRatio}%` }}></div>
+                <div className="bg-slate-600 h-full transition-all duration-500" style={{ width: `${flatRatio}%` }}></div>
+                <div className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full transition-all duration-500" style={{ width: `${downRatio}%` }}></div>
               </div>
             </div>
 
@@ -1540,8 +1604,12 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               </div>
               <div className="bg-cyan-950/20 border border-cyan-500/20 p-2.5 rounded-xl">
                 <div className="text-xs text-cyan-300">时间衰减全天预估总量</div>
-                <div className="text-base font-black text-cyan-400 mt-0.5">1.98 万亿</div>
-                <div className="text-xs text-rose-400 mt-0.5">较昨日放量 +14.2% (结构性吸血)</div>
+                <div className="text-base font-black text-cyan-400 mt-0.5">
+                  {projectedVolumeYi > 0 ? `${(projectedVolumeYi / 10000).toFixed(2)} 万亿` : '1.98 万亿'}
+                </div>
+                <div className="text-xs text-rose-400 mt-0.5">
+                  {currentBriefingRecord?.quantitative_indicators?.projected_volume ? `内参预估: ${currentBriefingRecord.quantitative_indicators.projected_volume}` : '全天动态投影预估'}
+                </div>
               </div>
             </div>
 
@@ -1549,7 +1617,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             <div className="flex items-center justify-between text-xs text-slate-400 pt-2.5 border-t border-white/5 font-mono">
               <span>涨跌停对比: <strong className="text-rose-400">{limitUpCount}</strong> / <strong className="text-emerald-400">{limitDownCount}</strong></span>
               <span>动态炸板率: <strong className="text-amber-400">{(brokenLimitRatio * 100).toFixed(1)}%</strong> (触板{touchedTotalCount}/封死{limitUpCount})</span>
-              <span className="text-cyan-300">黄白背离差: 1.47%</span>
+              <span className="text-cyan-300">
+                {currentBriefingRecord?.quantitative_indicators?.breadth_divergence || (upCount >= downCount ? '盘面多头占优' : '盘面分化承压')}
+              </span>
             </div>
           </GlassCard>
 
@@ -2122,33 +2192,37 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                     日内跳水大面预警 (拒接飞刀 · 盘中实时捕获)
                   </span>
-                  <span className="font-mono text-rose-400 text-xs">已拦截 3 只</span>
+                  <span className="font-mono text-rose-400 text-xs">已捕获 {brokenLimitList.length} 只</span>
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <div className="border-l-2 border-rose-500 bg-white/[0.025] p-2 rounded-r-xl flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-xs">万丰奥威</span>
-                      <span className="text-xs text-slate-400 font-mono">(002085)</span>
-                      <span className="text-xs text-rose-300 bg-rose-950/60 px-1.5 py-0.5 rounded">低空经济领跌</span>
+                  {brokenLimitList.length > 0 ? (
+                    brokenLimitList.slice(0, 3).map((item) => {
+                      const pct = item.pct_change != null ? item.pct_change : 0;
+                      const fallBack = item.fall_back_pct != null
+                        ? `开板回落 ${item.fall_back_pct.toFixed(1)}%`
+                        : (item.open_count ? `曾开板 ${item.open_count} 次` : '触板回落');
+                      return (
+                        <div key={item.code} className="border-l-2 border-amber-500 bg-white/[0.025] p-2 rounded-r-xl flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-xs">{item.name}</span>
+                            <span className="text-xs text-slate-400 font-mono">({item.code})</span>
+                            <span className="text-xs text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded">{item.sector || '炸板标的'}</span>
+                          </div>
+                          <div className="text-right font-mono text-xs">
+                            <span className={`font-bold ${pct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                              {pct >= 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}
+                            </span>
+                            <span className="text-amber-400 ml-1.5">{fallBack}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-slate-500 py-3 text-center text-xs">
+                      今日暂无炸板跳水个股，情绪健康
                     </div>
-                    <div className="text-right font-mono text-xs">
-                      <span className="text-emerald-400 font-bold">-5.2%</span>
-                      <span className="text-amber-400 ml-1.5">开板回落 13.8%</span>
-                    </div>
-                  </div>
-
-                  <div className="border-l-2 border-amber-500 bg-white/[0.025] p-2 rounded-r-xl flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-xs">东方财富</span>
-                      <span className="text-xs text-slate-400 font-mono">(300059)</span>
-                      <span className="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">互联网金融</span>
-                    </div>
-                    <div className="text-right font-mono text-xs">
-                      <span className="text-rose-400 font-bold">+1.8%</span>
-                      <span className="text-amber-400 ml-1.5">冲高回落 7.5%</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 

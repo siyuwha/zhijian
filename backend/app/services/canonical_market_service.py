@@ -1292,36 +1292,106 @@ class CanonicalMarketService:
                 l_stk = canonical_ladder[0].stocks[0]
                 space_leader_txt = f"{l_stk.name} ({l_stk.code}) {l_stk.continuous_board_count}B"
 
+            # 5. 动态聚类生成今日真实认知主线 (COGNITION Mainlines)
+            sector_groups: Dict[str, List[LimitUpStockItem]] = {}
+            for s in parsed_lu_stocks:
+                sec_name = s.reason_type if s.reason_type and s.reason_type != "其他" else "概念热点"
+                sector_groups.setdefault(sec_name, []).append(s)
+
+            # 按照板块内最高连板高度与涨停个股数量降序排序
+            sorted_sectors = sorted(
+                sector_groups.items(),
+                key=lambda kv: (max(stk.continuous_board_count for stk in kv[1]), len(kv[1])),
+                reverse=True,
+            )
+
+            synthetic_mainlines: List[MainlineCandidate] = []
+            for rank_idx, (sec_name, sec_stocks) in enumerate(sorted_sectors[:5]):
+                sec_leader = max(sec_stocks, key=lambda stk: (stk.continuous_board_count, stk.order_amount_wan))
+                leader_h = sec_leader.continuous_board_count
+                stk_names = [stk.name for stk in sec_stocks]
+
+                ladder_dist: Dict[str, int] = {}
+                for stk in sec_stocks:
+                    key = f"{stk.continuous_board_count}B"
+                    ladder_dist[key] = ladder_dist.get(key, 0) + 1
+
+                first_board_count = ladder_dist.get("1B", 0)
+                thematic_tier = "TIER_1_CORE" if rank_idx == 0 or leader_h >= 4 else ("TIER_2_BRANCH" if len(sec_stocks) >= 3 else "TIER_3_WEAK_OR_ISOLATED")
+                structural_role = "CORE_MAINLINE" if rank_idx == 0 else ("BRANCH_ROTATION" if thematic_tier == "TIER_2_BRANCH" else "WEAK_ROTATION_OR_ISOLATED")
+
+                candidate = MainlineCandidate(
+                    rank=rank_idx + 1,
+                    sector_code=f"BK_INTRADAY_{rank_idx + 1}",
+                    sector_name=sec_name,
+                    semantic_type="CONCEPT",
+                    constituency=ConstituencyEvidence(
+                        leader_code=sec_leader.code,
+                        leader_name=sec_leader.name,
+                        leader_security_id=sec_leader.security_id,
+                        leader_height=leader_h,
+                        limit_up_count=len(sec_stocks),
+                        ladder_distribution=ladder_dist,
+                        first_board_diffusion_count=first_board_count,
+                        constituent_symbols=stk_names,
+                    ),
+                    supporting_evidence=[
+                        f"领军标杆【{sec_leader.name}】达成 {leader_h}B 连板高度",
+                        f"板块内涨停共计 {len(sec_stocks)} 只标的，梯队结构清晰",
+                    ],
+                    counter_evidence=[
+                        f"若领军龙头【{sec_leader.name}】次日开盘未能维持连板封单，低位跟风股存在回落分化风险",
+                    ],
+                    falsification_condition=FalsificationCondition(
+                        invalidation_rules=[
+                            f"【{sec_name}】核心标杆 {sec_leader.name} 次日竞价大幅低开或开盘破位下杀",
+                        ],
+                        critical_observation_symbols=[sec_leader.name],
+                    ),
+                    structural_role=structural_role,
+                    thematic_tier=thematic_tier,
+                    conviction_summary=f"【{sec_name}】以【{sec_leader.name}】({leader_h}B)为领军，板块内{len(sec_stocks)}只涨停，日内聚焦显著。",
+                )
+                synthetic_mainlines.append(candidate)
+
+            core_mainline_names = [m.sector_name for m in synthetic_mainlines[:2]]
+
+            # 6. 认知快照 (动态校准)
+            space_leader_txt = f"最高连板 {max_height}B"
+            if canonical_ladder and canonical_ladder[0].stocks:
+                l_stk = canonical_ladder[0].stocks[0]
+                space_leader_txt = f"{l_stk.name} ({l_stk.code}) {l_stk.continuous_board_count}B"
+
             state_features = self.state_calibrator.extract_feature_vector(truth_snapshot)
 
             calibrated_state = self.state_calibrator.calibrate(
                 features=state_features,
                 prior_state=None,
-                core_mainlines=[],
+                core_mainlines=core_mainline_names,
                 space_leader_desc=space_leader_txt,
             )
 
             market_narrative = self.state_calibrator.render_deterministic_summary(
                 state=calibrated_state,
                 features=state_features,
-                core_mainlines=[],
+                core_mainlines=core_mainline_names,
                 space_leader_desc=space_leader_txt,
             )
 
             lineage_report = LineageAccountingReport(
-                total_raw_evaluated=0,
+                total_raw_evaluated=len(sector_groups),
                 admission_rejected_count=0,
-                admission_admitted_count=0,
+                admission_admitted_count=len(sector_groups),
                 excluded_meta_tags_count=0,
                 excluded_regions_count=0,
                 solitary_leader_noise_count=0,
                 pulse_noise_count=0,
                 deduplicated_clusters_count=0,
-                eligible_candidates_count=0,
-                top_mainlines_count=0,
+                eligible_candidates_count=len(synthetic_mainlines),
+                top_mainlines_count=len(synthetic_mainlines),
                 folded_eligible_remainder_count=0,
                 is_mathematically_closed=True,
-                lineage_formula="0 Raw = 0 TopMainlines",
+                lineage_formula=f"{len(sector_groups)} Raw = {len(synthetic_mainlines)} TopMainlines",
             )
 
             cognition_dict_for_hash = {
@@ -1329,7 +1399,7 @@ class CanonicalMarketService:
                 "producer": "COGNITION_ELIGIBILITY_ENGINE",
                 "trade_date": date_str,
                 "generated_at": observed_time,
-                "mainlines": [],
+                "mainlines": [m.model_dump() for m in synthetic_mainlines],
                 "lineage_accounting": lineage_report.model_dump(),
                 "market_state_summary": market_narrative,
                 "market_state_calibration": calibrated_state.model_dump(),
@@ -1341,7 +1411,7 @@ class CanonicalMarketService:
                 producer="COGNITION_ELIGIBILITY_ENGINE",
                 trade_date=date_str,
                 generated_at=observed_time,
-                mainlines=[],
+                mainlines=synthetic_mainlines,
                 lineage_accounting=lineage_report,
                 market_state_summary=market_narrative,
                 market_state_calibration=calibrated_state,
