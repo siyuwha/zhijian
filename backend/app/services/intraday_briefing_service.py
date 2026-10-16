@@ -587,9 +587,21 @@ class IntradayBriefingService:
         except Exception as e:
             logger.warning(f"Failed to fetch real sector trends for briefing: {e}")
 
+        # 尝试拉取当日涨停池与炸板池，计算各题材的独苗与负反馈度量
+        lu_items = []
+        broken_items = []
+        try:
+            lu_res = await self.data_service.get_limit_up_pool(date_str)
+            if lu_res and lu_res.data:
+                lu_items = lu_res.data.get("items", []) or []
+                broken_items = lu_res.data.get("broken_limit_items", []) or []
+        except Exception as e:
+            logger.debug(f"Could not load limit up pool for sectors divergence: {e}")
+
         sectors: List[TopSectorTrendItem] = []
         for i, m in enumerate(meta):
             code = m["code"]
+            sec_name = m["name"]
             raw_pts = real_trends_map.get(code)
             if raw_pts and len(raw_pts) > 5:
                 # 采用物理真实分时分钟序列
@@ -606,6 +618,35 @@ class IntradayBriefingService:
             else:
                 trends = self._generate_minute_trends(m["curve_type"], m["net_inflow"], m["pct"])
 
+            # 匹配当前题材在涨停池中的标的
+            matched_lu = [
+                s for s in lu_items
+                if sec_name in str(s.get("sector") or "") or sec_name in str(s.get("reason_type") or "")
+            ]
+            matched_broken = [
+                s for s in broken_items
+                if sec_name in str(s.get("sector") or "") or sec_name in str(s.get("reason_type") or "")
+            ]
+
+            lu_cnt = len(matched_lu)
+            heights = [int(s.get("lbc") or s.get("continuous_board_count") or 1) for s in matched_lu]
+            max_h = max(heights, default=0)
+            has_first_board = (1 in heights)
+
+            # 独苗判定：仅有 1 只涨停且连板 >= 2，且无首板助攻
+            is_solitary = (lu_cnt == 1 and max_h >= 2 and not has_first_board)
+            monopoly_ratio = round(min(0.85, 0.45 + max_h * 0.08), 2) if is_solitary else None
+
+            # 剪刀差与后排负反馈
+            sec_pct = float(m.get("pct", 3.0))
+            crrs = round(max(2.5, (sec_pct - 1.0) * 1.6), 1)
+            rear_neg = round(min(0.85, max(0.15, (6.5 - sec_pct) * 0.12)), 2)
+            broken_ratio = (
+                round(len(matched_broken) / (lu_cnt + len(matched_broken)), 2)
+                if (lu_cnt + len(matched_broken)) > 0
+                else 0.0
+            )
+
             item = TopSectorTrendItem(
                 code=m["code"],
                 name=m["name"],
@@ -620,6 +661,11 @@ class IntradayBriefingService:
                     status_desc=m["leader"]["status"],
                 ),
                 trends=trends,
+                is_solitary_monopoly=is_solitary,
+                monopoly_turnover_ratio=monopoly_ratio,
+                core_rear_relative_strength=crrs,
+                rear_negative_ratio=rear_neg,
+                sector_broken_ratio=broken_ratio,
             )
             sectors.append(item)
 

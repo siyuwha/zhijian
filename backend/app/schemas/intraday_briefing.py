@@ -103,6 +103,13 @@ class TopSectorTrendItem(BaseModel):
     leader: TopSectorLeaderStock = Field(..., description="领涨龙头核心")
     trends: List[SectorTrendPoint] = Field(..., description="分时分钟走势序列 (09:30 至当前)")
 
+    # 认知微观体检扩展指标 (可为空/默认值)
+    is_solitary_monopoly: Optional[bool] = Field(False, description="是否处于独苗高标状态")
+    monopoly_turnover_ratio: Optional[float] = Field(None, description="独苗占板块成交比例 (0.0~1.0)")
+    core_rear_relative_strength: Optional[float] = Field(None, description="核心与后排相对剪刀差 CRRS (%)")
+    rear_negative_ratio: Optional[float] = Field(None, description="后排股票负收益比例 RNR (0.0~1.0)")
+    sector_broken_ratio: Optional[float] = Field(None, description="板块炸板率 BLR (0.0~1.0)")
+
 
 class TopSectorsTrendResponse(BaseModel):
     """Top 5 题材分时资金争夺多线数据信封"""

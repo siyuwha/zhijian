@@ -529,6 +529,12 @@ export interface TopSectorTrendItem {
   current_pct_change: number;
   leader: TopSectorLeaderStock;
   trends: SectorTrendPoint[];
+  // 认知微观体检扩展指标
+  is_solitary_monopoly?: boolean;
+  monopoly_turnover_ratio?: number;
+  core_rear_relative_strength?: number;
+  rear_negative_ratio?: number;
+  sector_broken_ratio?: number;
 }
 
 export interface TopSectorsTrendResponse {

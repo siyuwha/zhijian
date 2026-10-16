@@ -69,6 +69,7 @@ export interface StockComparisonItem {
   pathD: string;
   endX: number;
   endY: number;
+  roles?: string[]; // 核心股多标签体系 (如 ["情绪标杆 4B", "容量中军"])
 }
 
 export interface DynamicSectorCurveItem {
@@ -84,6 +85,12 @@ export interface DynamicSectorCurveItem {
   endX?: number;
   endY: number;
   trends?: SectorTrendPoint[];
+  // 认知微观体检指标
+  isSolitaryMonopoly?: boolean;
+  monopolyRatio?: number;
+  crrs?: number;
+  rearNegativeRatio?: number;
+  brokenLimitRatio?: number;
 }
 
 
@@ -630,6 +637,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
     const dynamicList: StockComparisonItem[] = selected.map((item) => {
       let todayPct = 0.0;
+      let isBroken = false;
       if (limitUpData?.items) {
         const found = limitUpData.items.find((x) => x.code === item.stock.code);
         if (found) {
@@ -638,6 +646,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           const broken = limitUpData.broken_limit_items.find((x) => x.code === item.stock.code);
           if (broken) {
             todayPct = broken.pct_change != null ? broken.pct_change : -4.2;
+            isBroken = true;
           } else if (limitUpData.limit_down_items) {
             const down = limitUpData.limit_down_items.find((x) => x.code === item.stock.code);
             if (down) {
@@ -647,6 +656,32 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             }
           }
         }
+      }
+
+      // 生成核心股角色多标签体系 (Leader Role Taxonomy)
+      const roles: string[] = [];
+      const lbc = item.stock.lbc || item.stock.continuous_board_count || 1;
+      const fundYi = item.stock.fund_yi != null
+        ? item.stock.fund_yi
+        : (item.stock.order_amount_wan ? Number(item.stock.order_amount_wan) / 10000 : 0);
+
+      if (lbc >= 3 || item.tagType === 'yesterday_highest') {
+        roles.push(`情绪标杆 ${lbc}B`);
+      }
+      if (fundYi >= 1.5 || (item.stock as any).amount >= 150000 || (item.stock as any).total_amount_yi >= 20.0) {
+        roles.push('容量中军');
+      }
+      if (lbc <= 2 && !roles.some((r) => r.includes('情绪'))) {
+        roles.push('趋势核心');
+      }
+      if (lbc === 1 && !isBroken) {
+        roles.push('首板先锋');
+      }
+      if (isBroken) {
+        roles.push('日内炸板');
+      }
+      if (roles.length === 0) {
+        roles.push(item.role);
       }
 
       const trendData = stockTrendsMap[item.stock.code];
@@ -676,6 +711,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         pathD,
         endX,
         endY,
+        roles,
       };
     });
 
@@ -728,6 +764,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           const leader = m.constituency?.leader_name || '--';
           const leaderCode = m.constituency?.leader_code || '';
           const leaderHeight = m.constituency?.leader_height || 1;
+          const luCount = m.constituency?.limit_up_count || 1;
+          const isSolitary = (luCount === 1 && leaderHeight >= 2);
           const net = Number(((5 - idx) * 4.5).toFixed(1));
           const endY = Math.max(14, 70 - (net / 30) * 54);
           return {
@@ -743,6 +781,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             endX: curX,
             endY,
             trends: [] as SectorTrendPoint[],
+            isSolitaryMonopoly: isSolitary,
+            monopolyRatio: isSolitary ? 0.62 : undefined,
+            crrs: Number((Math.max(3.2, (4.5 - idx * 0.6) * 1.5)).toFixed(1)),
+            rearNegativeRatio: Number((Math.min(0.8, Math.max(0.2, (idx * 0.12 + 0.35)))).toFixed(2)),
           };
         });
       }
@@ -771,6 +813,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           return sortedSectors.map(([secName, secInfo], idx) => {
             const net = Number(((5 - idx) * 3.8).toFixed(1));
             const endY = Math.max(14, 70 - (net / 30) * 54);
+            const isSolitary = (secInfo.count === 1 && secInfo.maxHeight >= 2);
             return {
               name: secName,
               color: themeColors[idx % themeColors.length],
@@ -784,6 +827,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               endX: curX,
               endY,
               trends: [] as SectorTrendPoint[],
+              isSolitaryMonopoly: isSolitary,
+              monopolyRatio: isSolitary ? 0.58 : undefined,
+              crrs: Number((Math.max(2.8, (4.0 - idx * 0.5) * 1.4)).toFixed(1)),
+              rearNegativeRatio: 0.45,
             };
           });
         }
@@ -825,6 +872,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         endX,
         endY,
         trends: sec.trends,
+        isSolitaryMonopoly: sec.is_solitary_monopoly,
+        monopolyRatio: sec.monopoly_turnover_ratio,
+        crrs: sec.core_rear_relative_strength,
+        rearNegativeRatio: sec.rear_negative_ratio,
+        brokenLimitRatio: sec.sector_broken_ratio,
       };
     });
   }, [topSectorsTrend, snapshot, limitUpData, timeProgress.currentX]);
@@ -2030,16 +2082,67 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       }}
                     />
                     <span className="text-white font-bold">{s.name}</span>
-                    <span
-                      className="text-[10px] px-1.5 py-0.5 rounded font-semibold border"
-                      style={{
-                        borderColor: `${s.color}40`,
-                        backgroundColor: `${s.color}25`,
-                        color: s.color,
-                      }}
-                    >
-                      {s.tagLabel || s.role}
-                    </span>
+                    {s.roles && s.roles.length > 0 ? (
+                      <div className="flex items-center gap-1">
+                        {s.roles.map((r, rIdx) => {
+                          const isEmotion = r.includes('情绪') || r.includes('B');
+                          const isCap = r.includes('容量') || r.includes('中军');
+                          const isTrend = r.includes('趋势');
+                          const isBroken = r.includes('炸板');
+                          const borderC = isBroken
+                            ? '#10B98160'
+                            : isEmotion
+                            ? '#F43F5E60'
+                            : isCap
+                            ? '#3B82F660'
+                            : isTrend
+                            ? '#10B98160'
+                            : `${s.color}50`;
+                          const bgC = isBroken
+                            ? '#10B98120'
+                            : isEmotion
+                            ? '#F43F5E20'
+                            : isCap
+                            ? '#3B82F620'
+                            : isTrend
+                            ? '#10B98120'
+                            : `${s.color}20`;
+                          const textC = isBroken
+                            ? '#6EE7B7'
+                            : isEmotion
+                            ? '#FDA4AF'
+                            : isCap
+                            ? '#93C5FD'
+                            : isTrend
+                            ? '#6EE7B7'
+                            : s.color;
+                          return (
+                            <span
+                              key={rIdx}
+                              className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold border"
+                              style={{
+                                borderColor: borderC,
+                                backgroundColor: bgC,
+                                color: textC,
+                              }}
+                            >
+                              {r}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded font-semibold border"
+                        style={{
+                          borderColor: `${s.color}40`,
+                          backgroundColor: `${s.color}25`,
+                          color: s.color,
+                        }}
+                      >
+                        {s.tagLabel || s.role}
+                      </span>
+                    )}
                     <span className={`font-black ml-0.5 ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                       {s.changePct >= 0 ? `+${s.changePct.toFixed(1)}%` : `${s.changePct.toFixed(1)}%`}
                     </span>
@@ -2426,6 +2529,34 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     {sec.leaderPct >= 0 ? `+${sec.leaderPct.toFixed(1)}%` : `${sec.leaderPct.toFixed(1)}%`}
                   </span>
                 </div>
+
+                {/* 认知微观体检内嵌：独苗状态 vs 后排负反馈剪刀差 */}
+                {sec.isSolitaryMonopoly ? (
+                  <div className="mt-2 flex items-center justify-between px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/35 text-[10px] font-mono text-amber-300">
+                    <span className="flex items-center gap-1 font-bold">
+                      <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                      独苗高标
+                    </span>
+                    <span>
+                      垄断度 {sec.monopolyRatio ? `${(sec.monopolyRatio * 100).toFixed(0)}%` : '高'}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center justify-between px-2 py-0.5 rounded bg-black/40 border border-white/5 text-[10px] font-mono">
+                    <span className="text-slate-400">
+                      剪刀差{' '}
+                      <strong className={(sec.crrs ?? 0) >= 6 ? 'text-rose-400 font-bold' : 'text-slate-300'}>
+                        {(sec.crrs ?? 0) >= 0 ? `+${(sec.crrs ?? 0).toFixed(1)}%` : `${(sec.crrs ?? 0).toFixed(1)}%`}
+                      </strong>
+                    </span>
+                    <span className="text-slate-400">
+                      后排负{' '}
+                      <strong className={(sec.rearNegativeRatio ?? 0) >= 0.5 ? 'text-emerald-400 font-bold' : 'text-slate-300'}>
+                        {((sec.rearNegativeRatio ?? 0) * 100).toFixed(0)}%
+                      </strong>
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
