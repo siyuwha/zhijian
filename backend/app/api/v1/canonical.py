@@ -323,3 +323,40 @@ async def get_intraday_top_sectors_trend(
         )
 
 
+class GameCognitionRequest(BaseModel):
+    trade_date: str
+    stocks: List[Dict[str, Any]] = []
+    strongest_stock: Optional[Dict[str, Any]] = None
+    sectors: List[Dict[str, Any]] = []
+    force_refresh: bool = False
+
+
+@router.post("/intraday-game-cognition")
+async def get_intraday_game_cognition(
+    req: GameCognitionRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    基于入选核心个股与题材，调用 LLM 生成富有博弈洞见的深度复盘总结
+    """
+    from ...services.micro_game_cognition_service import MicroGameCognitionService
+    try:
+        res = await MicroGameCognitionService.generate_game_cognition(
+            trade_date=req.trade_date,
+            stocks=req.stocks,
+            strongest_stock=req.strongest_stock,
+            sectors=req.sectors,
+            force_refresh=req.force_refresh,
+        )
+        return {"code": 200, "data": res}
+    except Exception as e:
+        logger.error(f"[GAME COGNITION ERROR]: {e}", exc_info=True)
+        return {
+            "code": 200,
+            "data": MicroGameCognitionService._generate_heuristic_cognition(
+                req.stocks, req.strongest_stock, req.sectors
+            ),
+        }
+
+
+

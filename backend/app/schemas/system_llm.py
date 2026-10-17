@@ -12,11 +12,11 @@ class LLMConfigResponse(BaseModel):
         description="Provider 类型: openai_compatible (中转站), deepseek, openai, custom",
     )
     base_url: str = Field(
-        default="https://api.deepseek.com/v1",
+        default="",
         description="API 基础端点地址 (如 https://api.your-relay.com/v1)",
     )
     model: str = Field(
-        default="deepseek-chat",
+        default="",
         description="模型名称 (如 gpt-4o, deepseek-chat, claude-3-5-sonnet 等)",
     )
     api_key_masked: str = Field(

@@ -305,6 +305,24 @@ export const canonicalAPI = {
     fetchAPI<import('@/types/canonical').TopSectorsTrendResponse>(
       `/canonical/intraday-top-sectors-trend${date ? `?date=${date}` : ''}`
     ),
+  getIntradayGameCognition: (params: {
+    trade_date: string;
+    stocks: any[];
+    strongest_stock?: any;
+    sectors: any[];
+    force_refresh?: boolean;
+  }) =>
+    fetchAPI<{
+      status: string;
+      source: string;
+      model?: string;
+      track1: string;
+      track2: string;
+      sector_rotation: string;
+    }>('/canonical/intraday-game-cognition', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
 };
 
 

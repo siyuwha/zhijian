@@ -99,8 +99,8 @@ export function LLMConfigCard({ onConfigChange }: { onConfigChange?: (config: LL
       const res = await api.getLLMConfig();
       setConfig(res);
       setProviderType(res.provider_type || 'openai_compatible');
-      setBaseUrl(res.base_url || 'https://api.deepseek.com/v1');
-      setModel(res.model || 'deepseek-chat');
+      setBaseUrl(res.base_url || '');
+      setModel(res.model || '');
       setTemperature(res.temperature ?? 0.2);
       setTimeoutSeconds(res.timeout_seconds ?? 60);
       setApiKey(''); // 安全清空明文输入框

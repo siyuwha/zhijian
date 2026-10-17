@@ -96,6 +96,7 @@ export interface LimitDownStockItem {
   fund_wan?: number | null;
   fund_yi?: number | null;
   turnover_ratio?: number | null;
+  ltsz_yi?: number | null;
   days?: number | null;
   lbt?: number | null;
   lbt_str?: string | null;
@@ -111,6 +112,7 @@ export interface BrokenLimitStockItem {
   fall_back_pct?: number | null;
   amount_yi?: number | null;
   turnover_ratio?: number | null;
+  ltsz_yi?: number | null;
   open_count?: number | null;
   fbt?: number | null;
   fbt_str?: string | null;

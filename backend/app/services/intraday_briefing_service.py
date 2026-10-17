@@ -633,7 +633,7 @@ class IntradayBriefingService:
                 },
             ]
 
-        # 尝试拉取真实的板块分时分钟走势
+        # 尝试拉取真实的板块分时分钟走势 (优先拉取领涨核心龙头真实分钟走势进行波形联动)
         real_trends_map: Dict[str, List[Dict[str, Any]]] = {}
         try:
             sector_codes = []
@@ -645,6 +645,14 @@ class IntradayBriefingService:
                 sector_codes.append(resolved_code)
                 code_alias_map[resolved_code] = raw_code
                 code_alias_map[sec_name] = raw_code
+
+                # 将该题材领涨核心龙头也加入真实分时拉取队列
+                leader_c = m.get("leader", {}).get("code")
+                if leader_c:
+                    clean_lc = str(leader_c).strip()
+                    sector_codes.append(clean_lc)
+                    code_alias_map[clean_lc] = raw_code
+                    code_alias_map[f"leader_{sec_name}"] = clean_lc
 
             trends_res = await self.data_service.get_stock_trends(sector_codes)
             if trends_res and trends_res.data:
@@ -674,19 +682,27 @@ class IntradayBriefingService:
         for i, m in enumerate(meta):
             code = m["code"]
             sec_name = m["name"]
-            resolved_code = resolve_concept_bk_code(sec_name, code)
-            raw_pts = real_trends_map.get(code) or real_trends_map.get(resolved_code) or real_trends_map.get(sec_name)
+            leader_code_val = m.get("leader", {}).get("code")
+            raw_pts = (
+                real_trends_map.get(code)
+                or real_trends_map.get(resolved_code)
+                or real_trends_map.get(sec_name)
+                or (real_trends_map.get(str(leader_code_val).strip()) if leader_code_val else None)
+            )
             if raw_pts and len(raw_pts) > 5:
-                # 采用物理真实分时分钟序列
+                # 采用物理真实分时分钟序列进行动态资金累计拟合 (确保 09:30 从 0 轴发散，杜绝水平常数)
                 total_amt = max(1.0, float(raw_pts[-1].get("amount") or 1.0))
                 trends: List[SectorTrendPoint] = []
-                for pt in raw_pts:
+                for pt_idx, pt in enumerate(raw_pts):
                     t_str = str(pt.get("time", ""))
                     pct = float(pt.get("pct_change", 0.0))
                     amt = float(pt.get("amount", 0.0))
-                    # 基于实盘分钟成交累计额与涨跌动量精准拟合当前时刻主力净流入
-                    ratio = min(1.0, max(0.0, amt / total_amt))
-                    net_inflow = round(m["net_inflow"] * ratio, 2)
+                    time_progress = pt_idx / max(1, len(raw_pts) - 1)
+                    amt_ratio = min(1.0, max(0.0, amt / total_amt)) if total_amt > 1.0 else time_progress
+                    progress_weight = 0.65 * amt_ratio + 0.35 * (time_progress ** 0.85)
+                    momentum_jitter = (pct / 10.0) * 0.15 * (1.0 - time_progress * 0.5)
+                    combined_ratio = max(0.0, min(1.0, progress_weight + momentum_jitter)) if pt_idx > 0 else 0.0
+                    net_inflow = round(m["net_inflow"] * combined_ratio, 2)
                     trends.append(SectorTrendPoint(time=t_str, net_inflow_yi=net_inflow, pct_change=pct))
             else:
                 trends = self._generate_minute_trends(m["curve_type"], m["net_inflow"], m["pct"])

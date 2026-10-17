@@ -4,6 +4,7 @@ from .tonghuashun import TongHuaShunProvider
 from .baostock_provider import BaostockProvider
 from .cls import CLSProvider
 from .eastmoney import EastmoneyProvider
+from .tdx_provider import TdxProvider
 
 def init_providers():
     """初始化并注册默认数据提供者"""
@@ -12,6 +13,7 @@ def init_providers():
     baostock = BaostockProvider()
     cls = CLSProvider()
     east = EastmoneyProvider()
+    tdx = TdxProvider()
 
     # 指数与个股行情 (Primary: Sina)
     registry.register("index_quote", "sina", sina, is_primary=True)
@@ -54,8 +56,9 @@ def init_providers():
     # 板块排行与主力资金流 (Sector & Money Flow)
     registry.register("sector", "eastmoney", east, is_primary=True)
 
-    # 个股与板块分时分钟走势 (Intraday Minute Trends)
-    registry.register("stock_trends", "eastmoney", east, is_primary=True)
+    # 个股与板块分时分钟走势 (Intraday Minute Trends): Primary 为通达信直连物理真实点阵，Secondary 为东财容灾
+    registry.register("stock_trends", "tdx_direct", tdx, is_primary=True)
+    registry.register("stock_trends", "eastmoney", east, is_primary=False)
 
 init_providers()
 

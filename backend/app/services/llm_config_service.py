@@ -17,7 +17,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import httpx
 
-from backend.app.config import PROJECT_ROOT, settings
+from backend.app.config import PROJECT_ROOT, DATA_DIR, settings
 from backend.app.schemas.system_llm import (
     LLMConfigResponse,
     LLMConfigUpdateRequest,
@@ -27,7 +27,8 @@ from backend.app.schemas.system_llm import (
 
 logger = logging.getLogger("system.llm_config")
 
-CONFIG_FILE_PATH = PROJECT_ROOT / "data" / "llm_config.json"
+# 精确锚定挂载持久卷 data/llm_config.json，Docker 容器销毁升级或重建后 100% 保持
+CONFIG_FILE_PATH = DATA_DIR / "llm_config.json"
 
 
 class LLMConfigService:
@@ -64,8 +65,8 @@ class LLMConfigService:
             raw_key = persisted.get("api_key") or ""
             return LLMConfigResponse(
                 provider_type=persisted.get("provider_type", "openai_compatible"),
-                base_url=persisted.get("base_url") or settings.LLM_BASE_URL,
-                model=persisted.get("model") or settings.LLM_MODEL,
+                base_url=persisted.get("base_url") or settings.LLM_BASE_URL or "",
+                model=persisted.get("model") or settings.LLM_MODEL or "",
                 api_key_masked=cls._mask_api_key(raw_key),
                 has_api_key=bool(raw_key and len(raw_key) > 5),
                 temperature=float(persisted.get("temperature", 0.2)),
@@ -75,12 +76,12 @@ class LLMConfigService:
                 updated_at=persisted.get("updated_at"),
             )
 
-        # 默认环境变量值
+        # 默认环境变量值 (若未配置任何 Key 或 URL，则默认置空等待用户配置，不再强行绑定 DeepSeek)
         default_key = settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY or os.environ.get("OPENAI_API_KEY", "")
         return LLMConfigResponse(
             provider_type="openai_compatible",
-            base_url=settings.LLM_BASE_URL or "https://api.deepseek.com/v1",
-            model=settings.LLM_MODEL or "deepseek-chat",
+            base_url=settings.LLM_BASE_URL or "",
+            model=settings.LLM_MODEL or "",
             api_key_masked=cls._mask_api_key(default_key),
             has_api_key=bool(default_key and len(default_key) > 5),
             temperature=0.2,
@@ -97,8 +98,8 @@ class LLMConfigService:
         if persisted and persisted.get("api_key"):
             return {
                 "api_key": str(persisted.get("api_key", "")).strip(),
-                "base_url": str(persisted.get("base_url") or settings.LLM_BASE_URL).rstrip("/"),
-                "model": str(persisted.get("model") or settings.LLM_MODEL or "deepseek-chat").strip(),
+                "base_url": str(persisted.get("base_url") or settings.LLM_BASE_URL or "").rstrip("/"),
+                "model": str(persisted.get("model") or settings.LLM_MODEL or "").strip(),
                 "temperature": float(persisted.get("temperature", 0.3)),
                 "max_tokens": int(persisted.get("max_tokens", 4000)),
                 "timeout_seconds": float(persisted.get("timeout_seconds", 60.0)),
@@ -107,8 +108,8 @@ class LLMConfigService:
         default_key = settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY or os.environ.get("OPENAI_API_KEY", "")
         return {
             "api_key": default_key.strip(),
-            "base_url": (settings.LLM_BASE_URL or "https://api.deepseek.com/v1").rstrip("/"),
-            "model": (settings.LLM_MODEL or "deepseek-chat").strip(),
+            "base_url": (settings.LLM_BASE_URL or "").rstrip("/"),
+            "model": (settings.LLM_MODEL or "").strip(),
             "temperature": float(os.environ.get("LLM_TEMPERATURE", 0.3)),
             "max_tokens": 4000,
             "timeout_seconds": float(os.environ.get("LLM_TIMEOUT_SECONDS", 60.0)),
@@ -164,9 +165,9 @@ class LLMConfigService:
         except Exception as e:
             logger.error(f"Failed to remove {CONFIG_FILE_PATH}: {e}")
 
-        # 恢复默认 settings
-        settings.LLM_BASE_URL = os.environ.get("ENV_DEFAULT_LLM_BASE_URL") or "https://api.deepseek.com/v1"
-        settings.LLM_MODEL = os.environ.get("ENV_DEFAULT_LLM_MODEL") or "deepseek-chat"
+        # 恢复默认 settings (还原至环境变量设置；若无环境变量则为空)
+        settings.LLM_BASE_URL = os.environ.get("ENV_DEFAULT_LLM_BASE_URL") or ""
+        settings.LLM_MODEL = os.environ.get("ENV_DEFAULT_LLM_MODEL") or ""
         default_key = os.environ.get("ENV_DEFAULT_LLM_API_KEY") or os.environ.get("ENV_DEFAULT_DEEPSEEK_API_KEY") or ""
         settings.LLM_API_KEY = default_key
         settings.DEEPSEEK_API_KEY = default_key

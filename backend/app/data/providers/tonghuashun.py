@@ -159,6 +159,7 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
                 fund_raw = float(entry.get("fund", 0) or 0)
                 amount_raw = float(entry.get("amount", 0) or 0)
                 hs_raw = float(entry.get("hs", 0) or 0)
+                ltsz_raw = float(entry.get("ltsz", 0) or 0)
                 zdp_raw = float(entry.get("zdp", 0) or 0)
                 lbt_val = entry.get("lbt")
                 days_val = int(entry.get("days", 1) or 1)
@@ -172,6 +173,7 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
                     "fund_wan": round(fund_raw / 1e4, 2),
                     "fund_yi": round(fund_raw / 1e8, 4),
                     "turnover_ratio": round(hs_raw, 2),
+                    "ltsz_yi": round(ltsz_raw / 1e8, 2) if ltsz_raw else None,
                     "lbt": lbt_val,
                     "lbt_str": _fmt_time(lbt_val),
                     "days": days_val,
@@ -190,6 +192,7 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
                 zdp_raw = float(entry.get("zdp", 0) or 0)
                 amount_raw = float(entry.get("amount", 0) or 0)
                 hs_raw = float(entry.get("hs", 0) or 0)
+                ltsz_raw = float(entry.get("ltsz", 0) or 0)
                 zf_raw = float(entry.get("zf", 0) or 0)
                 zbc_val = int(entry.get("zbc", 1) or 1)
                 fbt_val = entry.get("fbt")
@@ -206,6 +209,7 @@ class TongHuaShunProvider(BaseProvider, LimitUpCapability):
                     "fall_back_pct": fall_back_pct,
                     "amount_yi": round(amount_raw / 1e8, 4),
                     "turnover_ratio": round(hs_raw, 2),
+                    "ltsz_yi": round(ltsz_raw / 1e8, 2) if ltsz_raw else None,
                     "open_count": zbc_val,
                     "fbt": fbt_val,
                     "fbt_str": _fmt_time(fbt_val),

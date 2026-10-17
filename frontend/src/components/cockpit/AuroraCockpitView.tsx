@@ -70,6 +70,14 @@ export interface StockComparisonItem {
   endX: number;
   endY: number;
   roles?: string[]; // 核心股多标签体系 (如 ["情绪标杆 4B", "容量中军"])
+  turnoverRate?: number; // 换手率 (%)，如 18.5
+  floatMcapYi?: number; // 真实流通市值 (亿元)，如 168.5
+  totalAmountYi?: number; // 成交额 (亿元)，如 25.3
+  healthDiagnosis?: {
+    level: 'healthy' | 'warning' | 'danger';
+    badge: string;
+    reason: string;
+  };
 }
 
 export interface DynamicSectorCurveItem {
@@ -152,23 +160,35 @@ export function getHoverTimeLabel(x: number): string {
  */
 export function generateRealStockSvgPath(
   points: StockMinutePoint[],
-  maxTimeProgressX: number
+  maxTimeProgressX: number,
+  offsetIndex: number = 0
 ): { path: string; endX: number; endY: number } {
   if (!points || points.length === 0) {
     return { path: 'M 0,70 L 1000,70', endX: 1000, endY: 70 };
   }
 
   const coords: [number, number][] = [];
+  // 针对相同极限涨跌幅 (如双双跌停 -10% 或涨停 +10%) 引入微视差偏移，彻底消除线条被后画者绝对覆盖遮挡
+  const limitOffset = (offsetIndex % 4 - 1.5) * 1.8;
+
   for (const pt of points) {
     const x = timeToX(pt.time);
     if (x > maxTimeProgressX + 3) break;
     const clampedPct = Math.max(-10, Math.min(10, pt.pct_change));
-    const y = Number((70 - clampedPct * 6).toFixed(1));
-    coords.push([x, y]);
+    let y = 70 - clampedPct * 6;
+    if (Math.abs(clampedPct) >= 9.2) {
+      y += limitOffset;
+    }
+    coords.push([x, Number(y.toFixed(1))]);
   }
 
   if (coords.length === 0) {
     return { path: 'M 0,70 L 0,70', endX: 0, endY: 70 };
+  }
+
+  // 确保 09:30 零轴起点 (0, 70) 锚定
+  if (coords[0][0] > 0) {
+    coords.unshift([0, 70]);
   }
 
   let d = `M ${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
@@ -209,6 +229,11 @@ export function generateRealSectorSvgPath(
     return { path: 'M 0,70 L 0,70', endX: 0, endY: 70 };
   }
 
+  // 确保 09:30 零轴起点 (0, 70) 锚定，彻底杜绝悬空水平直线
+  if (coords[0][0] > 0) {
+    coords.unshift([0, 70]);
+  }
+
   let d = `M ${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
   for (let i = 1; i < coords.length; i++) {
     d += ` L ${coords[i][0].toFixed(1)},${coords[i][1].toFixed(1)}`;
@@ -221,24 +246,32 @@ export function generateRealSectorSvgPath(
 /**
  * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实涨跌幅生成 SVG 个股走势曲线路径 (离线保底)
  */
-export function generateDynamicStockPath(currentX: number, changePct: number, tagType: string): string {
+export function generateDynamicStockPath(
+  currentX: number,
+  changePct: number,
+  tagType: string,
+  offsetIndex: number = 0
+): string {
   const safeX = Math.max(20, Math.min(1000, currentX));
   const clampedPct = Math.max(-10, Math.min(10, changePct));
-  const endY = Number((70 - clampedPct * 6).toFixed(1));
+  const limitOffset = (offsetIndex % 4 - 1.5) * 2.0;
+  const endY = Number((70 - clampedPct * 6 + (Math.abs(clampedPct) >= 9.0 ? limitOffset : 0)).toFixed(1));
 
   // 1. 涨停或大幅冲高 (+9.5% ~ +10.0%): 早盘快速推升，封板后微幅震荡
   if (clampedPct >= 9.5) {
     const lockX = Math.min(120, safeX * 0.25);
     const p1X = lockX * 0.4;
     const p2X = lockX * 0.8;
-    return `M 0,55 C ${p1X},45 ${p2X},16 ${lockX},10 C ${lockX + (safeX - lockX) * 0.3},11 ${lockX + (safeX - lockX) * 0.7},9.5 ${safeX},${endY}`;
+    const topY = 10 + limitOffset;
+    return `M 0,55 C ${p1X},45 ${p2X},${topY + 6} ${lockX},${topY} C ${lockX + (safeX - lockX) * 0.3},${topY + 1} ${lockX + (safeX - lockX) * 0.7},${topY - 0.5} ${safeX},${endY}`;
   }
 
   // 2. 跌停或深水重挫 (-9.0% ~ -10.0%): 早盘低开下探，午后加速触及跌停
   if (clampedPct <= -9.0) {
     const drop1X = safeX * 0.35;
     const drop2X = safeX * 0.7;
-    return `M 0,72 C ${drop1X * 0.4},82 ${drop1X * 0.8},105 ${drop1X},108 C ${drop1X + (drop2X - drop1X) * 0.5},112 ${drop2X * 0.9},128 ${drop2X},130 C ${drop2X + (safeX - drop2X) * 0.5},130.5 ${safeX * 0.95},129.5 ${safeX},${endY}`;
+    const botY = 130 + limitOffset;
+    return `M 0,72 C ${drop1X * 0.4},82 ${drop1X * 0.8},105 ${drop1X},108 C ${drop1X + (drop2X - drop1X) * 0.5},112 ${drop2X * 0.9},${botY - 2} ${drop2X},${botY} C ${drop2X + (safeX - drop2X) * 0.5},${botY + 0.5} ${safeX * 0.95},${botY - 0.5} ${safeX},${endY}`;
   }
 
   // 3. 炸板回落或大幅冲高回落 (如 +3% ~ +6% 日内分化)
@@ -250,9 +283,9 @@ export function generateDynamicStockPath(currentX: number, changePct: number, ta
 
   // 4. 普通震荡或温和走势: 连续平滑三次贝塞尔波动，坚决杜绝生硬水平横线
   const m1X = safeX * 0.3;
-  const m1Y = 70 - clampedPct * 2.8;
+  const m1Y = 70 - clampedPct * 2.8 + limitOffset * 0.5;
   const m2X = safeX * 0.65;
-  const m2Y = 70 - clampedPct * 4.5;
+  const m2Y = 70 - clampedPct * 4.5 + limitOffset * 0.8;
   return `M 0,70 C ${m1X * 0.4},${70 + (m1Y - 70) * 0.5} ${m1X * 0.8},${m1Y} ${m1X},${m1Y} C ${m1X + (m2X - m1X) * 0.5},${m1Y - (m2Y - m1Y) * 0.2} ${m2X * 0.9},${m2Y} ${m2X},${m2Y} C ${m2X + (safeX - m2X) * 0.5},${m2Y + 2} ${safeX * 0.95},${endY} ${safeX},${endY}`;
 }
 
@@ -465,6 +498,20 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   const stockChartContainerRef = useRef<HTMLDivElement>(null);
   const sectorChartContainerRef = useRef<HTMLDivElement>(null);
 
+  // 曲线与标签高亮联动交互状态
+  const [hoveredStockCode, setHoveredStockCode] = useState<string | null>(null);
+  const [hoveredSectorName, setHoveredSectorName] = useState<string | null>(null);
+
+  // LLM 微观博弈深度认知服务状态 (昨日核心表现 / 今日最强vs昨日核心 / 题材轮动特征)
+  const [llmGameCognition, setLlmGameCognition] = useState<{
+    track1: string;
+    track2: string;
+    sector_rotation: string;
+    source: string;
+    model?: string;
+  } | null>(null);
+  const [isLlmCognitionLoading, setIsLlmCognitionLoading] = useState<boolean>(false);
+
   // 核心样本股自动选择：
   // 1. 昨日收盘最高板及次高板中选择，总数最多6只，最少可为零。
   // 2. 首先是将最高板全数纳入样本股。
@@ -594,22 +641,35 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       return;
     }
 
-    const dynamicList: StockComparisonItem[] = selected.map((item) => {
+    const dynamicList: StockComparisonItem[] = selected.map((item, idx) => {
       let todayPct = 0.0;
       let isBroken = false;
+      let turnoverRate: number | undefined = undefined;
+      let floatMcapYi: number | undefined = undefined;
+      let totalAmountYi: number | undefined = undefined;
+
       if (limitUpData?.items) {
         const found = limitUpData.items.find((x) => x.code === item.stock.code);
         if (found) {
           todayPct = found.zdp != null ? found.zdp : 10.0;
+          if (found.turnover_ratio != null) turnoverRate = Number(found.turnover_ratio);
+          if (found.ltsz_yi != null) floatMcapYi = Number(found.ltsz_yi);
+          if (found.amount_yi != null) totalAmountYi = Number(found.amount_yi);
         } else if (limitUpData.broken_limit_items) {
           const broken = limitUpData.broken_limit_items.find((x) => x.code === item.stock.code);
           if (broken) {
             todayPct = broken.pct_change != null ? broken.pct_change : -4.2;
             isBroken = true;
+            if (broken.turnover_ratio != null) turnoverRate = Number(broken.turnover_ratio);
+            if (broken.ltsz_yi != null) floatMcapYi = Number(broken.ltsz_yi);
+            if (broken.amount_yi != null) totalAmountYi = Number(broken.amount_yi);
           } else if (limitUpData.limit_down_items) {
             const down = limitUpData.limit_down_items.find((x) => x.code === item.stock.code);
             if (down) {
               todayPct = down.pct_change != null ? down.pct_change : -10.0;
+              if (down.turnover_ratio != null) turnoverRate = Number(down.turnover_ratio);
+              if (down.ltsz_yi != null) floatMcapYi = Number(down.ltsz_yi);
+              if (down.amount_yi != null) totalAmountYi = Number(down.amount_yi);
             } else {
               todayPct = item.stock.zdp != null ? item.stock.zdp : 0.0;
             }
@@ -617,48 +677,124 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         }
       }
 
-      // 生成核心股角色多标签体系 (Leader Role Taxonomy)
-      const roles: string[] = [];
-      const lbc = item.stock.lbc || item.stock.continuous_board_count || 1;
-      const fundYi = item.stock.fund_yi != null
-        ? item.stock.fund_yi
-        : (item.stock.order_amount_wan ? Number(item.stock.order_amount_wan) / 10000 : 0);
-
-      if (lbc >= 3 || item.tagType === 'yesterday_highest') {
-        roles.push(`情绪标杆 ${lbc}B`);
+      // 兜底从 item.stock 提取流通市值与换手率
+      const sAny = item.stock as any;
+      if (turnoverRate == null && sAny.turnover_ratio != null) turnoverRate = Number(sAny.turnover_ratio);
+      if (floatMcapYi == null) {
+        if (sAny.ltsz_yi != null) floatMcapYi = Number(sAny.ltsz_yi);
+        else if (sAny.circulation_market_cap) floatMcapYi = Number((Number(sAny.circulation_market_cap) / 1e8).toFixed(2));
       }
-      const rawAmount = (item.stock as any).amount ? Number((item.stock as any).amount) : 0;
-      const totalAmountYi = (item.stock as any).total_amount_yi ? Number((item.stock as any).total_amount_yi) : (rawAmount / 1e8);
-      if (totalAmountYi >= 15.0 || fundYi >= 3.0) {
-        roles.push('容量中军');
-      }
-      if (lbc <= 2 && !roles.some((r) => r.includes('情绪'))) {
-        roles.push('趋势核心');
-      }
-      if (lbc === 1 && !isBroken) {
-        roles.push('首板先锋');
-      }
-      if (isBroken) {
-        roles.push('日内炸板');
-      }
-      if (roles.length === 0) {
-        roles.push(item.role);
+      if (totalAmountYi == null) {
+        if (sAny.amount_yi != null) totalAmountYi = Number(sAny.amount_yi);
+        else if (sAny.amount) totalAmountYi = Number((Number(sAny.amount) / 1e8).toFixed(2));
       }
 
       const trendData = stockTrendsMap[item.stock.code];
-      let pathD = generateDynamicStockPath(curX, todayPct, item.tagType);
+      let pathD = generateDynamicStockPath(curX, todayPct, item.tagType, idx);
       let endX = curX;
       let endY = Math.round(70 - Math.max(-10, Math.min(10, todayPct)) * 6);
 
       if (trendData?.trends && trendData.trends.length > 0) {
-        const realRes = generateRealStockSvgPath(trendData.trends, curX);
+        const realRes = generateRealStockSvgPath(trendData.trends, curX, idx);
         pathD = realRes.path;
         endX = realRes.endX;
         endY = realRes.endY;
         const lastPt = trendData.trends[trendData.trends.length - 1];
         if (lastPt) {
           todayPct = lastPt.pct_change;
+          if (lastPt.amount && totalAmountYi == null) {
+            totalAmountYi = Number((lastPt.amount / 1e8).toFixed(2));
+          }
         }
+      }
+
+      // 若有成交额与流通盘但暂缺换手率，推导换手率
+      if (turnoverRate == null && totalAmountYi != null && floatMcapYi != null && floatMcapYi > 0) {
+        turnoverRate = Number(((totalAmountYi / floatMcapYi) * 100).toFixed(2));
+      }
+
+      // 生成核心股角色多标签体系 (Leader Role Taxonomy) - 数学条件硬指标驱动
+      const roles: string[] = [];
+      const lbc = item.stock.lbc || item.stock.continuous_board_count || 1;
+      const fundYi = item.stock.fund_yi != null
+        ? item.stock.fund_yi
+        : (item.stock.order_amount_wan ? Number(item.stock.order_amount_wan) / 10000 : 0);
+
+      // 1. 容量中军：流通市值 >= 150 亿 或 成交金额 >= 15 亿 或 封单额 >= 5 亿
+      const isCapacityCore = (floatMcapYi != null && floatMcapYi >= 150) || (totalAmountYi != null && totalAmountYi >= 15.0) || fundYi >= 5.0;
+      if (isCapacityCore) {
+        roles.push('容量中军');
+      }
+
+      // 2. 情绪标杆 / 连板高标 / 妖股
+      if (lbc >= 4) {
+        roles.push(`高标妖股 ${lbc}B`);
+      } else if (lbc >= 2 || item.tagType === 'yesterday_highest') {
+        roles.push(`情绪标杆 ${lbc}B`);
+      } else if (lbc === 1 && !isBroken && !isCapacityCore) {
+        roles.push('首板先锋');
+      }
+
+      // 3. 破局 / 炸板 / 趋势
+      if (isBroken) {
+        roles.push('日内炸板');
+      } else if (!isCapacityCore && lbc <= 2 && !roles.some((r) => r.includes('情绪'))) {
+        roles.push('趋势核心');
+      }
+
+      // 4. 换手率量能异动特征
+      if (turnoverRate != null) {
+        if (turnoverRate >= 35.0) {
+          roles.push('爆量分歧');
+        } else if (turnoverRate >= 18.0) {
+          roles.push('活跃博弈');
+        } else if (turnoverRate < 4.0 && todayPct > 9.0) {
+          roles.push('极度缩量');
+        }
+      }
+
+      if (roles.length === 0) {
+        roles.push(item.role);
+      }
+
+      // 微观健康诊断逻辑 (Microstructure Health Diagnosis)
+      let healthDiagnosis: StockComparisonItem['healthDiagnosis'] = undefined;
+      if (isBroken) {
+        healthDiagnosis = {
+          level: 'danger',
+          badge: '日内炸板',
+          reason: `封板破开遭遇大额兑现抛压${turnoverRate != null ? `，换手达${turnoverRate.toFixed(1)}%` : ''}，承接力道显现疲态`,
+        };
+      } else if (turnoverRate != null && turnoverRate >= 35.0 && todayPct < 5.0) {
+        healthDiagnosis = {
+          level: 'danger',
+          badge: '巨量滞涨',
+          reason: `换手高达${turnoverRate.toFixed(1)}%但涨幅乏力，筹码高位松动派发风险急剧积聚`,
+        };
+      } else if (turnoverRate != null && turnoverRate < 3.0 && todayPct > 9.5) {
+        healthDiagnosis = {
+          level: 'warning',
+          badge: '缩量秒板',
+          reason: `换手仅${turnoverRate.toFixed(1)}%极致缩量锁仓，次日易面临爆量分歧考验`,
+        };
+      } else if (isCapacityCore) {
+        healthDiagnosis = {
+          level: 'healthy',
+          badge: '中军承接',
+          reason: `流通盘${floatMcapYi ? `${floatMcapYi.toFixed(0)}亿` : '百亿级'}${totalAmountYi ? `成交${totalAmountYi.toFixed(1)}亿` : ''}，机构主流资金深度承接护盘`,
+        };
+      } else if (turnoverRate != null && turnoverRate >= 10.0 && turnoverRate <= 28.0) {
+        healthDiagnosis = {
+          level: 'healthy',
+          badge: '充分换手',
+          reason: `换手${turnoverRate.toFixed(1)}%筹码良性换手沉淀，分歧转一致接力买力充足`,
+        };
+      } else {
+        healthDiagnosis = {
+          level: 'healthy',
+          badge: '走势受控',
+          reason: `分时波动在合理通道内，多空相对均衡博弈`,
+        };
       }
 
       return {
@@ -673,6 +809,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         endX,
         endY,
         roles,
+        turnoverRate,
+        floatMcapYi,
+        totalAmountYi,
+        healthDiagnosis,
       };
     });
 
@@ -842,8 +982,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     });
   }, [topSectorsTrend, snapshot, limitUpData, timeProgress.currentX]);
 
-  // 底部双轨博弈透视结论动态推演 (基于当前真实入选标的与今日最强涨停)
+  // 底部双轨博弈透视结论动态推演 (基于当前真实入选标的与今日最强涨停，优先消费 LLM 深度认知推演)
   const dynamicGamePerspective = useMemo(() => {
+    if (llmGameCognition?.track1 && llmGameCognition?.track2) {
+      return {
+        track1: llmGameCognition.track1,
+        track2: llmGameCognition.track2,
+      };
+    }
+
     const highestList = stockComparisonList.filter((s) => s.tagType === 'yesterday_highest');
     const secondList = stockComparisonList.filter((s) => s.tagType === 'yesterday_second');
 
@@ -874,7 +1021,84 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       track1: `昨日收盘最高板样本【<strong class="text-rose-400">${hNames}</strong>】全数入选跟踪，次高板新题材样本【<strong class="text-purple-300">${sNames}</strong>】按首封最早优先纳入。直观透视昨日核心在今日开盘及盘中的晋级溢价与分化走势。`,
       track2: `今日盘中实时最强涨停<strong class="text-cyan-300">${strongName}</strong>对存量资金产生强大吸附力，与昨日高位核心形成同向助攻共振或存量博弈下的抽血剪刀差关系。`,
     };
-  }, [stockComparisonList, limitUpData]);
+  }, [stockComparisonList, limitUpData, llmGameCognition]);
+
+  // 异步获取 LLM 微观博弈深度认知推演 (昨日核心今日表现 / 今日最强vs昨日核心 / 题材轮动特征)
+  const lastCognitionKeyRef = useRef<string>('');
+  const fetchLlmGameCognition = async (forceRefresh = false) => {
+    if (stockComparisonList.length === 0 && dynamicSectorCurves.length === 0) return;
+    setIsLlmCognitionLoading(true);
+    try {
+      const strongestToday = limitUpData?.items && limitUpData.items.length > 0
+        ? [...limitUpData.items].sort((a, b) => {
+            const fA = a.fund_yi || (a.order_amount_wan ? a.order_amount_wan / 10000 : 0);
+            const fB = b.fund_yi || (b.order_amount_wan ? b.order_amount_wan / 10000 : 0);
+            return fB - fA;
+          })[0]
+        : null;
+
+      const payload = {
+        trade_date: selectedDate,
+        stocks: stockComparisonList.map((s) => ({
+          code: s.code,
+          name: s.name,
+          tagLabel: s.tagLabel || s.role,
+          changePct: s.changePct,
+          roles: s.roles,
+          turnoverRate: s.turnoverRate,
+          floatMcapYi: s.floatMcapYi,
+          totalAmountYi: s.totalAmountYi,
+        })),
+        strongest_stock: strongestToday ? {
+          code: strongestToday.code,
+          name: strongestToday.name,
+          sector: strongestToday.sector || (strongestToday as any).reason_type,
+          changePct: strongestToday.zdp ?? 10.0,
+          fund_yi: strongestToday.fund_yi || (strongestToday.order_amount_wan ? strongestToday.order_amount_wan / 10000 : 0),
+        } : undefined,
+        sectors: dynamicSectorCurves.map((sec) => ({
+          name: sec.name,
+          net: sec.net,
+          pct: sec.pct,
+          leader: sec.leader,
+          leaderPct: sec.leaderPct,
+          leaderStatus: sec.leaderStatus,
+        })),
+        force_refresh: forceRefresh,
+      };
+
+      const res = await canonicalAPI.getIntradayGameCognition(payload);
+      if (res && res.status === 'ok') {
+        setLlmGameCognition({
+          track1: res.track1,
+          track2: res.track2,
+          sector_rotation: res.sector_rotation,
+          source: res.source,
+          model: res.model,
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch LLM game cognition:', err);
+    } finally {
+      setIsLlmCognitionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const key = `${selectedDate}_${stockComparisonList.map((s) => s.code).join(',')}_${dynamicSectorCurves.map((s) => s.name).join(',')}`;
+    if (!key || key === lastCognitionKeyRef.current) return;
+    if (stockComparisonList.length === 0 && dynamicSectorCurves.length === 0) return;
+
+    lastCognitionKeyRef.current = key;
+    const timer = setTimeout(() => {
+      fetchLlmGameCognition(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    selectedDate,
+    stockComparisonList.map((s) => s.code).join(','),
+    dynamicSectorCurves.map((s) => s.name).join(','),
+  ]);
 
   // 可选样本股池 (优先从真实今日涨停池中提取，并融合后备样本)
   const availableCandidates = useMemo(() => {
@@ -886,6 +1110,19 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       limitUpData.items.forEach((item, idx) => {
         if (!stockComparisonList.some((s) => s.code === item.code) && !list.some((s) => s.code === item.code)) {
           const pct = item.zdp != null ? item.zdp : 10.0;
+          const lbc = item.lbc || item.continuous_board_count || 1;
+          const turnoverRate = item.turnover_ratio != null ? Number(item.turnover_ratio) : undefined;
+          const floatMcapYi = item.ltsz_yi != null ? Number(item.ltsz_yi) : undefined;
+          const totalAmountYi = item.amount_yi != null ? Number(item.amount_yi) : undefined;
+          
+          const isCapacity = (floatMcapYi != null && floatMcapYi >= 150) || (totalAmountYi != null && totalAmountYi >= 15.0);
+          const candRoles: string[] = [];
+          if (isCapacity) candRoles.push('容量中军');
+          if (lbc >= 4) candRoles.push(`高标妖股 ${lbc}B`);
+          else if (lbc >= 2) candRoles.push(`情绪标杆 ${lbc}B`);
+          else candRoles.push('首板先锋');
+          if (turnoverRate != null && turnoverRate >= 20.0) candRoles.push('活跃博弈');
+
           list.push({
             code: item.code,
             name: item.name,
@@ -897,6 +1134,17 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             pathD: generateDynamicStockPath(curX, pct, 'normal'),
             endX: curX,
             endY: Math.round(70 - Math.max(-10, Math.min(10, pct)) * 6),
+            roles: candRoles,
+            turnoverRate,
+            floatMcapYi,
+            totalAmountYi,
+            healthDiagnosis: {
+              level: isCapacity ? 'healthy' : 'healthy',
+              badge: isCapacity ? '中军承接' : '充分换手',
+              reason: isCapacity 
+                ? `流通盘${floatMcapYi ? `${floatMcapYi.toFixed(0)}亿` : '百亿级'}成交${totalAmountYi ? `${totalAmountYi.toFixed(1)}亿` : ''}，机构主流护盘`
+                : `日内换手${turnoverRate != null ? `${turnoverRate.toFixed(1)}%` : '--%'}，接力买力充足`,
+            },
           });
         }
       });
@@ -2033,6 +2281,24 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
                     横向全幅 · 09:30~15:00 标准轴 · 盘中动态更新
                   </span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-500/15 to-cyan-500/15 border border-purple-500/30 text-[11px] font-mono text-purple-200 shadow-sm ml-auto">
+                    <Brain className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                    <span>
+                      {isLlmCognitionLoading
+                        ? 'LLM 深度认知推演中...'
+                        : llmGameCognition?.source?.includes('ai')
+                        ? `AI 认知推演 (${llmGameCognition.model || 'DeepSeek'})`
+                        : 'AI 认知博弈推演'}
+                    </span>
+                    <button
+                      onClick={() => fetchLlmGameCognition(true)}
+                      title="重新调用 LLM 深度认知推演"
+                      className="hover:text-cyan-300 ml-1 p-0.5 transition-colors"
+                      disabled={isLlmCognitionLoading}
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isLlmCognitionLoading ? 'animate-spin text-cyan-400' : ''}`} />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-mono">
                   基准自动锁定前日最高板与次高板 · 开盘根据连板梯队动态更新当日最强涨停 · 直观透视昨日核心今日表现与新涨停的涨跌共振/抽血博弈 (&lt;=6支)
@@ -2046,13 +2312,18 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 {stockComparisonList.length} / 6 支
               </span>
               {stockComparisonList.map((s) => {
+                const isHovered = hoveredStockCode === s.code;
                 return (
                   <span
                     key={s.code}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition shadow-sm"
+                    onMouseEnter={() => setHoveredStockCode(s.code)}
+                    onMouseLeave={() => setHoveredStockCode(null)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition cursor-pointer shadow-sm ${
+                      isHovered ? 'ring-2 ring-white/60 scale-105' : 'hover:scale-102'
+                    }`}
                     style={{
-                      borderColor: `${s.color}60`,
-                      backgroundColor: `${s.color}18`,
+                      borderColor: `${s.color}${isHovered ? 'ff' : '60'}`,
+                      backgroundColor: `${s.color}${isHovered ? '35' : '18'}`,
                     }}
                   >
                     <span
@@ -2124,6 +2395,31 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                         {s.tagLabel || s.role}
                       </span>
                     )}
+                    {/* 微型金融指标徽章：流通市值与换手率 */}
+                    <div className="flex items-center gap-1 font-mono text-[10px]">
+                      {s.floatMcapYi != null && (
+                        <span
+                          className="px-1.5 py-0.5 rounded bg-slate-900/80 text-slate-300 border border-slate-700/60"
+                          title={`真实流通市值: ${s.floatMcapYi} 亿元`}
+                        >
+                          流 {s.floatMcapYi >= 100 ? s.floatMcapYi.toFixed(0) : s.floatMcapYi.toFixed(1)}亿
+                        </span>
+                      )}
+                      {s.turnoverRate != null && (
+                        <span
+                          className={`px-1.5 py-0.5 rounded border ${
+                            s.turnoverRate >= 30
+                              ? 'bg-amber-950/40 text-amber-300 border-amber-500/40'
+                              : s.turnoverRate >= 15
+                              ? 'bg-rose-950/30 text-rose-300 border-rose-500/30'
+                              : 'bg-slate-900/80 text-slate-300 border-slate-700/60'
+                          }`}
+                          title={`日内换手率: ${s.turnoverRate.toFixed(1)}%`}
+                        >
+                          换 {s.turnoverRate.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
                     <span className={`font-black ml-0.5 ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                       {s.changePct >= 0 ? `+${s.changePct.toFixed(1)}%` : `${s.changePct.toFixed(1)}%`}
                     </span>
@@ -2248,7 +2544,17 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                           <span className="text-[10px] text-slate-400 font-normal truncate max-w-[75px]">{s.tagLabel || s.role}</span>
                         </span>
                         <div className="flex items-center gap-2 font-mono shrink-0">
-                          <span className="text-slate-300">{displayPrice}</span>
+                          {s.floatMcapYi != null && (
+                            <span className="text-[10px] text-slate-400">
+                              流{s.floatMcapYi >= 100 ? s.floatMcapYi.toFixed(0) : s.floatMcapYi.toFixed(1)}亿
+                            </span>
+                          )}
+                          {s.turnoverRate != null && (
+                            <span className="text-[10px] text-slate-400">
+                              换{s.turnoverRate.toFixed(1)}%
+                            </span>
+                          )}
+                          <span className="text-slate-300 font-bold">{displayPrice}</span>
                           <span className={`font-black ${displayPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                             {displayPct >= 0 ? `+${displayPct.toFixed(2)}%` : `${displayPct.toFixed(2)}%`}
                           </span>
@@ -2268,20 +2574,46 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 </div>
               ) : (
                 <svg className="w-full h-full z-10 overflow-visible" viewBox="0 0 1000 140" preserveAspectRatio="none">
+                  <defs>
+                    <filter id="stockGlow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#ffffff" floodOpacity="0.7"/>
+                    </filter>
+                  </defs>
                   <line x1="0" y1="70" x2="1000" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1.2" />
-                  {stockComparisonList.map((s) => (
-                    <g key={s.code}>
-                      <path
-                        d={s.pathD}
-                        fill="none"
-                        stroke={s.color}
-                        strokeWidth={s.tagType === 'today_strongest' || s.tagType === 'yesterday_highest' ? '2.8' : '2.2'}
-                        strokeLinecap="round"
-                        className="animate-path-grow"
-                      />
-                      <circle cx={s.endX} cy={s.endY} r={s.tagType === 'today_strongest' ? 5 : 4} fill={s.color} stroke="#fff" strokeWidth="1.5" />
-                    </g>
-                  ))}
+                  {stockComparisonList.map((s) => {
+                    const isHovered = hoveredStockCode === s.code;
+                    const isAnyHovered = Boolean(hoveredStockCode);
+                    const opacity = isHovered ? 1 : (isAnyHovered ? 0.25 : 0.95);
+                    const strokeWidth = isHovered ? 3.6 : (s.tagType === 'today_strongest' || s.tagType === 'yesterday_highest' ? 2.8 : 2.2);
+
+                    return (
+                      <g 
+                        key={s.code} 
+                        className="transition-opacity duration-200 cursor-pointer"
+                        style={{ opacity }}
+                        onMouseEnter={() => setHoveredStockCode(s.code)}
+                        onMouseLeave={() => setHoveredStockCode(null)}
+                      >
+                        <path
+                          d={s.pathD}
+                          fill="none"
+                          stroke={s.color}
+                          strokeWidth={strokeWidth}
+                          strokeLinecap="round"
+                          filter={isHovered ? "url(#stockGlow)" : undefined}
+                          className="animate-path-grow"
+                        />
+                        <circle 
+                          cx={s.endX} 
+                          cy={s.endY} 
+                          r={isHovered ? 6 : (s.tagType === 'today_strongest' ? 5 : 4)} 
+                          fill={s.color} 
+                          stroke="#fff" 
+                          strokeWidth={isHovered ? 2.5 : 1.5} 
+                        />
+                      </g>
+                    );
+                  })}
                   {isStockHovering && (
                     <line x1={stockHoverX} y1="0" x2={stockHoverX} y2="140" stroke="#06B6D4" strokeWidth="1.2" strokeDasharray="3,3" opacity="0.9" />
                   )}
@@ -2305,12 +2637,149 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
           </div>
 
+          {/* 核心样本股微观体检矩阵 (Microstructure Health Grid) */}
+          {stockComparisonList.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-3.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                  <span className="text-xs font-bold text-white tracking-wide">
+                    核心样本股微观体检矩阵 · 换手率 / 真实流通盘 / 承接诊断
+                  </span>
+                  <span className="text-[11px] font-mono text-cyan-300/80 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                    量化硬指标支撑 · 杜绝主观臆断
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-400" />
+                    容量中军 (流值≥150亿 或 成交≥15亿)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-400" />
+                    情绪先锋/妖股 (小盘高换手/连板)
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                {stockComparisonList.map((s) => {
+                  const diag = s.healthDiagnosis;
+                  const isHealthy = diag?.level === 'healthy';
+                  const isDanger = diag?.level === 'danger';
+                  const isWarning = diag?.level === 'warning';
+
+                  return (
+                    <div
+                      key={s.code}
+                      className="rounded-xl border p-2.5 flex flex-col justify-between transition-all relative overflow-hidden backdrop-blur-md bg-slate-950/70 hover:bg-slate-900/90 hover:border-cyan-500/40"
+                      style={{
+                        borderColor: `${s.color}40`,
+                      }}
+                    >
+                      {/* 顶部左侧色条标识 */}
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-1"
+                        style={{ backgroundColor: s.color }}
+                      />
+
+                      {/* 标的信息头 */}
+                      <div className="pl-1.5">
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="truncate">
+                            <span className="text-xs font-bold text-white tracking-tight">{s.name}</span>
+                            <span className="text-[10px] font-mono text-slate-400 ml-1">{s.code}</span>
+                          </div>
+                          <span className={`font-mono font-black text-xs shrink-0 ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {s.changePct >= 0 ? `+${s.changePct.toFixed(1)}%` : `${s.changePct.toFixed(1)}%`}
+                          </span>
+                        </div>
+
+                        {/* 角色徽章 */}
+                        <div className="flex flex-wrap items-center gap-1 mt-1">
+                          {s.roles && s.roles.length > 0 ? (
+                            s.roles.slice(0, 2).map((r, rIdx) => {
+                              const isEmotion = r.includes('情绪') || r.includes('B');
+                              const isCap = r.includes('容量') || r.includes('中军');
+                              const isBroken = r.includes('炸板');
+                              const textClass = isBroken ? 'text-emerald-300' : isEmotion ? 'text-rose-300' : isCap ? 'text-blue-300' : 'text-slate-300';
+                              const bgClass = isBroken ? 'bg-emerald-950/50 border-emerald-500/40' : isEmotion ? 'bg-rose-950/50 border-rose-500/40' : isCap ? 'bg-blue-950/50 border-blue-500/40' : 'bg-slate-800/60 border-slate-700/50';
+                              return (
+                                <span
+                                  key={rIdx}
+                                  className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border ${bgClass} ${textClass}`}
+                                >
+                                  {r}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border bg-slate-800/60 border-slate-700/50 text-slate-300">
+                              {s.tagLabel || s.role}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 微观三维核心指标 */}
+                      <div className="pl-1.5 grid grid-cols-2 gap-x-2 gap-y-1.5 my-2 font-mono text-[11px] tabular-nums border-t border-b border-white/5 py-1.5">
+                        <div>
+                          <span className="text-[10px] text-slate-500 block leading-tight">流通市值</span>
+                          <span className="font-bold text-slate-200">
+                            {s.floatMcapYi != null ? `${s.floatMcapYi >= 100 ? s.floatMcapYi.toFixed(0) : s.floatMcapYi.toFixed(1)}亿` : '--'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block leading-tight">日内换手</span>
+                          <span className={`font-bold ${
+                            s.turnoverRate != null && s.turnoverRate >= 30
+                              ? 'text-amber-400'
+                              : s.turnoverRate != null && s.turnoverRate >= 15
+                              ? 'text-rose-400'
+                              : 'text-slate-200'
+                          }`}>
+                            {s.turnoverRate != null ? `${s.turnoverRate.toFixed(1)}%` : '--'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block leading-tight">成交额</span>
+                          <span className="text-slate-300">
+                            {s.totalAmountYi != null ? `${s.totalAmountYi.toFixed(1)}亿` : '--'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block leading-tight">体检评级</span>
+                          <span className={`font-bold text-[10px] inline-flex items-center gap-0.5 ${
+                            isDanger ? 'text-emerald-400' : isWarning ? 'text-amber-400' : 'text-cyan-300'
+                          }`}>
+                            <span className={`w-1 h-1 rounded-full ${
+                              isDanger ? 'bg-emerald-400' : isWarning ? 'bg-amber-400' : 'bg-cyan-400'
+                            }`} />
+                            {diag?.badge || '正常'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 底部微观诊断结论 */}
+                      <div className="pl-1.5">
+                        <p className="text-[10px] text-slate-400 font-mono leading-relaxed line-clamp-2" title={diag?.reason}>
+                          {diag?.reason || '筹码与走势波动受控，多空均衡博弈'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* 底部双轨博弈透视结论卡片 (前日核心今日表现 + 今日最强涨停涨跌博弈) */}
           <div className="mt-2 pt-2.5 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
             {/* 轨道 1：昨日核心在今日的表现 */}
             <div className="bg-purple-950/20 border border-purple-500/30 rounded-xl p-2.5 flex items-start gap-2.5">
-              <div className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0 mt-0.5">
-                昨日核心今日表现
+              <div className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0 mt-0.5 flex items-center gap-1">
+                <Brain className="w-3 h-3 text-purple-400" />
+                <span>昨日核心今日表现</span>
               </div>
               <p className="text-slate-300 leading-relaxed text-xs" dangerouslySetInnerHTML={{ __html: dynamicGamePerspective.track1 }} />
             </div>
@@ -2318,8 +2787,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 轨道 2：当天当时最强涨停与昨日核心的涨跌关系 */}
             <div className="bg-cyan-950/20 border border-cyan-500/30 rounded-xl p-2.5 flex items-start gap-2.5">
               <div className="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shrink-0 mt-0.5 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-                今日最强 vs 昨日核心
+                <Zap className="w-3 h-3 text-cyan-400" />
+                <span>今日最强 vs 昨日核心</span>
               </div>
               <p className="text-cyan-200 leading-relaxed text-xs" dangerouslySetInnerHTML={{ __html: dynamicGamePerspective.track2 }} />
             </div>
@@ -2456,20 +2925,46 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 曲线图主体区域 */}
             <div className="relative w-full flex-1 min-h-[140px]">
               <svg className="w-full h-full z-10 overflow-visible" viewBox="0 0 1000 140" preserveAspectRatio="none">
+                <defs>
+                  <filter id="sectorGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#ffffff" floodOpacity="0.7"/>
+                  </filter>
+                </defs>
                 <line x1="0" y1="70" x2="1000" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1.2" />
-                {dynamicSectorCurves.map((sec, idx) => (
-                  <g key={sec.name}>
-                    <path
-                      d={sec.path}
-                      fill="none"
-                      stroke={sec.color}
-                      strokeWidth={idx === 0 ? '3' : '2.2'}
-                      strokeLinecap="round"
-                      className="animate-path-grow"
-                    />
-                    <circle cx={sec.endX ?? timeProgress.currentX} cy={sec.endY} r={idx === 0 ? 4.5 : 3.5} fill={sec.color} stroke="#fff" strokeWidth="1.5" />
-                  </g>
-                ))}
+                {dynamicSectorCurves.map((sec, idx) => {
+                  const isHovered = hoveredSectorName === sec.name;
+                  const isAnyHovered = Boolean(hoveredSectorName);
+                  const opacity = isHovered ? 1 : (isAnyHovered ? 0.25 : 0.95);
+                  const strokeWidth = isHovered ? 3.8 : (idx === 0 ? 3.0 : 2.2);
+
+                  return (
+                    <g 
+                      key={sec.name} 
+                      className="transition-opacity duration-200 cursor-pointer"
+                      style={{ opacity }}
+                      onMouseEnter={() => setHoveredSectorName(sec.name)}
+                      onMouseLeave={() => setHoveredSectorName(null)}
+                    >
+                      <path
+                        d={sec.path}
+                        fill="none"
+                        stroke={sec.color}
+                        strokeWidth={strokeWidth}
+                        strokeLinecap="round"
+                        filter={isHovered ? "url(#sectorGlow)" : undefined}
+                        className="animate-path-grow"
+                      />
+                      <circle 
+                        cx={sec.endX ?? timeProgress.currentX} 
+                        cy={sec.endY} 
+                        r={isHovered ? 6 : (idx === 0 ? 4.5 : 3.5)} 
+                        fill={sec.color} 
+                        stroke="#fff" 
+                        strokeWidth={isHovered ? 2.5 : 1.5} 
+                      />
+                    </g>
+                  );
+                })}
 
                 {isSectorHovering && (
                   <line x1={sectorHoverX} y1="0" x2={sectorHoverX} y2="140" stroke="#8B5CF6" strokeWidth="1.2" strokeDasharray="3,3" opacity="0.9" />
@@ -2498,8 +2993,12 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {dynamicSectorCurves.map((sec, idx) => (
               <div
                 key={sec.name}
-                className="bg-white/[0.025] border p-3 rounded-xl flex flex-col justify-between"
-                style={{ borderColor: `${sec.color}55` }}
+                onMouseEnter={() => setHoveredSectorName(sec.name)}
+                onMouseLeave={() => setHoveredSectorName(null)}
+                className={`bg-white/[0.025] border p-3 rounded-xl flex flex-col justify-between transition-all cursor-pointer ${
+                  hoveredSectorName === sec.name ? 'ring-2 ring-purple-400/60 bg-white/[0.06] scale-[1.02]' : 'hover:bg-white/[0.05]'
+                }`}
+                style={{ borderColor: `${sec.color}${hoveredSectorName === sec.name ? 'cc' : '55'}` }}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono font-bold" style={{ color: sec.color }}>#{idx + 1} {sec.name}</span>
@@ -2546,16 +3045,32 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             ))}
           </div>
 
-          <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400 font-mono">
-            <span>
-              题材轮动特征:{' '}
-              <strong className="text-purple-300">
-                {dynamicSectorCurves[0]?.name || '领涨板块'}引领资金攻坚，{dynamicSectorCurves[dynamicSectorCurves.length - 1]?.name || '走弱题材'}承压失血
-              </strong>
-            </span>
-            <span className="text-cyan-300">
-              {timeProgress.isAfterClose ? '全天资金沉淀判定' : `当前时点 (${timeProgress.timeLabel.split(' ')[0]}) 资金态势`}
-            </span>
+          <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-mono">
+            <div className="flex items-center gap-2 flex-1 min-w-[320px]">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold shrink-0">
+                <Brain className="w-3 h-3 text-cyan-400 animate-pulse" />
+                <span>AI 题材轮动推演</span>
+              </div>
+              <span className="text-slate-300 leading-relaxed">
+                <strong className="text-purple-200 font-normal">
+                  {llmGameCognition?.sector_rotation || (dynamicSectorCurves[0] ? `${dynamicSectorCurves[0]?.name}引领资金攻坚，${dynamicSectorCurves[dynamicSectorCurves.length - 1]?.name}承压失血` : '板块分化博弈中')}
+                </strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => fetchLlmGameCognition(true)}
+                title="重新调用 LLM 深度认知推演"
+                className="text-slate-400 hover:text-cyan-300 flex items-center gap-1 transition-colors text-[11px]"
+                disabled={isLlmCognitionLoading}
+              >
+                <RefreshCw className={`w-3 h-3 ${isLlmCognitionLoading ? 'animate-spin text-cyan-400' : ''}`} />
+                <span>刷新推演</span>
+              </button>
+              <span className="text-cyan-300">
+                {timeProgress.isAfterClose ? '全天资金沉淀判定' : `当前时点 (${timeProgress.timeLabel.split(' ')[0]}) 资金态势`}
+              </span>
+            </div>
           </div>
         </GlassCard>
 

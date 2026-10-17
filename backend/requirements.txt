@@ -8,6 +8,7 @@ apscheduler==3.10.4
 pydantic==2.9.0
 pydantic-settings==2.5.0
 baostock==0.8.8
+pytdx>=1.72
 python-dotenv==1.0.1
 pandas>=2.2.0
 numpy>=1.26.0
