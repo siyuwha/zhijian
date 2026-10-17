@@ -40,8 +40,12 @@ DATA_DIR = _resolve_data_dir()
 PROJECT_ROOT = DATA_DIR.parent if DATA_DIR.name == "data" else Path(__file__).resolve().parent.parent.parent
 DEFAULT_DB_PATH = (DATA_DIR / "trading.db").as_posix()
 
+# 智能探查 .env 文件是否存在且为合法文件 (防御 Docker 卷挂载把缺失文件自动挂成目录导致的 IsADirectoryError 崩溃)
+_env_candidates = [Path(".env"), Path("/app/.env"), PROJECT_ROOT / ".env"]
+_valid_env_file = next((f.as_posix() for f in _env_candidates if f.exists() and f.is_file()), None)
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_valid_env_file, extra="ignore")
 
     PROJECT_NAME: str = "AI认知复盘交易系统"
     API_V1_PREFIX: str = "/api/v1"

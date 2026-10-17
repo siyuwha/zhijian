@@ -16,15 +16,8 @@ from .base import BaseProvider
 
 logger = logging.getLogger(__name__)
 
-# 动态引入 skills 下已验证的高可用通达信原生直连客户端
-SKILL_SCRIPTS_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../../../.agents/skills/tdx-market-data/scripts")
-)
-if SKILL_SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, SKILL_SCRIPTS_DIR)
-
 try:
-    from tdx_client import TdxDirectClient, parse_code_market
+    from .tdx_client import TdxDirectClient, parse_code_market
     TDX_AVAILABLE = True
 except Exception as e:
     logger.warning(f"TDX Direct Client import failed in TdxProvider: {e}")
@@ -41,8 +34,19 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability):
     """
 
     def __init__(self):
-        super().__init__(name="tdx_direct")
+        super().__init__(
+            name="tdx_direct",
+            implementation_status="已接入",
+            connectivity_verified="已验证",
+            schema_verified="已验证",
+            semantic_verified="已验证",
+            production_eligible="准入",
+        )
         self._client: Optional[Any] = None
+
+    async def is_available(self) -> bool:
+        """检查通达信直连是否可用"""
+        return TDX_AVAILABLE
 
     def _get_client(self):
         if not TDX_AVAILABLE:

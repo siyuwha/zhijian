@@ -56,13 +56,15 @@ class TaskScheduler:
         logger.info("TaskScheduler jobs configured.")
 
     def start(self):
-        self.setup()
-        self.scheduler.start()
-        logger.info("TaskScheduler started.")
+        if not self.scheduler.running:
+            self.setup()
+            self.scheduler.start()
+            logger.info("TaskScheduler started.")
 
     def shutdown(self):
-        self.scheduler.shutdown()
-        logger.info("TaskScheduler stopped.")
+        if self.scheduler.running:
+            self.scheduler.shutdown(wait=False)
+            logger.info("TaskScheduler stopped.")
 
     async def _run_premarket(self):
         if not calendar.is_trading_day():

@@ -5,9 +5,10 @@ GET /api/v1/canonical/market-snapshot/{date}
 严格分离并承载 MarketTruthSnapshot (FACT + DERIVED) 与 CognitionSnapshot (COGNITION)
 """
 import logging
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.database import get_db
