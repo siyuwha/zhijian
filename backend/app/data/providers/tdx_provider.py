@@ -123,6 +123,11 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability):
                     cum_amount += price * vol * 100
                     pct = round((price - pre_close) / pre_close * 100.0, 2) if pre_close > 0 else 0.0
 
+                    # 严格金融物理熔断保护：A股个股绝不可能超出涨跌停区间极限 [-22%, +22%]
+                    if abs(pct) > 22.0:
+                        pct = max(-20.0, min(20.0, pct))
+                        price = round(pre_close * (1 + pct / 100.0), 2)
+
                     trend_points.append({
                         "time": t_str,
                         "price": price,

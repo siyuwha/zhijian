@@ -7,10 +7,10 @@ import subprocess
 from pathlib import Path
 
 APP_NAME = "AI认知复盘交易系统"
-VERSION = "0.6.1"
-STAGE_NAME = "知见·通达信原生直连与微观博弈推演容器健康加固版"
+VERSION = "0.6.2"
+STAGE_NAME = "知见·分时图例与微观体检矩阵解耦及行情对齐版"
 BUILD_DATE = "2026-10-17"
-FALLBACK_COMMIT = "f412098"
+FALLBACK_COMMIT = "1a8d052"
 
 
 def get_git_commit() -> str:

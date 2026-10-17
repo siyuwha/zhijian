@@ -140,12 +140,57 @@ class TdxDirectClient:
             })
         return results
 
-    def get_minute_trend(self, code: str) -> List[Dict[str, Any]]:
-        """获取 241 点全天分时走势"""
+    def get_minute_trend(self, code: str, date: Optional[Any] = None) -> List[Dict[str, Any]]:
+        """
+        获取 241 点全天分时走势
+        - 优先支持指定日期历史拉取
+        - 盘后或非交易时段自动使用当日历史分时防字节错位
+        """
         if not self.connect_best_server():
             return []
         market, clean_code = parse_code_market(code)
-        raw_minutes = self.api.get_minute_time_data(market, clean_code)
+        
+        raw_minutes = None
+        # 1. 若外部传入日期参数 (如 '2026-10-16' 或 20261016)
+        if date:
+            try:
+                date_int = int(str(date).replace("-", ""))
+                raw_minutes = self.api.get_history_minute_time_data(market, clean_code, date_int)
+            except Exception:
+                pass
+
+        # 2. 尝试实时分时接口
+        if not raw_minutes:
+            try:
+                raw_minutes = self.api.get_minute_time_data(market, clean_code)
+            except Exception:
+                pass
+
+        # 3. 健壮性检查：若实时分时数据返回的尾部价格明显错位 (如 > 2000.0 或 <= 0.0)
+        # 说明处于周末或盘后闭市状态触发了 pytdx 6 字节对齐 Bug，自动回退拉取最近交易日历史分时
+        needs_fallback = False
+        if raw_minutes and len(raw_minutes) > 0:
+            last_p = float(raw_minutes[-1].get("price") or 0.0)
+            first_p = float(raw_minutes[0].get("price") or 0.0)
+            if last_p > 2000.0 or last_p <= 0.0 or first_p > 2000.0:
+                needs_fallback = True
+        else:
+            needs_fallback = True
+
+        if needs_fallback:
+            from datetime import datetime, timedelta
+            for days_back in range(0, 5):
+                chk_date = int((datetime.now() - timedelta(days=days_back)).strftime("%Y%m%d"))
+                try:
+                    hist_data = self.api.get_history_minute_time_data(market, clean_code, chk_date)
+                    if hist_data and len(hist_data) >= 120:
+                        chk_p = float(hist_data[-1].get("price") or 0.0)
+                        if 0.5 < chk_p < 2000.0:
+                            raw_minutes = hist_data
+                            break
+                except Exception:
+                    continue
+
         if not raw_minutes:
             return []
         

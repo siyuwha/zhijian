@@ -501,6 +501,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   // 曲线与标签高亮联动交互状态
   const [hoveredStockCode, setHoveredStockCode] = useState<string | null>(null);
   const [hoveredSectorName, setHoveredSectorName] = useState<string | null>(null);
+  const [isMicroMatrixCollapsed, setIsMicroMatrixCollapsed] = useState<boolean>(false);
 
   // LLM 微观博弈深度认知服务状态 (昨日核心表现 / 今日最强vs昨日核心 / 题材轮动特征)
   const [llmGameCognition, setLlmGameCognition] = useState<{
@@ -701,7 +702,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         endY = realRes.endY;
         const lastPt = trendData.trends[trendData.trends.length - 1];
         if (lastPt) {
-          todayPct = lastPt.pct_change;
+          if (lastPt.pct_change != null && Math.abs(lastPt.pct_change) <= 22.0) {
+            todayPct = lastPt.pct_change;
+          } else if (item.stock.zdp != null && Math.abs(item.stock.zdp) <= 22.0) {
+            todayPct = item.stock.zdp;
+          } else {
+            todayPct = Math.max(-20.0, Math.min(20.0, lastPt.pct_change || 0.0));
+          }
           if (lastPt.amount && totalAmountYi == null) {
             totalAmountYi = Number((lastPt.amount / 1e8).toFixed(2));
           }
@@ -2306,20 +2313,32 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               </div>
             </div>
 
-            {/* 样本股管理与 Chip 标签 */}
+            {/* 样本股图例与曲线控制器 (Sleek Chart Legend Bar) */}
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-xs font-mono text-cyan-300/80 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-full mr-1 font-semibold">
-                {stockComparisonList.length} / 6 支
+              <span className="text-[11px] font-mono text-cyan-300/80 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-full mr-1 font-semibold">
+                分时图例 ({stockComparisonList.length}/6)
               </span>
               {stockComparisonList.map((s) => {
                 const isHovered = hoveredStockCode === s.code;
+                const safePct = Math.abs(s.changePct) > 25 ? (s.changePct > 0 ? 10.0 : -10.0) : s.changePct;
+                const primaryRole = (s.roles && s.roles.length > 0) ? s.roles[0] : (s.tagLabel || s.role);
                 return (
                   <span
                     key={s.code}
                     onMouseEnter={() => setHoveredStockCode(s.code)}
                     onMouseLeave={() => setHoveredStockCode(null)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition cursor-pointer shadow-sm ${
-                      isHovered ? 'ring-2 ring-white/60 scale-105' : 'hover:scale-102'
+                    onClick={() => {
+                      if (isMicroMatrixCollapsed) setIsMicroMatrixCollapsed(false);
+                      setTimeout(() => {
+                        const el = document.getElementById(`micro-card-${s.code}`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                      }, 50);
+                    }}
+                    title={`点击定位至下方体检卡片 · 当前涨跌幅: ${safePct >= 0 ? '+' : ''}${safePct.toFixed(2)}%`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border transition cursor-pointer select-none ${
+                      isHovered
+                        ? 'ring-2 ring-white/70 scale-105 shadow-md shadow-cyan-500/20'
+                        : 'hover:scale-102 hover:border-white/40'
                     }`}
                     style={{
                       borderColor: `${s.color}${isHovered ? 'ff' : '60'}`,
@@ -2334,98 +2353,28 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       }}
                     />
                     <span className="text-white font-bold">{s.name}</span>
-                    {s.roles && s.roles.length > 0 ? (
-                      <div className="flex items-center gap-1">
-                        {s.roles.map((r, rIdx) => {
-                          const isEmotion = r.includes('情绪') || r.includes('B');
-                          const isCap = r.includes('容量') || r.includes('中军');
-                          const isTrend = r.includes('趋势');
-                          const isBroken = r.includes('炸板');
-                          const borderC = isBroken
-                            ? '#10B98160'
-                            : isEmotion
-                            ? '#F43F5E60'
-                            : isCap
-                            ? '#3B82F660'
-                            : isTrend
-                            ? '#10B98160'
-                            : `${s.color}50`;
-                          const bgC = isBroken
-                            ? '#10B98120'
-                            : isEmotion
-                            ? '#F43F5E20'
-                            : isCap
-                            ? '#3B82F620'
-                            : isTrend
-                            ? '#10B98120'
-                            : `${s.color}20`;
-                          const textC = isBroken
-                            ? '#6EE7B7'
-                            : isEmotion
-                            ? '#FDA4AF'
-                            : isCap
-                            ? '#93C5FD'
-                            : isTrend
-                            ? '#6EE7B7'
-                            : s.color;
-                          return (
-                            <span
-                              key={rIdx}
-                              className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold border"
-                              style={{
-                                borderColor: borderC,
-                                backgroundColor: bgC,
-                                color: textC,
-                              }}
-                            >
-                              {r}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : (
+                    <span className="text-slate-400 text-[10px] font-mono">{s.code}</span>
+                    {primaryRole && (
                       <span
-                        className="text-[10px] px-1.5 py-0.5 rounded font-semibold border"
+                        className="text-[9px] px-1.5 py-0.2 rounded font-mono font-semibold border"
                         style={{
-                          borderColor: `${s.color}40`,
-                          backgroundColor: `${s.color}25`,
+                          borderColor: `${s.color}50`,
+                          backgroundColor: `${s.color}20`,
                           color: s.color,
                         }}
                       >
-                        {s.tagLabel || s.role}
+                        {primaryRole}
                       </span>
                     )}
-                    {/* 微型金融指标徽章：流通市值与换手率 */}
-                    <div className="flex items-center gap-1 font-mono text-[10px]">
-                      {s.floatMcapYi != null && (
-                        <span
-                          className="px-1.5 py-0.5 rounded bg-slate-900/80 text-slate-300 border border-slate-700/60"
-                          title={`真实流通市值: ${s.floatMcapYi} 亿元`}
-                        >
-                          流 {s.floatMcapYi >= 100 ? s.floatMcapYi.toFixed(0) : s.floatMcapYi.toFixed(1)}亿
-                        </span>
-                      )}
-                      {s.turnoverRate != null && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded border ${
-                            s.turnoverRate >= 30
-                              ? 'bg-amber-950/40 text-amber-300 border-amber-500/40'
-                              : s.turnoverRate >= 15
-                              ? 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                              : 'bg-slate-900/80 text-slate-300 border-slate-700/60'
-                          }`}
-                          title={`日内换手率: ${s.turnoverRate.toFixed(1)}%`}
-                        >
-                          换 {s.turnoverRate.toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
-                    <span className={`font-black ml-0.5 ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                      {s.changePct >= 0 ? `+${s.changePct.toFixed(1)}%` : `${s.changePct.toFixed(1)}%`}
+                    <span className={`font-black ml-0.5 ${safePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {safePct >= 0 ? `+${safePct.toFixed(1)}%` : `${safePct.toFixed(1)}%`}
                     </span>
                     <button
-                      onClick={() => handleRemoveStock(s.code)}
-                      className="ml-1 text-slate-400 hover:text-white transition"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveStock(s.code);
+                      }}
+                      className="ml-0.5 text-slate-400 hover:text-white transition p-0.5"
                       title={`移除 ${s.name}`}
                     >
                       <X className="w-3 h-3" />
@@ -2646,130 +2595,171 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <span className="text-xs font-bold text-white tracking-wide">
                     核心样本股微观体检矩阵 · 换手率 / 真实流通盘 / 承接诊断
                   </span>
-                  <span className="text-[11px] font-mono text-cyan-300/80 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-mono text-cyan-300/80 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-full hidden sm:inline-block">
                     量化硬指标支撑 · 杜绝主观臆断
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-blue-400" />
-                    容量中军 (流值≥150亿 或 成交≥15亿)
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-rose-400" />
-                    情绪先锋/妖股 (小盘高换手/连板)
-                  </span>
+
+                <div className="flex items-center gap-2">
+                  <div className="hidden md:flex items-center gap-3 text-[11px] font-mono text-slate-400 mr-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-400" />
+                      容量中军 (≥150亿)
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-rose-400" />
+                      情绪先锋 (高换手/连板)
+                    </span>
+                  </div>
+
+                  {/* 收起 / 展开微观体检矩阵切换按钮 */}
+                  <button
+                    onClick={() => setIsMicroMatrixCollapsed(!isMicroMatrixCollapsed)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono bg-cyan-950/50 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-300 transition-colors shadow-sm"
+                    title={isMicroMatrixCollapsed ? '展开核心样本股微观体检矩阵' : '收起微观体检矩阵，使图表更紧凑'}
+                  >
+                    {isMicroMatrixCollapsed ? (
+                      <>
+                        <ChevronDown className="w-3.5 h-3.5" />
+                        <span>展开体检矩阵 ({stockComparisonList.length})</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronUp className="w-3.5 h-3.5" />
+                        <span>收起体检矩阵</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                {stockComparisonList.map((s) => {
-                  const diag = s.healthDiagnosis;
-                  const isHealthy = diag?.level === 'healthy';
-                  const isDanger = diag?.level === 'danger';
-                  const isWarning = diag?.level === 'warning';
+              {isMicroMatrixCollapsed ? (
+                <div
+                  onClick={() => setIsMicroMatrixCollapsed(false)}
+                  className="rounded-xl border border-dashed border-cyan-500/30 bg-slate-950/40 px-3 py-2 text-center text-xs text-slate-400 hover:text-cyan-300 hover:border-cyan-400/50 cursor-pointer transition flex items-center justify-center gap-2"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>微观体检矩阵已收起（已对 {stockComparisonList.length} 只样本股提供日内换手、流通市值与承接体检）· 点击展开查看</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                  {stockComparisonList.map((s) => {
+                    const isHovered = hoveredStockCode === s.code;
+                    const safePct = Math.abs(s.changePct) > 25 ? (s.changePct > 0 ? 10.0 : -10.0) : s.changePct;
+                    const diag = s.healthDiagnosis;
+                    const isHealthy = diag?.level === 'healthy';
+                    const isDanger = diag?.level === 'danger';
+                    const isWarning = diag?.level === 'warning';
 
-                  return (
-                    <div
-                      key={s.code}
-                      className="rounded-xl border p-2.5 flex flex-col justify-between transition-all relative overflow-hidden backdrop-blur-md bg-slate-950/70 hover:bg-slate-900/90 hover:border-cyan-500/40"
-                      style={{
-                        borderColor: `${s.color}40`,
-                      }}
-                    >
-                      {/* 顶部左侧色条标识 */}
+                    return (
                       <div
-                        className="absolute left-0 top-0 bottom-0 w-1"
-                        style={{ backgroundColor: s.color }}
-                      />
+                        key={s.code}
+                        id={`micro-card-${s.code}`}
+                        onMouseEnter={() => setHoveredStockCode(s.code)}
+                        onMouseLeave={() => setHoveredStockCode(null)}
+                        className={`rounded-xl border p-2.5 flex flex-col justify-between transition-all relative overflow-hidden backdrop-blur-md bg-slate-950/70 hover:bg-slate-900/90 ${
+                          isHovered
+                            ? 'ring-2 ring-cyan-400 bg-slate-900/95 shadow-[0_0_15px_rgba(6,182,212,0.3)] scale-[1.02]'
+                            : 'hover:border-cyan-500/40'
+                        }`}
+                        style={{
+                          borderColor: isHovered ? s.color : `${s.color}40`,
+                        }}
+                      >
+                        {/* 顶部左侧色条标识 */}
+                        <div
+                          className="absolute left-0 top-0 bottom-0 w-1"
+                          style={{ backgroundColor: s.color }}
+                        />
 
-                      {/* 标的信息头 */}
-                      <div className="pl-1.5">
-                        <div className="flex items-start justify-between gap-1">
-                          <div className="truncate">
-                            <span className="text-xs font-bold text-white tracking-tight">{s.name}</span>
-                            <span className="text-[10px] font-mono text-slate-400 ml-1">{s.code}</span>
-                          </div>
-                          <span className={`font-mono font-black text-xs shrink-0 ${s.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                            {s.changePct >= 0 ? `+${s.changePct.toFixed(1)}%` : `${s.changePct.toFixed(1)}%`}
-                          </span>
-                        </div>
-
-                        {/* 角色徽章 */}
-                        <div className="flex flex-wrap items-center gap-1 mt-1">
-                          {s.roles && s.roles.length > 0 ? (
-                            s.roles.slice(0, 2).map((r, rIdx) => {
-                              const isEmotion = r.includes('情绪') || r.includes('B');
-                              const isCap = r.includes('容量') || r.includes('中军');
-                              const isBroken = r.includes('炸板');
-                              const textClass = isBroken ? 'text-emerald-300' : isEmotion ? 'text-rose-300' : isCap ? 'text-blue-300' : 'text-slate-300';
-                              const bgClass = isBroken ? 'bg-emerald-950/50 border-emerald-500/40' : isEmotion ? 'bg-rose-950/50 border-rose-500/40' : isCap ? 'bg-blue-950/50 border-blue-500/40' : 'bg-slate-800/60 border-slate-700/50';
-                              return (
-                                <span
-                                  key={rIdx}
-                                  className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border ${bgClass} ${textClass}`}
-                                >
-                                  {r}
-                                </span>
-                              );
-                            })
-                          ) : (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border bg-slate-800/60 border-slate-700/50 text-slate-300">
-                              {s.tagLabel || s.role}
+                        {/* 标的信息头 */}
+                        <div className="pl-1.5">
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="truncate">
+                              <span className="text-xs font-bold text-white tracking-tight">{s.name}</span>
+                              <span className="text-[10px] font-mono text-slate-400 ml-1">{s.code}</span>
+                            </div>
+                            <span className={`font-mono font-black text-xs shrink-0 ${safePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                              {safePct >= 0 ? `+${safePct.toFixed(1)}%` : `${safePct.toFixed(1)}%`}
                             </span>
-                          )}
-                        </div>
-                      </div>
+                          </div>
 
-                      {/* 微观三维核心指标 */}
-                      <div className="pl-1.5 grid grid-cols-2 gap-x-2 gap-y-1.5 my-2 font-mono text-[11px] tabular-nums border-t border-b border-white/5 py-1.5">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">流通市值</span>
-                          <span className="font-bold text-slate-200">
-                            {s.floatMcapYi != null ? `${s.floatMcapYi >= 100 ? s.floatMcapYi.toFixed(0) : s.floatMcapYi.toFixed(1)}亿` : '--'}
-                          </span>
+                          {/* 角色徽章 */}
+                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                            {s.roles && s.roles.length > 0 ? (
+                              s.roles.slice(0, 2).map((r, rIdx) => {
+                                const isEmotion = r.includes('情绪') || r.includes('B');
+                                const isCap = r.includes('容量') || r.includes('中军');
+                                const isBroken = r.includes('炸板');
+                                const textClass = isBroken ? 'text-emerald-300' : isEmotion ? 'text-rose-300' : isCap ? 'text-blue-300' : 'text-slate-300';
+                                const bgClass = isBroken ? 'bg-emerald-950/50 border-emerald-500/40' : isEmotion ? 'bg-rose-950/50 border-rose-500/40' : isCap ? 'bg-blue-950/50 border-blue-500/40' : 'bg-slate-800/60 border-slate-700/50';
+                                return (
+                                  <span
+                                    key={rIdx}
+                                    className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border ${bgClass} ${textClass}`}
+                                  >
+                                    {r}
+                                  </span>
+                                );
+                              })
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border bg-slate-800/60 border-slate-700/50 text-slate-300">
+                                {s.tagLabel || s.role}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">日内换手</span>
-                          <span className={`font-bold ${
-                            s.turnoverRate != null && s.turnoverRate >= 30
-                              ? 'text-amber-400'
-                              : s.turnoverRate != null && s.turnoverRate >= 15
-                              ? 'text-rose-400'
-                              : 'text-slate-200'
-                          }`}>
-                            {s.turnoverRate != null ? `${s.turnoverRate.toFixed(1)}%` : '--'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">成交额</span>
-                          <span className="text-slate-300">
-                            {s.totalAmountYi != null ? `${s.totalAmountYi.toFixed(1)}亿` : '--'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">体检评级</span>
-                          <span className={`font-bold text-[10px] inline-flex items-center gap-0.5 ${
-                            isDanger ? 'text-emerald-400' : isWarning ? 'text-amber-400' : 'text-cyan-300'
-                          }`}>
-                            <span className={`w-1 h-1 rounded-full ${
-                              isDanger ? 'bg-emerald-400' : isWarning ? 'bg-amber-400' : 'bg-cyan-400'
-                            }`} />
-                            {diag?.badge || '正常'}
-                          </span>
-                        </div>
-                      </div>
 
-                      {/* 底部微观诊断结论 */}
-                      <div className="pl-1.5">
-                        <p className="text-[10px] text-slate-400 font-mono leading-relaxed line-clamp-2" title={diag?.reason}>
-                          {diag?.reason || '筹码与走势波动受控，多空均衡博弈'}
-                        </p>
+                        {/* 微观三维核心指标 */}
+                        <div className="pl-1.5 grid grid-cols-2 gap-x-2 gap-y-1.5 my-2 font-mono text-[11px] tabular-nums border-t border-b border-white/5 py-1.5">
+                          <div>
+                            <span className="text-[10px] text-slate-500 block leading-tight">流通市值</span>
+                            <span className="font-bold text-slate-200">
+                              {s.floatMcapYi != null ? `${s.floatMcapYi >= 100 ? s.floatMcapYi.toFixed(0) : s.floatMcapYi.toFixed(1)}亿` : '--'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block leading-tight">日内换手</span>
+                            <span className={`font-bold ${
+                              s.turnoverRate != null && s.turnoverRate >= 30
+                                ? 'text-amber-400'
+                                : s.turnoverRate != null && s.turnoverRate >= 15
+                                ? 'text-rose-400'
+                                : 'text-slate-200'
+                            }`}>
+                              {s.turnoverRate != null ? `${s.turnoverRate.toFixed(1)}%` : '--'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block leading-tight">成交额</span>
+                            <span className="text-slate-300">
+                              {s.totalAmountYi != null ? `${s.totalAmountYi.toFixed(1)}亿` : '--'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block leading-tight">体检评级</span>
+                            <span className={`font-bold text-[10px] inline-flex items-center gap-0.5 ${
+                              isDanger ? 'text-emerald-400' : isWarning ? 'text-amber-400' : 'text-cyan-300'
+                            }`}>
+                              <span className={`w-1 h-1 rounded-full ${
+                                isDanger ? 'bg-emerald-400' : isWarning ? 'bg-amber-400' : 'bg-cyan-400'
+                              }`} />
+                              {diag?.badge || '正常'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 底部微观诊断结论 */}
+                        <div className="pl-1.5">
+                          <p className="text-[10px] text-slate-400 font-mono leading-relaxed line-clamp-2" title={diag?.reason}>
+                            {diag?.reason || '筹码与走势波动受控，多空均衡博弈'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
