@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知见 · 策略中心 UI/UX 原型三版效果图对比 · AI 认知复盘交易系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            up: '#EF4444',
+            down: '#10B981',
+            caution: '#F59E0B',
+            terminal: '#07090E',
+            obsidian: '#0D111A',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --bg-terminal: #07090E;
+      --card-obsidian: #0D111A;
+      --border-hairline: rgba(255, 255, 255, 0.08);
+      --border-highlight: rgba(255, 255, 255, 0.16);
+      --red-up: #EF4444;
+      --green-down: #10B981;
+      --amber-caution: #F59E0B;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
+      background-color: var(--bg-terminal);
+      color: #E2E8F0;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    .bg-grid-hairline {
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      transition: all 0.2s ease;
+    }
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+    .glass-card-active {
+      border-color: rgba(239, 68, 68, 0.45);
+      box-shadow: 0 0 24px rgba(239, 68, 68, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    @keyframes pulse-live {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.85); }
+    }
+    .live-dot {
+      animation: pulse-live 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .glow-amber {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+    }
+    .glow-rose {
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+  </style>
+</head>
+<body class="min-h-screen w-full bg-grid-hairline text-slate-100 flex flex-col selection:bg-rose-500 selection:text-white">
+
+  <!-- ========================================================================= -->
+  <!-- 顶部常驻导航栏 (知见品牌 + 三版一键无缝切换器 + 状态提示) -->
+  <!-- ========================================================================= -->
+  <header class="h-16 px-6 bg-[#07090E]/95 backdrop-blur-2xl border-b border-white/10 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
+    <!-- 左侧 Logo 与说明 -->
+    <div class="flex items-center gap-3.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-600 via-purple-600 to-amber-500 flex items-center justify-center font-black text-white text-base shadow-lg ring-1 ring-white/20">
+        策
+      </div>
+      <div class="flex flex-col">
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold text-base tracking-wide text-white">知见 · 量化策略中心原型</span>
+          <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1 font-semibold">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 live-dot"></span>
+            第 3 阶段方案设计评审
+          </span>
+        </div>
+        <span class="text-xs text-slate-400 font-mono">
+          严格遵循 A 股“红涨绿跌”与暗黑金属极光规范 · 提供 3 种交互范式以供选型
+        </span>
+      </div>
+    </div>
+
+    <!-- 中间：三版原型切换胶囊控制器 -->
+    <div class="flex items-center bg-black/60 p-1 rounded-full border border-white/10 shadow-inner">
+      <button onclick="switchTab('versionA')" id="btn-versionA" class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <span>版本 A · 实战操盘双轨台</span>
+        <span class="text-[10px] font-mono opacity-70">超短游资推荐</span>
+      </button>
+
+      <button onclick="switchTab('versionB')" id="btn-versionB" class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        <span>版本 B · 量化工场全景</span>
+        <span class="text-[10px] font-mono opacity-70">生命周期研发</span>
+      </button>
+
+      <button onclick="switchTab('versionC')" id="btn-versionC" class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>版本 C · 波普尔假说积木</span>
+        <span class="text-[10px] font-mono opacity-70">反脆弱证伪靶点</span>
+      </button>
+
+      <button onclick="switchTab('compareView')" id="btn-compareView" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-amber-300 border border-transparent flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>三版横向对比表</span>
+      </button>
+    </div>
+
+    <!-- 右侧环境状态 -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 bg-black/40 border border-white/10 rounded-full px-3 py-1 text-xs">
+        <span class="text-slate-400">大盘周期:</span>
+        <span class="font-semibold text-amber-400">弱势修复期</span>
+        <span class="text-slate-500 font-mono">|</span>
+        <span class="text-slate-400">建议仓位:</span>
+        <span class="font-mono text-rose-400 font-bold">30%~50%</span>
+      </div>
+      <button onclick="alert('提示：当前为原型预览态。可点击各组件体验布局与数据组织逻辑。')" class="p-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 主体视图容器 (单页动态切换) -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 p-6 max-w-[1780px] w-full mx-auto space-y-6">
+
+    <!-- ======================================================================= -->
+    <!-- 方案 A：【双轨联动 · 实战操盘台版 (Tactical Dual-Bento)】 -->
+    <!-- ======================================================================= -->
+    <div id="view-versionA" class="space-y-6">
+      
+      <!-- 顶部情势大屏：大盘天气门禁与策略熔断状态 -->
+      <div class="glass-card rounded-2xl p-4 flex items-center justify-between border-l-4 border-l-rose-500">
+        <div class="flex items-center gap-4">
+          <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 font-bold">
+            01
+          </div>
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 class="text-base font-extrabold text-white">实战操盘双轨台 · 盘中态势总览</h2>
+              <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-xs font-mono font-medium">门禁放行中 (3/4)</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-mono font-medium">熔断防守 (1/4)</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              左侧监控各策略微观净值火花线与大盘准入条件，右侧直连 09:25 竞价抢筹与分时证伪哨兵。
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="text-right">
+            <div class="text-[11px] text-slate-400">今日策略综合胜率</div>
+            <div class="text-lg font-mono font-bold text-rose-400 tabular-nums">71.4% <span class="text-xs text-slate-400 font-normal">(5/7板)</span></div>
+          </div>
+          <div class="text-right border-l border-white/10 pl-6">
+            <div class="text-[11px] text-slate-400">模拟持仓浮盈</div>
+            <div class="text-lg font-mono font-bold text-rose-400 tabular-nums">+4.82%</div>
+          </div>
+          <button class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-lg shadow-rose-600/20 transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            新建操盘策略
+          </button>
+        </div>
+      </div>
+
+      <!-- 双轨核心 Bento：左 58% 策略便当盒矩阵 + 右 42% 候选池与证伪哨兵 -->
+      <div class="grid grid-cols-12 gap-6">
+
+        <!-- 左侧：策略卡片流 (7 列) -->
+        <div class="col-span-12 lg:col-span-7 space-y-4">
+          <div class="flex items-center justify-between px-1">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">已部署策略列表 (4 个活跃通道)</span>
+            </div>
+            <div class="text-xs text-slate-500 font-mono">按今日命中时间排序</div>
+          </div>
+
+          <!-- 策略卡片 1：09:25 弱转强竞价抢筹 (激活状态，选中高亮) -->
+          <div class="glass-card glass-card-active rounded-2xl p-5 cursor-pointer relative overflow-hidden group">
+            <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="flex items-start justify-between">
+              <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 font-bold mt-0.5">
+                  竞
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-base font-bold text-white group-hover:text-rose-300 transition">09:25 竞价弱转强抢筹</h3>
+                    <span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/30">
+                      ● 正在监控
+                    </span>
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-slate-400 text-[10px] font-mono">超短T+1</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mt-1">
+                    寻找昨日烂板/分歧洗盘，今日竞价大幅放量抢筹高开 + 竞价量比>10 的分歧转一致核心标的。
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] text-slate-400 font-mono">准入: 弱势修复 / 共振</span>
+                <!-- 拟物开关 -->
+                <div class="w-10 h-5 bg-rose-600 rounded-full flex items-center justify-end px-1 shadow-inner">
+                  <div class="w-3.5 h-3.5 bg-white rounded-full shadow"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 数据栅格与净值火花线 -->
+            <div class="grid grid-cols-4 gap-3 mt-4 pt-3 border-t border-white/5">
+              <div>
+                <div class="text-[11px] text-slate-400">近 20 日胜率</div>
+                <div class="text-base font-mono font-bold text-rose-400 tabular-nums">68.5%</div>
+                <div class="text-[10px] text-slate-500 font-mono">盈亏比 2.8:1</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-400">今日命中</div>
+                <div class="text-base font-mono font-bold text-white tabular-nums">3 <span class="text-xs text-rose-400 font-normal">标的</span></div>
+                <div class="text-[10px] text-slate-500 font-mono">2 只已封板</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-400">最大回撤 (年化)</div>
+                <div class="text-base font-mono font-bold text-emerald-400 tabular-nums">-7.2%</div>
+                <div class="text-[10px] text-slate-500 font-mono">夏普比率 2.45</div>
+              </div>
+              <!-- SVG 微型火花线 -->
+              <div class="flex flex-col justify-end">
+                <div class="text-[10px] text-slate-500 text-right font-mono mb-1">近30笔交易净值</div>
+                <svg class="w-full h-7 stroke-rose-400 fill-rose-500/10" viewBox="0 0 120 30">
+                  <path d="M0,25 Q15,22 30,18 T60,20 T90,8 T120,4 L120,30 L0,30 Z" />
+                  <path d="M0,25 Q15,22 30,18 T60,20 T90,8 T120,4" fill="none" stroke-width="2" />
+                </svg>
+              </div>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between text-xs">
+              <span class="text-slate-400 text-[11px]">最新触发: 09:25:03 · 百洋股份 (002696)</span>
+              <div class="flex items-center gap-2">
+                <button class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 font-mono text-[11px] transition">回测报告</button>
+                <button class="px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-mono text-[11px] transition">查看候选池 →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 策略卡片 2：连板天梯·首板微观共振反包 -->
+          <div class="glass-card rounded-2xl p-5 cursor-pointer relative overflow-hidden group">
+            <div class="flex items-start justify-between">
+              <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold mt-0.5">
+                  首
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-base font-bold text-white group-hover:text-purple-300 transition">连板天梯 · 首板微观反包共振</h3>
+                    <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                      ● 就绪待命
+                    </span>
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-slate-400 text-[10px] font-mono">1进2接力</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mt-1">
+                    锁定前一日触板炸飞或放量阴线，次日开盘 15 分钟内大单买盘通吃分时均线的回踩买点。
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] text-slate-400 font-mono">准入: 全周期除退潮</span>
+                <div class="w-10 h-5 bg-rose-600 rounded-full flex items-center justify-end px-1 shadow-inner">
+                  <div class="w-3.5 h-3.5 bg-white rounded-full shadow"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-3 mt-4 pt-3 border-t border-white/5">
+              <div>
+                <div class="text-[11px] text-slate-400">近 20 日胜率</div>
+                <div class="text-base font-mono font-bold text-rose-400 tabular-nums">61.8%</div>
+                <div class="text-[10px] text-slate-500 font-mono">盈亏比 2.3:1</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-400">今日命中</div>
+                <div class="text-base font-mono font-bold text-white tabular-nums">1 <span class="text-xs text-slate-400 font-normal">标的</span></div>
+                <div class="text-[10px] text-slate-500 font-mono">慈文传媒 (002343)</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-400">最大回撤 (年化)</div>
+                <div class="text-base font-mono font-bold text-emerald-400 tabular-nums">-9.1%</div>
+                <div class="text-[10px] text-slate-500 font-mono">夏普比率 1.98</div>
+              </div>
+              <div class="flex flex-col justify-end">
+                <div class="text-[10px] text-slate-500 text-right font-mono mb-1">净值走势</div>
+                <svg class="w-full h-7 stroke-purple-400 fill-purple-500/10" viewBox="0 0 120 30">
+                  <path d="M0,20 Q20,24 40,15 T80,12 T100,6 T120,2 L120,30 L0,30 Z" />
+                  <path d="M0,20 Q20,24 40,15 T80,12 T100,6 T120,2" fill="none" stroke-width="2" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- 策略卡片 3：主线龙头·高标接力突破 (已自动熔断保护) -->
+          <div class="glass-card rounded-2xl p-5 relative overflow-hidden opacity-75 border-amber-500/30">
+            <div class="flex items-start justify-between">
+              <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold mt-0.5">
+                  熔
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-base font-bold text-slate-300">主线龙头 · 高标接力突破 (4板以上)</h3>
+                    <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">
+                      ⚠ 门禁已熔断
+                    </span>
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-slate-500 text-[10px] font-mono">主升浪高潮</span>
+                  </div>
+                  <p class="text-xs text-amber-200/70 mt-1">
+                    触发门禁防御：当前全市场处于【弱势修复期】，昨日高标炸板率高达 50%，系统已自动挂起防止接飞刀。
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] text-slate-500 font-mono">门禁准入: 仅主线共振</span>
+                <!-- 关闭状态开关 -->
+                <div class="w-10 h-5 bg-slate-800 rounded-full flex items-center px-1 shadow-inner border border-white/10">
+                  <div class="w-3.5 h-3.5 bg-slate-500 rounded-full"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-3 mt-4 pt-3 border-t border-white/5">
+              <div>
+                <div class="text-[11px] text-slate-500">历史基准胜率</div>
+                <div class="text-base font-mono font-bold text-slate-400 tabular-nums">54.2%</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-500">今日被拦截</div>
+                <div class="text-base font-mono font-bold text-amber-400 tabular-nums">2 <span class="text-xs text-slate-500 font-normal">只风险标的</span></div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-500">拦截保全资金</div>
+                <div class="text-base font-mono font-bold text-emerald-400 tabular-nums">避免 -8.4% 炸板</div>
+              </div>
+              <div class="flex items-center justify-end">
+                <button class="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-mono">
+                  查看门禁规则
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 右侧：实时候选池与 09:25 证伪哨兵 (5 列) -->
+        <div class="col-span-12 lg:col-span-5 space-y-4">
+          <div class="flex items-center justify-between px-1">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-400 live-dot"></span>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">实时候选池 & 09:25 证伪哨兵</span>
+            </div>
+            <div class="text-xs text-slate-400 font-mono">对应策略: 09:25弱转强抢筹</div>
+          </div>
+
+          <!-- 候选股票 1：百洋股份 002696 深度证伪卡 -->
+          <div class="glass-card rounded-2xl p-5 border-l-4 border-l-rose-500 space-y-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-lg font-black text-white font-mono">百洋股份</span>
+                  <span class="font-mono text-xs text-slate-400">002696</span>
+                  <span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">2连板</span>
+                  <span class="px-1.5 py-0.5 rounded bg-white/5 text-slate-400 text-[10px]">渔业 / 预制菜</span>
+                </div>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span class="text-2xl font-mono font-extrabold text-rose-500 tabular-nums">6.82</span>
+                  <span class="text-sm font-mono font-bold text-rose-400 tabular-nums">+10.00%</span>
+                  <span class="text-xs text-slate-500 font-mono">竞价高开 +3.4% · 09:30:15 秒板</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-[10px] text-slate-400">封单额 / 占流通比</div>
+                <div class="text-base font-mono font-bold text-white tabular-nums">1.42 亿 <span class="text-xs text-rose-400">(4.8%)</span></div>
+                <div class="text-[10px] text-emerald-400 font-mono">封成比 3.2 (极强)</div>
+              </div>
+            </div>
+
+            <!-- 微观盘口因子横条 -->
+            <div class="grid grid-cols-3 gap-2 bg-black/40 p-2.5 rounded-xl border border-white/5 text-center text-xs">
+              <div>
+                <div class="text-[10px] text-slate-400">竞价量比</div>
+                <div class="font-mono font-bold text-rose-400 text-sm">18.6 倍</div>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400">竞价成交额</div>
+                <div class="font-mono font-bold text-white text-sm">4,820 万</div>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400">主力净流入</div>
+                <div class="font-mono font-bold text-rose-400 text-sm">+8,640 万</div>
+              </div>
+            </div>
+
+            <!-- 波普尔式认知假说与刚性证伪靶点 (核心创新) -->
+            <div class="bg-amber-500/5 border border-amber-500/25 rounded-xl p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                  波普尔证伪哨兵 · 刚性止损靶点
+                </span>
+                <span class="text-[10px] font-mono text-amber-400/80">预设纪律执行</span>
+              </div>
+              
+              <div class="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                <div class="flex items-start gap-1.5">
+                  <span class="text-rose-400 font-bold shrink-0">[买入假说]</span>
+                  <span>受日本排污及预制菜内需刺激，昨日烂板洗盘，今日竞价抢筹超预期弱转强，为主线第一梯队先锋。</span>
+                </div>
+                <div class="flex items-start gap-1.5">
+                  <span class="text-amber-400 font-bold shrink-0">[证伪边界]</span>
+                  <span class="text-amber-200/90 font-mono">
+                    若 10:00 前发生炸板且封单撤单量 > 50%，或日内下破均价线 6.65 元，即视为假说破产。
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 操作按钮组 -->
+            <div class="flex items-center gap-2 pt-1">
+              <button class="flex-1 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold shadow-md shadow-rose-600/30 transition flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                挂载至模拟交易盘
+              </button>
+              <button class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-300 transition">
+                加入核心池
+              </button>
+              <button class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-300 transition">
+                分时图
+              </button>
+            </div>
+          </div>
+
+          <!-- 候选股票 2：慈文传媒 002343 (折叠状态简版) -->
+          <div class="glass-card rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-slate-600 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-mono font-bold text-xs text-slate-300">
+                02
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-white text-sm">慈文传媒</span>
+                  <span class="text-xs text-slate-400 font-mono">002343</span>
+                  <span class="px-1.5 py-0.2 rounded bg-white/5 text-[10px] text-slate-400">影视短剧</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mt-0.5">
+                  命中时间 09:25:01 · 竞价量比 14.2 · 高开 +4.1%
+                </div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-base font-mono font-bold text-rose-500 tabular-nums">7.15</div>
+              <div class="text-xs font-mono text-rose-400 tabular-nums">+9.98%</div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- 方案 B：【矩阵全景 · 量化工场与生命周期版 (Quant Factory & Lifecycle)】 -->
+    <!-- ======================================================================= -->
+    <div id="view-versionB" class="hidden space-y-6">
+
+      <!-- 顶部：情绪周期 5 阶段与策略准入生命周期流水线 (5-Stage State Pipeline) -->
+      <div class="glass-card rounded-2xl p-5 border-t-2 border-t-purple-500">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+              02
+            </div>
+            <div>
+              <h2 class="text-sm font-bold text-white uppercase tracking-wider">大盘情绪周期五阶段 · 策略动态准入状态机</h2>
+              <p class="text-xs text-slate-400">根据微观结构数据，策略只在与之兼容的市场生命周期阶段自动放行或降仓保护</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-xs font-mono">
+            <span class="text-slate-400">当前阶段锁定:</span>
+            <span class="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-amber-400 live-dot"></span>
+              阶段 2 · 弱势修复期 (Repair)
+            </span>
+          </div>
+        </div>
+
+        <!-- 5 个阶段横向阶梯指示条 -->
+        <div class="grid grid-cols-5 gap-3">
+          <!-- 阶段 1: 冰点分歧 -->
+          <div class="bg-black/40 border border-white/5 rounded-xl p-3 relative opacity-60">
+            <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span>01. 冰点分歧</span>
+              <span>10%~20% 仓</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-400">准入策略: 恐慌抄底、龙虎逆势低吸</div>
+            <div class="mt-2 h-1 bg-white/10 rounded-full"></div>
+          </div>
+
+          <!-- 阶段 2: 弱势修复 (当前激活，高亮) -->
+          <div class="bg-amber-500/10 border-2 border-amber-500/40 rounded-xl p-3 relative shadow-lg glow-amber">
+            <div class="flex items-center justify-between text-xs font-mono">
+              <span class="text-amber-300 font-bold">02. 弱势修复 (当前)</span>
+              <span class="text-amber-400 font-bold">30%~50% 仓</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-200">准入策略: 09:25弱转强、首板共振反包</div>
+            <div class="mt-2 h-1.5 bg-amber-500 rounded-full"></div>
+          </div>
+
+          <!-- 阶段 3: 主线共振 -->
+          <div class="bg-black/40 border border-white/5 rounded-xl p-3 relative opacity-60">
+            <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span>03. 主线共振</span>
+              <span>70%~100% 仓</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-400">准入策略: 连板突破、高标主升浪</div>
+            <div class="mt-2 h-1 bg-white/10 rounded-full"></div>
+          </div>
+
+          <!-- 阶段 4: 高潮过热 -->
+          <div class="bg-black/40 border border-white/5 rounded-xl p-3 relative opacity-60">
+            <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span>04. 高潮过热</span>
+              <span>逢高减仓兑现</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-400">准入策略: 仅尾盘补涨、禁止追高</div>
+            <div class="mt-2 h-1 bg-white/10 rounded-full"></div>
+          </div>
+
+          <!-- 阶段 5: 退潮恐慌 -->
+          <div class="bg-black/40 border border-white/5 rounded-xl p-3 relative opacity-60">
+            <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span>05. 退潮恐慌</span>
+              <span class="text-emerald-400">0% 空仓关闸</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-400">准入策略: 全策略强制熔断关闸</div>
+            <div class="mt-2 h-1 bg-white/10 rounded-full"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 三栏矩阵全景：因子工坊(左) + 候选股票池(中) + 回测与模拟绩效看板(右) -->
+      <div class="grid grid-cols-12 gap-6">
+
+        <!-- 左栏 (3.5 列)：策略因子装配工坊 -->
+        <div class="col-span-12 lg:col-span-4 space-y-4">
+          <div class="glass-card rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                策略因子装配工坊
+              </h3>
+              <span class="text-[10px] font-mono text-slate-400">参数化组装</span>
+            </div>
+
+            <!-- 规则积木 1: 宏观与大盘门禁 -->
+            <div class="bg-black/40 p-3 rounded-xl border border-white/5 space-y-2">
+              <div class="text-xs font-bold text-slate-300 flex items-center justify-between">
+                <span>01. 市场环境门禁</span>
+                <span class="text-[10px] text-emerald-400 font-mono">已校验通过</span>
+              </div>
+              <div class="space-y-1.5 text-[11px] text-slate-400">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked class="rounded border-slate-700 text-rose-500 focus:ring-0">
+                  <span>全市场上涨家数 > 1800 家</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked class="rounded border-slate-700 text-rose-500 focus:ring-0">
+                  <span>两市成交额预估放量 > 15%</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked class="rounded border-slate-700 text-rose-500 focus:ring-0">
+                  <span>非退潮恐慌期 (严格禁止熔断)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 规则积木 2: 微观选股因子 -->
+            <div class="bg-black/40 p-3 rounded-xl border border-white/5 space-y-2">
+              <div class="text-xs font-bold text-slate-300 flex items-center justify-between">
+                <span>02. 盘口与微观选股因子</span>
+                <span class="text-[10px] text-purple-400 font-mono">3 个核心阈值</span>
+              </div>
+              <div class="space-y-2 text-xs">
+                <div>
+                  <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <span>竞价量比阈值</span>
+                    <span class="text-rose-400 font-mono font-bold">&gt; 12.0 倍</span>
+                  </div>
+                  <input type="range" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer" value="70">
+                </div>
+                <div>
+                  <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <span>竞价开盘涨幅</span>
+                    <span class="text-rose-400 font-mono font-bold">+2.0% ~ +5.5%</span>
+                  </div>
+                  <input type="range" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer" value="50">
+                </div>
+                <div>
+                  <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <span>流通市值过滤</span>
+                    <span class="text-slate-300 font-mono">30 亿 ~ 120 亿</span>
+                  </div>
+                  <input type="range" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer" value="40">
+                </div>
+              </div>
+            </div>
+
+            <!-- 规则积木 3: 卖出与止损刚性风控 -->
+            <div class="bg-black/40 p-3 rounded-xl border border-white/5 space-y-2">
+              <div class="text-xs font-bold text-slate-300 flex items-center justify-between">
+                <span>03. 止损与次日出局纪律</span>
+                <span class="text-[10px] text-rose-400 font-mono">刚性不可违背</span>
+              </div>
+              <div class="space-y-1 text-[11px] text-slate-400">
+                <div>• 日内买入破均线 2% 坚决减半仓</div>
+                <div>• 炸板未在 3 分钟内回封立即核按钮</div>
+                <div>• 次日 09:25 若低开超过 -2% 竞价抢跑</div>
+              </div>
+            </div>
+
+            <button class="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-600/25 transition">
+              执行快速回测验证 (2023-2026)
+            </button>
+          </div>
+        </div>
+
+        <!-- 中栏 (4 列)：策略触发股票池与生态位 -->
+        <div class="col-span-12 lg:col-span-4 space-y-4">
+          <div class="glass-card rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold text-white">触发股票池 (3 只)</h3>
+                <span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-mono">今日实时</span>
+              </div>
+              <span class="text-xs text-slate-400 font-mono">胜率加权排序</span>
+            </div>
+
+            <!-- 股票池卡片 1 -->
+            <div class="bg-black/40 border border-rose-500/30 rounded-xl p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-white text-sm">百洋股份</span>
+                  <span class="font-mono text-xs text-slate-400 ml-1.5">002696</span>
+                  <span class="ml-2 px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">先锋2板</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-mono font-bold text-rose-400 text-sm">6.82 (+10.00%)</span>
+                </div>
+              </div>
+              <div class="text-[11px] text-slate-400 flex items-center justify-between font-mono">
+                <span>因子综合分: <b class="text-rose-400">94.5</b></span>
+                <span>竞价量比: 18.6x</span>
+                <span>封板耗时: 15s</span>
+              </div>
+              <div class="text-[10px] text-slate-500 pt-1 border-t border-white/5">
+                状态: 09:30 秒板封死 · 模拟盘已于 6.35 挂单成交
+              </div>
+            </div>
+
+            <!-- 股票池卡片 2 -->
+            <div class="bg-black/40 border border-white/5 rounded-xl p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-white text-sm">慈文传媒</span>
+                  <span class="font-mono text-xs text-slate-400 ml-1.5">002343</span>
+                  <span class="ml-2 px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 text-[10px] font-bold">首板反包</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-mono font-bold text-rose-400 text-sm">7.15 (+9.98%)</span>
+                </div>
+              </div>
+              <div class="text-[11px] text-slate-400 flex items-center justify-between font-mono">
+                <span>因子综合分: <b class="text-purple-400">88.2</b></span>
+                <span>竞价量比: 14.2x</span>
+                <span>回踩分时均线确认</span>
+              </div>
+              <div class="text-[10px] text-slate-500 pt-1 border-t border-white/5">
+                状态: 09:42 封板 · 模拟盘已跟进半仓
+              </div>
+            </div>
+
+            <!-- 股票池卡片 3 -->
+            <div class="bg-black/40 border border-white/5 rounded-xl p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-white text-sm">新华传媒</span>
+                  <span class="font-mono text-xs text-slate-400 ml-1.5">600825</span>
+                  <span class="ml-2 px-1.5 py-0.2 rounded bg-white/10 text-slate-300 text-[10px]">梯队跟风</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-mono font-bold text-rose-400 text-sm">5.42 (+6.27%)</span>
+                </div>
+              </div>
+              <div class="text-[11px] text-slate-400 flex items-center justify-between font-mono">
+                <span>因子综合分: <b class="text-slate-300">76.0</b></span>
+                <span>跟风冲高</span>
+                <span class="text-amber-400">未封板 (观察中)</span>
+              </div>
+              <div class="text-[10px] text-slate-500 pt-1 border-t border-white/5">
+                风控提示: 龙头若炸板，此标的禁止追高
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右栏 (4.5 列)：双轨绩效看板 (回测 vs 模拟实战) -->
+        <div class="col-span-12 lg:col-span-4 space-y-4">
+          <div class="glass-card rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                策略全生命周期绩效看板
+              </h3>
+              <span class="text-[10px] font-mono text-slate-400">3年样本外测试</span>
+            </div>
+
+            <!-- 核心量化指标 6 宫格 -->
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-black/40 p-2 rounded-xl border border-white/5">
+                <div class="text-[10px] text-slate-400">累计年化收益</div>
+                <div class="text-base font-mono font-bold text-rose-400 tabular-nums">+46.8%</div>
+              </div>
+              <div class="bg-black/40 p-2 rounded-xl border border-white/5">
+                <div class="text-[10px] text-slate-400">最大历史回撤</div>
+                <div class="text-base font-mono font-bold text-emerald-400 tabular-nums">-8.4%</div>
+              </div>
+              <div class="bg-black/40 p-2 rounded-xl border border-white/5">
+                <div class="text-[10px] text-slate-400">夏普比率 Sharpe</div>
+                <div class="text-base font-mono font-bold text-white tabular-nums">2.62</div>
+              </div>
+              <div class="bg-black/40 p-2 rounded-xl border border-white/5">
+                <div class="text-[10px] text-slate-400">整体胜率</div>
+                <div class="text-base font-mono font-bold text-rose-400 tabular-nums">67.3%</div>
+              </div>
+              <div class="bg-black/40 p-2 rounded-xl border border-white/5">
+                <div class="text-[10px] text-slate-400">盈亏比</div>
+                <div class="text-base font-mono font-bold text-white tabular-nums">2.9:1</div>
+              </div>
+              <div class="bg-black/40 p-2 rounded-xl border border-white/5">
+                <div class="text-[10px] text-slate-400">平均持仓周期</div>
+                <div class="text-base font-mono font-bold text-purple-400 tabular-nums">1.6 天</div>
+              </div>
+            </div>
+
+            <!-- SVG 高保真净值曲线 (策略净值 vs 沪深300基准) -->
+            <div class="bg-black/40 p-3 rounded-xl border border-white/5 space-y-2">
+              <div class="flex items-center justify-between text-xs font-mono">
+                <span class="flex items-center gap-1.5 text-rose-400">
+                  <span class="w-2.5 h-0.5 bg-rose-500 inline-block"></span>
+                  策略净值 (1.00 → 2.48)
+                </span>
+                <span class="flex items-center gap-1.5 text-slate-500">
+                  <span class="w-2.5 h-0.5 bg-slate-600 inline-block"></span>
+                  沪深300基准 (0.92)
+                </span>
+              </div>
+              
+              <div class="h-32 w-full pt-2">
+                <svg class="w-full h-full" viewBox="0 0 300 100">
+                  <!-- 网格线 -->
+                  <line x1="0" y1="20" x2="300" y2="20" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3,3" />
+                  <line x1="0" y1="50" x2="300" y2="50" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3,3" />
+                  <line x1="0" y1="80" x2="300" y2="80" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3,3" />
+                  
+                  <!-- 基准线 (灰绿波动下跌) -->
+                  <path d="M0,70 Q40,65 80,75 T150,85 T220,80 T300,88" fill="none" stroke="#64748B" stroke-width="1.5" stroke-dasharray="4,2" />
+                  
+                  <!-- 策略净值 (红线稳健上扬) -->
+                  <path d="M0,75 Q50,70 90,55 T160,40 T230,25 T300,10" fill="none" stroke="#EF4444" stroke-width="2.5" />
+                  <!-- 填充光晕 -->
+                  <path d="M0,75 Q50,70 90,55 T160,40 T230,25 T300,10 L300,100 L0,100 Z" fill="rgba(239, 68, 68, 0.08)" />
+                </svg>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                <span>2024-01</span>
+                <span>2024-12</span>
+                <span>2025-06</span>
+                <span>2026-10 (今日)</span>
+              </div>
+            </div>
+
+            <!-- 水下回撤面积图 (Underwater Drawdown) -->
+            <div class="bg-black/40 p-2.5 rounded-xl border border-white/5">
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>水下回撤剖面 (Drawdown Depth)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">控制在 -8.4% 以内</span>
+              </div>
+              <svg class="w-full h-8" viewBox="0 0 300 30">
+                <path d="M0,0 Q30,5 60,2 T120,18 T180,6 T240,12 T300,3 L300,0 Z" fill="rgba(16, 185, 129, 0.25)" stroke="#10B981" stroke-width="1" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- 方案 C：【极光沉浸 · 波普尔假说与规则积木版 (Aurora Popperian Canvas)】 -->
+    <!-- ======================================================================= -->
+    <div id="view-versionC" class="hidden space-y-6">
+
+      <!-- 顶栏：波普尔反脆弱哲学导引卡 -->
+      <div class="glass-card rounded-2xl p-5 border-l-4 border-l-amber-500">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
+              03
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-extrabold text-white">波普尔假说积木 · 可证伪性决策大屏</h2>
+                <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-xs font-mono">拒绝黑盒随机交易</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">
+                “一切不可证伪的策略都是伪科学”。买入前必须预先写定‘证伪边界与卖出剧本’，并在走势图中直观投影。
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-right">
+              <div class="text-[11px] text-slate-400">假说置信度验证</div>
+              <div class="text-base font-mono font-bold text-amber-400 tabular-nums">高置信度 (A 级)</div>
+            </div>
+            <div class="text-right border-l border-white/10 pl-4">
+              <div class="text-[11px] text-slate-400">最大允许试错成本</div>
+              <div class="text-base font-mono font-bold text-emerald-400 tabular-nums">-1.8% 本金</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 核心布局：左侧 35% 规则积木链 + 右侧 65% 高保真真实分时走势决策大屏 -->
+      <div class="grid grid-cols-12 gap-6">
+
+        <!-- 左侧 (4 列)：纵向逻辑链条 (Logic Pipeline Canvas) -->
+        <div class="col-span-12 lg:col-span-4 space-y-4">
+          <div class="glass-card rounded-2xl p-5 space-y-3 relative">
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                交易假说构建四部曲
+              </h3>
+              <span class="text-[10px] font-mono text-slate-500">串联断路器逻辑</span>
+            </div>
+
+            <!-- Step 1: 环境门禁 -->
+            <div class="relative pl-6 pb-4 border-l-2 border-rose-500/60">
+              <div class="absolute -left-2 top-0 w-4 h-4 rounded-full bg-rose-600 text-[10px] font-mono font-bold flex items-center justify-center text-white">
+                1
+              </div>
+              <div class="bg-black/40 p-3 rounded-xl border border-white/5 space-y-1">
+                <div class="text-xs font-bold text-white flex justify-between">
+                  <span>宏观环境门禁</span>
+                  <span class="text-emerald-400 text-[10px]">准入通过</span>
+                </div>
+                <div class="text-[11px] text-slate-400">
+                  市场处于【弱势修复】，短线抱团聚焦先锋。禁止低位无量跟风杂毛。
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: 选股前置条件 -->
+            <div class="relative pl-6 pb-4 border-l-2 border-purple-500/60">
+              <div class="absolute -left-2 top-0 w-4 h-4 rounded-full bg-purple-600 text-[10px] font-mono font-bold flex items-center justify-center text-white">
+                2
+              </div>
+              <div class="bg-black/40 p-3 rounded-xl border border-white/5 space-y-1">
+                <div class="text-xs font-bold text-white flex justify-between">
+                  <span>微观形态筛选假说</span>
+                  <span class="text-purple-300 text-[10px]">锁定百洋股份</span>
+                </div>
+                <div class="text-[11px] text-slate-400">
+                  昨日炸板大烂板，今日竞价超预期爆量抢筹 (量比 18.6x)，实现筹码快速换手与弱转强。
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3: 买点触发信号 -->
+            <div class="relative pl-6 pb-4 border-l-2 border-rose-500/60">
+              <div class="absolute -left-2 top-0 w-4 h-4 rounded-full bg-rose-600 text-[10px] font-mono font-bold flex items-center justify-center text-white">
+                3
+              </div>
+              <div class="bg-black/40 p-3 rounded-xl border border-rose-500/30 space-y-1">
+                <div class="text-xs font-bold text-rose-300 flex justify-between">
+                  <span>买入确认信号 (Trigger)</span>
+                  <span class="text-rose-400 text-[10px] font-mono">09:30:15 触发</span>
+                </div>
+                <div class="text-[11px] text-slate-300">
+                  开盘 15 秒大单 1.2 亿直线扫平 6.82 元涨停价。触发条件：秒板封单 > 1 亿。
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 4: 刚性证伪红线 (波普尔核心) -->
+            <div class="relative pl-6">
+              <div class="absolute -left-2 top-0 w-4 h-4 rounded-full bg-amber-500 text-[10px] font-mono font-bold flex items-center justify-center text-black">
+                4
+              </div>
+              <div class="bg-amber-500/10 p-3 rounded-xl border border-amber-500/30 space-y-1 glow-amber">
+                <div class="text-xs font-bold text-amber-300 flex justify-between">
+                  <span>预设证伪红线 (Falsification)</span>
+                  <span class="text-amber-400 text-[10px] font-mono">执行止损</span>
+                </div>
+                <div class="text-[11px] text-slate-200">
+                  • 盘中若炸板超过 3 次或下破 6.65 均价线，假说证伪立即砸出；<br>
+                  • 明日若竞价低开超过 -2%，不再抱有幻想，开盘直接市价止损。
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 右侧 (8 列)：沉浸式分时决策与多情景推演大屏 -->
+        <div class="col-span-12 lg:col-span-8 space-y-4">
+          <div class="glass-card rounded-2xl p-5 space-y-4">
+            
+            <!-- 股票标的头信息 -->
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+              <div class="flex items-center gap-3">
+                <span class="text-xl font-extrabold text-white font-mono">百洋股份 (002696)</span>
+                <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-xs font-bold">先锋龙头 2连板</span>
+                <span class="text-xs text-slate-400 font-mono">现价: <b class="text-rose-400 text-base">6.82 (+10.00%)</b></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400 font-mono">分时图层:</span>
+                <button class="px-2 py-1 rounded bg-rose-500/20 text-rose-300 text-xs font-mono font-bold">买入触发点</button>
+                <button class="px-2 py-1 rounded bg-amber-500/20 text-amber-300 text-xs font-mono font-bold">证伪警戒线</button>
+                <button class="px-2 py-1 rounded bg-white/5 text-slate-400 text-xs font-mono">大单爆破量</button>
+              </div>
+            </div>
+
+            <!-- 高保真分时走势图画布 (叠加多空击穿阈值与买点) -->
+            <div class="bg-black/60 rounded-xl p-4 border border-white/5 relative">
+              <div class="h-64 w-full">
+                <svg class="w-full h-full" viewBox="0 0 600 240">
+                  <!-- 背景横向刻度线 -->
+                  <line x1="0" y1="20" x2="600" y2="20" stroke="rgba(239,68,68,0.2)" stroke-dasharray="2,2" />
+                  <text x="5" y="18" fill="#EF4444" font-size="10" font-family="monospace">涨停价 6.82 (+10.00%)</text>
+
+                  <line x1="0" y1="70" x2="600" y2="70" stroke="rgba(255,255,255,0.1)" stroke-dasharray="3,3" />
+                  <text x="5" y="68" fill="#94A3B8" font-size="10" font-family="monospace">竞价开盘价 6.41 (+3.4%)</text>
+
+                  <line x1="0" y1="120" x2="600" y2="120" stroke="rgba(245,158,11,0.3)" stroke-dasharray="4,2" />
+                  <text x="5" y="118" fill="#F59E0B" font-size="10" font-family="monospace">--- 证伪止损红线 6.65 (分时均价线) ---</text>
+
+                  <line x1="0" y1="180" x2="600" y2="180" stroke="rgba(255,255,255,0.05)" />
+                  <text x="5" y="178" fill="#64748B" font-size="10" font-family="monospace">昨收价 6.20 (0.00%)</text>
+
+                  <!-- 均价线 (黄色) -->
+                  <path d="M0,70 L40,40 L150,30 L300,24 L450,22 L600,20" fill="none" stroke="#FBBF24" stroke-width="1.5" />
+
+                  <!-- 分时价格线 (白色/红色走势，秒板封住) -->
+                  <path d="M0,70 L25,35 L40,20 L600,20" fill="none" stroke="#FFFFFF" stroke-width="2.5" />
+                  <!-- 涨停封板平躺区高亮红色填充 -->
+                  <path d="M40,20 L600,20 L600,120 L40,120 Z" fill="rgba(239,68,68,0.06)" />
+
+                  <!-- 买入触发点红圈标记 (09:30:15) -->
+                  <circle cx="40" cy="20" r="5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2" />
+                  <rect x="50" y="8" width="135" height="22" rx="4" fill="#EF4444" opacity="0.9" />
+                  <text x="58" y="23" fill="#FFFFFF" font-size="11" font-weight="bold" font-family="monospace">买点触发: 6.82 涨停</text>
+
+                  <!-- 证伪警示带图标 (6.65 处) -->
+                  <rect x="420" y="108" width="170" height="20" rx="4" fill="#F59E0B" opacity="0.2" stroke="#F59E0B" />
+                  <text x="428" y="122" fill="#F59E0B" font-size="10" font-weight="bold" font-family="monospace">跌破此线 = 假说破产立即止损</text>
+                </svg>
+              </div>
+
+              <!-- 下方分时成交量柱 (SVG) -->
+              <div class="h-14 w-full mt-2 pt-2 border-t border-white/5">
+                <svg class="w-full h-full" viewBox="0 0 600 50">
+                  <!-- 竞价与开盘巨量红柱 -->
+                  <rect x="5" y="5" width="8" height="45" fill="#EF4444" />
+                  <rect x="15" y="10" width="8" height="40" fill="#EF4444" />
+                  <rect x="25" y="2" width="10" height="48" fill="#EF4444" />
+                  <rect x="37" y="15" width="6" height="35" fill="#EF4444" />
+                  <!-- 之后封死无量 (细碎灰柱) -->
+                  <rect x="50" y="45" width="2" height="5" fill="#475569" />
+                  <rect x="90" y="46" width="2" height="4" fill="#475569" />
+                  <rect x="150" y="47" width="2" height="3" fill="#475569" />
+                  <rect x="230" y="46" width="2" height="4" fill="#475569" />
+                  <rect x="340" y="45" width="2" height="5" fill="#475569" />
+                  <rect x="480" y="47" width="2" height="3" fill="#475569" />
+                  <rect x="580" y="46" width="2" height="4" fill="#475569" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- 次日开盘探针 (Popperian Probes) 决策推演三情景 -->
+            <div class="grid grid-cols-3 gap-3 pt-2">
+              <div class="bg-black/40 border border-rose-500/30 rounded-xl p-3">
+                <div class="flex items-center justify-between text-xs font-bold text-rose-300">
+                  <span>情景 A · 高开加速 (&gt;+3%)</span>
+                  <span class="text-[10px] font-mono">概率 62%</span>
+                </div>
+                <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                  应对策略：假说得到市场正向强化。持有待涨，若 09:35 前不能快速封 3 连板，则在开板第一波冲高减半仓。
+                </p>
+              </div>
+
+              <div class="bg-black/40 border border-amber-500/30 rounded-xl p-3">
+                <div class="flex items-center justify-between text-xs font-bold text-amber-300">
+                  <span>情景 B · 平开震荡 (-1%~+2%)</span>
+                  <span class="text-[10px] font-mono">概率 26%</span>
+                </div>
+                <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                  应对策略：假说进入中度考验。紧盯分时均价线，一旦回踩不破且承接有力可继续格局，否则保本离场。
+                </p>
+              </div>
+
+              <div class="bg-black/40 border border-emerald-500/30 rounded-xl p-3">
+                <div class="flex items-center justify-between text-xs font-bold text-emerald-300">
+                  <span>情景 C · 恶意低开 (&lt;-2%)</span>
+                  <span class="text-[10px] font-mono">概率 12%</span>
+                </div>
+                <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                  应对策略：假说被事实彻底证伪。不抱任何心存侥幸，09:25 集合竞价直接抢跑挂单，承受微小试错成本。
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- 三版横向综合对比评审表 (Compare View) -->
+    <!-- ======================================================================= -->
+    <div id="view-compareView" class="hidden space-y-6">
+      <div class="glass-card rounded-2xl p-6 space-y-6">
+        <div class="flex items-center justify-between pb-4 border-b border-white/10">
+          <div>
+            <h2 class="text-lg font-bold text-white">三版量化策略中心视觉架构与交互范式横向对比</h2>
+            <p class="text-xs text-slate-400 mt-1">请结合您的实际交易习惯与决策风格进行比对评审</p>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-mono font-bold">
+            知见产品决策指南
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-white/10 text-slate-400">
+                <th class="py-3 px-4 font-semibold">维度 / 比较项</th>
+                <th class="py-3 px-4 font-semibold text-rose-300 bg-rose-500/5 rounded-t-lg">版本 A · 实战操盘双轨台</th>
+                <th class="py-3 px-4 font-semibold text-purple-300 bg-purple-500/5 rounded-t-lg">版本 B · 量化工场全景</th>
+                <th class="py-3 px-4 font-semibold text-amber-300 bg-amber-500/5 rounded-t-lg">版本 C · 波普尔假说积木</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 text-slate-300">
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">核心视觉架构</td>
+                <td class="py-3.5 px-4 bg-rose-500/5">左 60% 策略便当盒 + 右 40% 证伪哨兵候选池</td>
+                <td class="py-3.5 px-4 bg-purple-500/5">顶 5 阶段状态机 + 底三栏矩阵 (因子/池/回测)</td>
+                <td class="py-3.5 px-4 bg-amber-500/5">左 35% 规则积木链 + 右 65% 高保真分时走势图</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">最适合的交易者画像</td>
+                <td class="py-3.5 px-4 bg-rose-500/5">超短线龙头游资、早盘 09:25 快速出击的实盘交易员</td>
+                <td class="py-3.5 px-4 bg-purple-500/5">量化研究员、注重回测净值与因子严谨性的系统交易者</td>
+                <td class="py-3.5 px-4 bg-amber-500/5">哲学级严谨交易者、坚持“无证伪不买入”的高阶认知操盘手</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">与“大盘门禁”的联动</td>
+                <td class="py-3.5 px-4 bg-rose-500/5">卡片内嵌呼吸指示灯与自动熔断标签</td>
+                <td class="py-3.5 px-4 bg-purple-500/5">顶部全景 5 阶段横向状态机映射放行列表</td>
+                <td class="py-3.5 px-4 bg-amber-500/5">规则链第一步硬性断路器，不通过直接阻断</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">回测与模拟盘体现</td>
+                <td class="py-3.5 px-4 bg-rose-500/5">微型 Sparkline 净值火花线 + 一键挂载模拟盘</td>
+                <td class="py-3.5 px-4 bg-purple-500/5">3 年高精度净值曲线 + 水下回撤面积图 + 6 宫格</td>
+                <td class="py-3.5 px-4 bg-amber-500/5">分时图实单买点标注 + 次日开盘三情景推演</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">信息密度与上手门槛</td>
+                <td class="py-3.5 px-4 bg-rose-500/5">密度适中，直观易懂，直接上手操盘</td>
+                <td class="py-3.5 px-4 bg-purple-500/5">密度最高，功能最全，适合大宽屏深度复盘</td>
+                <td class="py-3.5 px-4 bg-amber-500/5">沉浸感最强，单股穿透力最深，极具思考深度</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">综合推荐演进路径</td>
+                <td class="py-3.5 px-4 bg-rose-500/5 text-rose-400 font-semibold" colspan="3">
+                  ★ 建议组合方案：以<b>【版本 A (实战操盘双轨)】</b>作为策略中心的主落地页；当用户点击某个具体策略时，展开<b>【版本 B】</b>的详细回测看板；当用户点击某只具体候选股票时，弹出<b>【版本 C】</b>的波普尔分时证伪决策抽屉！
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 底部常驻微状态条 -->
+  <!-- ========================================================================= -->
+  <footer class="h-10 px-6 bg-[#07090E]/90 border-t border-white/5 flex items-center justify-between text-xs text-slate-500 font-mono">
+    <div class="flex items-center gap-3">
+      <span>知见 · 量化策略引擎内核 V3.2</span>
+      <span>•</span>
+      <span>本地交易数据库: <b class="text-slate-400">data/trading.db</b> (32 张核心表)</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="text-slate-400">A股红涨绿跌铁律遵循率: <b class="text-rose-400">100%</b></span>
+      <span>•</span>
+      <span>按快捷键 1/2/3 可快速切换视图</span>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- 简单切换脚本 -->
+  <!-- ========================================================================= -->
+  <script>
+    function switchTab(tabId) {
+      const tabs = ['versionA', 'versionB', 'versionC', 'compareView'];
+      tabs.forEach(t => {
+        const viewEl = document.getElementById('view-' + t);
+        const btnEl = document.getElementById('btn-' + t);
+        if (t === tabId) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = 'px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm flex items-center gap-1.5';
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = 'px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-1.5';
+        }
+      });
+    }
+
+    // 键盘数字键 1/2/3 快捷切换
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '1') switchTab('versionA');
+      if (e.key === '2') switchTab('versionB');
+      if (e.key === '3') switchTab('versionC');
+      if (e.key === '4') switchTab('compareView');
+    });
+  </script>
+</body>
+</html>

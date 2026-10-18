@@ -40,6 +40,7 @@ logs/
 
 # 备份与恢复大文件归档（由 recovery_manifest.md 追踪指纹，二进制包不进版本库）
 *.zip
+*.deprecated_*
 baseline_evidence/recovery_points/
 
 # 外部文档排版临时目录

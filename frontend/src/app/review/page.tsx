@@ -72,13 +72,13 @@ export default function ReviewPage() {
   const getStateBadgeStyle = (label: string) => {
     switch (label) {
       case '极弱收缩':
-        return 'bg-rose-950/60 text-rose-300 border-rose-800/80';
+        return 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80';
       case '偏弱整理':
         return 'bg-amber-950/60 text-amber-300 border-amber-800/80';
       case '平稳中性':
         return 'bg-slate-800/80 text-cyan-300 border-cyan-800/80';
       case '偏强扩散':
-        return 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80';
+        return 'bg-rose-950/60 text-rose-300 border-rose-800/80';
       case '极度亢奋':
         return 'bg-purple-950/60 text-purple-300 border-purple-800/80';
       default:

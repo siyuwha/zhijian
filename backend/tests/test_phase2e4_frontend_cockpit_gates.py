@@ -20,63 +20,85 @@ from backend.app.core.database import async_session
 from backend.app.models.market import MarketDailySnapshot
 from backend.app.models.report import DailyReview
 from backend.scripts.audit_phase2e4_api_dom_verification import HeadlessBiddingFalsificationDOM
+from unittest.mock import patch, AsyncMock
+from backend.app.data.capabilities import DataResult, DataQuality, DataStatus
+
+
+@pytest.fixture(autouse=True)
+def mock_external_stock_quotes():
+    """避免测试在脱机/沙盒环境下尝试连接外部网络行情接口"""
+    mock_res = DataResult(
+        data=[
+            {"code": "002696", "name": "百洋股份", "open": 6.88, "prev_close": 6.25, "pct_change": 10.08, "price": 6.88},
+            {"code": "002343", "name": "慈文传媒", "open": 8.00, "prev_close": 7.50, "pct_change": 6.67, "price": 8.00},
+        ],
+        quality=DataQuality.FULL,
+        status=DataStatus.AVAILABLE,
+        provider="mock_test"
+    )
+    with patch("backend.app.data.service.DataService.get_stock_quotes", new_callable=AsyncMock, return_value=mock_res):
+        yield
 
 
 @pytest.fixture(autouse=True)
 async def seed_20261008_test_sandbox():
     """
-    在隔离的 pytest SQLite 沙盒数据库中装载 2026-10-08 物理基准数据
+    在隔离的 pytest SQLite 沙盒数据库中装载 2026-10-08 与 2026-10-09 物理基准数据
     """
     prod_conn = sqlite3.connect("data/trading.db")
-    prod_snap = prod_conn.execute(
+    prod_snaps = prod_conn.execute(
         "SELECT date, snapshot_type, indices_snapshot, breadth_snapshot, "
         "limit_up_snapshot, micro_cap_snapshot, external_risk_snapshot, "
         "high_tier_snapshot, market_state_snapshot, data_quality, source_status "
-        "FROM market_daily_snapshot WHERE date='2026-10-08'"
-    ).fetchone()
+        "FROM market_daily_snapshot WHERE date IN ('2026-10-08', '2026-10-09')"
+    ).fetchall()
 
-    prod_rev = prod_conn.execute(
+    prod_revs = prod_conn.execute(
         "SELECT date, market_overview, limit_up_analysis, sector_analysis, "
         "market_state_id, report_content, data_quality "
-        "FROM daily_review WHERE date='2026-10-08'"
-    ).fetchone()
+        "FROM daily_review WHERE date IN ('2026-10-08', '2026-10-09')"
+    ).fetchall()
     prod_conn.close()
 
     async with async_session() as session:
-        existing = (await session.execute(
-            select(MarketDailySnapshot).where(MarketDailySnapshot.date == '2026-10-08')
-        )).scalars().first()
-
-        if not existing:
-            if prod_snap:
-                snap_obj = MarketDailySnapshot(
-                    date=prod_snap[0],
-                    snapshot_type=prod_snap[1],
-                    indices_snapshot=prod_snap[2],
-                    breadth_snapshot=prod_snap[3],
-                    limit_up_snapshot=prod_snap[4],
-                    micro_cap_snapshot=prod_snap[5],
-                    external_risk_snapshot=prod_snap[6],
-                    high_tier_snapshot=prod_snap[7],
-                    market_state_snapshot=prod_snap[8],
-                    data_quality=prod_snap[9],
-                    source_status=prod_snap[10],
+        for ps in prod_snaps:
+            existing = (await session.execute(
+                select(MarketDailySnapshot).where(
+                    MarketDailySnapshot.date == ps[0],
+                    MarketDailySnapshot.snapshot_type == ps[1]
                 )
-                session.add(snap_obj)
+            )).scalars().first()
+            if not existing:
+                session.add(MarketDailySnapshot(
+                    date=ps[0],
+                    snapshot_type=ps[1],
+                    indices_snapshot=ps[2],
+                    breadth_snapshot=ps[3],
+                    limit_up_snapshot=ps[4],
+                    micro_cap_snapshot=ps[5],
+                    external_risk_snapshot=ps[6],
+                    high_tier_snapshot=ps[7],
+                    market_state_snapshot=ps[8],
+                    data_quality=ps[9],
+                    source_status=ps[10],
+                ))
 
-            if prod_rev:
-                rev_obj = DailyReview(
-                    date=prod_rev[0],
-                    market_overview=prod_rev[1],
-                    limit_up_analysis=prod_rev[2],
-                    sector_analysis=prod_rev[3],
-                    market_state_id=prod_rev[4],
-                    report_content=prod_rev[5],
-                    data_quality=prod_rev[6],
-                )
-                session.add(rev_obj)
+        for pr in prod_revs:
+            existing_rev = (await session.execute(
+                select(DailyReview).where(DailyReview.date == pr[0])
+            )).scalars().first()
+            if not existing_rev:
+                session.add(DailyReview(
+                    date=pr[0],
+                    market_overview=pr[1],
+                    limit_up_analysis=pr[2],
+                    sector_analysis=pr[3],
+                    market_state_id=pr[4],
+                    report_content=pr[5],
+                    data_quality=pr[6],
+                ))
 
-            await session.commit()
+        await session.commit()
 
 
 # =============================================================================

@@ -38,7 +38,7 @@ export const MarketStateBanner: React.FC<MarketStateBannerProps> = ({
       case 'HIGH_DIVERGENCE_TOPPING':
         return 'bg-amber-500/20 text-amber-400 border-amber-500/40';
       case 'RECESSION_PANIC':
-        return 'bg-rose-500/20 text-rose-400 border-rose-500/40';
+        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
       case 'FREEZING_REVERSAL':
         return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40';
       case 'LOW_REBOUND':
