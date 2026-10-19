@@ -574,29 +574,60 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       }
     }
 
+    // 提取今日盘中最高板与连板梯队 (Today's Intraday Leaders)
+    let todayHighestStocks: LimitUpStockItem[] = [];
+    let todayMaxHeight = 0;
+    if (limitUpData?.items && limitUpData.items.length > 0) {
+      const groupedToday: Record<number, LimitUpStockItem[]> = {};
+      limitUpData.items.forEach((item) => {
+        const h = item.lbc || item.continuous_board_count || 1;
+        if (!groupedToday[h]) groupedToday[h] = [];
+        groupedToday[h].push(item);
+      });
+      const todayHeights = Object.keys(groupedToday).map(Number).sort((a, b) => b - a);
+      if (todayHeights.length > 0) {
+        todayMaxHeight = todayHeights[0];
+        todayHighestStocks = groupedToday[todayMaxHeight] || [];
+      }
+    }
+
     const selected: Array<{
       stock: LimitUpStockItem;
-      tagType: 'yesterday_highest' | 'yesterday_second';
+      tagType: 'today_strongest' | 'yesterday_highest' | 'yesterday_second';
       role: string;
       color: string;
     }> = [];
 
-    // 规则 1：首先将昨日收盘最高板全数纳入样本股 (最多 6 只，每只一个完全独立的颜色)
-    for (let i = 0; i < yesterdayHighestStocks.length; i++) {
-      if (selected.length >= 6) break;
-      const s = yesterdayHighestStocks[i];
+    // 规则 1：优先纳入【今日盘中最高核心股 / 空间龙】 (最多 2~3 只，确保今日新高标第一优先级入镜)
+    for (let i = 0; i < todayHighestStocks.length; i++) {
+      if (selected.length >= 3) break;
+      const s = todayHighestStocks[i];
       selected.push({
         stock: s,
-        tagType: 'yesterday_highest',
-        role: `昨日最高板 (${yesterdayMaxHeight}B)`,
+        tagType: 'today_strongest',
+        role: `今日最高板 (${todayMaxHeight}B)`,
         color: DISTINCT_STOCK_COLORS[selected.length % DISTINCT_STOCK_COLORS.length],
       });
     }
 
-    // 规则 2：次高板中若有新题材则纳入涨停时间最早那只 (每只分配独一无二独立颜色)
+    // 规则 2：纳入【昨日收盘最高板】(若与今日最高板未重合，补充纳入以观测老龙头溢价与分歧承接)
+    for (let i = 0; i < yesterdayHighestStocks.length; i++) {
+      if (selected.length >= 5) break;
+      const s = yesterdayHighestStocks[i];
+      if (!selected.some((x) => x.stock.code === s.code)) {
+        selected.push({
+          stock: s,
+          tagType: 'yesterday_highest',
+          role: `昨日最高板 (${yesterdayMaxHeight}B)`,
+          color: DISTINCT_STOCK_COLORS[selected.length % DISTINCT_STOCK_COLORS.length],
+        });
+      }
+    }
+
+    // 规则 3：次高板中若有新题材则纳入涨停时间最早那只 (每只分配独一无二独立颜色)
     if (selected.length < 6 && yesterdaySecondStocks.length > 0) {
       const highestThemes = new Set(
-        yesterdayHighestStocks
+        [...todayHighestStocks, ...yesterdayHighestStocks]
           .map((s) => s.sector || s.reason_type || (s as any).theme)
           .filter(Boolean)
       );
@@ -634,6 +665,26 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             color: DISTINCT_STOCK_COLORS[selected.length % DISTINCT_STOCK_COLORS.length],
           });
         }
+      }
+    }
+
+    // 规则 4：若仍有空位 (< 6)，自动将今日成交额最大或承接最强的容量中军补入对比池
+    if (selected.length < 6 && limitUpData?.items && limitUpData.items.length > 0) {
+      const remainingCandidates = [...limitUpData.items]
+        .filter((it) => !selected.some((x) => x.stock.code === it.code))
+        .sort((a, b) => {
+          const amtA = Number(a.amount_yi || 0);
+          const amtB = Number(b.amount_yi || 0);
+          return amtB - amtA;
+        });
+      for (const cand of remainingCandidates) {
+        if (selected.length >= 6) break;
+        selected.push({
+          stock: cand,
+          tagType: 'today_strongest',
+          role: `今日容量中军 (${cand.lbc || 1}B)`,
+          color: DISTINCT_STOCK_COLORS[selected.length % DISTINCT_STOCK_COLORS.length],
+        });
       }
     }
 
@@ -1188,113 +1239,115 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     setIsAddStockOpen(false);
   };
 
-  // 获取核心快照与连板
+  // 恢复本地快照 (0 毫秒冷启动预填充)
+  const applySnapshotPayload = (payload: any) => {
+    if (!payload) return;
+    if (payload.canonical_snapshot) setSnapshot(payload.canonical_snapshot);
+    if (payload.limit_up_pool) setLimitUpData(payload.limit_up_pool);
+    if (payload.yesterday_limit_up_pool) setYesterdayLimitUpData(payload.yesterday_limit_up_pool);
+    if (payload.tactical_briefing) setBriefing(payload.tactical_briefing);
+    if (payload.auction_verdict) setBiddingVerdict(payload.auction_verdict);
+    if (payload.intraday_drift) setIntradayVerdict(payload.intraday_drift);
+    if (payload.intraday_timeline) {
+      setTimelineResponse(payload.intraday_timeline);
+      if (payload.intraday_timeline.current_active_stage) {
+        setActiveStageKey(payload.intraday_timeline.current_active_stage);
+      }
+    }
+    if (payload.top_sectors_trend) setTopSectorsTrend(payload.top_sectors_trend);
+    if (payload.sectors && Array.isArray(payload.sectors) && payload.sectors.length > 0) {
+      setSectors(payload.sectors);
+    }
+  };
+
+  // 获取核心快照与连板 (优先单端点极速秒开 instant-snapshot)
   const fetchAllData = async (date: string, silent: boolean = false) => {
     if (!silent) {
       setIsLoading(true);
     }
     setErrorMsg(null);
     try {
-      const prevDate = getPrevTradingDay(date);
-      const [snapRes, limitUpRes, yesterdayLimitUpRes, briefRes, bidRes, intraRes, timelineRes, topTrendRes] = await Promise.allSettled([
-        canonicalAPI.getCanonicalMarketSnapshot(date),
-        api.getLimitUpPool(date),
-        api.getLimitUpPool(prevDate),
-        canonicalAPI.getTacticalBriefing(date),
-        canonicalAPI.getAuctionFalsification(date),
-        canonicalAPI.getIntradayDrift(date),
-        canonicalAPI.getIntradayBriefings(date),
-        canonicalAPI.getTopSectorsTrend(date),
-      ]);
-
-      if (snapRes.status === 'fulfilled') {
-        setSnapshot(snapRes.value);
-      } else {
-        console.warn('Canonical snapshot fetch warning:', snapRes.reason);
+      let instantRes: any = null;
+      try {
+        instantRes = await canonicalAPI.getInstantSnapshot(date, !silent);
+      } catch (e) {
+        console.warn('Instant snapshot endpoint fallback:', e);
       }
 
-      if (limitUpRes.status === 'fulfilled') {
-        setLimitUpData(limitUpRes.value);
-      } else {
-        console.warn('Limit up pool fetch warning:', limitUpRes.reason);
-      }
-
-      if (yesterdayLimitUpRes.status === 'fulfilled') {
-        setYesterdayLimitUpData(yesterdayLimitUpRes.value);
-      } else {
-        setYesterdayLimitUpData(null);
-      }
-
-      if (briefRes.status === 'fulfilled') {
-        setBriefing(briefRes.value);
-      }
-
-      if (bidRes.status === 'fulfilled') {
-        setBiddingVerdict(bidRes.value);
-      }
-
-      if (intraRes.status === 'fulfilled') {
-        setIntradayVerdict(intraRes.value);
-      }
-
-      if (timelineRes.status === 'fulfilled') {
-        setTimelineResponse(timelineRes.value);
-        if (timelineRes.value?.current_active_stage) {
-          setActiveStageKey(timelineRes.value.current_active_stage);
+      if (instantRes && (instantRes.canonical_snapshot || instantRes.limit_up_pool)) {
+        applySnapshotPayload(instantRes);
+        try {
+          localStorage.setItem(`zhijian_instant_snapshot_${date}`, JSON.stringify(instantRes));
+        } catch {
+          // ignore quota
         }
-      }
 
-      if (topTrendRes.status === 'fulfilled') {
-        setTopSectorsTrend(topTrendRes.value);
-      }
+        // 异步预拉取领涨股分时走势
+        const targetCodes = new Set<string>();
+        if (stockComparisonList.length > 0) {
+          stockComparisonList.forEach((s) => {
+            if (s && s.code) targetCodes.add(s.code);
+          });
+        }
+        const yPool = instantRes.yesterday_limit_up_pool;
+        if (yPool?.items && yPool.items.length > 0) {
+          yPool.items.slice(0, 10).forEach((item: any) => {
+            if (item && item.code) targetCodes.add(item.code);
+          });
+        }
+        const curPool = instantRes.limit_up_pool;
+        if (curPool?.items && curPool.items.length > 0) {
+          curPool.items.slice(0, 5).forEach((item: any) => {
+            if (item && item.code) targetCodes.add(item.code);
+          });
+        }
+        if (targetCodes.size > 0) {
+          api.getStockTrends(Array.from(targetCodes)).then((res: any) => {
+            const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
+            if (data.length > 0) {
+              const map: Record<string, StockTrendData> = {};
+              data.forEach((item) => {
+                if (item && item.code) map[item.code] = item;
+              });
+              setStockTrendsMap((prev) => ({ ...prev, ...map }));
+            }
+          }).catch((err) => {
+            console.warn('Failed to pre-fetch stock trends in instant fetchAllData:', err);
+          });
+        }
+      } else {
+        // 兼容降级多端点并发打捞
+        const prevDate = getPrevTradingDay(date);
+        const [snapRes, limitUpRes, yesterdayLimitUpRes, briefRes, bidRes, intraRes, timelineRes, topTrendRes] = await Promise.allSettled([
+          canonicalAPI.getCanonicalMarketSnapshot(date),
+          api.getLimitUpPool(date),
+          api.getLimitUpPool(prevDate),
+          canonicalAPI.getTacticalBriefing(date),
+          canonicalAPI.getAuctionFalsification(date),
+          canonicalAPI.getIntradayDrift(date),
+          canonicalAPI.getIntradayBriefings(date),
+          canonicalAPI.getTopSectorsTrend(date),
+        ]);
 
-      // 同步刷新已入选样本股或核心关注股的实时分时走势 (首屏即刻主动并发预拉取)
-      const targetCodes = new Set<string>();
-      if (stockComparisonList.length > 0) {
-        stockComparisonList.forEach((s) => {
-          if (s && s.code) targetCodes.add(s.code);
-        });
-      }
-      const yPool = yesterdayLimitUpRes.status === 'fulfilled' ? yesterdayLimitUpRes.value : null;
-      if (yPool?.items && yPool.items.length > 0) {
-        yPool.items.slice(0, 10).forEach((item) => {
-          if (item && item.code) targetCodes.add(item.code);
-        });
-      }
-      const curPool = limitUpRes.status === 'fulfilled' ? limitUpRes.value : null;
-      if (curPool?.items && curPool.items.length > 0) {
-        curPool.items.slice(0, 5).forEach((item) => {
-          if (item && item.code) targetCodes.add(item.code);
-        });
-      }
-
-      if (targetCodes.size > 0) {
-        api.getStockTrends(Array.from(targetCodes)).then((res: any) => {
-          const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
-          if (data.length > 0) {
-            const map: Record<string, StockTrendData> = {};
-            data.forEach((item) => {
-              if (item && item.code) map[item.code] = item;
-            });
-            setStockTrendsMap((prev) => ({ ...prev, ...map }));
+        if (snapRes.status === 'fulfilled') setSnapshot(snapRes.value);
+        if (limitUpRes.status === 'fulfilled') setLimitUpData(limitUpRes.value);
+        if (yesterdayLimitUpRes.status === 'fulfilled') setYesterdayLimitUpData(yesterdayLimitUpRes.value);
+        if (briefRes.status === 'fulfilled') setBriefing(briefRes.value);
+        if (bidRes.status === 'fulfilled') setBiddingVerdict(bidRes.value);
+        if (intraRes.status === 'fulfilled') setIntradayVerdict(intraRes.value);
+        if (timelineRes.status === 'fulfilled') {
+          setTimelineResponse(timelineRes.value);
+          if (timelineRes.value?.current_active_stage) {
+            setActiveStageKey(timelineRes.value.current_active_stage);
           }
-        }).catch((err) => {
-          console.warn('Failed to pre-fetch stock trends in fetchAllData:', err);
-        });
+        }
+        if (topTrendRes.status === 'fulfilled') setTopSectorsTrend(topTrendRes.value);
       }
 
       const now = new Date();
       setLastRefreshTime(
         `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
       );
-
-      if (
-        snapRes.status === 'rejected' &&
-        limitUpRes.status === 'rejected' &&
-        timelineRes.status === 'rejected'
-      ) {
-        throw new Error('核心数据获取失败，请检查网络或后端服务');
-      }
     } catch (err: any) {
       if (!silent) {
         setErrorMsg(err.message || '获取数据异常');
@@ -1364,6 +1417,19 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       isMounted = false;
     };
   }, [initialDate]);
+
+  // 恢复本地存储的即时快照 (0毫秒冷启动预填充，彻底消除进入页面时的白屏与空屏等待)
+  useEffect(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(`zhijian_instant_snapshot_${selectedDate}`) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        applySnapshotPayload(parsed);
+      }
+    } catch {
+      // ignore
+    }
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchAllData(selectedDate);

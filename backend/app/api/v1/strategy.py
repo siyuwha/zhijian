@@ -31,3 +31,16 @@ async def create_strategy(payload: StrategyCreate, db: AsyncSession = Depends(ge
         universe_config=payload.universe_config
     )
     return {"code": 200, "data": strat}
+
+
+@router.get("/classic-evaluation")
+async def get_classic_strategy_evaluation(
+    date: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    三大经典工业级策略 (弱转强竞价抢筹、连板分歧低吸、首板龙回头) 实盘/历史推演端点
+    """
+    service = SelectionService(db)
+    res = await service.evaluate_classic_strategies(date=date)
+    return res

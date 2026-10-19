@@ -130,6 +130,8 @@ export const api = {
     fetchAPI<{ symbols: string[]; count: number }>(`/monitor/watchlist${date ? `?date=${date}` : ''}`),
   triggerMonitorScan: (date?: string) =>
     fetchAPI<any>(`/monitor/trigger-scan${date ? `?date=${date}` : ''}`, { method: 'POST' }),
+  getClassicStrategies: (date?: string) =>
+    fetchAPI<any>(`/strategy/classic-evaluation${date ? `?date=${date}` : ''}`),
 
   // G1-M3 交易记录与持仓管理端点
   getPositions: (refreshQuote: boolean = true) =>
@@ -287,6 +289,13 @@ export interface LLMTestResult {
 export const canonicalAPI = {
   getLatestDate: () =>
     fetchAPI<{ latest_date: string }>('/canonical/latest-date'),
+  getInstantSnapshot: (date?: string, forceRefresh: boolean = false) => {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    if (forceRefresh) params.append('force_refresh', 'true');
+    const qs = params.toString();
+    return fetchAPI<any>(`/canonical/instant-snapshot${qs ? `?${qs}` : ''}`);
+  },
   getCanonicalMarketSnapshot: (date: string) =>
     fetchAPI<import('@/types/canonical').CanonicalMarketSnapshot>(`/canonical/market-snapshot/${date}`),
   getTacticalBriefing: (date: string) =>

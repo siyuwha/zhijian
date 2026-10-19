@@ -85,6 +85,21 @@ async def get_latest_market_date(
     return {"code": 200, "data": {"latest_date": str(latest)}}
 
 
+@router.get("/instant-snapshot")
+async def get_cockpit_instant_snapshot(
+    date: Optional[str] = None,
+    force_refresh: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取驾驶舱极速秒开全屏热快照 (全域聚合，内存直出，杜绝首屏空白等待)
+    """
+    from ...services.cockpit_snapshot_service import CockpitSnapshotService
+    service = CockpitSnapshotService(db)
+    res = await service.get_instant_snapshot(trade_date=date, force_refresh=force_refresh)
+    return res
+
+
 @router.get("/market-snapshot/{date}", response_model=CanonicalMarketSnapshot)
 async def get_canonical_market_snapshot(
     date: str,

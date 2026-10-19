@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Sparkles
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function StrategyPage() {
   // 交互状态
@@ -28,6 +29,41 @@ export default function StrategyPage() {
   const [selectedStock, setSelectedStock] = useState('002696');
   const [isBacktesting, setIsBacktesting] = useState(false);
   const [backtestNotice, setBacktestNotice] = useState('');
+
+  // 真实三大经典策略实时计算状态
+  const [strategyData, setStrategyData] = useState<any>(null);
+  const [activeStrategyId, setActiveStrategyId] = useState<string>('weak_to_strong');
+  const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
+
+  const loadStrategies = () => {
+    setIsLoadingStrategies(true);
+    api.getClassicStrategies()
+      .then((res) => {
+        if (res && res.strategies) {
+          setStrategyData(res);
+          if (res.market_stage) {
+            setActiveStage(res.market_stage);
+          }
+          const firstCand = res.strategies[0]?.candidates?.[0];
+          if (firstCand?.code) {
+            setSelectedStock(firstCand.code);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load classic strategies:', err);
+      })
+      .finally(() => {
+        setIsLoadingStrategies(false);
+      });
+  };
+
+  React.useEffect(() => {
+    loadStrategies();
+  }, []);
+
+  const currentStrategy = strategyData?.strategies?.find((s: any) => s.id === activeStrategyId) || strategyData?.strategies?.[0];
+  const currentCandidates = currentStrategy?.candidates || [];
 
   const handleRunBacktest = () => {
     setIsBacktesting(true);
@@ -67,10 +103,14 @@ export default function StrategyPage() {
         <div className="flex items-center gap-3">
           <div className="bg-black/50 border border-white/10 rounded-full px-3.5 py-1 text-xs flex items-center gap-2">
             <span className="text-slate-400">大盘周期:</span>
-            <span className="font-bold text-amber-400">阶段 2 · 弱势修复期</span>
+            <span className="font-bold text-amber-400">
+              {strategyData?.market_stage_name || '阶段 2 · 弱势修复期'}
+            </span>
             <span className="text-slate-600">|</span>
             <span className="text-slate-400">建议仓位:</span>
-            <span className="font-mono text-rose-400 font-bold tabular-nums">30%~50%</span>
+            <span className="font-mono text-rose-400 font-bold tabular-nums">
+              {strategyData?.suggested_position || '30%~50%'}
+            </span>
           </div>
           <button 
             onClick={handleRunBacktest}
@@ -328,111 +368,98 @@ export default function StrategyPage() {
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <Layers className="w-4 h-4 text-cyan-400" />
-                  策略触发股票池 (3 只标的)
+                  策略触发股票池 ({currentCandidates.length} 只标的)
                 </h3>
-                <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-mono font-bold">
-                  今日实时
+                <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-mono font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  实盘实时推演
                 </span>
               </div>
-              <span className="text-xs text-slate-400 font-mono">按综合评分排序</span>
+              <button 
+                onClick={loadStrategies}
+                disabled={isLoadingStrategies}
+                className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono transition"
+                title="重新计算三大策略候选池"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLoadingStrategies ? 'animate-spin' : ''}`} />
+                <span>刷新</span>
+              </button>
             </div>
 
-            {/* 标的卡片 1：百洋股份 002696 (选中高亮) */}
-            <div 
-              onClick={() => setSelectedStock('002696')}
-              className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 ${
-                selectedStock === '002696'
-                  ? 'bg-rose-500/10 border-rose-500/50 shadow-md ring-1 ring-rose-500/30'
-                  : 'bg-black/40 border-white/5 hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-sm">百洋股份</span>
-                  <span className="font-mono text-xs text-slate-400">002696</span>
-                  <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">先锋2连板</span>
-                  <span className="text-[10px] text-slate-400">渔业/预制菜</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono font-bold text-rose-500 text-sm tabular-nums">6.82 (+10.00%)</span>
-                </div>
-              </div>
-              
-              <div className="text-[11px] text-slate-300 flex items-center justify-between font-mono bg-black/40 p-2 rounded-lg">
-                <span>因子综合分: <b className="text-rose-400 font-bold">94.5</b></span>
-                <span>竞价量比: 18.6x</span>
-                <span>秒板: 15秒</span>
-              </div>
-
-              <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5 flex items-center justify-between">
-                <span className="text-emerald-400 font-mono">● 模拟盘已于 6.35 自动挂单成交</span>
-                <span className="text-slate-500 text-[10px]">持仓 20万 (1/5仓)</span>
-              </div>
+            {/* 3 大经典策略快速切换胶囊栏 */}
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-black/60 rounded-xl border border-white/10 text-[11px] font-medium">
+              {[
+                { id: 'weak_to_strong', label: '弱转强抢筹' },
+                { id: 'multi_board_dip', label: '分歧低吸' },
+                { id: 'dragon_pullback', label: '首板龙回头' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveStrategyId(tab.id)}
+                  className={`py-1.5 px-1 rounded-lg text-center transition-all ${
+                    activeStrategyId === tab.id
+                      ? 'bg-purple-600 text-white font-bold shadow-md'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            {/* 标的卡片 2：慈文传媒 002343 */}
-            <div 
-              onClick={() => setSelectedStock('002343')}
-              className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 ${
-                selectedStock === '002343'
-                  ? 'bg-purple-500/10 border-purple-500/50 shadow-md ring-1 ring-purple-500/30'
-                  : 'bg-black/40 border-white/5 hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-sm">慈文传媒</span>
-                  <span className="font-mono text-xs text-slate-400">002343</span>
-                  <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 text-[10px] font-bold">首板反包</span>
-                  <span className="text-[10px] text-slate-400">影视短剧</span>
+            {/* 标的卡片列表 */}
+            <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
+              {currentCandidates.length > 0 ? (
+                currentCandidates.map((cand: any) => {
+                  const isSelected = selectedStock === cand.code;
+                  const isUp = (cand.pct_change || 0) >= 0;
+                  return (
+                    <div
+                      key={cand.code}
+                      onClick={() => setSelectedStock(cand.code)}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 ${
+                        isSelected
+                          ? 'bg-rose-500/10 border-rose-500/50 shadow-md ring-1 ring-rose-500/30'
+                          : 'bg-black/40 border-white/5 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">{cand.name}</span>
+                          <span className="font-mono text-xs text-slate-400">{cand.code}</span>
+                          <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">
+                            {cand.status_tag}
+                          </span>
+                          <span className="text-[10px] text-slate-400">{cand.industry}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className={`font-mono font-bold text-sm tabular-nums ${isUp ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {cand.current_price ? Number(cand.current_price).toFixed(2) : '--'} ({isUp ? '+' : ''}{Number(cand.pct_change || 0).toFixed(2)}%)
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-slate-300 flex items-center justify-between font-mono bg-black/40 p-2 rounded-lg">
+                        <span>综合评分: <b className="text-rose-400 font-bold">{cand.score}</b></span>
+                        <span>量比: {cand.volume_ratio}x</span>
+                        <span>高开: {cand.open_pct}%</span>
+                      </div>
+
+                      <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5 flex items-center justify-between">
+                        <span className="text-emerald-400 font-mono text-[10px] truncate max-w-[220px]" title={cand.signal_desc}>
+                          ● {cand.signal_desc}
+                        </span>
+                        <span className="text-slate-400 text-[10px] shrink-0">{cand.position_suggest}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center text-slate-500 text-xs border border-dashed border-white/10 rounded-xl space-y-1">
+                  <div>暂无符合当前严苛门禁的触发标的</div>
+                  <div className="text-[10px] text-slate-600">（市场大盘情绪阶段或量比未达策略阀值）</div>
                 </div>
-                <div className="text-right">
-                  <span className="font-mono font-bold text-rose-500 text-sm tabular-nums">7.15 (+9.98%)</span>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-slate-300 flex items-center justify-between font-mono bg-black/40 p-2 rounded-lg">
-                <span>因子综合分: <b className="text-purple-400 font-bold">88.2</b></span>
-                <span>竞价量比: 14.2x</span>
-                <span>回踩均线买入</span>
-              </div>
-
-              <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5 flex items-center justify-between">
-                <span className="text-purple-400 font-mono">● 09:42 封板 · 模拟盘已跟进半仓</span>
-                <span className="text-slate-500 text-[10px]">持仓 15万</span>
-              </div>
-            </div>
-
-            {/* 标的卡片 3：新华传媒 600825 */}
-            <div 
-              onClick={() => setSelectedStock('600825')}
-              className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 ${
-                selectedStock === '600825'
-                  ? 'bg-amber-500/10 border-amber-500/50 shadow-md ring-1 ring-amber-500/30'
-                  : 'bg-black/40 border-white/5 hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-sm">新华传媒</span>
-                  <span className="font-mono text-xs text-slate-400">600825</span>
-                  <span className="px-1.5 py-0.2 rounded bg-white/10 text-slate-300 text-[10px]">梯队跟风</span>
-                  <span className="text-[10px] text-slate-400">出版传媒</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono font-bold text-rose-400 text-sm tabular-nums">5.42 (+6.27%)</span>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono bg-black/40 p-2 rounded-lg">
-                <span>因子综合分: <b className="text-slate-200">76.0</b></span>
-                <span>跟风冲高</span>
-                <span className="text-amber-400">冲高未板 (观察)</span>
-              </div>
-
-              <div className="text-[11px] text-slate-500 pt-1 border-t border-white/5">
-                风控拦截提示: 龙头若炸板，此标的禁止追高
-              </div>
+              )}
             </div>
           </div>
         </div>

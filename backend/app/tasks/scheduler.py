@@ -101,11 +101,21 @@ class TaskScheduler:
         try:
             today_str = datetime.now().strftime("%Y-%m-%d")
             async with async_session() as session:
+                from ..data.providers.tdx_session_manager import tdx_session_manager
+                from ..services.cockpit_snapshot_service import CockpitSnapshotService
+                # 严格按照 09:10-15:00 交易时钟维护长连接生命周期 (盘后自动断开)
+                tdx_session_manager.ensure_connected()
+
                 service = MonitorService(session)
                 await service.capture_macro_snapshot(today_str)
                 await service.detect_anomalies(today_str)
                 await service.flush_async_queue()
-                logger.debug("Scheduled intraday snapshot & anomaly scan completed.")
+
+                # 后台自主维护驾驶舱内存全景热快照，供前端随时秒开
+                snapshot_svc = CockpitSnapshotService(session)
+                await snapshot_svc.get_instant_snapshot(trade_date=today_str, force_refresh=True)
+
+                logger.debug("Scheduled intraday snapshot, TDX session & cockpit warm-up completed.")
         except Exception as e:
             logger.error(f"Scheduled intraday monitor error: {e}")
 
