@@ -26,23 +26,50 @@ def parse_code_market(stock_code: str) -> Tuple[int, str]:
     0: 深圳 (00, 30)
     1: 上海 (60, 68, 99, 000001指数)
     """
-    clean_code = stock_code.strip().upper()
-    if "." in clean_code:
-        code_part, mkt_part = clean_code.split(".", 1)
-        if mkt_part in ("SH", "SS"):
-            return TDXParams.MARKET_SH, code_part
-        elif mkt_part in ("SZ",):
-            return TDXParams.MARKET_SZ, code_part
-        clean_code = code_part
+    raw = str(stock_code).strip().upper()
+    mkt = None
+    clean = raw
 
-    if clean_code.startswith(("6", "99", "68")):
-        return TDXParams.MARKET_SH, clean_code
-    elif clean_code.startswith(("0", "3")):
-        return TDXParams.MARKET_SZ, clean_code
-    elif clean_code.startswith(("4", "8")):
-        # 北交所通常挂在深圳或者单独市场，主板行情优先匹配深圳
-        return TDXParams.MARKET_SZ, clean_code
-    return TDXParams.MARKET_SH, clean_code
+    # 1. 优先处理带点格式: "002724.SZ", "600519.SH", "SZ.002724"
+    if "." in raw:
+        p0, p1 = raw.split(".", 1)
+        if p1 in ("SH", "SS"):
+            mkt = TDXParams.MARKET_SH
+            clean = p0
+        elif p1 in ("SZ", "BJ"):
+            mkt = TDXParams.MARKET_SZ
+            clean = p0
+        elif p0 in ("SH", "SS"):
+            mkt = TDXParams.MARKET_SH
+            clean = p1
+        elif p0 in ("SZ", "BJ"):
+            mkt = TDXParams.MARKET_SZ
+            clean = p1
+        else:
+            clean = p0 if p0.isdigit() else p1
+
+    # 2. 处理无点前缀格式: "SZ002724", "SH600519", "BJ832000"
+    if clean.startswith("SZ"):
+        mkt = TDXParams.MARKET_SZ
+        clean = clean[2:].lstrip(".")
+    elif clean.startswith("SH"):
+        mkt = TDXParams.MARKET_SH
+        clean = clean[2:].lstrip(".")
+    elif clean.startswith("BJ"):
+        mkt = TDXParams.MARKET_SZ
+        clean = clean[2:].lstrip(".")
+
+    clean = clean.strip()
+    if mkt is not None:
+        return mkt, clean
+
+    # 3. 按代码特征推导
+    if clean.startswith(("6", "99", "68")):
+        return TDXParams.MARKET_SH, clean
+    elif clean.startswith(("0", "3", "4", "8")):
+        return TDXParams.MARKET_SZ, clean
+    return TDXParams.MARKET_SH, clean
+
 
 
 class TdxDirectClient:
@@ -140,18 +167,34 @@ class TdxDirectClient:
             })
         return results
 
-    def get_minute_trend(self, code: str, date: Optional[Any] = None) -> List[Dict[str, Any]]:
+    def get_minute_trend(
+        self,
+        code: str,
+        date: Optional[Any] = None,
+        pre_close: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
         """
-        获取 241 点全天分时走势
-        - 优先支持指定日期历史拉取
-        - 盘后或非交易时段自动使用当日历史分时防字节错位
+        获取 240~241 点全天分时走势
+        - 盘中实时时段严格校验数据真实性 (防 pytdx 6 字节对齐漂移与 0.0/800+ 荒谬数据)
+        - 盘后闭市时段或校验不通过时自动无缝回退至交易日历史分时
         """
         if not self.connect_best_server():
             return []
         market, clean_code = parse_code_market(code)
         
+        from datetime import datetime, time as dt_time
+        from ...core.calendar import calendar
+
+        now = datetime.now()
+        is_trading_day = calendar.is_trading_day(now.date())
+        # A 股交易时段窗口：09:25 ~ 15:05
+        is_intraday_active = is_trading_day and (
+            dt_time(9, 25) <= now.time() <= dt_time(15, 5)
+        )
+
         raw_minutes = None
-        # 1. 若外部传入日期参数 (如 '2026-10-16' 或 20261016)
+
+        # 1. 若显式指定了历史日期，直接拉取历史分时数据
         if date:
             try:
                 date_int = int(str(date).replace("-", ""))
@@ -159,47 +202,64 @@ class TdxDirectClient:
             except Exception:
                 pass
 
-        # 2. 尝试实时分时接口
-        if not raw_minutes:
+        # 2. 若在盘中活跃时段且未指定历史日期，拉取实时分时并做严格物理校验
+        if not raw_minutes and is_intraday_active and not date:
             try:
-                raw_minutes = self.api.get_minute_time_data(market, clean_code)
+                real_data = self.api.get_minute_time_data(market, clean_code)
+                if real_data and len(real_data) > 0:
+                    first_p = float(real_data[0].get("price") or 0.0)
+                    last_p = float(real_data[-1].get("price") or 0.0)
+                    
+                    # 校验价格有效性：A股不可能小于等于 0.05 元
+                    is_valid = (first_p > 0.05 and last_p > 0.05)
+                    if pre_close and pre_close > 0.0:
+                        # 涨跌幅偏离不能超过 30% (允许 20% 涨跌停缓冲)
+                        dev_first = abs(first_p - pre_close) / pre_close
+                        dev_last = abs(last_p - pre_close) / pre_close
+                        if dev_first > 0.30 or dev_last > 0.30:
+                            is_valid = False
+
+                    if is_valid:
+                        raw_minutes = real_data
             except Exception:
                 pass
 
-        # 3. 健壮性检查：若实时分时数据返回的尾部价格明显错位 (如 > 2000.0 或 <= 0.0)
-        # 说明处于周末或盘后闭市状态触发了 pytdx 6 字节对齐 Bug，自动回退拉取最近交易日历史分时
-        needs_fallback = False
-        if raw_minutes and len(raw_minutes) > 0:
-            last_p = float(raw_minutes[-1].get("price") or 0.0)
-            first_p = float(raw_minutes[0].get("price") or 0.0)
-            if last_p > 2000.0 or last_p <= 0.0 or first_p > 2000.0:
-                needs_fallback = True
-        else:
-            needs_fallback = True
+        # 3. 若非交易时段、实时分时无效、或出现漂移，使用日历向前回溯拉取有效历史分时
+        if not raw_minutes or len(raw_minutes) == 0:
+            chk_dt = now.date()
+            if not is_trading_day or now.time() < dt_time(9, 30):
+                chk_dt = calendar.prev_trading_day(chk_dt)
 
-        if needs_fallback:
-            from datetime import datetime, timedelta
-            for days_back in range(0, 5):
-                chk_date = int((datetime.now() - timedelta(days=days_back)).strftime("%Y%m%d"))
+            for _ in range(5):
+                chk_date_int = int(chk_dt.strftime("%Y%m%d"))
                 try:
-                    hist_data = self.api.get_history_minute_time_data(market, clean_code, chk_date)
+                    hist_data = self.api.get_history_minute_time_data(market, clean_code, chk_date_int)
                     if hist_data and len(hist_data) >= 120:
-                        chk_p = float(hist_data[-1].get("price") or 0.0)
-                        if 0.5 < chk_p < 2000.0:
-                            raw_minutes = hist_data
-                            break
+                        chk_p0 = float(hist_data[0].get("price") or 0.0)
+                        chk_plast = float(hist_data[-1].get("price") or 0.0)
+                        if chk_p0 > 0.05 and chk_plast > 0.05:
+                            if pre_close and pre_close > 0.0:
+                                if abs(chk_plast - pre_close) / pre_close <= 0.30:
+                                    raw_minutes = hist_data
+                                    break
+                            else:
+                                raw_minutes = hist_data
+                                break
                 except Exception:
-                    continue
+                    pass
+                chk_dt = calendar.prev_trading_day(chk_dt)
 
         if not raw_minutes:
             return []
         
         points = []
         for i, item in enumerate(raw_minutes):
+            p = float(item.get("price") or 0.0)
+            v = int(item.get("vol") or 0)
             points.append({
                 "minute_idx": i,
-                "price": item.get("price"),
-                "vol": item.get("vol")
+                "price": p,
+                "vol": v
             })
         return points
 

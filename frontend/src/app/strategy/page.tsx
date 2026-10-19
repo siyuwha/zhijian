@@ -17,7 +17,8 @@ import {
   ArrowUpRight,
   Info,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  PlaySquare
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -29,11 +30,40 @@ export default function StrategyPage() {
   const [selectedStock, setSelectedStock] = useState('002696');
   const [isBacktesting, setIsBacktesting] = useState(false);
   const [backtestNotice, setBacktestNotice] = useState('');
+  const [simNotice, setSimNotice] = useState<string | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   // 真实三大经典策略实时计算状态
   const [strategyData, setStrategyData] = useState<any>(null);
   const [activeStrategyId, setActiveStrategyId] = useState<string>('weak_to_strong');
   const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
+
+  // 一键模拟跟单
+  const handleQuickSimulate = async (cand: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSimulating(true);
+    try {
+      const p = Number(cand.current_price) > 0 ? Number(cand.current_price) : 10.0;
+      const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+      await api.addTradeRecord({
+        code: cand.code,
+        name: cand.name,
+        direction: 'buy',
+        price: p,
+        quantity: 1000,
+        trade_time: nowStr,
+        trade_reason: `[${currentStrategy?.name || '经典策略'}] ${cand.status_tag || ''} (评分 ${cand.score}) · 策略联动模拟建仓`,
+        source: 'STRATEGY_WORKBENCH',
+        idempotency_key: `sim_strat_bench_${cand.code}_${Date.now()}`
+      });
+      setSimNotice(`已成功将【${cand.name} (${cand.code})】以 ${p.toFixed(2)} 元加入模拟交易沙盒！`);
+      setTimeout(() => setSimNotice(null), 4500);
+    } catch (err: any) {
+      alert(err.message || '模拟买入执行失败');
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
   const loadStrategies = () => {
     setIsLoadingStrategies(true);
@@ -77,6 +107,22 @@ export default function StrategyPage() {
   return (
     <div className="min-h-screen px-4 md:px-6 py-6 max-w-[1780px] mx-auto space-y-6 select-none">
       
+      {/* 模拟盘联动通知条 */}
+      {simNotice && (
+        <div className="p-3.5 rounded-xl border border-cyan-500/50 bg-cyan-950/80 text-cyan-300 text-xs font-mono flex items-center justify-between shadow-lg shadow-cyan-950/40 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span>{simNotice}</span>
+          </div>
+          <Link
+            href="/simulation"
+            className="px-2.5 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 text-[10px] font-bold border border-cyan-500/40 transition"
+          >
+            前往模拟盘查看 ➔
+          </Link>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* 顶部标题横幅 (极光品牌头 + 第3阶段状态) */}
       {/* ========================================================================= */}
@@ -446,10 +492,21 @@ export default function StrategyPage() {
                       </div>
 
                       <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5 flex items-center justify-between">
-                        <span className="text-emerald-400 font-mono text-[10px] truncate max-w-[220px]" title={cand.signal_desc}>
+                        <span className="text-emerald-400 font-mono text-[10px] truncate max-w-[170px]" title={cand.signal_desc}>
                           ● {cand.signal_desc}
                         </span>
-                        <span className="text-slate-400 text-[10px] shrink-0">{cand.position_suggest}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 text-[10px] shrink-0">{cand.position_suggest}</span>
+                          <button
+                            onClick={(e) => handleQuickSimulate(cand, e)}
+                            disabled={isSimulating}
+                            className="px-2 py-0.5 rounded bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold transition flex items-center gap-1 shadow-sm shrink-0"
+                            title="一键将该推荐标的录入模拟盘持仓"
+                          >
+                            <PlaySquare className="w-2.5 h-2.5" />
+                            <span>跟单</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

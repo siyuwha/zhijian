@@ -88,12 +88,21 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability):
             if not client.connect_best_server():
                 return []
 
-            # 1. 批量拉取个股当前五档快照获取昨收盘价 pre_close
-            clean_codes = [str(c).strip().split(".")[-1] for c in codes if str(c).strip()]
+            def _clean_code(c: str) -> str:
+                s = str(c).strip()
+                if "." in s:
+                    parts = s.split(".")
+                    for p in parts:
+                        if p.isdigit():
+                            return p
+                digits = "".join([ch for ch in s if ch.isdigit()])
+                return digits if digits else s
+
+            clean_codes = [_clean_code(c) for c in codes if str(c).strip()]
             quotes = client.get_quotes(clean_codes)
             quote_map = {q["code"]: q for q in quotes if q.get("code")}
 
-            # 2. 生成标准 241 分钟交易时间刻度表 (09:30~11:30 121分 + 13:00~15:00 120分)
+            # 2. 生成标准 241 分钟交易时间刻度表 (09:30~11:30 121分 + 13:01~15:00 120分)
             morning_times = [f"{m // 60:02d}:{m % 60:02d}" for m in range(570, 691)]
             afternoon_times = [f"{m // 60:02d}:{m % 60:02d}" for m in range(781, 901)]
             timeline = morning_times + afternoon_times
@@ -102,14 +111,19 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability):
                 q = quote_map.get(code, {})
                 pre_close = float(q.get("last_close") or q.get("pre_close") or 0.0)
                 
-                # 拉取该股分钟走势
-                raw_minutes = client.get_minute_trend(code)
+                # 拉取该股分钟走势并传入昨收价做防漂移校验
+                raw_minutes = client.get_minute_trend(code, pre_close=pre_close)
                 if not raw_minutes:
                     continue
 
                 if pre_close <= 0 and len(raw_minutes) > 0:
                     first_p = float(raw_minutes[0].get("price") or 0.0)
                     pre_close = first_p if first_p > 0 else 10.0
+
+                # 若返回 240 点，补充 09:30 开盘集合竞价锚定点对齐 241 分钟标尺
+                if len(raw_minutes) == 240:
+                    open_p = float(q.get("open") or raw_minutes[0].get("price") or pre_close)
+                    raw_minutes = [{"price": open_p, "vol": 0}] + raw_minutes
 
                 trend_points = []
                 cum_amount = 0.0

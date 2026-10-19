@@ -171,24 +171,44 @@ export function generateRealStockSvgPath(
   // 针对相同极限涨跌幅 (如双双跌停 -10% 或涨停 +10%) 引入微视差偏移，彻底消除线条被后画者绝对覆盖遮挡
   const limitOffset = (offsetIndex % 4 - 1.5) * 1.8;
 
+  let lastPct = 0;
   for (const pt of points) {
+    if (!pt || !pt.time) continue;
     const x = timeToX(pt.time);
+    if (!Number.isFinite(x)) continue;
     if (x > maxTimeProgressX + 3) break;
-    const clampedPct = Math.max(-10, Math.min(10, pt.pct_change));
+
+    const rawPct = (typeof pt.pct_change === 'number' && Number.isFinite(pt.pct_change))
+      ? pt.pct_change
+      : lastPct;
+    lastPct = rawPct;
+
+    const clampedPct = Math.max(-10, Math.min(10, rawPct));
     let y = 70 - clampedPct * 6;
     if (Math.abs(clampedPct) >= 9.2) {
       y += limitOffset;
     }
-    coords.push([x, Number(y.toFixed(1))]);
+    const finalY = Number.isFinite(y) ? Number(y.toFixed(1)) : 70;
+
+    // 剔除相同 X 坐标的毛刺杂点，保留最新点
+    if (coords.length > 0 && Math.abs(coords[coords.length - 1][0] - x) < 0.1) {
+      coords[coords.length - 1] = [x, finalY];
+    } else {
+      coords.push([x, finalY]);
+    }
   }
 
   if (coords.length === 0) {
-    return { path: 'M 0,70 L 0,70', endX: 0, endY: 70 };
+    return { path: 'M 0,70 L 1000,70', endX: 1000, endY: 70 };
   }
 
   // 确保 09:30 零轴起点 (0, 70) 锚定
   if (coords[0][0] > 0) {
     coords.unshift([0, 70]);
+  }
+
+  if (coords.length === 1) {
+    coords.push([Math.min(1000, coords[0][0] + 5), coords[0][1]]);
   }
 
   let d = `M ${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
