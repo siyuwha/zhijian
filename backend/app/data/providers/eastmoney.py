@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 import urllib.parse
 from typing import Optional, List, Dict, Any, Tuple
 import asyncio
@@ -61,6 +62,8 @@ class EastmoneyProvider(
             semantic_verified="已验证",
             production_eligible="准入",
         )
+        # 标的板块归属 24 小时进程内高速缓存 (个股概念与行业映射在交易日内恒定，规避重复高频 I/O)
+        self._concept_blocks_cache: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
 
     async def is_available(self) -> bool:
         return True
@@ -809,11 +812,32 @@ class EastmoneyProvider(
         else:
             market_id = "1" if clean_code.startswith(("6", "9", "5")) else "0"
 
-        secid = f"{market_id}.{clean_code}"
+        # 0. 优先命中 24 小时进程内高速缓存 (个股概念与行业映射在交易日内恒定，规避重复高频 I/O)
+        now_ts = time.time()
+        cached = self._concept_blocks_cache.get(clean_code)
+        if cached:
+            ts, cached_facts = cached
+            if now_ts - ts < 86400 and cached_facts:
+                return DataResult(
+                    data=cached_facts,
+                    quality=DataQuality.FULL,
+                    status=DataStatus.AVAILABLE,
+                    provider=self.name,
+                )
 
-        for attempt in range(3):
+        secid = f"{market_id}.{clean_code}"
+        target_urls = [
+            "https://push2delay.eastmoney.com/api/qt/slist/get",
+            "https://push2.eastmoney.com/api/qt/slist/get",
+        ]
+
+        raw_json = None
+        status = DataStatus.EMPTY
+        err_msg = None
+
+        for attempt in range(2):
             try:
-                url = "https://push2.eastmoney.com/api/qt/slist/get"
+                url = target_urls[attempt % len(target_urls)]
                 params = {
                     "fltt": "2",
                     "invt": "2",
@@ -824,13 +848,22 @@ class EastmoneyProvider(
                     "po": "1",
                     "fields": "f12,f14,f3,f128,f140,f141",
                 }
-                async with httpx.AsyncClient(timeout=12.0, trust_env=False, follow_redirects=True) as client:
+                async with httpx.AsyncClient(timeout=4.0, trust_env=False, follow_redirects=True) as client:
                     resp = await client.get(url, params=params, headers=self.HEADERS)
                     raw_json, status, err_msg = self._safe_parse_json(resp)
 
                 if status == DataStatus.AVAILABLE and raw_json is not None:
                     break
-                if attempt == 2:
+                if attempt == 1:
+                    if clean_code in self._concept_blocks_cache:
+                        return DataResult(
+                            data=self._concept_blocks_cache[clean_code][1],
+                            quality=DataQuality.DEGRADED,
+                            status=DataStatus.AVAILABLE,
+                            provider=self.name,
+                            fallback_used=True,
+                            error_message="Served from process memory cache after network error",
+                        )
                     return DataResult(
                         data=[],
                         quality=DataQuality.UNAVAILABLE,
@@ -839,21 +872,39 @@ class EastmoneyProvider(
                         provider=self.name,
                         error_message=err_msg,
                     )
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.2)
             except (httpx.TimeoutException, httpx.NetworkError) as e:
-                if attempt == 2:
+                if attempt == 1:
                     logger.warning(f"Eastmoney get_concept_blocks timeout for '{code}': {e}")
+                    if clean_code in self._concept_blocks_cache:
+                        return DataResult(
+                            data=self._concept_blocks_cache[clean_code][1],
+                            quality=DataQuality.DEGRADED,
+                            status=DataStatus.AVAILABLE,
+                            provider=self.name,
+                            fallback_used=True,
+                            error_message="Served from process memory cache after timeout",
+                        )
                     return DataResult(
                         data=[],
                         quality=DataQuality.UNAVAILABLE,
                         status=DataStatus.TIMEOUT,
                         error_code=ProviderErrorCode.TIMEOUT,
                         provider=self.name,
-                        error_message=f"Eastmoney concept blocks timeout (>12s): {e}",
+                        error_message=f"Eastmoney concept blocks timeout: {e}",
                     )
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.3)
             except Exception as e:
                 logger.warning(f"Eastmoney get_concept_blocks failed for '{code}': {e}")
+                if clean_code in self._concept_blocks_cache:
+                    return DataResult(
+                        data=self._concept_blocks_cache[clean_code][1],
+                        quality=DataQuality.DEGRADED,
+                        status=DataStatus.AVAILABLE,
+                        provider=self.name,
+                        fallback_used=True,
+                        error_message=f"Served from process memory cache: {e}",
+                    )
                 return DataResult(
                     data=[],
                     quality=DataQuality.FAILED,
@@ -908,6 +959,9 @@ class EastmoneyProvider(
                 leader_symbol=str(leader_s) if leader_s else None,
             )
             facts.append(fact.to_dict())
+
+        if facts:
+            self._concept_blocks_cache[clean_code] = (time.time(), facts)
 
         return DataResult(
             data=facts,

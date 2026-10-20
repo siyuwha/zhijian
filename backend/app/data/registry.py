@@ -152,6 +152,7 @@ class ProviderRegistry:
             # 1. 断路器判定 (0 网络 I/O 内存拦截)
             can_exec, is_probe = await cb.can_execute()
             if not can_exec:
+                last_error = f"Circuit breaker {cb.state.value} is OPEN (fast fail)"
                 next_target = providers[i + 1][0] if i < len(providers) - 1 else "CACHE"
                 self.record_failover_event(
                     capability=capability,

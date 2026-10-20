@@ -11,6 +11,7 @@ from ..capabilities import (
     DataStatus,
     StockTrendsCapability,
     StockQuoteCapability,
+    ConceptBlocksCapability,
 )
 from .base import BaseProvider
 
@@ -24,7 +25,7 @@ except Exception as e:
     TDX_AVAILABLE = False
 
 
-class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability):
+class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability, ConceptBlocksCapability):
     """
     基于通达信原生券商行情主站直连协议的数据提供者 (TDX Direct Provider)
     优势：
@@ -196,3 +197,68 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability):
             )
         except Exception as e:
             return DataResult(data=[], quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+
+    async def get_concept_blocks(self, code: str) -> DataResult:
+        """获取标的归属的三维板块映射集 (TDX 直连备用降级通道)"""
+        if not code or not str(code).strip():
+            return DataResult(data=[], quality=DataQuality.FULL, status=DataStatus.AVAILABLE, provider=self.name)
+
+        clean_code = str(code).strip().lower()
+        if clean_code.startswith(("sh", "sz", "bj")):
+            clean_code = clean_code[2:]
+        elif "." in clean_code:
+            parts = clean_code.split(".")
+            clean_code = parts[1] if parts[0] in ("sh", "sz", "bj") else parts[0]
+
+        client = self._get_client()
+        if not client:
+            return DataResult(data=[], quality=DataQuality.UNAVAILABLE, status=DataStatus.EMPTY, provider=self.name)
+
+        loop = asyncio.get_event_loop()
+
+        def _fetch_tdx_blocks():
+            if not client.connect_best_server():
+                return []
+            try:
+                market, ccode = parse_code_market(clean_code)
+                fin = client.api.get_finance_info(market, ccode)
+                if fin and isinstance(fin, dict):
+                    ind_id = fin.get("industry")
+                    if ind_id is not None:
+                        from ...core.canonical_fact import BlockMappingFact
+                        from ...core.block_registry import BlockRegistry
+                        block_name = f"TDX行业_{ind_id}"
+                        fact = BlockMappingFact.create(
+                            symbol=clean_code,
+                            block_code=f"TDX_{ind_id}",
+                            block_name=block_name,
+                            category="INDUSTRY",
+                            block_change_pct=None,
+                            leader_name=None,
+                            leader_symbol=None,
+                        )
+                        return [fact.to_dict()]
+            except Exception as e:
+                logger.warning(f"TDX get_concept_blocks fallback error: {e}")
+            return []
+
+        try:
+            facts = await loop.run_in_executor(None, _fetch_tdx_blocks)
+            if facts:
+                return DataResult(
+                    data=facts,
+                    quality=DataQuality.DEGRADED,
+                    status=DataStatus.AVAILABLE,
+                    provider=self.name,
+                    fallback_used=True,
+                )
+        except Exception as e:
+            logger.warning(f"TDX get_concept_blocks failed: {e}")
+
+        return DataResult(
+            data=[],
+            quality=DataQuality.DEGRADED,
+            status=DataStatus.EMPTY,
+            provider=self.name,
+            error_message="TDX concept blocks fallback empty",
+        )

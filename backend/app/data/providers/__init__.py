@@ -52,6 +52,7 @@ def init_providers():
 
     # 个股概念与行业板块归属 (Wave 1: eastmoney_concept_blocks)
     registry.register("concept_blocks", "eastmoney", east, is_primary=True)
+    registry.register("concept_blocks", "tdx_direct", tdx, is_primary=False)
 
     # 板块排行与主力资金流 (Sector & Money Flow)
     registry.register("sector", "eastmoney", east, is_primary=True)

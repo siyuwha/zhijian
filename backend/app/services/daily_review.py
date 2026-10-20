@@ -182,9 +182,22 @@ class DailyReviewService:
         sector_mapping = {}
         all_block_facts = []
         if is_today or not existing_snapshot:
-            for stock_code in target_stocks[:50]:  # 受控预算抽取核心标的
-                blocks_res = await self.data_service.get_concept_blocks(stock_code)
-                for b_fact in (blocks_res.data or []):
+            # 受控预算抽取核心标的，采用受控并发池加速抓取
+            sem = asyncio.Semaphore(5)
+            async def _fetch_block(sc: str):
+                async with sem:
+                    try:
+                        return await self.data_service.get_concept_blocks(sc)
+                    except Exception as err:
+                        logger.warning(f"Failed to fetch concept blocks for {sc}: {err}")
+                        return None
+
+            chunk_targets = target_stocks[:50]
+            fetched_results = await asyncio.gather(*[_fetch_block(sc) for sc in chunk_targets])
+            for stock_code, blocks_res in zip(chunk_targets, fetched_results):
+                if not blocks_res or not blocks_res.data:
+                    continue
+                for b_fact in blocks_res.data:
                     all_block_facts.append(b_fact)
                     b_code = b_fact.get("block_code")
                     b_name = b_fact.get("block_name")

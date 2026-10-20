@@ -115,10 +115,17 @@ class DeepSeekBriefingLLMClient:
         timeout: float = 30.0,
     ):
         from backend.app.config import settings
-        self.api_key = api_key or settings.DEEPSEEK_API_KEY or settings.LLM_API_KEY
-        self.base_url = (base_url or settings.LLM_BASE_URL).rstrip("/")
-        self.model = model or settings.LLM_MODEL or "deepseek-chat"
-        self.timeout = timeout
+        try:
+            from .llm_config_service import LLMConfigService
+            creds = LLMConfigService.get_runtime_credentials()
+        except Exception:
+            creds = {}
+
+        self.api_key = api_key or creds.get("api_key") or settings.DEEPSEEK_API_KEY or settings.LLM_API_KEY
+        raw_base_url = base_url or creds.get("base_url") or settings.LLM_BASE_URL or "https://api.deepseek.com/v1"
+        self.base_url = str(raw_base_url).rstrip("/")
+        self.model = model or creds.get("model") or settings.LLM_MODEL or "deepseek-chat"
+        self.timeout = timeout if timeout != 30.0 else creds.get("timeout_seconds", 30.0)
 
     def call_stream_with_metrics(
         self,

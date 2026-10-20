@@ -18,6 +18,7 @@ interface ZhijianReviewCockpitProps {
   historicalDates?: Array<{ date: string; state_label?: string; composite_score?: number | null }>;
   onSelectDate?: (date: string) => void;
   onToggleArchiveView?: () => void;
+  onRegenerate?: (date: string) => Promise<void>;
 }
 
 export function ZhijianReviewCockpit({ 
@@ -26,13 +27,15 @@ export function ZhijianReviewCockpit({
   dailyReview,
   historicalDates,
   onSelectDate,
-  onToggleArchiveView
+  onToggleArchiveView,
+  onRegenerate
 }: ZhijianReviewCockpitProps) {
   const [evidenceOpen, setEvidenceOpen] = useState(true);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // 重点题材微观分化与独苗状态数据
   const [sectorTrends, setSectorTrends] = useState<TopSectorTrendItem[]>([]);
@@ -471,6 +474,29 @@ export function ZhijianReviewCockpit({
             </button>
           )}
 
+          {onRegenerate && (
+            <button
+              onClick={async () => {
+                try {
+                  setIsRegenerating(true);
+                  showToast(`正在调用认知大模型重新推演 ${date} 复盘研报...`);
+                  await onRegenerate(date);
+                  showToast(`✓ ${date} 全景深度复盘已重新推演生成完成！`);
+                } catch (err: any) {
+                  showToast(`重新推演失败: ${err?.message || '网络或模型超时'}`);
+                } finally {
+                  setIsRegenerating(false);
+                }
+              }}
+              disabled={isRegenerating}
+              className="text-xs px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition active:scale-95 shadow-sm bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30 disabled:opacity-50"
+              title="基于最新大模型与物理事实重新推演生成当日研报"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
+              <span className="hidden sm:inline">{isRegenerating ? '正在推演...' : '重新推演'}</span>
+            </button>
+          )}
+
           <button
             onClick={copyFullMarkdown}
             className={`text-xs px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition active:scale-95 shadow-sm ${
@@ -478,7 +504,7 @@ export function ZhijianReviewCockpit({
                 ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700/80'
                 : 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10'
             }`}
-            title="一键复制全部 11 个章节的完整复盘 Markdown 正文"
+            title="一键复制完整复盘 Markdown 正文"
           >
             {copied ? (
               <>
@@ -488,7 +514,7 @@ export function ZhijianReviewCockpit({
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden md:inline">复制全文 (11章)</span>
+                <span className="hidden md:inline">复制研报全文</span>
               </>
             )}
           </button>

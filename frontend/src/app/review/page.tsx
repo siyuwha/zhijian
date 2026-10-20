@@ -38,6 +38,24 @@ export default function ReviewPage() {
     }
   };
 
+  const handleRegenerate = async (dateStr: string) => {
+    try {
+      setDetailLoading(true);
+      setError(null);
+      await api.generateDailyReview(dateStr, true);
+      const detail = await api.getDailyReview(dateStr);
+      setCurrentDetail(detail);
+      const res = await api.getDailyReviews(30, 0);
+      setReviews(res.items || []);
+    } catch (err: any) {
+      console.error(`重新生成 ${dateStr} 复盘失败:`, err);
+      setError(err.message || '重新生成复盘失败');
+      throw err;
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const fetchInitialData = async () => {
     try {
       setLoading(true);
@@ -153,6 +171,7 @@ export default function ReviewPage() {
           historicalDates={reviews}
           onSelectDate={handleSelectDate}
           onToggleArchiveView={() => setViewMode('archive')}
+          onRegenerate={handleRegenerate}
         />
       </div>
     );

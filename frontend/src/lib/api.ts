@@ -88,8 +88,8 @@ export const api = {
     ),
   getDailyReview: (date: string) => 
     fetchAPI<DailyReviewDetail>(`/reports/daily-review/${date}`),
-  generateDailyReview: (date?: string) => 
-    fetchAPI<any>(`/reports/daily-review/generate${date ? `?date=${date}` : ''}`, { method: 'POST' }),
+  generateDailyReview: (date?: string, force: boolean = false) => 
+    fetchAPI<any>(`/reports/daily-review/generate${date ? `?date=${date}&force=${force}` : `?force=${force}`}`, { method: 'POST' }),
   chatDailyReview: (date: string, query: string, chapter?: string, history?: any[]) =>
     fetchAPI<{ query: string; answer: string; date: string }>(`/reports/daily-review/chat`, {
       method: 'POST',
