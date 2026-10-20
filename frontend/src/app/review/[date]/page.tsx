@@ -102,6 +102,25 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
       .catch(() => {});
   }, [date]);
 
+  // 重新推演生成当日复盘
+  const handleRegenerate = async (targetDate: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await api.generateDailyReview(targetDate, true);
+      const res = await api.getDailyReview(targetDate);
+      setData(res);
+      const hist = await api.getDailyReviews(30, 0);
+      setHistoricalReviews(hist.items || []);
+    } catch (err: any) {
+      console.error(`重新生成 ${targetDate} 复盘失败:`, err);
+      setError(err?.message || '重新生成复盘失败');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 创建推演假说
   const handleCreateHypo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,6 +261,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
           historicalDates={historicalReviews}
           onSelectDate={(newDate) => router.push(`/review/${newDate}`)}
           onToggleArchiveView={() => router.push('/review')}
+          onRegenerate={handleRegenerate}
         />
       </div>
     );

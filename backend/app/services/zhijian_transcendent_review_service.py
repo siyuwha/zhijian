@@ -605,7 +605,7 @@ class ZhijianTranscendentReviewService:
                 max_tokens=target_max_tokens,
             )
             raw_text = res.get("text", "").strip()
-            if raw_text and len(raw_text) > 2000:
+            if raw_text and len(raw_text) > 800:
                 review_markdown = raw_text
                 generation_metrics = {
                     "ttft_ms": res.get("ttft_ms"),
