@@ -5,7 +5,8 @@ FROM ${BASE_IMAGE} AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm install
+# 使用淘宝/npmmirror 国内高速镜像加速，防止网络超时卡住
+RUN npm install --registry=https://registry.npmmirror.com
 
 COPY . .
 

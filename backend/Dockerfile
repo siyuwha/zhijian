@@ -12,14 +12,18 @@ ENV PYTHONUNBUFFERED=1 \
 # 建立软链接让 /backend 指向 /app，实现 backend.app 与 app 双向绝对兼容
 RUN ln -s /app /backend 2>/dev/null || true
 
+# 替换国内镜像源加速 apt-get（兼容 Debian 12 debian.sources 与旧版 sources.list）
+RUN (sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+     sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true)
+
 # 安装系统级必要依赖（时区与基础工具）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Python 依赖
+# 安装 Python 依赖（使用阿里云与清华高速镜像，解决 NAS 构建超时卡死）
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --extra-index-url https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
 # 拷贝后端应用代码
 COPY . .
