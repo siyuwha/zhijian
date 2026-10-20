@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { api, canonicalAPI } from '@/lib/api';
 import { TopSectorTrendItem } from '@/types/canonical';
 import { 
   Copy, MessageSquare, Check, ChevronRight, X, Sparkles, Send, ShieldAlert, 
   TrendingUp, TrendingDown, Eye, AlertCircle, Calendar, ChevronDown, RefreshCw, ListFilter,
-  RotateCcw, AlertTriangle
+  RotateCcw, AlertTriangle, Compass
 } from 'lucide-react';
 import { formatDateWithWeekday } from '@/lib/utils';
 import { ZhijianMarkdownArticle } from './ZhijianMarkdownArticle';
@@ -197,6 +197,43 @@ export function ZhijianReviewCockpit({
       desc: '影视院线板块核心，全市场最高连板梯队，明日集合竞价溢价率为情绪试金石。'
     }
   );
+
+  // 智能提取研报章节导航（自适应 Part 0~3、专题架构或传统11章）
+  const reportNavItems = useMemo(() => {
+    const md = transcendentData?.markdown_content;
+    if (!md) return null;
+    const matches = Array.from(md.matchAll(/^##\s+(.+)$/gm)) as RegExpMatchArray[];
+    if (matches.length === 0) return null;
+
+    return matches.map((m: RegExpMatchArray, idx: number) => {
+      const heading = (m[1] || '').trim();
+      let num = idx.toString().padStart(2, '0');
+      let shortTitle = heading;
+
+      const partMatch = heading.match(/^(?:第\s*(\d+)\s*章|Part\s*(\d+)|P(\d+)|(\d+)[\.、]|专题([一二三四五六七八九十\d]+)|([一二三四五六七八九十]+)[、\.：:])\s*[：: ]*(.*)/i);
+      if (partMatch) {
+        const parsedNum = partMatch[1] || partMatch[2] || partMatch[3] || partMatch[4] || partMatch[5] || partMatch[6];
+        if (/^\d+$/.test(parsedNum)) {
+          num = parsedNum.padStart(2, '0');
+        } else {
+          num = parsedNum;
+        }
+        shortTitle = partMatch[7]?.trim() || heading;
+      }
+
+      // 清理括号内英文或长后缀，保证横栏精炼
+      shortTitle = shortTitle.replace(/\s*[\(（][^()）]*[\)）]/g, '').trim();
+      if (shortTitle.length > 9) {
+        shortTitle = shortTitle.slice(0, 9);
+      }
+
+      return {
+        id: `ch${num}`,
+        num,
+        label: `${num} ${shortTitle}`
+      };
+    });
+  }, [transcendentData?.markdown_content]);
 
   const defaultAiGreeting = {
     role: 'ai' as const,
@@ -553,30 +590,47 @@ export function ZhijianReviewCockpit({
         {/* 中间：杂志级研报正文阅读区 */}
         <main className="flex-1 p-6 lg:p-10 overflow-y-auto space-y-8 max-w-5xl mx-auto">
           
-          {/* 11 章快速锚点索引横栏 */}
+          {/* 研报快速锚点索引横栏（自适应动态章节与传统11章） */}
           <nav className="flex items-center gap-1.5 overflow-x-auto py-2.5 px-3.5 rounded-xl bg-[#0B0E17] border border-white/10 text-xs no-scrollbar shadow-lg">
-            <span className="text-slate-500 font-mono text-[11px] shrink-0 mr-1 font-semibold">11章直达:</span>
-            <a href="#ch0" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 shrink-0 transition flex items-center gap-1">
-              <span>00 假说审判</span>
-            </a>
-            <a href="#ch1" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition flex items-center gap-1">
-              <span>01 宏观流动性</span>
-              <span className={`text-[10px] font-mono font-bold ${shrinkagePct.startsWith('+') ? 'text-rose-400' : 'text-emerald-400'}`}>
-                {shrinkagePct}
-              </span>
-            </a>
-            <a href="#ch2" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition flex items-center gap-1">
-              <span>02 连板天梯</span>
-              <span className="text-[10px] text-rose-400 font-mono font-bold">{limitUpCount}/{limitDownCount}</span>
-            </a>
-            <a href="#ch3" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">03 板块图谱</a>
-            <a href="#ch4" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">04 资金流向</a>
-            <a href="#ch5" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">05 机制样本</a>
-            <a href="#ch6" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">06 情绪周期</a>
-            <a href="#ch7" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">07 博弈心理</a>
-            <a href="#ch8" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-rose-300 shrink-0 transition">08 次日推演</a>
-            <a href="#ch9" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 shrink-0 transition">09 证伪闭环</a>
-            <a href="#ch10" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-300 shrink-0 transition">10 开盘探针</a>
+            <span className="text-slate-500 font-mono text-[11px] shrink-0 mr-1 font-semibold flex items-center gap-1">
+              <Compass className="w-3.5 h-3.5 text-amber-400" />
+              {reportNavItems ? '研报导读:' : '11章直达:'}
+            </span>
+            {reportNavItems ? (
+              reportNavItems.map((item, idx) => (
+                <a
+                  key={idx}
+                  href={`#${item.id}`}
+                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-amber-300 shrink-0 transition flex items-center gap-1 font-medium"
+                >
+                  <span>{item.label}</span>
+                </a>
+              ))
+            ) : (
+              <>
+                <a href="#ch0" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 shrink-0 transition flex items-center gap-1">
+                  <span>00 假说审判</span>
+                </a>
+                <a href="#ch1" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition flex items-center gap-1">
+                  <span>01 宏观流动性</span>
+                  <span className={`text-[10px] font-mono font-bold ${shrinkagePct.startsWith('+') ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {shrinkagePct}
+                  </span>
+                </a>
+                <a href="#ch2" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition flex items-center gap-1">
+                  <span>02 连板天梯</span>
+                  <span className="text-[10px] text-rose-400 font-mono font-bold">{limitUpCount}/{limitDownCount}</span>
+                </a>
+                <a href="#ch3" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">03 板块图谱</a>
+                <a href="#ch4" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">04 资金流向</a>
+                <a href="#ch5" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">05 机制样本</a>
+                <a href="#ch6" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">06 情绪周期</a>
+                <a href="#ch7" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 shrink-0 transition">07 博弈心理</a>
+                <a href="#ch8" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-rose-300 shrink-0 transition">08 次日推演</a>
+                <a href="#ch9" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 shrink-0 transition">09 证伪闭环</a>
+                <a href="#ch10" className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-300 shrink-0 transition">10 开盘探针</a>
+              </>
+            )}
           </nav>
 
           {/* 头版焦点 Bento Matrix (动态绑定真实物理事实) */}

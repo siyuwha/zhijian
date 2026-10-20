@@ -37,9 +37,9 @@ export function ZhijianMarkdownArticle({
     );
   }
 
-  // 1. 分割章节
+  // 1. 智能分割章节：匹配任何以 ## 开头的二级标题 (支持 Part X、第X章、专题X、或自定义标题)
   const chapters: ParsedChapter[] = [];
-  const rawSections = markdownContent.split(/(?=^## 第 \d+ 章)/m);
+  let preambleContent = '';
 
   const CATEGORY_MAP: Record<string, string> = {
     '0': '假说审计与归因',
@@ -55,20 +55,72 @@ export function ZhijianMarkdownArticle({
     '10': '复盘结论与开盘探针'
   };
 
+  const rawSections = markdownContent.split(/(?=^##\s+)/m);
+
   for (const sec of rawSections) {
-    const match = sec.match(/^## 第 (\d+) 章[：: ]*(.*)/m);
+    const trimmed = sec.trim();
+    if (!trimmed) continue;
+
+    const match = trimmed.match(/^##\s+(.*)/m);
     if (match) {
-      const num = match[1];
-      const title = match[2].trim();
-      const content = sec.replace(/^## 第 \d+ 章[：: ]*.*\n?/, '').trim();
+      const rawHeading = match[1].trim();
+      const content = trimmed.replace(/^##\s+.*(?:\r?\n)?/, '').trim();
+      
+      let num = chapters.length.toString().padStart(2, '0');
+      let title = rawHeading;
+      let category = '实战博弈深度研报';
+
+      // 智能提取数字/章节序号与标题
+      // 兼容："Part 0：昨日假说", "第 0 章：昨日假说", "P0", "1. ", "专题一", "一、"
+      const partMatch = rawHeading.match(/^(?:第\s*(\d+)\s*章|Part\s*(\d+)|P(\d+)|(\d+)[\.、]|专题([一二三四五六七八九十\d]+)|([一二三四五六七八九十]+)[、\.：:])\s*[：: ]*(.*)/i);
+      if (partMatch) {
+        const parsedNum = partMatch[1] || partMatch[2] || partMatch[3] || partMatch[4] || partMatch[5] || partMatch[6];
+        if (/^\d+$/.test(parsedNum)) {
+          num = parsedNum.padStart(2, '0');
+        } else {
+          num = parsedNum;
+        }
+        title = partMatch[7]?.trim() || rawHeading;
+      }
+
+      // 智能推断专题分类
+      if (title.includes('假说') || title.includes('审计') || title.includes('校准') || title.includes('Audit')) {
+        category = '假说判决与认知校准';
+      } else if (title.includes('物理事实') || title.includes('底座') || title.includes('流动性') || title.includes('Ground Truth')) {
+        category = '全景物理事实底座';
+      } else if (title.includes('博弈') || title.includes('专题') || title.includes('矛盾') || title.includes('Contradiction')) {
+        category = '核心博弈矛盾与专题深潜';
+      } else if (title.includes('证伪') || title.includes('锚点') || title.includes('工作台') || title.includes('Falsification')) {
+        category = '波普尔证伪与次日行动';
+      } else if (CATEGORY_MAP[num.replace(/^0+/, '') || '0']) {
+        category = CATEGORY_MAP[num.replace(/^0+/, '') || '0'];
+      }
+
       chapters.push({
         id: `ch${num}`,
-        num: num.padStart(2, '0'),
-        title,
-        category: CATEGORY_MAP[num] || '深度认知研报',
+        num: num,
+        title: title,
+        category: category,
         rawContent: content
       });
+    } else {
+      // 在第一个 ## 之前的序言（如 # 大标题、数据边界声明、前置引言）
+      const introWithoutH1 = trimmed.replace(/^#\s+.*(?:\r?\n)?/, '').trim();
+      if (introWithoutH1) {
+        preambleContent = introWithoutH1;
+      }
     }
+  }
+
+  // 刚性兜底：若全篇无 ## 标记，绝不留白，全量作为单章节完整渲染
+  if (chapters.length === 0 && markdownContent.trim().length > 0) {
+    chapters.push({
+      id: 'ch00',
+      num: '全景',
+      title: '全景深度复盘研报全文',
+      category: '深度认知研报',
+      rawContent: markdownContent.trim()
+    });
   }
 
   // 辅助渲染内联文本：高亮标签、数字红绿、股票可点击
@@ -380,6 +432,13 @@ export function ZhijianMarkdownArticle({
 
   return (
     <div className="space-y-10">
+      {/* 研报前置声明或引言 */}
+      {preambleContent && (
+        <div className="p-4 rounded-xl border border-white/10 bg-[#0B0E17]/60 text-xs text-slate-300 leading-relaxed shadow-lg">
+          {renderChapterContent(preambleContent)}
+        </div>
+      )}
+
       {chapters.map((chapter) => (
         <section
           key={chapter.id}
