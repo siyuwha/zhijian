@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Position, TradeRecord, TradeStats, TradeRecordCreatePayload, ReversalTradeCreatePayload, TradeNoteCreatePayload, SecuritySearchResult } from '@/types/trading';
 import { formatDateWithWeekday } from '@/lib/utils';
@@ -25,7 +26,8 @@ import {
   X,
   Brain,
   BarChart2,
-  CheckCheck
+  CheckCheck,
+  PlaySquare
 } from 'lucide-react';
 import { CognitiveTradeDiagnosis, WeeklyAuditResponse } from '@/types/cognition';
 
@@ -34,6 +36,7 @@ export default function TradingPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [records, setRecords] = useState<TradeRecord[]>([]);
   const [stats, setStats] = useState<TradeStats | null>(null);
+  const [brokerStatus, setBrokerStatus] = useState<any>(null);
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -107,7 +110,7 @@ export default function TradingPage() {
   const loadData = async (refreshQuote: boolean = true) => {
     try {
       if (refreshQuote) setRefreshing(true);
-      const [posRes, statsRes, recRes] = await Promise.all([
+      const [posRes, statsRes, recRes, bStatus] = await Promise.all([
         api.getPositions(refreshQuote).catch(() => []),
         api.getTradeStats().catch(() => null),
         api.getTradeRecords({
@@ -116,13 +119,15 @@ export default function TradingPage() {
           record_type: filterDirection === 'reversal' ? 'REVERSAL' : undefined,
           page: currentPage,
           limit: 20
-        }).catch(() => ({ items: [], total: 0, page: 1, limit: 20 }))
+        }).catch(() => ({ items: [], total: 0, page: 1, limit: 20 })),
+        api.getBrokerStatus().catch(() => null)
       ]);
 
       setPositions(posRes || []);
       setStats(statsRes);
       setRecords(recRes.items || []);
       setTotalRecords(recRes.total || 0);
+      setBrokerStatus(bStatus);
     } catch (err: any) {
       console.error('加载交易数据失败:', err);
       setActionError(err?.message || '加载交易数据失败');
@@ -401,6 +406,21 @@ export default function TradingPage() {
     }
   };
 
+  // 清洗沙盒模拟数据并对账
+  const handlePurgeSim = async () => {
+    try {
+      setReconciling(true);
+      const res = await api.purgeSimulationFromTruthLedger();
+      setActionSuccess(`真实账本已校验，成功清洗 ${res.purged_records_count} 笔沙盒数据并重算持仓！`);
+      await loadData(true);
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (err: any) {
+      setActionError(err?.message || '清洗沙盒数据失败');
+    } finally {
+      setReconciling(false);
+    }
+  };
+
   // 打开单笔交易认知诊断抽屉
   const handleOpenDiagnosisModal = async (record: TradeRecord) => {
     setSelectedRecordForDiag(record);
@@ -538,6 +558,49 @@ export default function TradingPage() {
         </div>
       )}
 
+      {/* 真实券商接入状态与沙盒物理隔离防护栏 */}
+      <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+            <ShieldAlert className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-amber-300">
+                真实券商委托通道：{brokerStatus?.broker_name || '未接入实盘券商'}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400 border border-amber-800">
+                {brokerStatus?.message || '待接入 QMT / PTrade 自动化委托'}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+                沙盒物理隔离已激活
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              本看板为用户真实账户不可篡改交割账本（Truth Ledger）。策略自动跟单与推演交易已在【<Link href="/simulation" className="text-purple-400 underline hover:text-purple-300">实盘模拟沙盒</Link>】独立核算，严禁交叉污染。
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+          <Link
+            href="/simulation"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-purple-950/50 hover:bg-purple-900/60 text-purple-300 border border-purple-800/80 transition"
+          >
+            <PlaySquare className="w-3.5 h-3.5" />
+            查看策略实盘模拟
+          </Link>
+          <button
+            onClick={handlePurgeSim}
+            disabled={reconciling}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition disabled:opacity-50"
+            title="一键清洗可能误入真实账本的策略模拟测试数据并重算对齐持仓"
+          >
+            <RotateCcw className={`w-3 h-3 ${reconciling ? 'animate-spin' : ''}`} />
+            对账校验与沙盒清洗
+          </button>
+        </div>
+      </div>
+
       {/* 核心指标卡片矩阵 (Top Metrics) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Card className="bg-slate-900/80 border-white/10">
@@ -636,17 +699,26 @@ export default function TradingPage() {
           {positions.length === 0 ? (
             <div className="bg-slate-900/50 border border-dashed border-white/10 rounded-xl p-12 text-center text-slate-400">
               <Layers className="w-12 h-12 mx-auto mb-3 text-slate-600" />
-              <div className="text-base font-semibold text-slate-300">当前账户无持仓</div>
-              <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-                暂无有效持仓记录。点击上方【录入交易事实】按钮录入首笔买入交易，系统将自动派生并核算持仓。
+              <div className="text-base font-semibold text-slate-300">真实账户暂无持仓</div>
+              <p className="text-sm text-slate-500 mt-1 max-w-lg mx-auto">
+                用户当前尚未接入实盘券商委托接口（如 QMT / PTrade 自动化通道）。此处仅保留用户手工录入或券商对账单导入的真实交割流水，与策略实盘模拟（Paper Trading）实现 100% 物理隔离。
               </p>
-              <button
-                onClick={() => handleOpenTradeModal('buy')}
-                className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg inline-flex items-center gap-2 shadow-lg shadow-purple-900/30 transition-all"
-              >
-                <PlusCircle className="w-4 h-4" />
-                立即建仓
-              </button>
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <button
+                  onClick={() => handleOpenTradeModal('buy')}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg inline-flex items-center gap-2 shadow-lg shadow-purple-900/30 transition-all"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  手工录入真实交易
+                </button>
+                <Link
+                  href="/simulation"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-purple-300 text-sm font-medium rounded-lg inline-flex items-center gap-2 border border-purple-800/50 transition-all"
+                >
+                  <PlaySquare className="w-4 h-4" />
+                  前往策略实盘模拟
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/60">
@@ -782,9 +854,9 @@ export default function TradingPage() {
           {records.length === 0 ? (
             <div className="bg-slate-900/50 border border-dashed border-white/10 rounded-xl p-12 text-center text-slate-400">
               <FileText className="w-12 h-12 mx-auto mb-3 text-slate-600" />
-              <div className="text-base font-semibold text-slate-300">暂无交易流水记录</div>
-              <p className="text-sm text-slate-500 mt-1">
-                没有匹配当前筛选条件的交易事实记录。
+              <div className="text-base font-semibold text-slate-300">真实账本暂无流水记录</div>
+              <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+                真实不可篡改交割账本（Truth Ledger）暂无符合条件的交易记录。策略自动化测试交易已被严格隔离至实盘模拟沙盒。
               </p>
             </div>
           ) : (

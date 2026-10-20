@@ -176,6 +176,38 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  getBrokerStatus: () =>
+    fetchAPI<{
+      connected: boolean;
+      status: string;
+      status_label: string;
+      broker_name: string | null;
+      channel_type: string | null;
+      account_id: string | null;
+      message: string;
+      supported_channels: string[];
+    }>('/trading/broker/status'),
+  purgeSimulationFromTruthLedger: () =>
+    fetchAPI<{ purged_records_count: number; affected_codes: string[] }>('/trading/purge-sim', { method: 'POST' }),
+
+  // =========================================================================
+  // 策略实盘模拟交易沙盒接口 (与真实券商账户物理隔离)
+  // =========================================================================
+  getSimAccount: () =>
+    fetchAPI<import('@/types/simulation').SimAccount>('/simulation/account'),
+  getSimPositions: (refreshQuote: boolean = true) =>
+    fetchAPI<import('@/types/simulation').SimPosition[]>(`/simulation/positions?refresh_quote=${refreshQuote}`),
+  getSimRecords: (limit: number = 50) =>
+    fetchAPI<{ items: import('@/types/simulation').SimTrade[]; total: number }>(`/simulation/records?limit=${limit}`),
+  executeSimTrade: (payload: import('@/types/simulation').SimTradeCreatePayload) =>
+    fetchAPI<import('@/types/simulation').SimTrade>('/simulation/trades', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getSimStats: () =>
+    fetchAPI<import('@/types/simulation').SimStats>('/simulation/stats'),
+  resetSimAccount: () =>
+    fetchAPI<{ status: string; message: string }>('/simulation/reset', { method: 'POST' }),
 
 
   // =========================================================================

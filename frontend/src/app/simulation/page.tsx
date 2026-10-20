@@ -21,13 +21,14 @@ import {
   Target
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { Position, TradeRecord, TradeStats, DirectionType } from '@/types/trading';
+import { SimPosition, SimTrade, SimStats } from '@/types/simulation';
+import { DirectionType } from '@/types/trading';
 
 export default function SimulationPage() {
   const [activeTab, setActiveTab] = useState<'positions' | 'orders' | 'strategy_linkage' | 'risk'>('positions');
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [records, setRecords] = useState<TradeRecord[]>([]);
-  const [stats, setStats] = useState<TradeStats | null>(null);
+  const [positions, setPositions] = useState<SimPosition[]>([]);
+  const [records, setRecords] = useState<SimTrade[]>([]);
+  const [stats, setStats] = useState<SimStats | null>(null);
   const [strategyData, setStrategyData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -50,9 +51,9 @@ export default function SimulationPage() {
 
     try {
       const [posRes, recRes, statsRes, stratRes] = await Promise.allSettled([
-        api.getPositions(true),
-        api.getTradeRecords({ limit: 40 }),
-        api.getTradeStats(),
+        api.getSimPositions(true),
+        api.getSimRecords(40),
+        api.getSimStats(),
         api.getClassicStrategies(),
       ]);
 
@@ -96,16 +97,14 @@ export default function SimulationPage() {
       const q = 1000;
       const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-      await api.addTradeRecord({
+      await api.executeSimTrade({
         code: cand.code,
         name: cand.name,
         direction: 'buy',
         price: p,
         quantity: q,
         trade_time: nowStr,
-        trade_reason: `[${stratName}] ${cand.status_tag || ''} (评分 ${cand.score || '--'}) · 策略联动模拟建仓`,
-        source: 'STRATEGY_SIMULATION',
-        idempotency_key: `sim_strat_${cand.code}_${Date.now()}`
+        decision_summary: `[${stratName}] ${cand.status_tag || ''} (评分 ${cand.score || '--'}) · 策略联动模拟建仓`,
       });
 
       showNotice(`已成功模拟买入【${cand.name} (${cand.code})】1,000 股，买入价 ${p.toFixed(2)} 元！`, 'success');
@@ -118,7 +117,7 @@ export default function SimulationPage() {
   };
 
   // 持仓一键平仓卖出
-  const handleSellPosition = async (pos: Position) => {
+  const handleSellPosition = async (pos: SimPosition) => {
     if (!confirm(`确认按市价模拟平仓卖出【${pos.name || pos.code}】全部 ${pos.quantity} 股吗？`)) {
       return;
     }
@@ -127,16 +126,14 @@ export default function SimulationPage() {
       const p = Number(pos.current_price) > 0 ? Number(pos.current_price) : Number(pos.avg_cost);
       const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-      await api.addTradeRecord({
+      await api.executeSimTrade({
         code: pos.code,
         name: pos.name || undefined,
         direction: 'sell',
         price: p,
         quantity: pos.quantity,
         trade_time: nowStr,
-        trade_reason: `模拟盘手动止盈止损平仓 (原成本 ${pos.avg_cost.toFixed(2)})`,
-        source: 'MANUAL_SIMULATION',
-        idempotency_key: `sim_sell_${pos.code}_${Date.now()}`
+        decision_summary: `模拟盘手动止盈止损平仓 (原成本 ${pos.avg_cost.toFixed(2)})`,
       });
 
       showNotice(`已成功平仓【${pos.name || pos.code}】${pos.quantity} 股，成交价 ${p.toFixed(2)} 元！`, 'success');
@@ -159,16 +156,14 @@ export default function SimulationPage() {
     setIsSubmitting(true);
     try {
       const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
-      await api.addTradeRecord({
+      await api.executeSimTrade({
         code: orderCode.trim(),
         name: orderName.trim() || undefined,
         direction: orderDirection,
         price: Number(orderPrice),
         quantity: Number(orderQuantity),
         trade_time: nowStr,
-        trade_reason: orderReason,
-        source: 'MANUAL_SIMULATION',
-        idempotency_key: `sim_manual_${orderCode}_${Date.now()}`
+        decision_summary: orderReason,
       });
 
       showNotice(`已成功记录【${orderDirection === 'buy' ? '买入' : '卖出'}】${orderCode} ${orderQuantity} 股！`, 'success');
@@ -255,6 +250,25 @@ export default function SimulationPage() {
           >
             <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>刷新行情</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              if (confirm("确认重置策略实盘模拟账户吗？所有模拟持仓与流水将被清空，虚拟资金恢复 100 万元。")) {
+                try {
+                  await api.resetSimAccount();
+                  showNotice("策略实盘模拟账户已重置恢复 100 万元初始虚拟资金！", "success");
+                  await loadAllData(true);
+                } catch (err: any) {
+                  showNotice(err?.message || "重置失败", "error");
+                }
+              }
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/40 border border-rose-800/40 text-xs font-semibold text-rose-300 transition flex items-center gap-1.5"
+            title="一键清空模拟持仓与流水，恢复初始 100 万"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline">重置模拟盘</span>
           </button>
 
           <button
@@ -595,11 +609,11 @@ export default function SimulationPage() {
                         <td className="py-2.5 px-3 text-right tabular-nums">{r.quantity.toLocaleString()}</td>
                         <td className="py-2.5 px-3 text-right tabular-nums">{r.price.toFixed(3)}</td>
                         <td className="py-2.5 px-3 text-right tabular-nums">{r.amount.toLocaleString()} 元</td>
-                        <td className="py-2.5 px-3 text-slate-300 max-w-[240px] truncate" title={r.trade_reason || ''}>
-                          {r.trade_reason || '--'}
+                        <td className="py-2.5 px-3 text-slate-300 max-w-[240px] truncate" title={r.decision_summary || r.trade_reason || ''}>
+                          {r.decision_summary || r.trade_reason || '--'}
                         </td>
                         <td className="py-2.5 px-3 text-center text-emerald-400 font-bold">
-                          {r.record_type === 'REVERSAL' ? '已红字冲正' : '全部成交'}
+                          全部成交
                         </td>
                       </tr>
                     );

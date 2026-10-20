@@ -3,7 +3,7 @@ import time
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, date, time as dt_time
 from fastapi import HTTPException
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, not_
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.trading import TradeRecord, Position, TradeNote
 from ..schemas.trading import (
@@ -47,6 +47,10 @@ class TradingService:
         - 服务端强制派生计算 amount
         - 卖出超卖强校验拦截（400 阻断）
         """
+        # 0. 严格拦截策略模拟数据误入真实交易事实账本 (物理隔离保护)
+        if payload.source in ("STRATEGY_WORKBENCH", "SIMULATION") or (payload.trade_reason and ("模拟" in payload.trade_reason or "虚拟跟单" in payload.trade_reason)):
+            raise HTTPException(status_code=400, detail="真实交易账本严禁录入策略模拟交易数据，模拟交易请使用 /api/v1/simulation 接口。")
+
         # 1. 幂等性防重检查
         if payload.idempotency_key:
             stmt = select(TradeRecord).where(TradeRecord.idempotency_key == payload.idempotency_key)
@@ -355,7 +359,12 @@ class TradingService:
 
     async def _reconcile_single_code(self, code: str) -> Position:
         """针对单只标的顺序回放流水，成对排除冲正对，重算派生持仓"""
-        stmt = select(TradeRecord).where(TradeRecord.code == code).order_by(TradeRecord.trade_time.asc(), TradeRecord.id.asc())
+        stmt = select(TradeRecord).where(
+            TradeRecord.code == code,
+            TradeRecord.source.notin_(["STRATEGY_WORKBENCH", "SIMULATION"]),
+            not_(TradeRecord.trade_reason.like("%模拟%")),
+            not_(TradeRecord.trade_reason.like("%虚拟跟单%"))
+        ).order_by(TradeRecord.trade_time.asc(), TradeRecord.id.asc())
         all_records = list((await self.session.execute(stmt)).scalars().all())
 
         # 提取冲正对集合
@@ -422,6 +431,32 @@ class TradingService:
         
         await self.session.commit()
         return {"status": "SUCCESS", "reconciled_codes": codes, "positions": results}
+
+    async def purge_simulation_records_from_truth_ledger(self) -> Dict[str, Any]:
+        """清除误写入真实交易账本的历史策略模拟流水，恢复真实账户纯净"""
+        from sqlalchemy import delete
+        stmt_sim_ids = select(TradeRecord.id, TradeRecord.code).where(
+            or_(
+                TradeRecord.source.in_(["STRATEGY_WORKBENCH", "SIMULATION"]),
+                TradeRecord.trade_reason.like("%模拟%"),
+                TradeRecord.trade_reason.like("%虚拟跟单%"),
+                TradeRecord.idempotency_key.like("sim_%")
+            )
+        )
+        sim_rows = (await self.session.execute(stmt_sim_ids)).all()
+        sim_ids = [r[0] for r in sim_rows]
+        sim_codes = list(set(r[1] for r in sim_rows))
+
+        if sim_ids:
+            await self.session.execute(delete(TradeNote).where(TradeNote.trade_id.in_(sim_ids)))
+            await self.session.execute(delete(TradeRecord).where(TradeRecord.id.in_(sim_ids)))
+            await self.session.commit()
+
+            for c in sim_codes:
+                await self._reconcile_single_code(c)
+            await self.session.commit()
+
+        return {"purged_records_count": len(sim_ids), "affected_codes": sim_codes}
 
     async def search_securities(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """A股标的代码/名称/拼音双向搜索 (支持本地持仓库优先聚合与外部主数据模糊搜索)"""
@@ -553,6 +588,11 @@ class TradingService:
             filters.append(TradeRecord.direction == direction.lower())
         if record_type:
             filters.append(TradeRecord.record_type == record_type.upper())
+
+        # 严格物理隔离：排除所有策略模拟交易流水
+        filters.append(TradeRecord.source.notin_(["STRATEGY_WORKBENCH", "SIMULATION"]))
+        filters.append(not_(TradeRecord.trade_reason.like("%模拟%")))
+        filters.append(not_(TradeRecord.trade_reason.like("%虚拟跟单%")))
 
         if filters:
             stmt = stmt.where(and_(*filters))

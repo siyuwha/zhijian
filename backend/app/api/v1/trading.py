@@ -105,3 +105,27 @@ async def reconcile_positions(
     service = TradingService(db)
     report = await service.reconcile_positions(code=code)
     return {"code": 200, "data": report}
+
+@router.get("/broker/status")
+async def get_broker_status():
+    """获取真实券商委托通道连接状态（目前用户未接入）"""
+    return {
+        "code": 200,
+        "data": {
+            "connected": False,
+            "status": "DISCONNECTED",
+            "status_label": "未接入",
+            "broker_name": None,
+            "channel_type": None,
+            "account_id": None,
+            "message": "当前尚未接入真实券商委托通道。知见系统对真实交易账本执行物理隔离保护，严禁任何策略模拟数据混入。",
+            "supported_channels": ["QMT (迅投极速实盘)", "Ptrade (恒生智能实盘)", "交割单 CSV/Excel 导入"]
+        }
+    }
+
+@router.post("/purge-sim")
+async def purge_sim_data(db: AsyncSession = Depends(get_db)):
+    """清除误混入真实交易账本的历史策略模拟数据，恢复账本纯净"""
+    service = TradingService(db)
+    res = await service.purge_simulation_records_from_truth_ledger()
+    return {"code": 200, "data": res}

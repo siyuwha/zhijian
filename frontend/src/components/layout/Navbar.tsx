@@ -23,9 +23,9 @@ const navItems = [
   { name: "竞价", href: "/auction", icon: Clock },
   { name: "盯盘", href: "/monitor", icon: MonitorPlay },
   { name: "复盘", href: "/review", icon: FileText },
-  { name: "交易", href: "/trading", icon: TrendingUp },
+  { name: "交易", href: "/trading", icon: TrendingUp, tag: "实盘" },
   { name: "策略", href: "/strategy", icon: Compass },
-  { name: "模拟", href: "/simulation", icon: PlaySquare },
+  { name: "模拟", href: "/simulation", icon: PlaySquare, tag: "沙盒" },
   { name: "系统状态", href: "/settings", icon: Settings },
 ];
 
@@ -90,7 +90,19 @@ export function Navbar() {
                       : "text-slate-400 group-hover:text-slate-200"
                   )}
                 />
-                <span className="truncate">{item.name}</span>
+                <span className="truncate flex-1">{item.name}</span>
+                {item.tag && (
+                  <span
+                    className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded font-mono font-medium",
+                      item.tag === "实盘"
+                        ? "bg-purple-950/80 text-purple-300 border border-purple-800/60"
+                        : "bg-cyan-950/80 text-cyan-300 border border-cyan-800/60"
+                    )}
+                  >
+                    {item.tag}
+                  </span>
+                )}
               </Link>
             );
           })}
