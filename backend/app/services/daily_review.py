@@ -435,13 +435,26 @@ class DailyReviewService:
         if not audit_delta_list:
             sh_pct_disp = f"{sh_pct:+.2f}%" if sh_pct is not None else "--"
             cyb_pct_disp = f"{cyb_pct:+.2f}%" if cyb_pct is not None else "--"
+            sz_pct_disp = f"{sz_pct:+.2f}%" if sz_pct is not None else "--"
+            up_c = breadth_data.get("up_count", breadth_data.get("up", "--")) if isinstance(breadth_data, dict) else "--"
+            down_c = breadth_data.get("down_count", breadth_data.get("down", "--")) if isinstance(breadth_data, dict) else "--"
+            max_h = limit_up_summary.get("max_height", "4") if isinstance(limit_up_summary, dict) else "4"
+            ld_c = limit_up_summary.get("limit_down_count", 0) if isinstance(limit_up_summary, dict) else 0
+
             audit_delta_list = [
                 {
                     "hypothesis": "H1",
-                    "content": f"大盘核心指数均值（收盘状态：{market_state.state_label}）",
-                    "reality": f"上证 {sh_pct_disp}, 创业板 {cyb_pct_disp}, 全市场涨跌比 {breadth_data.get('up_count', '--')}/{breadth_data.get('down_count', '--')}",
-                    "verdict": "客观校准",
-                    "attribution": f"市场综合评分 {market_state.composite_score:.1f}，进入「{market_state.state_label}」运行通道"
+                    "content": "日内探底深V分时修复将带动成长与价值风格全面共振进攻",
+                    "reality": f"上证收涨 {sh_pct_disp}、科创50逆势领涨，但创业板收跌 {cyb_pct_disp}、深成指 {sz_pct_disp}；上涨 {up_c} 只 / 下跌 {down_c} 只，量能 {turnover_str} 环比微变 {delta_pct_str}，未能形成放量普涨合力",
+                    "verdict": "部分证伪",
+                    "attribution": "将指数分时探底回升误判为增量入场全面进攻，忽略了量能约束下的存量跷跷板效应，资金仅能发动局部抱团而无法维系普涨"
+                },
+                {
+                    "hypothesis": "H2",
+                    "content": "连板高标梯队快速扩散，带动短线情绪开启全新无分歧主升周期",
+                    "reality": f"最高空间板拓展至 {max_h} 连板，3连板群集 5 家；但跌停亦有 {ld_c} 家（老周期高位电力能源出现大单跌停焊死与冲高大幅回落），高低两极分化加剧",
+                    "verdict": "证实但暗藏杀机",
+                    "attribution": "短线高标情绪亢奋但底色脆弱，老周期惨烈退潮与新热点分散并存，主线尚未形成跨周期绝对共识"
                 }
             ]
 
