@@ -70,18 +70,13 @@ export function ZhijianMarkdownArticle({
       let title = rawHeading;
       let category = '实战博弈深度研报';
 
-      // 智能提取数字/章节序号与标题
-      // 兼容："Part 0：昨日假说", "第 0 章：昨日假说", "P0", "1. ", "专题一", "一、"
+      // 智能提取标题并彻底剥离任何 Part 0~3 / 第 X 章 / 0-3 / 数字序号等编号前缀
       const partMatch = rawHeading.match(/^(?:第\s*(\d+)\s*章|Part\s*(\d+)|P(\d+)|(\d+)[\.、]|专题([一二三四五六七八九十\d]+)|([一二三四五六七八九十]+)[、\.：:])\s*[：: ]*(.*)/i);
       if (partMatch) {
-        const parsedNum = partMatch[1] || partMatch[2] || partMatch[3] || partMatch[4] || partMatch[5] || partMatch[6];
-        if (/^\d+$/.test(parsedNum)) {
-          num = parsedNum.padStart(2, '0');
-        } else {
-          num = parsedNum;
-        }
         title = partMatch[7]?.trim() || rawHeading;
       }
+      // 再次刚性过滤任何残留编号
+      title = title.replace(/^(?:Part\s*\d+|第\s*\d+\s*章|\d+[\.、]|\s*0\s*[-—~]\s*3)\s*[：:\|｜\s-]*/i, '').trim();
 
       // 智能推断专题分类
       if (title.includes('假说') || title.includes('审计') || title.includes('校准') || title.includes('Audit')) {
@@ -448,9 +443,7 @@ export function ZhijianMarkdownArticle({
           {/* 章节机构眉标 */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-4">
             <div className="flex items-center gap-3">
-              <span className="font-mono font-black text-lg md:text-xl text-amber-400 bg-amber-950/40 px-2.5 py-0.5 rounded-lg border border-amber-800/40">
-                {chapter.num}
-              </span>
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.6)] shrink-0" />
               <div>
                 <span className="text-[10px] font-mono font-semibold tracking-widest text-slate-500 uppercase block">
                   {chapter.category}

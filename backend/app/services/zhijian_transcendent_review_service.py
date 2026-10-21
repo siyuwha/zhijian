@@ -40,13 +40,14 @@ SYSTEM_PROMPT_ZHIJIAN = """你是「知见」AI认知复盘交易系统的首席
      * 容量中军锚：百亿/几十亿容量标的放量换手阈值与分时均线防守。
    - 给出明确的【09:25 集合竞价刚性证伪红线】：一旦触发指标，多头逻辑无条件证伪，立刻执行防守纪律。
 
-5. 【严格遵循 A 股色彩规范与四进阶有机研报结构】：
+5. 【彻底取消 0-3、Part 0~3、第 X 章等任何机械编号，以有机主题标题直接展开】：
    - 坚守 A 股“红涨绿跌 / 红流入绿流出”。
-   - 结构清晰落地为四个进阶层级：
-     * Part 0：昨日假说判决书与认知校准 (The Audit Delta)
-     * Part 1：全景物理事实底座 (Market Ground Truth，含分时动态、量能、红绿宽幅与完整连板天梯表格)
-     * Part 2：核心博弈矛盾剖析与专题深潜 (Core Contradiction & Deep Dive，2~3个锋利专题)
-     * Part 3：波普尔证伪工作台与次日行动锚点 (Popperian Falsification & Action Anchors)
+   - 研报严禁使用任何形式的“Part 0/1/2/3”、“第 0/1/2/3 章”或“0-3”数字章节编号前缀！
+   - 直接落地为四个有机主题层级（以标准 ## 标题开头，不得添加数字编号前缀）：
+     * ## 昨日假说判决书与认知校准 (The Audit Delta)
+     * ## 全景物理事实底座 (Market Ground Truth)
+     * ## 核心博弈深潜与专题剖析 (Core Contradiction & Deep Dive)
+     * ## 波普尔证伪工作台与次日行动锚点 (Popperian Falsification & Action Anchors)
 """
 
 
@@ -319,7 +320,7 @@ class ZhijianTranscendentReviewService:
 
 ---
 
-## Part 0：昨日假说判决书与认知校准 (The Audit Delta)
+## 昨日假说判决书与认知校准 (The Audit Delta)
 
 **审判对象：盘前推演提出的核心假说与盘面物理现实对照。**
 
@@ -330,7 +331,7 @@ class ZhijianTranscendentReviewService:
 
 ---
 
-## Part 1：全景物理事实底座 (Market Ground Truth)
+## 全景物理事实底座 (Market Ground Truth)
 
 ### 1.1 核心指数与流动性量能
 - **上证指数**：收于 **{sh_close}** 点（**{sh_pct:+.2f}%**）
@@ -348,7 +349,7 @@ class ZhijianTranscendentReviewService:
 
 ---
 
-## Part 2：核心博弈矛盾剖析与专题深潜 (Core Contradiction & Deep Dive)
+## 核心博弈深潜与专题剖析 (Core Contradiction & Deep Dive)
 
 ### 专题一：最高板博弈与主线真伪——{highest_ladder_name} {highest_tier} 与核心梯队分水岭
 今日盘面热点板块呈现涨停聚集，但穿透表象看本质：
@@ -366,7 +367,7 @@ class ZhijianTranscendentReviewService:
 
 ---
 
-## Part 3：波普尔证伪工作台与次日行动锚点 (Popperian Falsification & Action Anchors)
+## 波普尔证伪工作台与次日行动锚点 (Popperian Falsification & Action Anchors)
 
 ### 3.1 次日核心物理观测锚点
 次日开盘需重点紧盯以下四个维度物理锚点：
@@ -578,15 +579,15 @@ class ZhijianTranscendentReviewService:
 【研报写作实战指引（首席策略师与自营总监笔触）】：
 - 严禁任何 AI 机器人式的机械免责套话（禁止在每句话后面打【交易推断】标签，仅在开篇做一次性《数据边界与博弈声明》即可）。
 - 严禁抱怨数据缺失或以“无法核验/未提供”为借口推卸研判责任！基于已有全市场数据直接给出专业锋利的宏观博弈推论。
-- 结构清晰落地为 4 个有机进阶层级：
-  * Part 0：昨日假说判决书与认知校准 (The Audit Delta)
+- **彻底取消 0-3、Part 0~3 等任何编号**，直接以 4 个有机大标题展开（以 ## 开头，严禁带 Part 或数字前缀）：
+  * ## 昨日假说判决书与认知校准 (The Audit Delta)
     - 绘制假说审判 Markdown 表格（编号、假说推断、物理现实、判决、归因说明）。
     - 认知校准：深挖机构认知偏差根源，拒绝后视镜合理化。
-  * Part 1：全景物理事实底座 (Market Ground Truth)
+  * ## 全景物理事实底座 (Market Ground Truth)
     - 核心指数分时动态与量能表格
     - 市场宽度、涨跌停分布、真实炸板率与生态定位
     - 完整的连板天梯梯队 Markdown 表格
-  * Part 2：核心博弈矛盾剖析与专题深潜 (Core Contradiction & Deep Dive)
+  * ## 核心博弈深潜与专题剖析 (Core Contradiction & Deep Dive)
     - 提炼 2~3 个最锋利的实战博弈专题。
     - **小标题必须直接包含具体股票和板块名字！严禁使用“表象与本质剥离”等抽象理论作为标题！**
       例如：
@@ -594,7 +595,7 @@ class ZhijianTranscendentReviewService:
       `### 专题二：风格分化与流动性瓶颈——科创50逆势领涨（瑞芯微38亿）vs 创业板失血`
       `### 专题三：极端负反馈与退潮警报——闽东电力3.1亿跌停焊死与高位冲高大幅回落`
     - 深度穿透主力资金的进攻/防守意图、筹码结构沉淀、流动性容量极限与历史剧本比对。
-  * Part 3：波普尔证伪工作台与次日行动锚点 (Popperian Falsification & Action Anchors)
+  * ## 波普尔证伪工作台与次日行动锚点 (Popperian Falsification & Action Anchors)
     - 提炼次日具体的 4 个物理观测锚点（核心情绪高标锚、主线梯队晋级锚、容量中军量能锚、极端负反馈退潮锚），具象到具体标的与开盘/换手/量能要求。
     - 明确区分【有先手】看承接与【无先手】不追高潮的非对称决策指引。
     - 列出三种可证伪情景 (A/B/C) 伴随发生概率与应对预案。
@@ -693,10 +694,12 @@ class ZhijianTranscendentReviewService:
             )
             raw_text = res.get("text", "").strip()
             if raw_text and len(raw_text) > 800:
-                # 彻底净化正文中可能残留的机械打标，保证顶级机构研报的沉浸质感
+                # 彻底净化正文中可能残留的机械打标与 0-3 / Part 编号，保证顶级机构研报的沉浸质感
                 cleaned_text = raw_text
-                # 移除小标题中的打标
                 import re
+                # 移除章节标题中的 Part 0~3 / 第 X 章 / 0-3 编号前缀
+                cleaned_text = re.sub(r'^(##\s*)(?:Part\s*\d+|第\s*\d+\s*章|\d+[\.、]|\s*0\s*[-—~]\s*3)\s*[：:\|｜\s-]*', r'\1', cleaned_text, flags=re.MULTILINE | re.IGNORECASE)
+                # 移除小标题中的打标
                 cleaned_text = re.sub(r'^(#+\s*.*?)[\(（【]交易推断[）】\)]', r'\1', cleaned_text, flags=re.MULTILINE)
                 # 移除段落开头或句中的重复打标
                 cleaned_text = cleaned_text.replace("【交易推断】", "").replace("（交易推断）", "")

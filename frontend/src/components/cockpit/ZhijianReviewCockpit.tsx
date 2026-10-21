@@ -221,23 +221,26 @@ export function ZhijianReviewCockpit({
         shortTitle = partMatch[7]?.trim() || heading;
       }
 
+      // 彻底剥离任何 Part 0~3 / 第 X 章 / 0-3 / 数字序号等编号前缀
+      shortTitle = shortTitle.replace(/^(?:Part\s*\d+|第\s*\d+\s*章|\d+[\.、]|\s*0\s*[-—~]\s*3)\s*[：:\|｜\s-]*/i, '').trim();
+
       // 清理括号内英文或长后缀，保证横栏精炼
       shortTitle = shortTitle.replace(/\s*[\(（][^()）]*[\)）]/g, '').trim();
-      if (shortTitle.length > 9) {
-        shortTitle = shortTitle.slice(0, 9);
+      if (shortTitle.length > 10) {
+        shortTitle = shortTitle.slice(0, 10);
       }
 
       return {
-        id: `ch${num}`,
-        num,
-        label: `${num} ${shortTitle}`
+        id: `ch${idx.toString().padStart(2, '0')}`,
+        num: idx.toString().padStart(2, '0'),
+        label: shortTitle
       };
     });
   }, [transcendentData?.markdown_content]);
 
   const defaultAiGreeting = {
     role: 'ai' as const,
-    content: `您好！我是「知见」AI 认知推演助手。我已经吸收了 ${date} 的全部物理事实（两市总成交 ${totalTurnoverStr}，大盘状态「${cyclePhase}」）。您可以针对 11 章研报中的任何梯队、机制样本或波普尔刚性证伪红线向我深入提问！`
+    content: `您好！我是「知见」AI 认知推演助手。我已经吸收了 ${date} 的全部物理事实（两市总成交 ${totalTurnoverStr}，大盘状态「${cyclePhase}」）。您可以针对全景深度研报中的任何梯队、机制样本或波普尔刚性证伪红线向我深入提问！`
   };
 
   const getChatStorageKey = (d: string) => `zhijian_review_chat_${d}`;
