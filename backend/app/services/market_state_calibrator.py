@@ -75,20 +75,20 @@ class MarketStateCalibrator:
         high_tier_cnt = sum(
             len(grp.stocks) for grp in truth.ladder_tree if grp.height >= 3
         )
-        leader_ratio = round(high_tier_cnt / lu_cnt, 4) if lu_cnt > 0 else 0.0
+        leader_ratio = min(1.0, max(0.0, round(high_tier_cnt / lu_cnt, 4))) if lu_cnt > 0 else 0.0
 
         vec_s = LadderVector(
-            max_ladder_height=max_h,
+            max_ladder_height=max(1, max_h),
             limit_up_count=lu_cnt,
             limit_down_count=ld_cnt,
             leader_ratio=leader_ratio,
         )
 
-        # 3. 向量 R: 亏钱效应
-        br_ratio = round(sb.broken_limit_ratio, 4)
+        # 3. 向量 R: 亏钱效应 (严格截断于 [0.0, 1.0]，避免极端分化日跌停潮导致分子溢出爆出校验异常)
+        br_ratio = min(1.0, max(0.0, round(sb.broken_limit_ratio, 4)))
         br_cnt = sb.broken_limit_count
         touched = sb.touched_limit_total_count
-        extreme_loss = round((br_cnt + ld_cnt) / touched, 4) if touched > 0 else 0.0
+        extreme_loss = min(1.0, max(0.0, round((br_cnt + ld_cnt) / touched, 4))) if touched > 0 else 0.0
 
         vec_r = RiskVector(
             broken_limit_ratio=br_ratio,

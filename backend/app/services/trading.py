@@ -546,6 +546,8 @@ class TradingService:
                             pos.floating_pnl = None
 
                 await self.session.commit()
+                # 重新异步执行查询获取全新持仓对象，彻底杜绝 onupdate 字段(updated_at)在 commit 后过期引发同步懒加载异常
+                positions = list((await self.session.execute(stmt)).scalars().all())
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning(f"更新持仓行情异常: {e}")
@@ -565,7 +567,7 @@ class TradingService:
                 "floating_pnl": p.floating_pnl,
                 "floating_pnl_pct": round((p.current_price - p.avg_cost) / p.avg_cost * 100, 2) if (p.current_price and p.avg_cost > 0) else None,
                 "market_value": round(p.current_price * p.quantity, 2) if p.current_price else None,
-                "updated_at": p.updated_at,
+                "updated_at": p.updated_at.isoformat() if getattr(p, "updated_at", None) else None,
             }
             results.append(p_dict)
 
