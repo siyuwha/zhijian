@@ -441,20 +441,38 @@ class DailyReviewService:
             max_h = limit_up_summary.get("max_height", "4") if isinstance(limit_up_summary, dict) else "4"
             ld_c = limit_up_summary.get("limit_down_count", 0) if isinstance(limit_up_summary, dict) else 0
 
+            sh_dir = "收涨" if (sh_pct or 0) >= 0 else "收跌"
+            cyb_dir = "收涨" if (cyb_pct or 0) >= 0 else "收跌"
+            sz_dir = "收涨" if (sz_pct or 0) >= 0 else "收跌"
+
+            # 动态判断放量/缩量量能事实，杜绝出现“放量下跌”却被机械描述为“微变”的逻辑矛盾
+            vol_eval_str = f"量能 {turnover_str}"
+            if delta_pct_str != "--":
+                try:
+                    dp = float(delta_pct_str.replace("%", "").replace("+", ""))
+                    if dp >= 3.0:
+                        vol_eval_str += f"（放量增加 {delta_amount_str}，幅度 {delta_pct_str}）"
+                    elif dp <= -3.0:
+                        vol_eval_str += f"（缩量减少 {delta_amount_str}，幅度 {delta_pct_str}）"
+                    else:
+                        vol_eval_str += f"（环比微变 {delta_pct_str}）"
+                except Exception:
+                    vol_eval_str += f"（变动 {delta_pct_str}）"
+
             audit_delta_list = [
                 {
                     "hypothesis": "H1",
                     "content": "日内探底深V分时修复将带动成长与价值风格全面共振进攻",
-                    "reality": f"上证收涨 {sh_pct_disp}、科创50逆势领涨，但创业板收跌 {cyb_pct_disp}、深成指 {sz_pct_disp}；上涨 {up_c} 只 / 下跌 {down_c} 只，量能 {turnover_str} 环比微变 {delta_pct_str}，未能形成放量普涨合力",
-                    "verdict": "部分证伪",
-                    "attribution": "将指数分时探底回升误判为增量入场全面进攻，忽略了量能约束下的存量跷跷板效应，资金仅能发动局部抱团而无法维系普涨"
+                    "reality": f"上证{sh_dir} {sh_pct_disp}、深成指{sz_dir} {sz_pct_disp}、创业板{cyb_dir} {cyb_pct_disp}；上涨 {up_c} 只 / 下跌 {down_c} 只，{vol_eval_str}，未能形成放量普涨合力",
+                    "verdict": "全面共振假说证伪" if (sh_pct or 0) < 0 and (cyb_pct or 0) < 0 else "部分证伪",
+                    "attribution": "将指数分时探底微弱回拉误判为增量做多，忽视了量能约束与存量跷跷板效应，资金仅能发动局部抱团而无法维系普涨"
                 },
                 {
                     "hypothesis": "H2",
                     "content": "连板高标梯队快速扩散，带动短线情绪开启全新无分歧主升周期",
-                    "reality": f"最高空间板拓展至 {max_h} 连板，3连板群集 5 家；但跌停亦有 {ld_c} 家（老周期高位电力能源出现大单跌停焊死与冲高大幅回落），高低两极分化加剧",
-                    "verdict": "证实但暗藏杀机",
-                    "attribution": "短线高标情绪亢奋但底色脆弱，老周期惨烈退潮与新热点分散并存，主线尚未形成跨周期绝对共识"
+                    "reality": f"最高空间板拓展至 {max_h} 连板；但跌停多达 {ld_c} 家，涨跌停两极分化加剧，中位承接出现明显断层",
+                    "verdict": "高度拓展成立，无分歧主升证伪",
+                    "attribution": "以幸存龙头代替全市场生态，忽视了跌停负反馈与高炸板率对场内追涨资金风险偏好的剧烈压制"
                 }
             ]
 
@@ -464,6 +482,7 @@ class DailyReviewService:
             "turnover": turnover_facts,
             "breadth": breadth_data if isinstance(breadth_data, dict) else {},
             "limit_up": limit_up_summary if isinstance(limit_up_summary, dict) else {},
+            "sector_evidence_gates": sector_gates_dump,
             "market_state": {
                 "state_label": market_state.state_label,
                 "composite_score": market_state.composite_score,
