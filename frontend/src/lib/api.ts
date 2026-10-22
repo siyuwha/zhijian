@@ -132,6 +132,24 @@ export const api = {
     fetchAPI<any>(`/monitor/trigger-scan${date ? `?date=${date}` : ''}`, { method: 'POST' }),
   getClassicStrategies: (date?: string) =>
     fetchAPI<any>(`/strategy/classic-evaluation${date ? `?date=${date}` : ''}`),
+  getBacktestStatus: () =>
+    fetchAPI<any>('/strategy/backtest/status'),
+  runBacktest: (params: {
+    start_date?: string;
+    end_date?: string;
+    strategy_id?: string;
+    initial_capital?: number;
+    min_open_pct?: number;
+    max_open_pct?: number;
+    stop_loss_pct?: number;
+    max_positions?: number;
+    holding_days?: number;
+    market_filter?: boolean;
+  }) =>
+    fetchAPI<any>('/strategy/backtest/run', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
 
   // G1-M3 交易记录与持仓管理端点
   getPositions: (refreshQuote: boolean = true) =>
