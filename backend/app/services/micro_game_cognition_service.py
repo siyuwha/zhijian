@@ -134,7 +134,7 @@ class MicroGameCognitionService:
                             parsed = json.loads(content)
                             if "track1" in parsed and "track2" in parsed and "sector_rotation" in parsed:
                                 result_data = {
-                                    "status": "success",
+                                    "status": "ok",
                                     "source": "LLM_INFERRED",
                                     "model": model,
                                     "track1": parsed["track1"],
@@ -236,7 +236,7 @@ class MicroGameCognitionService:
             sector_rot = "全天题材轮动节奏加快，存量资金在各个细分热点间快速脉冲反抽，缺乏持续性领涨大题材，以防守防御为主。"
 
         return {
-            "status": "success",
+            "status": "ok",
             "source": "QUANT_EXPERT_ENGINE",
             "model": "rule_heuristic",
             "track1": track1,
