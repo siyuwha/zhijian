@@ -1753,6 +1753,80 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         ? limitUpData.broken_limit_ratio
         : (touchedTotalCount > 0 ? Number((brokenLimitCount / touchedTotalCount).toFixed(4)) : 0.0));
 
+  // 动态炸板率多级量化风控评级 (杜绝静态硬编码文案与误报)
+  const brokenRatioLevel = useMemo(() => {
+    const ratioPct = brokenLimitRatio * 100;
+    if (ratioPct < 15.0) {
+      return {
+        level: 'BENIGN',
+        shortTag: '安全低位',
+        badge: '🟢 情绪良性 · 炸板率处于安全低位 (<15%)',
+        badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/80',
+        textColor: 'text-emerald-400',
+        titleColor: 'text-emerald-300',
+        panelBg: 'bg-emerald-950/20 border border-emerald-500/30',
+        cardBorder: 'border-emerald-500/25',
+        progressBar: 'bg-gradient-to-r from-teal-500 to-emerald-400',
+        countStatus: '低位良性 · 封板坚实',
+        countClass: 'text-emerald-400 font-bold',
+        discipline: '硬纪律提示: 当前炸板率处于 15% 以下良性区间，封板率超 85%，多头承接坚实，未见大面积跳水做空风险。',
+        defenseStatus: '状态健康: 炸板率处于安全低位，风险可控',
+        defenseClass: 'text-emerald-400 font-bold',
+      };
+    } else if (ratioPct < 25.0) {
+      return {
+        level: 'NORMAL',
+        shortTag: '温和换手',
+        badge: '🟡 正常换手 · 炸板率温和可控 (15%~25%)',
+        badgeClass: 'bg-cyan-950/80 text-cyan-300 border-cyan-800/80',
+        textColor: 'text-cyan-300',
+        titleColor: 'text-cyan-300',
+        panelBg: 'bg-cyan-950/20 border border-cyan-500/30',
+        cardBorder: 'border-cyan-500/25',
+        progressBar: 'bg-gradient-to-r from-cyan-500 to-amber-400',
+        countStatus: '正常分歧换手',
+        countClass: 'text-cyan-300 font-bold',
+        discipline: '硬纪律提示: 炸板率处于 15%~25% 正常换手区间，高低切与轮动加速，去伪存真聚焦主线核心。',
+        defenseStatus: '分歧有序: 关注主线核心，远离杂毛跟风',
+        defenseClass: 'text-cyan-300 font-bold',
+      };
+    } else if (ratioPct < 35.0) {
+      return {
+        level: 'WARNING',
+        shortTag: '逼近警戒',
+        badge: '🟠 爬升预警 · 逼近 35% 防守警戒线',
+        badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-800/80',
+        textColor: 'text-amber-400',
+        titleColor: 'text-amber-300',
+        panelBg: 'bg-amber-950/20 border border-amber-500/30',
+        cardBorder: 'border-amber-500/40',
+        progressBar: 'bg-gradient-to-r from-amber-400 to-orange-500',
+        countStatus: '快速增加 · 风险爬升',
+        countClass: 'text-amber-400 font-bold',
+        discipline: '硬纪律提示: 炸板率已攀升至警戒临界区 (25%~35%)，谨防高位冲高回落大面，严格拒绝跟风追高！',
+        defenseStatus: '警戒逼近: 炸板率逼近 35%，准备降仓避险',
+        defenseClass: 'text-amber-400 font-bold',
+      };
+    } else {
+      return {
+        level: 'DANGER',
+        shortTag: '突破红线',
+        badge: '🔴 破位做空 · 突破 35% 强制防守清仓线',
+        badgeClass: 'bg-rose-950/90 text-rose-300 border-rose-800/90 animate-pulse',
+        textColor: 'text-rose-400',
+        titleColor: 'text-rose-400',
+        panelBg: 'bg-rose-950/30 border border-rose-500/50',
+        cardBorder: 'border-rose-500/50',
+        progressBar: 'bg-gradient-to-r from-orange-500 to-rose-600 animate-pulse',
+        countStatus: '严重破位 · 批量大面',
+        countClass: 'text-rose-400 font-black',
+        discipline: '🚨 硬纪律触发: 炸板率突破 35% 极值红线，触发系统强制防守信号，禁止接飞刀，严格执行止盈减仓避险！',
+        defenseStatus: '🚨 强制防守: 炸板率突破 35%，无条件立即减仓',
+        defenseClass: 'text-rose-400 font-black animate-pulse',
+      };
+    }
+  }, [brokenLimitRatio]);
+
   // 指数真实行情数据 (优先从标准快照 indices 提取，杜绝静态数字)
   const indices = snapshot?.truth?.indices || [];
   const shIndex = indices.find((idx) => idx.symbol === '000001' || idx.symbol === 'sh000001' || idx.name.includes('上证')) || indices[0];
@@ -2137,8 +2211,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   </div>
                   <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
                     <span className="text-slate-400 text-[10px]">动态炸板大面率:</span>
-                    <span className="font-bold text-amber-400">
-                      {currentBriefingRecord?.quantitative_indicators?.broken_ratio || `${(brokenLimitRatio * 100).toFixed(1)}% (警戒阈值 35%)`}
+                    <span className={`font-bold ${brokenRatioLevel.textColor}`}>
+                      {(brokenLimitRatio * 100).toFixed(1)}% ({brokenRatioLevel.shortTag})
                     </span>
                   </div>
                   <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
@@ -2316,7 +2390,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     <span className="text-slate-500 animate-pulse font-normal">计算中...</span>
                   ) : (
                     <span className="tabular-nums">
-                      <strong className="text-amber-400 font-bold">{(brokenLimitRatio * 100).toFixed(1)}%</strong>
+                      <strong className={`${brokenRatioLevel.textColor} font-bold`}>{(brokenLimitRatio * 100).toFixed(1)}%</strong>
                       <span className="text-slate-400 text-[11px] ml-1">
                         (触板 {touchedTotalCount} / 封死 {limitUpCount} / 炸板 {brokenLimitCount})
                       </span>
@@ -3369,43 +3443,43 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           id="bento-mines"
           rounded="3xl"
           padding="lg"
-          className="border border-amber-500/30 bg-slate-950/90 shadow-2xl relative w-full"
+          className={`border ${brokenRatioLevel.cardBorder} bg-slate-950/90 shadow-2xl relative w-full transition-colors duration-300`}
         >
           <div className="flex items-center justify-between pb-3 border-b border-white/10">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-rose-400" />
+              <ShieldAlert className={`w-4 h-4 ${brokenRatioLevel.textColor}`} />
               <span className="text-sm font-bold text-slate-200 tracking-wide">
                 ④ 地雷雷达 · 动态炸板率仪表与跳水排雷 (实时风控防守线)
               </span>
             </div>
-            <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-800/80">
-              炸板率爬升预警 · 接近 35% 做空红线
+            <span className={`text-xs font-mono px-2.5 py-0.5 rounded-full border transition-colors duration-300 ${brokenRatioLevel.badgeClass}`}>
+              {brokenRatioLevel.badge}
             </span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 my-3">
             {/* 动态炸板率仪表 */}
-            <div className="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-4 flex flex-col justify-between">
+            <div className={`${brokenRatioLevel.panelBg} rounded-2xl p-4 flex flex-col justify-between transition-colors duration-300`}>
               <div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-amber-300 font-semibold">动态炸板率仪表盘</span>
-                  <span className="text-xl font-black font-mono text-amber-400">{(brokenLimitRatio * 100).toFixed(1)}%</span>
+                  <span className={`${brokenRatioLevel.titleColor} font-semibold`}>动态炸板率仪表盘</span>
+                  <span className={`text-xl font-black font-mono ${brokenRatioLevel.textColor}`}>{(brokenLimitRatio * 100).toFixed(1)}%</span>
                 </div>
                 <div className="w-full bg-slate-800 rounded-full h-2.5 mt-3 overflow-hidden relative">
                   <div className="absolute top-0 bottom-0 left-[35%] w-0.5 bg-rose-500 z-10" title="35% 强制防守警戒线"></div>
                   <div
-                    className="bg-gradient-to-r from-amber-400 to-rose-500 h-2.5 rounded-full transition-all duration-500"
+                    className={`${brokenRatioLevel.progressBar} h-2.5 rounded-full transition-all duration-500`}
                     style={{ width: `${Math.min(100, brokenLimitRatio * 100)}%` }}
                   />
                 </div>
                 <div className="text-xs text-slate-400 mt-2 flex justify-between font-mono">
                   <span>触及涨停 {touchedTotalCount} 只</span>
-                  <span className="text-rose-400 font-bold">炸板 {brokenLimitCount} 只 (快速增加)</span>
+                  <span className={brokenRatioLevel.countClass}>炸板 {brokenLimitCount} 只 ({brokenRatioLevel.countStatus})</span>
                   <span className="text-rose-500 font-bold">35% 强制防守警戒红线</span>
                 </div>
               </div>
               <div className="text-xs text-slate-400 font-mono mt-3 pt-2 border-t border-white/5">
-                硬纪律提示: 若炸板率突破 35%，系统将直接发出清仓避险信号，禁止任何跟风追高。
+                {brokenRatioLevel.discipline}
               </div>
             </div>
 
@@ -3461,7 +3535,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   )}{' '}
                   <span className="text-slate-500 text-[10px]">(ST已剔除)</span>
                 </span>
-                <span className="text-rose-400 font-bold">防守触发: 炸板率突破 35% 即刻减仓</span>
+                <span className={brokenRatioLevel.defenseClass}>{brokenRatioLevel.defenseStatus}</span>
               </div>
             </div>
           </div>

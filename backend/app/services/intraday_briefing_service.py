@@ -117,11 +117,32 @@ class IntradayBriefingService:
         self.data_service = DataService(session)
 
     async def _get_space_leader_info(self, trade_date: str) -> Dict[str, Any]:
-        """动态提取指定交易日的真实最高连板空间标杆龙头信息"""
+        """动态提取指定交易日的真实最高连板空间标杆龙头信息及真实炸板数据"""
         try:
             limit_up_res = await self.data_service.get_limit_up_pool(trade_date)
             limit_up_data = limit_up_res.data if (limit_up_res and limit_up_res.data) else {}
             items = limit_up_data.get("items", []) or []
+
+            # 动态真实炸板率计算与风控标签
+            calc_ratio = limit_up_data.get("broken_limit_ratio")
+            if calc_ratio is None:
+                zb_cnt = int(limit_up_data.get("broken_limit_count") or len(limit_up_data.get("broken_limit_items", [])))
+                zt_cnt = int(limit_up_data.get("total_count") or len(items))
+                if (zb_cnt + zt_cnt) > 0:
+                    calc_ratio = round(zb_cnt / (zb_cnt + zt_cnt), 4)
+                else:
+                    calc_ratio = 0.0
+
+            ratio_pct = round(calc_ratio * 100, 1)
+            if ratio_pct < 15.0:
+                broken_ratio_str = f"{ratio_pct}% (安全低位 <15%)"
+            elif ratio_pct < 25.0:
+                broken_ratio_str = f"{ratio_pct}% (温和换手 15%~25%)"
+            elif ratio_pct < 35.0:
+                broken_ratio_str = f"{ratio_pct}% (逼近警戒 35%)"
+            else:
+                broken_ratio_str = f"{ratio_pct}% (突破红线 >35%)"
+
             if items:
                 # 按连板数降序排序
                 sorted_items = sorted(
@@ -151,6 +172,18 @@ class IntradayBriefingService:
                     "height": max_h,
                     "sector": first_leader.get("sector") or first_leader.get("reason_type") or "短线核心",
                     "fund_str": fund_str,
+                    "broken_ratio_str": broken_ratio_str,
+                    "broken_ratio": calc_ratio,
+                }
+            else:
+                return {
+                    "name": "空间总龙",
+                    "names_str": "空间标杆",
+                    "height": 5,
+                    "sector": "短线主线",
+                    "fund_str": "封单平稳",
+                    "broken_ratio_str": broken_ratio_str,
+                    "broken_ratio": calc_ratio,
                 }
         except Exception as e:
             logger.warning(f"Failed to fetch real limit-up pool for space leader on {trade_date}: {e}")
@@ -161,6 +194,8 @@ class IntradayBriefingService:
             "height": 5,
             "sector": "短线主线",
             "fund_str": "封单平稳",
+            "broken_ratio_str": "15.0% (平稳换手)",
+            "broken_ratio": 0.15,
         }
 
     async def get_or_compute_timeline(
@@ -346,7 +381,7 @@ class IntradayBriefingService:
         indicators = IntradayQuantitativeIndicators(
             projected_volume="1.98 万亿 (+14.2%)",
             breadth_divergence="白上黄下 (拉权出题)",
-            broken_ratio="29.4% (警戒阈值 35%)",
+            broken_ratio=leader_info.get("broken_ratio_str", "15.0% (平稳换手)"),
             space_height=f"{leader_names} ({leader_height}B {leader_fund})",
             action_advice="控仓 2~3成 · 拒绝追高",
         )
@@ -407,7 +442,7 @@ class IntradayBriefingService:
         indicators = IntradayQuantitativeIndicators(
             projected_volume="1.92 万亿 (上午8,950亿)",
             breadth_divergence="深度背离 (权重滞涨)",
-            broken_ratio="32.1% (逼近警戒红线)",
+            broken_ratio=leader_info.get("broken_ratio_str", "18.0% (平稳换手)"),
             space_height=f"{leader_names} ({leader_height}B 标杆领跑)",
             action_advice="午后严防尾盘砸盘 · 观望",
         )
@@ -467,7 +502,7 @@ class IntradayBriefingService:
         indicators = IntradayQuantitativeIndicators(
             projected_volume="1.89 万亿 (尾盘或缩量)",
             breadth_divergence="背离微幅收窄",
-            broken_ratio="33.8% (高危运行)",
+            broken_ratio=leader_info.get("broken_ratio_str", "20.0% (平稳换手)"),
             space_height=f"{leader_names} ({leader_height}B 承接考验)",
             action_advice="尾盘防跳水 · 严格管住手",
         )
