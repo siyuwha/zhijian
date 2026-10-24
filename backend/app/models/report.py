@@ -7,6 +7,7 @@ class DailyReview(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     date = Column(String, nullable=False, unique=True, index=True)
+    title = Column(String(200), nullable=True)  # 研报核心主标题
     market_overview = Column(Text)          # 大盘总览 JSON
     limit_up_analysis = Column(Text)        # 涨停分析 JSON
     sector_analysis = Column(Text)          # 板块/题材归因 JSON

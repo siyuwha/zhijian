@@ -88,6 +88,8 @@ class TopSectorLeaderStock(BaseModel):
     name: str = Field(..., description="股票简称")
     pct_change: float = Field(..., description="当前涨跌幅 (%)")
     status_desc: str = Field(..., description="龙头地位与盘中表现描述 (如 '领军', '触板', '炸板')")
+    amount_yi: Optional[float] = Field(None, description="成交额 (亿元)")
+    role: Optional[str] = Field(None, description="角色定位 (先锋/空间龙/容量中军/首板助攻)")
 
 
 class TopSectorTrendItem(BaseModel):
@@ -100,8 +102,21 @@ class TopSectorTrendItem(BaseModel):
     color: str = Field(..., description="分时曲线渲染专属发光色 (如 '#8B5CF6')")
     current_net_inflow_yi: float = Field(..., description="当前最新主力净流入 (亿元)")
     current_pct_change: float = Field(..., description="当前最新涨跌幅 (%)")
-    leader: TopSectorLeaderStock = Field(..., description="领涨龙头核心")
+    leader: TopSectorLeaderStock = Field(..., description="领涨龙头核心 (先锋/空间标杆)")
     trends: List[SectorTrendPoint] = Field(..., description="分时分钟走势序列 (09:30 至当前)")
+
+    # 梯队深度下钻字段 (方向1)
+    flagship: Optional[TopSectorLeaderStock] = Field(None, description="容量中军标的（成交额最大核心大票）")
+    echelon_summary: Optional[str] = Field(None, description="梯队分布简报 (如 '1只4板 + 2只2板 + 5只首板')")
+    limit_up_count: Optional[int] = Field(0, description="板块内涨停总家数")
+    broken_count: Optional[int] = Field(0, description="板块内炸板总家数")
+    max_height: Optional[int] = Field(0, description="板块内最高连板高度")
+    amount_yi: Optional[float] = Field(0.0, description="板块总成交额(亿元)")
+    echelon_stocks: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="梯队详细标的列表(含先锋/中军/助攻/炸板)")
+
+    # 资金轮动相关性与跷跷板吸血指标 (方向3)
+    seesaw_ratio: Optional[float] = Field(None, description="存量跷跷板吸血系数 (0.0~1.0)")
+    seesaw_role: Optional[str] = Field(None, description="跷跷板角色: 'PRIMARY_SIPHON'(主力吸血) / 'PRESSURE_SIPHONED'(被吸血失血)")
 
     # 认知微观体检扩展指标 (可为空/默认值)
     is_solitary_monopoly: Optional[bool] = Field(False, description="是否处于独苗高标状态")
@@ -118,3 +133,4 @@ class TopSectorsTrendResponse(BaseModel):
     trade_date: str = Field(..., description="交易日 YYYY-MM-DD")
     snapshot_time: str = Field(..., description="采样时间 HH:MM:SS")
     sectors: List[TopSectorTrendItem] = Field(..., description="Top 5 题材列表")
+    seesaw_analysis: Optional[Dict[str, Any]] = Field(None, description="主力资金跷跷板吸血效应全局雷达")

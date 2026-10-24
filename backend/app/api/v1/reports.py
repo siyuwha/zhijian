@@ -85,11 +85,20 @@ async def get_daily_review(date: str, db: AsyncSession = Depends(get_db)):
         except Exception:
             transcendent_review = None
 
+    res_title = getattr(review, "title", None)
+    if not res_title and isinstance(report_content, dict):
+        res_title = report_content.get("title")
+    if not res_title and isinstance(transcendent_review, dict):
+        res_title = transcendent_review.get("title")
+    if not res_title:
+        res_title = f"{review.date} A股全景深度复盘"
+
     return {
         "code": 200,
         "data": {
             "id": review.id,
             "date": review.date,
+            "title": res_title,
             "market_overview": market_overview,
             "limit_up_analysis": limit_up_analysis,
             "market_state": market_state,

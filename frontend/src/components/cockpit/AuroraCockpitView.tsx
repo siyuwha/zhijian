@@ -221,15 +221,20 @@ export function generateRealStockSvgPath(
 }
 
 /**
- * 基于物理真实分钟点阵生成真实题材主力资金净流走势 SVG 路径
+ * 基于物理真实分钟点阵生成真实题材主力资金净流走势 SVG 路径 (支持动态自适应 Y 轴上下限)
  */
 export function generateRealSectorSvgPath(
   trends: SectorTrendPoint[],
-  maxTimeProgressX: number
+  maxTimeProgressX: number,
+  upperBound: number = 30.0,
+  lowerBound: number = 25.0
 ): { path: string; endX: number; endY: number } {
   if (!trends || trends.length === 0) {
     return { path: 'M 0,70 L 1000,70', endX: 1000, endY: 70 };
   }
+
+  const safeUpper = Math.max(0.5, upperBound);
+  const safeLower = Math.max(0.5, lowerBound);
 
   const coords: [number, number][] = [];
   for (const pt of trends) {
@@ -238,9 +243,9 @@ export function generateRealSectorSvgPath(
     const net = pt.net_inflow_yi;
     let y = 70;
     if (net >= 0) {
-      y = Math.max(12, 70 - (Math.min(30, net) / 30) * 54);
+      y = Math.max(12, 70 - (Math.min(safeUpper, net) / safeUpper) * 54);
     } else {
-      y = Math.min(128, 70 + (Math.min(25, Math.abs(net)) / 25) * 48);
+      y = Math.min(128, 70 + (Math.min(safeLower, Math.abs(net)) / safeLower) * 48);
     }
     coords.push([x, Number(y.toFixed(1))]);
   }
@@ -481,6 +486,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   const [timelineResponse, setTimelineResponse] = useState<IntradayBriefingTimelineResponse | null>(null);
   const [activeStageKey, setActiveStageKey] = useState<IntradayBriefingStageKey>(timeProgress.currentStage);
   const [topSectorsTrend, setTopSectorsTrend] = useState<TopSectorsTrendResponse | null>(null);
+  const [expandedEchelonSector, setExpandedEchelonSector] = useState<string | null>(null); // 方向1: 题材梯队深度下钻展开状态
 
   // 随时钟与所选日期动态同步内参默认时段
   useEffect(() => {
@@ -929,10 +935,54 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   }, [stockComparisonList.map((s) => s.code).join(',')]);
 
 
-  // 题材 Top 5 动态曲线与领涨标的联动 (彻底杜绝硬编码静态题材与假龙头)
+  // 题材战场资金自适应动态上下限计算 (根据当前全部题材净流入及其实际分时分钟极值，杜绝锁死固定30亿导致曲线靠拢挤压)
+  const sectorScaleBounds = useMemo(() => {
+    let maxPos = 0;
+    let maxNeg = 0;
+    const sectors = topSectorsTrend?.sectors || [];
+
+    if (sectors.length > 0) {
+      sectors.forEach((sec) => {
+        if (sec.current_net_inflow_yi > 0) maxPos = Math.max(maxPos, sec.current_net_inflow_yi);
+        if (sec.current_net_inflow_yi < 0) maxNeg = Math.max(maxNeg, Math.abs(sec.current_net_inflow_yi));
+
+        if (sec.trends && sec.trends.length > 0) {
+          sec.trends.forEach((pt) => {
+            if (pt.net_inflow_yi > 0) maxPos = Math.max(maxPos, pt.net_inflow_yi);
+            if (pt.net_inflow_yi < 0) maxNeg = Math.max(maxNeg, Math.abs(pt.net_inflow_yi));
+          });
+        }
+      });
+    }
+
+    if (maxPos === 0 && maxNeg === 0) {
+      maxPos = 15.0;
+      maxNeg = 10.0;
+    }
+
+    // 向上规整到美观整数字或半整数字 (保底 1.0 亿)
+    const niceCeil = (val: number): number => {
+      if (val <= 0.8) return 1.0;
+      if (val <= 2.0) return 2.0;
+      if (val <= 5.0) return 5.0;
+      if (val <= 10.0) return 10.0;
+      if (val <= 20.0) return 20.0;
+      if (val <= 30.0) return 30.0;
+      if (val <= 50.0) return 50.0;
+      return Math.ceil(val / 10) * 10;
+    };
+
+    return {
+      upperBound: niceCeil(maxPos),
+      lowerBound: niceCeil(maxNeg),
+    };
+  }, [topSectorsTrend]);
+
+  // 题材 Top 5 动态曲线与领涨标的联动 (彻底杜绝硬编码静态题材与假龙头，自适应 Y 轴拉伸)
   const dynamicSectorCurves = useMemo(() => {
     const curX = timeProgress.currentX;
     const sectors = topSectorsTrend?.sectors || [];
+    const { upperBound, lowerBound } = sectorScaleBounds;
 
     if (sectors.length === 0) {
       const themeColors = ['#8B5CF6', '#06B6D4', '#F59E0B', '#94A3B8', '#10B981'];
@@ -946,16 +996,23 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           const luCount = m.constituency?.limit_up_count || 1;
           const isSolitary = (luCount === 1 && leaderHeight >= 2);
           const net = Number(((5 - idx) * 4.5).toFixed(1));
-          const endY = Math.max(14, 70 - (net / 30) * 54);
+          const endY = Math.max(14, 70 - (net / upperBound) * 54);
           return {
             name: m.sector_name,
             color: themeColors[idx % themeColors.length],
             net,
             pct: Number((4.5 - idx * 0.6).toFixed(1)),
+            amountYi: 80 - idx * 10,
             leader,
             leaderCode,
             leaderPct: 10.0,
             leaderStatus: `${leaderHeight}B 核心龙头`,
+            flagship: undefined,
+            echelonSummary: `${leaderHeight}B领跑 · 涨停${luCount}只`,
+            echelonStocks: [] as any[],
+            limitUpCount: luCount,
+            brokenCount: 0,
+            maxHeight: leaderHeight,
             path: generateSectorPath(curX, endY, idx),
             endX: curX,
             endY,
@@ -964,20 +1021,22 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             monopolyRatio: isSolitary ? 0.62 : undefined,
             crrs: Number((Math.max(3.2, (4.5 - idx * 0.6) * 1.5)).toFixed(1)),
             rearNegativeRatio: Number((Math.min(0.8, Math.max(0.2, (idx * 0.12 + 0.35)))).toFixed(2)),
+            seesawRole: idx === 0 ? 'PRIMARY_SIPHON' : (idx >= 3 ? 'PRESSURE_SIPHONED' : undefined),
           };
         });
       }
 
       // 智能动态降级 2: 若快照尚未返回，从实时涨停池 limitUpData 动态聚类提取领涨板块
       if (limitUpData?.items && limitUpData.items.length > 0) {
-        const sectorMap: Record<string, { count: number; maxHeight: number; leader: LimitUpStockItem }> = {};
+        const sectorMap: Record<string, { count: number; maxHeight: number; leader: LimitUpStockItem; items: LimitUpStockItem[] }> = {};
         limitUpData.items.forEach((item) => {
           const sec = item.sector || item.reason_type || (item as any).theme || '活跃板块';
           const height = item.lbc || item.continuous_board_count || 1;
           if (!sectorMap[sec]) {
-            sectorMap[sec] = { count: 0, maxHeight: 0, leader: item };
+            sectorMap[sec] = { count: 0, maxHeight: 0, leader: item, items: [] };
           }
           sectorMap[sec].count += 1;
+          sectorMap[sec].items.push(item);
           if (height > sectorMap[sec].maxHeight) {
             sectorMap[sec].maxHeight = height;
             sectorMap[sec].leader = item;
@@ -991,17 +1050,32 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         if (sortedSectors.length > 0) {
           return sortedSectors.map(([secName, secInfo], idx) => {
             const net = Number(((5 - idx) * 3.8).toFixed(1));
-            const endY = Math.max(14, 70 - (net / 30) * 54);
+            const endY = Math.max(14, 70 - (net / upperBound) * 54);
             const isSolitary = (secInfo.count === 1 && secInfo.maxHeight >= 2);
             return {
               name: secName,
               color: themeColors[idx % themeColors.length],
               net,
               pct: Number((4.0 - idx * 0.5).toFixed(1)),
+              amountYi: 50 - idx * 8,
               leader: secInfo.leader.name,
               leaderCode: secInfo.leader.code,
               leaderPct: secInfo.leader.zdp ?? 10.0,
               leaderStatus: `${secInfo.maxHeight}B 领涨龙头`,
+              flagship: undefined,
+              echelonSummary: `${secInfo.maxHeight}B先锋 · 涨停${secInfo.count}只`,
+              echelonStocks: secInfo.items.map((s) => ({
+                code: s.code,
+                name: s.name,
+                pct_change: s.zdp ?? 10.0,
+                board_height: s.lbc || s.continuous_board_count || 1,
+                amount_yi: s.amount_yi ?? ((s as any).amount ? (s as any).amount / 1e8 : undefined),
+                role: (s.lbc || 1) === secInfo.maxHeight ? '先锋标杆' : '首板助攻',
+                status_desc: `${s.lbc || 1}连板`,
+              })),
+              limitUpCount: secInfo.count,
+              brokenCount: 0,
+              maxHeight: secInfo.maxHeight,
               path: generateSectorPath(curX, endY, idx),
               endX: curX,
               endY,
@@ -1010,6 +1084,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               monopolyRatio: isSolitary ? 0.58 : undefined,
               crrs: Number((Math.max(2.8, (4.0 - idx * 0.5) * 1.4)).toFixed(1)),
               rearNegativeRatio: 0.45,
+              seesawRole: idx === 0 ? 'PRIMARY_SIPHON' : (idx >= 3 ? 'PRESSURE_SIPHONED' : undefined),
             };
           });
         }
@@ -1024,15 +1099,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       const net = sec.current_net_inflow_yi;
       let endY = 70;
       if (net >= 0) {
-        endY = Math.max(14, 70 - (net / 30) * 54);
+        endY = Math.max(14, 70 - (Math.min(upperBound, net) / upperBound) * 54);
       } else {
-        endY = Math.min(124, 70 + (Math.abs(net) / 25) * 48);
+        endY = Math.min(124, 70 + (Math.min(lowerBound, Math.abs(net)) / lowerBound) * 48);
       }
       let path = generateSectorPath(curX, endY, idx);
       let endX = curX;
 
       if (sec.trends && sec.trends.length > 0) {
-        const realRes = generateRealSectorSvgPath(sec.trends, curX);
+        const realRes = generateRealSectorSvgPath(sec.trends, curX, upperBound, lowerBound);
         path = realRes.path;
         endX = realRes.endX;
         endY = realRes.endY;
@@ -1043,10 +1118,19 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         color: sec.color || themeColors[idx % themeColors.length],
         net: sec.current_net_inflow_yi,
         pct: sec.current_pct_change,
+        amountYi: sec.amount_yi,
         leader: sec.leader?.name || '--',
         leaderCode: sec.leader?.code || '',
         leaderPct: sec.leader?.pct_change != null ? sec.leader.pct_change : 0,
         leaderStatus: sec.leader?.status_desc || '领涨龙头',
+        flagship: sec.flagship,
+        echelonSummary: sec.echelon_summary,
+        echelonStocks: sec.echelon_stocks || [],
+        limitUpCount: sec.limit_up_count || 0,
+        brokenCount: sec.broken_count || 0,
+        maxHeight: sec.max_height || 0,
+        seesawRatio: sec.seesaw_ratio,
+        seesawRole: sec.seesaw_role,
         path,
         endX,
         endY,
@@ -1058,7 +1142,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         brokenLimitRatio: sec.sector_broken_ratio,
       };
     });
-  }, [topSectorsTrend, snapshot, limitUpData, timeProgress.currentX]);
+  }, [topSectorsTrend, snapshot, limitUpData, timeProgress.currentX, sectorScaleBounds]);
 
   // 底部双轨博弈透视结论动态推演 (基于当前真实入选标的与今日最强涨停，优先消费 LLM 深度认知推演)
   const dynamicGamePerspective = useMemo(() => {
@@ -1138,9 +1222,17 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           name: sec.name,
           net: sec.net,
           pct: sec.pct,
+          amount_yi: sec.amountYi,
           leader: sec.leader,
           leaderPct: sec.leaderPct,
           leaderStatus: sec.leaderStatus,
+          flagshipName: sec.flagship?.name,
+          echelon_summary: sec.echelonSummary,
+          limit_up_count: sec.limitUpCount,
+          max_height: sec.maxHeight,
+          isSolitaryMonopoly: sec.isSolitaryMonopoly,
+          rearNegativeRatio: sec.rearNegativeRatio,
+          seesaw_role: sec.seesawRole,
         })),
         force_refresh: forceRefresh,
       };
@@ -2834,9 +2926,12 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <span className="text-xs font-mono text-purple-300 bg-purple-500/10 border border-purple-500/25 px-2 py-0.5 rounded-full">
                     09:30~15:00 全天 X 轴发散
                   </span>
+                  <span className="text-xs font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 rounded-full hidden sm:inline-block">
+                    自适应量程: [-{sectorScaleBounds.lowerBound.toFixed(1)} ~ +{sectorScaleBounds.upperBound.toFixed(1)} 亿]
+                  </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-mono">
-                  从 09:30 零轴起点发散至当前时点 · 平滑入场生长动画 · 鼠标 Hover 精确查看各分钟净流入数值
+                  从 09:30 零轴起点发散至当前时点 · 动态自适应量程拉开强弱张力 · 鼠标 Hover 精确查看各分钟净流入数值
                 </p>
               </div>
             </div>
@@ -2865,13 +2960,28 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             onMouseLeave={() => setIsSectorHovering(false)}
             className="relative w-full h-[210px] my-3 bg-black/50 border border-white/5 rounded-xl p-3.5 flex flex-col justify-between overflow-hidden cursor-crosshair"
           >
-            {/* Y轴刻度辅助线 */}
+            {/* Y轴刻度辅助线 - 动态根据实际资金上下限自适应渲染 */}
             <div className="absolute inset-0 bottom-7 flex flex-col justify-between p-3.5 pointer-events-none text-xs font-mono text-slate-500 z-0">
-              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-purple-400"><span>+30.0 亿元</span><span>主力持续吸血</span></div>
-              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-cyan-300"><span>+15.0 亿元</span><span>脉冲流入</span></div>
-              <div className="border-b border-white/10 pb-0.5 flex justify-between text-slate-300 font-bold"><span>0.0 亿元</span><span>平衡线 (起点)</span></div>
-              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-slate-400"><span>-10.0 亿元</span><span>资金流出</span></div>
-              <div className="flex justify-between text-emerald-400"><span>-25.0 亿元</span><span>大幅失血抛压</span></div>
+              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-purple-400">
+                <span>+{sectorScaleBounds.upperBound.toFixed(1)} 亿元</span>
+                <span className="text-[10px] text-purple-300/80">主力主攻阵地 (动态顶格)</span>
+              </div>
+              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-cyan-300">
+                <span>+{(sectorScaleBounds.upperBound * 0.5).toFixed(1)} 亿元</span>
+                <span className="text-[10px] text-cyan-300/70">积极吸筹流入</span>
+              </div>
+              <div className="border-b border-white/10 pb-0.5 flex justify-between text-slate-300 font-bold">
+                <span>0.0 亿元</span>
+                <span className="text-[10px] text-slate-400">零轴平衡线 (发散原点)</span>
+              </div>
+              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-slate-400">
+                <span>-{(sectorScaleBounds.lowerBound * 0.5).toFixed(1)} 亿元</span>
+                <span className="text-[10px] text-slate-500">分歧失血流出</span>
+              </div>
+              <div className="flex justify-between text-emerald-400">
+                <span>-{sectorScaleBounds.lowerBound.toFixed(1)} 亿元</span>
+                <span className="text-[10px] text-emerald-400/80">主力持续失血承压 (动态底格)</span>
+              </div>
             </div>
 
             {/* 午间休市 11:30~13:00 隔断中轴 */}
@@ -3005,7 +3115,47 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
           </div>
 
-          {/* 5 大题材领涨核心龙头联动卡片 */}
+          {/* 方向3：存量博弈 · 资金跷跷板与吸血效应雷达 */}
+          {topSectorsTrend?.seesaw_analysis && (
+            <div className="my-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-xs">资金跷跷板与吸血雷达</span>
+                    <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold border ${
+                      topSectorsTrend.seesaw_analysis.seesaw_ratio >= 0.65
+                        ? 'bg-rose-500/15 border-rose-500/30 text-rose-300'
+                        : topSectorsTrend.seesaw_analysis.seesaw_ratio >= 0.3
+                        ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                        : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                    }`}>
+                      吸血挤出率 {Math.round(topSectorsTrend.seesaw_analysis.seesaw_ratio * 100)}% · {topSectorsTrend.seesaw_analysis.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 text-[11px] font-mono text-slate-300 leading-relaxed">
+                {topSectorsTrend.seesaw_analysis.description}
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px] font-mono shrink-0">
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300">
+                  <TrendingUp className="w-3 h-3 text-rose-400" />
+                  <span>主攻: {topSectorsTrend.seesaw_analysis.primary_siphon_sector}</span>
+                </div>
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+                  <TrendingDown className="w-3 h-3 text-emerald-400" />
+                  <span>失血: {topSectorsTrend.seesaw_analysis.siphoned_sector}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 5 大题材领涨核心龙头与梯队矩阵卡片 (支持方向1梯队深度下钻) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 my-2 text-xs">
             {dynamicSectorCurves.map((sec, idx) => (
               <div
@@ -3017,50 +3167,171 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 }`}
                 style={{ borderColor: `${sec.color}${hoveredSectorName === sec.name ? 'cc' : '55'}` }}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold" style={{ color: sec.color }}>#{idx + 1} {sec.name}</span>
-                  <span className={`text-xs font-mono font-bold ${sec.net >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                    {sec.net >= 0 ? `+${sec.net.toFixed(1)}` : sec.net.toFixed(1)} 亿
-                  </span>
-                </div>
-                <div className="font-bold text-white text-sm my-1">{sec.leader}</div>
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>{sec.leaderCode ? `${sec.leaderCode} · ` : ''}{sec.leaderStatus}</span>
-                  <span className={`font-mono font-bold ${sec.leaderPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                    {sec.leaderPct >= 0 ? `+${sec.leaderPct.toFixed(1)}%` : `${sec.leaderPct.toFixed(1)}%`}
-                  </span>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold" style={{ color: sec.color }}>#{idx + 1} {sec.name}</span>
+                    <span className={`text-xs font-mono font-bold ${sec.net >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {sec.net >= 0 ? `+${sec.net.toFixed(1)}` : sec.net.toFixed(1)} 亿
+                    </span>
+                  </div>
+
+                  {/* 先锋空间龙 */}
+                  <div className="flex items-center justify-between mt-1 text-[11px]">
+                    <span className="text-purple-300 font-bold truncate max-w-[100px]">{sec.leader}</span>
+                    <span className={`font-mono font-bold ${sec.leaderPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {sec.leaderPct >= 0 ? `+${sec.leaderPct.toFixed(1)}%` : `${sec.leaderPct.toFixed(1)}%`}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono">{sec.leaderStatus}</div>
+
+                  {/* 容量中军 (若有) */}
+                  {sec.flagship && sec.flagship.name !== sec.leader && (
+                    <div className="mt-1 pt-1 border-t border-white/5 flex items-center justify-between text-[10px] font-mono">
+                      <span className="text-cyan-300 truncate max-w-[95px]">中军: {sec.flagship.name}</span>
+                      <span className="text-slate-400">
+                        {sec.flagship.amount_yi ? `${sec.flagship.amount_yi.toFixed(1)}亿` : `${sec.flagship.pct_change.toFixed(1)}%`}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 梯队简报徽章 */}
+                  {sec.echelonSummary && (
+                    <div className="mt-1.5 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/5 text-[9px] font-mono text-slate-300 truncate" title={sec.echelonSummary}>
+                      {sec.echelonSummary}
+                    </div>
+                  )}
                 </div>
 
-                {/* 认知微观体检内嵌：独苗状态 vs 后排负反馈剪刀差 */}
-                {sec.isSolitaryMonopoly ? (
-                  <div className="mt-2 flex items-center justify-between px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/35 text-[10px] font-mono text-amber-300">
-                    <span className="flex items-center gap-1 font-bold">
-                      <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
-                      独苗高标
-                    </span>
-                    <span>
-                      垄断度 {sec.monopolyRatio ? `${(sec.monopolyRatio * 100).toFixed(0)}%` : '高'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mt-2 flex items-center justify-between px-2 py-0.5 rounded bg-black/40 border border-white/5 text-[10px] font-mono">
-                    <span className="text-slate-400">
-                      剪刀差{' '}
-                      <strong className={(sec.crrs ?? 0) >= 6 ? 'text-rose-400 font-bold' : 'text-slate-300'}>
-                        {(sec.crrs ?? 0) >= 0 ? `+${(sec.crrs ?? 0).toFixed(1)}%` : `${(sec.crrs ?? 0).toFixed(1)}%`}
-                      </strong>
-                    </span>
-                    <span className="text-slate-400">
-                      后排负{' '}
-                      <strong className={(sec.rearNegativeRatio ?? 0) >= 0.5 ? 'text-emerald-400 font-bold' : 'text-slate-300'}>
-                        {((sec.rearNegativeRatio ?? 0) * 100).toFixed(0)}%
-                      </strong>
-                    </span>
-                  </div>
-                )}
+                <div>
+                  {/* 认知微观体检内嵌：独苗状态 vs 后排负反馈剪刀差 */}
+                  {sec.isSolitaryMonopoly ? (
+                    <div className="mt-1.5 flex items-center justify-between px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/35 text-[10px] font-mono text-amber-300">
+                      <span className="flex items-center gap-1 font-bold">
+                        <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                        独苗高标
+                      </span>
+                      <span>
+                        垄断度 {sec.monopolyRatio ? `${(sec.monopolyRatio * 100).toFixed(0)}%` : '高'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-1.5 flex items-center justify-between px-1.5 py-0.5 rounded bg-black/40 border border-white/5 text-[10px] font-mono">
+                      <span className="text-slate-400">
+                        剪刀差{' '}
+                        <strong className={(sec.crrs ?? 0) >= 6 ? 'text-rose-400 font-bold' : 'text-slate-300'}>
+                          {(sec.crrs ?? 0) >= 0 ? `+${(sec.crrs ?? 0).toFixed(1)}%` : `${(sec.crrs ?? 0).toFixed(1)}%`}
+                        </strong>
+                      </span>
+                      <span className="text-slate-400">
+                        后排负{' '}
+                        <strong className={(sec.rearNegativeRatio ?? 0) >= 0.5 ? 'text-emerald-400 font-bold' : 'text-slate-300'}>
+                          {((sec.rearNegativeRatio ?? 0) * 100).toFixed(0)}%
+                        </strong>
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 方向1：梯队深度下钻展开按钮 */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedEchelonSector(expandedEchelonSector === sec.name ? null : sec.name);
+                    }}
+                    className={`mt-1.5 w-full py-0.5 rounded-lg text-[10px] font-mono flex items-center justify-center gap-1 transition-all ${
+                      expandedEchelonSector === sec.name
+                        ? 'bg-purple-600/30 text-purple-200 border border-purple-400/50 shadow-sm'
+                        : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5'
+                    }`}
+                  >
+                    <Layers className="w-3 h-3" />
+                    <span>{expandedEchelonSector === sec.name ? '收起梯队 ▲' : `梯队透视 (${sec.echelonStocks?.length || sec.limitUpCount || 1}只) ▼`}</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
+
+          {/* 方向1：展开选定题材的梯队深度下钻矩阵 */}
+          {expandedEchelonSector && (
+            <div className="mt-2.5 p-3.5 rounded-2xl bg-black/70 border border-purple-500/40 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-purple-400" />
+                  <h3 className="text-xs font-bold text-white tracking-wide">
+                    【{expandedEchelonSector}】梯队深度下钻矩阵 (先锋 · 容量中军 · 梯队助攻 · 炸板排雷)
+                  </h3>
+                  <span className="text-[10px] font-mono text-purple-300 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20">
+                    {dynamicSectorCurves.find(s => s.name === expandedEchelonSector)?.echelonSummary || '梯队明细'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setExpandedEchelonSector(null)}
+                  className="text-slate-400 hover:text-white px-2 py-0.5 rounded text-xs transition-colors hover:bg-white/10"
+                >
+                  收起 ✕
+                </button>
+              </div>
+
+              {/* 梯队标的表格 */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="text-slate-400 border-b border-white/5 pb-1 text-[11px]">
+                      <th className="py-1 px-2 font-normal">梯队角色</th>
+                      <th className="py-1 px-2 font-normal">标的代码/简称</th>
+                      <th className="py-1 px-2 font-normal">连板高度</th>
+                      <th className="py-1 px-2 font-normal">最新涨跌幅</th>
+                      <th className="py-1 px-2 font-normal">成交额 (亿元)</th>
+                      <th className="py-1 px-2 font-normal">盘中生态状态</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {dynamicSectorCurves.find(s => s.name === expandedEchelonSector)?.echelonStocks?.map((stock, sIdx) => {
+                      const isPioneer = stock.role?.includes('先锋') || stock.role?.includes('空间');
+                      const isFlagship = stock.role?.includes('中军');
+                      const isBroken = stock.role?.includes('炸板');
+                      return (
+                        <tr key={stock.code || sIdx} className="hover:bg-white/[0.03] transition-colors">
+                          <td className="py-1.5 px-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              isPioneer ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' :
+                              isFlagship ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' :
+                              isBroken ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                              'bg-white/5 text-slate-300 border border-white/10'
+                            }`}>
+                              {stock.role}
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-2 font-bold text-white">
+                            <span className="text-slate-400 font-normal mr-1">{stock.code}</span>
+                            <span>{stock.name}</span>
+                          </td>
+                          <td className="py-1.5 px-2">
+                            {stock.board_height > 0 ? (
+                              <span className="text-rose-400 font-bold">{stock.board_height} 连板</span>
+                            ) : (
+                              <span className="text-slate-500">首板/冲高</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2 font-bold tabular-nums">
+                            <span className={stock.pct_change >= 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                              {stock.pct_change >= 0 ? `+${stock.pct_change.toFixed(2)}%` : `${stock.pct_change.toFixed(2)}%`}
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-2 text-slate-300 tabular-nums">
+                            {stock.amount_yi ? `${stock.amount_yi.toFixed(2)} 亿` : '--'}
+                          </td>
+                          <td className="py-1.5 px-2 text-slate-400 text-[11px]">
+                            {stock.status_desc}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-mono">
             <div className="flex items-center gap-2 flex-1 min-w-[320px]">

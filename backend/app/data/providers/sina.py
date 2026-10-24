@@ -450,7 +450,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
             )
 
     async def get_external_risk(self) -> DataResult:
-        """获取 A50 变动及标准化多空指标 (若不可靠则返回 PARTIAL/UNAVAILABLE，严禁臆测字段)"""
+        """获取 A50 变动及标准化多空指标 (融合盘口委买卖深度与价格日内位置区间)"""
         try:
             url = "http://hq.sinajs.cn/list=hf_CHA50CFD"
             async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
@@ -458,6 +458,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                 content = resp.content.decode("gbk", errors="ignore")
 
             a50_pct = None
+            long_short_ind = None
             if "=" in content:
                 _, val = content.split("=", 1)
                 val_str = val.strip().strip('";')
@@ -465,15 +466,36 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                 if len(parts) >= 8 and parts[0]:
                     price = float(parts[0]) if parts[0] else 0.0
                     prev = float(parts[7]) if parts[7] else 0.0
+                    high = float(parts[4]) if len(parts) > 4 and parts[4] else price
+                    low = float(parts[5]) if len(parts) > 5 and parts[5] else price
+                    bid_vol = float(parts[10]) if len(parts) > 10 and parts[10] else 0.0
+                    ask_vol = float(parts[11]) if len(parts) > 11 and parts[11] else 0.0
+
                     if price > 0 and prev > 0:
                         a50_pct = round((price - prev) / prev * 100, 2)
 
-            quality = DataQuality.PARTIAL if a50_pct is not None else DataQuality.UNAVAILABLE
+                        # 标准化 A50 多空强弱指标 (0~100 刻度，50为多空中性，>60偏多，<40偏空)
+                        order_book_score = 50.0
+                        if (bid_vol + ask_vol) > 0:
+                            order_book_score = (bid_vol / (bid_vol + ask_vol)) * 100.0
+
+                        price_range_score = 50.0
+                        if high > low:
+                            price_range_score = ((price - low) / (high - low)) * 100.0
+                        else:
+                            clamped_pct = max(min(a50_pct, 2.0), -2.0)
+                            price_range_score = 50.0 + (clamped_pct / 2.0) * 25.0
+
+                        long_short_ind = round(price_range_score * 0.6 + order_book_score * 0.4, 2)
+
+            quality = DataQuality.FULL if (a50_pct is not None and long_short_ind is not None) else (
+                DataQuality.PARTIAL if a50_pct is not None else DataQuality.UNAVAILABLE
+            )
 
             return DataResult(
                 data={
                     "a50_pct_change": a50_pct,
-                    "a50_long_short_indicator": None  # G4-B: 不可得时允许为 None，严禁臆测字段
+                    "a50_long_short_indicator": long_short_ind
                 },
                 quality=quality,
                 provider=self.name

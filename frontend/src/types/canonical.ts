@@ -520,6 +520,18 @@ export interface TopSectorLeaderStock {
   name: string;
   pct_change: number;
   status_desc: string;
+  amount_yi?: number;
+  role?: string;
+}
+
+export interface TopSectorEchelonStock {
+  code: string;
+  name: string;
+  pct_change: number;
+  board_height: number;
+  amount_yi?: number;
+  role: string;
+  status_desc: string;
 }
 
 export interface TopSectorTrendItem {
@@ -531,6 +543,20 @@ export interface TopSectorTrendItem {
   current_pct_change: number;
   leader: TopSectorLeaderStock;
   trends: SectorTrendPoint[];
+
+  // 梯队深度下钻与容量中军 (方向1)
+  flagship?: TopSectorLeaderStock;
+  echelon_summary?: string;
+  echelon_stocks?: TopSectorEchelonStock[];
+  limit_up_count?: number;
+  broken_count?: number;
+  max_height?: number;
+  amount_yi?: number;
+
+  // 资金轮动相关性与存量吸血指标 (方向3)
+  seesaw_ratio?: number;
+  seesaw_role?: string;
+
   // 认知微观体检扩展指标
   is_solitary_monopoly?: boolean;
   monopoly_turnover_ratio?: number;
@@ -543,6 +569,13 @@ export interface TopSectorsTrendResponse {
   trade_date: string;
   snapshot_time: string;
   sectors: TopSectorTrendItem[];
+  seesaw_analysis?: {
+    seesaw_ratio: number;
+    status: string;
+    primary_siphon_sector: string;
+    siphoned_sector: string;
+    description: string;
+  };
 }
 
 export interface StockMinutePoint {

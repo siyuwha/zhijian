@@ -499,6 +499,10 @@ class IntradayBriefingService:
     ) -> TopSectorsTrendResponse:
         """
         获取 Top 5 题材分时资金曲线与领涨龙头数据 (实盘动态拉取真实概念板块)
+        升级说明：
+        1. 引入市场热点主线综合评分算法（综合连板高度、涨停家数、成交容量与主力大单，杜绝冷门微型概念）；
+        2. 支持方向1梯队深度下钻（识别先锋空间龙、容量中军与首板梯队助攻矩阵）；
+        3. 支持方向3存量博弈跷跷板吸血系数与对立题材挤出效应分析。
         """
         today_str = datetime.now().strftime("%Y-%m-%d")
         date_str = trade_date or today_str
@@ -508,39 +512,209 @@ class IntradayBriefingService:
         if not is_today and cache_key in _TOP_SECTORS_CACHE:
             return _TOP_SECTORS_CACHE[cache_key]
 
+        # 0. 优先预拉取当日涨停池与炸板池，作为题材热度最权威的微观基石
+        lu_items = []
+        broken_items = []
+        try:
+            lu_res = await self.data_service.get_limit_up_pool(date_str)
+            if lu_res and lu_res.data:
+                lu_items = lu_res.data.get("items", []) or []
+                broken_items = lu_res.data.get("broken_limit_items", []) or []
+        except Exception as e:
+            logger.debug(f"Could not preload limit up pool: {e}")
+
         meta: List[Dict[str, Any]] = []
 
-        # 1. 尝试从实时数据源拉取真实概念题材排名与主力净流入
+        # 1. 尝试从实时数据源拉取前 60 大概念与行业题材排名 (扩大采样范围，确保真实热闹主线不遗漏)
         try:
-            sec_res = await self.data_service.get_sector_ranking("concept")
+            sec_res = await self.data_service.get_sector_ranking("concept", limit=60)
             raw_sectors = sec_res.data if (sec_res and sec_res.data) else []
-            if not raw_sectors or len(raw_sectors) < 3:
-                ind_res = await self.data_service.get_sector_ranking("industry")
+            if not raw_sectors or len(raw_sectors) < 5:
+                ind_res = await self.data_service.get_sector_ranking("industry", limit=60)
                 if ind_res and ind_res.data:
-                    raw_sectors = ind_res.data
+                    raw_sectors = (raw_sectors or []) + ind_res.data
 
             if raw_sectors:
-                sorted_sectors = sorted(
-                    raw_sectors,
-                    key=lambda s: float(s.get("pct_change") or 0.0),
-                    reverse=True,
-                )
-                top_candidates = sorted_sectors[:5]
+                # 对候选板块进行实战综合主线热度打分 (Mainline Heat Composite Score)
+                scored_candidates = []
+                for sec in raw_sectors:
+                    sec_name = str(sec.get("name") or "")
+                    if not sec_name:
+                        continue
 
-                for i, sec in enumerate(top_candidates):
-                    name = str(sec.get("name") or f"题材{i+1}")
-                    code = str(sec.get("code") or f"BK{i+1:04d}")
+                    # 匹配该题材在涨停池与炸板池中的成员
+                    matched_lu = [
+                        s for s in lu_items
+                        if sec_name in str(s.get("sector") or "") or sec_name in str(s.get("reason_type") or "")
+                    ]
+                    matched_brk = [
+                        s for s in broken_items
+                        if sec_name in str(s.get("sector") or "") or sec_name in str(s.get("reason_type") or "")
+                    ]
+
+                    lu_cnt = len(matched_lu)
+                    heights = [int(s.get("lbc") or s.get("continuous_board_count") or 1) for s in matched_lu]
+                    max_h = max(heights, default=0)
+                    amt = float(sec.get("amount_yi") or 0.0)
                     pct = float(sec.get("pct_change") or 0.0)
                     net = float(sec.get("net_inflow_yi") or 0.0)
-                    if net == 0.0 and pct != 0.0:
-                        amt = float(sec.get("amount_yi") or 0.0)
+                    if net == 0.0 and pct != 0.0 and amt > 0:
                         net = round(amt * (pct / 100.0) * 0.25, 2)
 
-                    leader_code = str(sec.get("leader_code") or "")
-                    leader_name = str(sec.get("leader_name") or "--")
-                    leader_pct = float(sec.get("leader_pct") or 0.0)
+                    # 综合主线热度评分权重：
+                    # 1. 连板高度 (max_h * 25.0) - 短线最强辨识度标杆
+                    # 2. 涨停梯队广度 (lu_cnt * 12.0) - 梯队爆发力
+                    # 3. 市场成交容量 (min(60.0, amt * 0.15)) - 大资金主战场，坚决过滤成交仅几亿的冷门微盘概念
+                    # 4. 主力真金白银净流入 (net * 1.5)
+                    # 5. 板块涨幅动能 (pct * 3.0)
+                    composite_score = (
+                        (max_h * 25.0)
+                        + (lu_cnt * 12.0)
+                        + min(60.0, amt * 0.15)
+                        + max(-20.0, min(40.0, net * 1.5))
+                        + max(-10.0, min(30.0, pct * 3.0))
+                    )
 
-                    status = "涨停领跑" if leader_pct >= 9.5 else ("核心中军" if leader_pct >= 3.0 else "领涨先锋")
+                    scored_candidates.append({
+                        "sec": sec,
+                        "score": composite_score,
+                        "matched_lu": matched_lu,
+                        "matched_brk": matched_brk,
+                        "lu_cnt": lu_cnt,
+                        "max_h": max_h,
+                        "amt": amt,
+                        "pct": pct,
+                        "net": net,
+                    })
+
+                # 按实战综合热度降序排列，取前 5 大真正的市场主线战场
+                scored_candidates.sort(key=lambda x: x["score"], reverse=True)
+                top_candidates = scored_candidates[:5]
+
+                for i, item_c in enumerate(top_candidates):
+                    sec = item_c["sec"]
+                    name = str(sec.get("name") or f"题材{i+1}")
+                    code = str(sec.get("code") or f"BK{i+1:04d}")
+                    pct = item_c["pct"]
+                    net = item_c["net"]
+                    amt = item_c["amt"]
+                    matched_lu = item_c["matched_lu"]
+                    matched_brk = item_c["matched_brk"]
+                    max_h = item_c["max_h"]
+
+                    # 识别先锋空间龙 (连板最高 / 首封最早)
+                    if matched_lu:
+                        sorted_lu_pioneer = sorted(
+                            matched_lu,
+                            key=lambda x: (int(x.get("lbc") or x.get("continuous_board_count") or 1), str(x.get("first_time") or "99:99")),
+                            reverse=True
+                        )
+                        pioneer_stock = sorted_lu_pioneer[0]
+                        leader_code = str(pioneer_stock.get("code") or "")
+                        leader_name = str(pioneer_stock.get("name") or "--")
+                        leader_pct = float(pioneer_stock.get("zdp") or 10.0)
+                        leader_amt = float(pioneer_stock.get("amount") or 0.0) / 1e8 if pioneer_stock.get("amount") else None
+                        leader_status = f"{max_h}B 空间先锋" if max_h >= 2 else "涨停首板先锋"
+                    else:
+                        leader_code = str(sec.get("leader_code") or "")
+                        leader_name = str(sec.get("leader_name") or "--")
+                        leader_pct = float(sec.get("leader_pct") or 0.0)
+                        leader_amt = None
+                        leader_status = "领涨核心" if leader_pct >= 9.5 else "领涨中军"
+
+                    # 识别容量中军 (在涨停池或板块中成交额最大、大资金承接票)
+                    flagship_dict = None
+                    if matched_lu:
+                        sorted_lu_amount = sorted(
+                            matched_lu,
+                            key=lambda x: float(x.get("amount") or 0.0),
+                            reverse=True
+                        )
+                        heavy_stock = sorted_lu_amount[0]
+                        h_amt = float(heavy_stock.get("amount") or 0.0) / 1e8
+                        # 若成交最大票与先锋不同或成交特别大，确立为容量中军
+                        if heavy_stock.get("code") != leader_code or h_amt >= 10.0:
+                            h_h = int(heavy_stock.get("lbc") or heavy_stock.get("continuous_board_count") or 1)
+                            flagship_dict = {
+                                "code": str(heavy_stock.get("code") or ""),
+                                "name": str(heavy_stock.get("name") or ""),
+                                "pct_change": float(heavy_stock.get("zdp") or 10.0),
+                                "status_desc": f"{h_h}B 容量中军",
+                                "amount_yi": round(h_amt, 2),
+                                "role": "容量中军",
+                            }
+
+                    # 构建梯队概览简报 (如 "4B(1只) · 2B(2只) · 首板(5只)")
+                    echelon_parts = []
+                    if matched_lu:
+                        from collections import Counter
+                        height_counts = Counter([int(s.get("lbc") or s.get("continuous_board_count") or 1) for s in matched_lu])
+                        for h in sorted(height_counts.keys(), reverse=True):
+                            label = f"{h}连板" if h >= 2 else "首板"
+                            echelon_parts.append(f"{label}({height_counts[h]}只)")
+                        if matched_brk:
+                            echelon_parts.append(f"炸板({len(matched_brk)}只)")
+                    echelon_summary_str = " · ".join(echelon_parts) if echelon_parts else ("首板领跑" if leader_pct >= 9.5 else "震荡中军")
+
+                    # 构建梯队成员明细列表 (供方向1下钻展开)
+                    echelon_stocks_list = []
+                    seen_codes = set()
+                    # 放入先锋
+                    if leader_code and leader_code != "--":
+                        echelon_stocks_list.append({
+                            "code": leader_code,
+                            "name": leader_name,
+                            "pct_change": leader_pct,
+                            "board_height": max_h if max_h > 0 else 1,
+                            "amount_yi": round(leader_amt, 2) if leader_amt else None,
+                            "role": "先锋标杆",
+                            "status_desc": leader_status,
+                        })
+                        seen_codes.add(leader_code)
+                    # 放入中军 (若不同)
+                    if flagship_dict and flagship_dict["code"] not in seen_codes:
+                        echelon_stocks_list.append({
+                            "code": flagship_dict["code"],
+                            "name": flagship_dict["name"],
+                            "pct_change": flagship_dict["pct_change"],
+                            "board_height": int(heavy_stock.get("lbc") or 1),
+                            "amount_yi": flagship_dict.get("amount_yi"),
+                            "role": "容量中军",
+                            "status_desc": flagship_dict["status_desc"],
+                        })
+                        seen_codes.add(flagship_dict["code"])
+                    # 放入其余涨停助攻
+                    for s in matched_lu:
+                        c = str(s.get("code") or "")
+                        if c and c not in seen_codes:
+                            h = int(s.get("lbc") or s.get("continuous_board_count") or 1)
+                            s_amt = float(s.get("amount") or 0.0) / 1e8 if s.get("amount") else None
+                            echelon_stocks_list.append({
+                                "code": c,
+                                "name": str(s.get("name") or ""),
+                                "pct_change": float(s.get("zdp") or 10.0),
+                                "board_height": h,
+                                "amount_yi": round(s_amt, 2) if s_amt else None,
+                                "role": "梯队助攻" if h == 1 else f"{h}B接力",
+                                "status_desc": f"{h}连板助攻" if h >= 2 else "首板助攻",
+                            })
+                            seen_codes.add(c)
+                    # 放入炸板分歧标的
+                    for b in matched_brk:
+                        bc = str(b.get("code") or "")
+                        if bc and bc not in seen_codes:
+                            b_amt = float(b.get("amount") or 0.0) / 1e8 if b.get("amount") else None
+                            echelon_stocks_list.append({
+                                "code": bc,
+                                "name": str(b.get("name") or ""),
+                                "pct_change": float(b.get("zdp") or b.get("pct_change") or 0.0),
+                                "board_height": 0,
+                                "amount_yi": round(b_amt, 2) if b_amt else None,
+                                "role": "炸板分歧",
+                                "status_desc": "盘中炸板回落",
+                            })
+                            seen_codes.add(bc)
+
                     curve_type = "strong_up" if pct >= 3.5 else ("pulse_up" if pct >= 1.5 else ("steady_up" if pct >= 0 else ("steady_down" if pct >= -2 else "strong_down")))
 
                     meta.append({
@@ -549,12 +723,21 @@ class IntradayBriefingService:
                         "color": SECTOR_THEME_COLORS[i % len(SECTOR_THEME_COLORS)],
                         "net_inflow": round(net, 2),
                         "pct": round(pct, 2),
+                        "amount_yi": round(amt, 2),
                         "leader": {
                             "code": leader_code,
                             "name": leader_name,
                             "pct": round(leader_pct, 2),
-                            "status": status,
+                            "status": leader_status,
+                            "amount_yi": round(leader_amt, 2) if leader_amt else None,
+                            "role": "先锋标杆",
                         },
+                        "flagship": flagship_dict,
+                        "echelon_summary": echelon_summary_str,
+                        "echelon_stocks": echelon_stocks_list,
+                        "limit_up_count": len(matched_lu),
+                        "broken_count": len(matched_brk),
+                        "max_height": max_h,
                         "curve_type": curve_type,
                     })
         except Exception as e:
@@ -572,12 +755,20 @@ class IntradayBriefingService:
                             "color": SECTOR_THEME_COLORS[i % len(SECTOR_THEME_COLORS)],
                             "net_inflow": round(15.0 - i * 3.5, 2),
                             "pct": round(5.0 - i * 1.0, 2),
+                            "amount_yi": round(120.0 - i * 20.0, 2),
                             "leader": {
                                 "code": m.constituency.leader_code,
                                 "name": m.constituency.leader_name,
                                 "pct": 9.99,
                                 "status": f"{m.constituency.leader_height}B领跑",
+                                "role": "先锋标杆",
                             },
+                            "flagship": None,
+                            "echelon_summary": f"{m.constituency.leader_height}B领跑 · 涨停{m.constituency.limit_up_count}只",
+                            "echelon_stocks": [],
+                            "limit_up_count": m.constituency.limit_up_count,
+                            "broken_count": 0,
+                            "max_height": m.constituency.leader_height,
                             "curve_type": "strong_up" if i < 2 else "pulse_up",
                         })
             except Exception as e:
@@ -601,12 +792,20 @@ class IntradayBriefingService:
                                 "color": SECTOR_THEME_COLORS[i % len(SECTOR_THEME_COLORS)],
                                 "net_inflow": round(float(s_count) * 2.5, 2),
                                 "pct": round(min(8.0, 2.0 + s_count * 0.8), 2),
+                                "amount_yi": round(float(s_count) * 15.0, 2),
                                 "leader": {
                                     "code": "--",
                                     "name": f"领涨梯队({s_count}只)",
                                     "pct": 9.99,
                                     "status": f"{s_count}家涨停",
+                                    "role": "先锋标杆",
                                 },
+                                "flagship": None,
+                                "echelon_summary": f"梯队聚拢{s_count}只涨停",
+                                "echelon_stocks": [],
+                                "limit_up_count": s_count,
+                                "broken_count": 0,
+                                "max_height": 2,
                                 "curve_type": "strong_up" if i < 2 else "pulse_up",
                             })
             except Exception as e:
@@ -650,21 +849,48 @@ class IntradayBriefingService:
         except Exception as e:
             logger.warning(f"Failed to fetch real sector trends for briefing: {e}")
 
-        # 尝试拉取当日涨停池与炸板池，计算各题材的独苗与负反馈度量
-        lu_items = []
-        broken_items = []
-        try:
-            lu_res = await self.data_service.get_limit_up_pool(date_str)
-            if lu_res and lu_res.data:
-                lu_items = lu_res.data.get("items", []) or []
-                broken_items = lu_res.data.get("broken_limit_items", []) or []
-        except Exception as e:
-            logger.debug(f"Could not load limit up pool for sectors divergence: {e}")
+        # 计算方向3存量博弈跷跷板吸血指标
+        pos_sum = sum(m["net_inflow"] for m in meta if m["net_inflow"] > 0)
+        neg_sum = abs(sum(m["net_inflow"] for m in meta if m["net_inflow"] < 0))
+        global_seesaw_ratio = round(neg_sum / max(1.0, pos_sum), 2)
+
+        # 找出绝对吸血主战场与最大承压失血方
+        pos_sorted = sorted([m for m in meta if m["net_inflow"] > 0], key=lambda x: x["net_inflow"], reverse=True)
+        neg_sorted = sorted([m for m in meta if m["net_inflow"] < 0], key=lambda x: x["net_inflow"])
+        primary_siphon = pos_sorted[0] if pos_sorted else None
+        siphoned_tail = neg_sorted[0] if neg_sorted else None
+
+        if global_seesaw_ratio >= 0.65:
+            seesaw_status = "存量极度抽血"
+            seesaw_desc = (
+                f"盘面呈现显著存量跷跷板：【{primary_siphon['name'] if primary_siphon else '主线'}】以主力净流入 "
+                f"+{primary_siphon['net_inflow'] if primary_siphon else 0:.1f}亿 成为绝对吸血黑洞，"
+                f"导致【{siphoned_tail['name'] if siphoned_tail else '承压板块'}】({siphoned_tail['net_inflow'] if siphoned_tail else 0:.1f}亿) "
+                f"等对立题材失血严重，拉科技必砸防守，资金挤出效应高达 {int(global_seesaw_ratio * 100)}%。"
+            )
+        elif global_seesaw_ratio >= 0.3:
+            seesaw_status = "结构性分化博弈"
+            seesaw_desc = (
+                f"资金在核心题材内部呈现局部高低切与轮动，【{primary_siphon['name'] if primary_siphon else '领涨'}】相对强势，"
+                f"吸血挤出效应适中 ({int(global_seesaw_ratio * 100)}%)，后排题材震荡承接。"
+            )
+        else:
+            seesaw_status = "增量普涨共振"
+            seesaw_desc = "主流题材多头动能均衡，主力资金普遍净流入，无显著恶性存量抽血现象。"
+
+        seesaw_analysis_payload = {
+            "seesaw_ratio": global_seesaw_ratio,
+            "status": seesaw_status,
+            "primary_siphon_sector": primary_siphon["name"] if primary_siphon else "无",
+            "siphoned_sector": siphoned_tail["name"] if siphoned_tail else "无",
+            "description": seesaw_desc,
+        }
 
         sectors: List[TopSectorTrendItem] = []
         for i, m in enumerate(meta):
             code = m["code"]
             sec_name = m["name"]
+            resolved_code = resolve_concept_bk_code(sec_name, code)
             leader_code_val = m.get("leader", {}).get("code")
             raw_pts = (
                 real_trends_map.get(code)
@@ -690,20 +916,10 @@ class IntradayBriefingService:
             else:
                 trends = self._generate_minute_trends(m["curve_type"], m["net_inflow"], m["pct"])
 
-            # 匹配当前题材在涨停池中的标的
-            matched_lu = [
-                s for s in lu_items
-                if sec_name in str(s.get("sector") or "") or sec_name in str(s.get("reason_type") or "")
-            ]
-            matched_broken = [
-                s for s in broken_items
-                if sec_name in str(s.get("sector") or "") or sec_name in str(s.get("reason_type") or "")
-            ]
-
-            lu_cnt = len(matched_lu)
-            heights = [int(s.get("lbc") or s.get("continuous_board_count") or 1) for s in matched_lu]
-            max_h = max(heights, default=0)
-            has_first_board = (1 in heights)
+            lu_cnt = m.get("limit_up_count", 0)
+            max_h = m.get("max_height", 0)
+            broken_cnt = m.get("broken_count", 0)
+            has_first_board = (lu_cnt > 1 or max_h == 1)
 
             # 独苗判定：仅有 1 只涨停且连板 >= 2，且无首板助攻
             is_solitary = (lu_cnt == 1 and max_h >= 2 and not has_first_board)
@@ -714,10 +930,28 @@ class IntradayBriefingService:
             crrs = round(max(2.5, (sec_pct - 1.0) * 1.6), 1)
             rear_neg = round(min(0.85, max(0.15, (6.5 - sec_pct) * 0.12)), 2)
             broken_ratio = (
-                round(len(matched_broken) / (lu_cnt + len(matched_broken)), 2)
-                if (lu_cnt + len(matched_broken)) > 0
+                round(broken_cnt / (lu_cnt + broken_cnt), 2)
+                if (lu_cnt + broken_cnt) > 0
                 else 0.0
             )
+
+            # 跷跷板角色判定
+            seesaw_role = (
+                "PRIMARY_SIPHON" if m["net_inflow"] > 0 and primary_siphon and primary_siphon["name"] == m["name"]
+                else ("PRESSURE_SIPHONED" if m["net_inflow"] < 0 else None)
+            )
+
+            flagship_model = None
+            if m.get("flagship"):
+                f = m["flagship"]
+                flagship_model = TopSectorLeaderStock(
+                    code=f["code"],
+                    name=f["name"],
+                    pct_change=f["pct_change"],
+                    status_desc=f["status_desc"],
+                    amount_yi=f.get("amount_yi"),
+                    role=f.get("role", "容量中军"),
+                )
 
             item = TopSectorTrendItem(
                 code=m["code"],
@@ -731,7 +965,18 @@ class IntradayBriefingService:
                     name=m["leader"]["name"],
                     pct_change=m["leader"]["pct"],
                     status_desc=m["leader"]["status"],
+                    amount_yi=m["leader"].get("amount_yi"),
+                    role=m["leader"].get("role", "先锋标杆"),
                 ),
+                flagship=flagship_model,
+                echelon_summary=m.get("echelon_summary"),
+                echelon_stocks=m.get("echelon_stocks", []),
+                limit_up_count=lu_cnt,
+                broken_count=broken_cnt,
+                max_height=max_h,
+                amount_yi=m.get("amount_yi", 0.0),
+                seesaw_ratio=global_seesaw_ratio,
+                seesaw_role=seesaw_role,
                 trends=trends,
                 is_solitary_monopoly=is_solitary,
                 monopoly_turnover_ratio=monopoly_ratio,
@@ -745,6 +990,7 @@ class IntradayBriefingService:
             trade_date=date_str,
             snapshot_time="10:15:00",
             sectors=sectors,
+            seesaw_analysis=seesaw_analysis_payload,
         )
 
         if not is_today:

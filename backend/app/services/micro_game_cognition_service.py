@@ -29,12 +29,12 @@ class MicroGameCognitionService:
 {
   "track1": "昨日核心在今日的表现剖析（重点点名核心个股、换手率与承接/核按钮本质）",
   "track2": "今日最强涨停与昨日核心的动态博弈（分析存量资金吸血剪刀差、高低切还是共振助攻）",
-  "sector_rotation": "题材战场资金轮动本质（点名领涨与承压题材，指明主力资金真正主攻方向与佯攻诱多特征）"
+  "sector_rotation": "题材战场资金轮动本质（必须以一线操盘手视角指名道姓：1.今日资金真正的主攻战场是谁？是真金白银放量共振还是缩量弱脉冲？点名先锋标杆与容量中军大票；2.资金在与谁玩跷跷板抽血？谁在持续失血为谁买单？3.梯队助攻质量与独苗/炸板风险。直击痛点，拒绝空洞套话）"
 }
 约束：
 1. 必须使用中文，严禁输出任何 markdown 格式代码块标记（如不要加 ```json ），仅输出纯 JSON 字符串；
-2. 语言风格：专业、精炼、充满金融博弈穿透力，杜绝“表现良好”、“值得关注”等空洞套话；
-3. 每段结论控制在 50~100 字，言简意赅，直击痛点。"""
+2. 语言风格：专业、精炼、充满金融博弈穿透力，杜绝“表现良好”、“值得关注”、“轮动态势”等公文废话；
+3. sector_rotation 必须结合提供的成交额、中军龙头与梯队涨停数，写出清晰的盘面定调，60~110 字。"""
 
     @classmethod
     async def generate_game_cognition(
@@ -68,12 +68,24 @@ class MicroGameCognitionService:
 
         sector_facts = []
         for sec in sectors[:5]:
+            flagship_name = "--"
+            if isinstance(sec.get("flagship"), dict):
+                flagship_name = sec["flagship"].get("name", "--")
+            elif sec.get("flagshipName"):
+                flagship_name = sec.get("flagshipName", "--")
+
             sector_facts.append({
                 "name": sec.get("name"),
+                "turnover_amount": f"{sec.get('amount_yi', sec.get('amount', '--'))}亿",
                 "net_inflow": f"{sec.get('net', 0):+.1f}亿",
                 "pct": f"{sec.get('pct', 0):+.2f}%",
-                "leader": f"{sec.get('leader', '--')}({sec.get('leaderPct', 0):+.1f}%)",
+                "leader_pioneer": f"{sec.get('leader', '--')}({sec.get('leaderPct', 0):+.1f}%)",
+                "flagship_core": flagship_name,
+                "echelon_summary": sec.get("echelon_summary") or f"{sec.get('limit_up_count', 0)}只涨停",
+                "max_height": f"{sec.get('max_height', 1)}B",
+                "is_solitary": sec.get("isSolitaryMonopoly", False),
                 "rear_negative": f"{round((sec.get('rearNegativeRatio', 0) or 0) * 100)}%",
+                "seesaw_role": sec.get("seesaw_role", "NORMAL"),
             })
 
         payload_context = {
@@ -185,13 +197,41 @@ class MicroGameCognitionService:
         else:
             track2 = f"盘中新题材龙头【{st_name}】尝试突破吸附存量流动性，但受制于大盘量能收缩，未能带动昨日核心跟风，呈现孤军深入的局部博弈态势。"
 
-        # 3. 分析题材轮动特征
+        # 3. 分析题材轮动特征 (专家规则引擎结合梯队中军与跷跷板全面升级)
         if sectors:
-            lead_sec = sectors[0].get("name", "主线")
-            lead_inflow = sectors[0].get("net", 0)
-            tail_sec = sectors[-1].get("name", "弱势题材")
-            tail_inflow = sectors[-1].get("net", 0)
-            sector_rot = f"【{lead_sec}】以{lead_inflow:+.1f}亿净流入牢牢掌控盘面主攻阵地，资金攻击坚决；而【{tail_sec}】以{tail_inflow:+.1f}亿持续失血承压。整体呈现高低切换与资金向核心题材高度聚焦的二八分化格局。"
+            lead_sec = sectors[0]
+            lead_name = lead_sec.get("name", "主线")
+            lead_net = float(lead_sec.get("net", 0) or 0)
+            lead_pioneer = lead_sec.get("leader", "--")
+            lead_flagship = lead_sec.get("flagship", {}).get("name") if isinstance(lead_sec.get("flagship"), dict) else lead_sec.get("flagshipName")
+            lead_height = lead_sec.get("max_height", 1)
+            lead_count = lead_sec.get("limit_up_count", 1)
+            lead_echelon = lead_sec.get("echelon_summary") or ""
+            is_solitary = lead_sec.get("isSolitaryMonopoly", False)
+
+            tail_sec = sectors[-1]
+            tail_name = tail_sec.get("name", "弱势题材")
+            tail_net = float(tail_sec.get("net", 0) or 0)
+
+            flagship_part = f"，容量中军【{lead_flagship}】承接大资金" if (lead_flagship and lead_flagship != lead_pioneer) else ""
+            echelon_part = f"，梯队聚拢{lead_count}只涨停形成集团作战" if lead_count > 1 else ("，但呈独苗弱抱团特征" if is_solitary else "")
+
+            if lead_net > 0 and tail_net < 0:
+                sector_rot = (
+                    f"盘面呈现典型的存量跷跷板博弈：【{lead_name}】以主力净流入 {lead_net:+.1f}亿 成为绝对主攻阵地，"
+                    f"先锋【{lead_pioneer}】({lead_height}B){flagship_part}{echelon_part}；"
+                    f"而对立题材【{tail_name}】以 {tail_net:+.1f}亿 持续失血成为主要抽血源，资金弃弱聚强，警惕非主线跟风标的流动性挤出风险。"
+                )
+            elif lead_net > 0 and tail_net >= 0:
+                sector_rot = (
+                    f"全天多头资金情绪亢奋，【{lead_name}】净流入 {lead_net:+.1f}亿 领跑全场，"
+                    f"先锋【{lead_pioneer}】带队展开攻坚{flagship_part}{echelon_part}，各主流题材呈增量普涨共振态势，市场进攻动能通畅。"
+                )
+            else:
+                sector_rot = (
+                    f"盘面存量博弈特征显著，【{lead_name}】虽有脉冲但主力净流入仅 {lead_net:+.1f}亿，缺乏大体量中军协同承接，"
+                    f"各热点轮动过快且多带长上影，操作上需警惕尾盘佯攻诱多与冲高回落大面风险。"
+                )
         else:
             sector_rot = "全天题材轮动节奏加快，存量资金在各个细分热点间快速脉冲反抽，缺乏持续性领涨大题材，以防守防御为主。"
 

@@ -41,10 +41,13 @@ async def test_get_intraday_top_sectors_trend():
         assert data["trade_date"] == "2026-10-15"
         assert len(data["sectors"]) == 5
 
-        # 验证 Top 1 题材及领涨龙头
+        # 验证 Top 1 题材及领涨龙头与升级梯队/跷跷板字段
         top1 = data["sectors"][0]
         assert top1["rank"] == 1
         assert len(top1["name"]) > 0
         assert top1["leader"]["name"] != ""
         assert len(top1["trends"]) >= 10
         assert top1["trends"][0]["time"] == "09:30"
+        assert "echelon_summary" in top1
+        assert "echelon_stocks" in top1
+        assert "seesaw_analysis" in data

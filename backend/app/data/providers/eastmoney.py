@@ -465,11 +465,11 @@ class EastmoneyProvider(
                 error_message=str(e)
             )
 
-    async def get_sector_ranking(self, sector_type: str = "industry") -> DataResult:
+    async def get_sector_ranking(self, sector_type: str = "industry", limit: int = 60) -> DataResult:
         """
         SectorCapability 协议标准实现：获取板块排行与主力资金流
         """
-        return await self.get_top_sectors(limit=20, sector_type=sector_type)
+        return await self.get_top_sectors(limit=limit, sector_type=sector_type)
 
     async def get_large_cap_turnover_cores(self, min_cap_yi: float = 1000.0, top_turnover: int = 20) -> DataResult:
         """

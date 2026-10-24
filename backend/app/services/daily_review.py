@@ -498,8 +498,14 @@ class DailyReviewService:
             transcendent_review_payload = None
 
         # 10. 生成并持久化 DailyReview 报告
+        review_title = None
+        if transcendent_review_payload and isinstance(transcendent_review_payload, dict):
+            review_title = transcendent_review_payload.get("title")
+        if not review_title:
+            review_title = f"{today} A股收盘认知全景复盘"
+
         review_data = {
-            "title": f"{today} A股收盘认知复盘",
+            "title": review_title,
             "indices": index_data,
             "limit_up": limit_up_summary,
             "breadth": breadth_data,
@@ -524,6 +530,7 @@ class DailyReviewService:
         sector_summary = json.dumps(limit_up_summary.get("top_reasons", []), ensure_ascii=False) if isinstance(limit_up_summary, dict) else None
 
         if existing:
+            existing.title = review_title
             existing.market_overview = json.dumps(index_data, ensure_ascii=False)
             existing.limit_up_analysis = json.dumps(limit_up_summary, ensure_ascii=False)
             existing.sector_analysis = sector_summary
@@ -534,6 +541,7 @@ class DailyReviewService:
         else:
             review_record = DailyReview(
                 date=today,
+                title=review_title,
                 market_overview=json.dumps(index_data, ensure_ascii=False),
                 limit_up_analysis=json.dumps(limit_up_summary, ensure_ascii=False),
                 sector_analysis=sector_summary,
@@ -573,9 +581,15 @@ class DailyReviewService:
         for r in records:
             state_label = None
             composite_score = None
+            title = getattr(r, "title", None)
             if r.report_content:
                 try:
                     c = json.loads(r.report_content)
+                    if not title:
+                        title = c.get("title")
+                    tr = c.get("transcendent_review")
+                    if tr and isinstance(tr, dict) and not title:
+                        title = tr.get("title")
                     ms = c.get("market_state", {})
                     state_label = ms.get("state_label")
                     composite_score = ms.get("composite_score")
@@ -585,6 +599,7 @@ class DailyReviewService:
             items.append({
                 "id": r.id,
                 "date": r.date,
+                "title": title or f"{r.date} A股全景深度复盘",
                 "state_label": state_label or "未定义",
                 "composite_score": composite_score,
                 "data_quality": r.data_quality or "unknown",

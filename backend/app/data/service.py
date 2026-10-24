@@ -216,8 +216,8 @@ class DataService:
     async def get_latest_news(self, count: int = 15) -> DataResult:
         return await self._execute_pipeline("news", "get_latest_news", count)
 
-    async def get_sector_ranking(self, sector_type: str = "industry") -> DataResult:
-        return await self._execute_pipeline("sector", "get_sector_ranking", sector_type)
+    async def get_sector_ranking(self, sector_type: str = "industry", limit: int = 60) -> DataResult:
+        return await self._execute_pipeline("sector", "get_sector_ranking", sector_type, limit=limit)
 
     async def get_capital_flow(self, code: str) -> DataResult:
         return await self._execute_pipeline("capital_flow", "get_capital_flow", code)

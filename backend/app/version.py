@@ -7,9 +7,9 @@ import subprocess
 from pathlib import Path
 
 APP_NAME = "AI认知复盘交易系统"
-VERSION = "0.8.3"
-STAGE_NAME = "知见·认知复盘全景博弈与弹性韧性进化版"
-BUILD_DATE = "2026-10-22"
+VERSION = "0.8.4"
+STAGE_NAME = "知见·题材战场梯队下钻与自适应动态量程版"
+BUILD_DATE = "2026-10-24"
 FALLBACK_COMMIT = "1a1e781"
 
 

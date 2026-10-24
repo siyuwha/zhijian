@@ -333,6 +333,12 @@ export default function ReviewPage() {
                         {renderQualityBadge(item.data_quality)}
                       </div>
 
+                      {item.title && (
+                        <div className="text-sm font-medium text-slate-200 group-hover:text-amber-300 transition-colors line-clamp-1">
+                          {item.title}
+                        </div>
+                      )}
+
                       <div className="text-xs text-slate-400">
                         生成时间: {item.generated_at ? new Date(item.generated_at).toLocaleString('zh-CN') : '未知'}
                       </div>

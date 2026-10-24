@@ -47,6 +47,7 @@ export interface MarketStateVector {
 export interface DailyReviewSummaryItem {
   id: number;
   date: string;
+  title?: string;
   state_label: string;
   composite_score: number | null;
   data_quality: string;
@@ -56,9 +57,11 @@ export interface DailyReviewSummaryItem {
 export interface DailyReviewDetail {
   id: number;
   date: string;
+  title?: string;
   market_overview: any[];
   limit_up_analysis: Record<string, any>;
   market_state: MarketStateVector | null;
+  transcendent_review?: Record<string, any>;
   report_content: Record<string, any>;
   data_quality: string;
   generated_at: string | null;
