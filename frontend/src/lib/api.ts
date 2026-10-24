@@ -333,6 +333,23 @@ export interface LLMTestResult {
   error?: string | null;
 }
 
+export interface CognitionHistoryItem {
+  id: string;
+  time: string;
+  event_type: string;
+  event_desc?: string;
+  lead_sector?: string;
+  lead_net?: number;
+  tail_sector?: string;
+  tail_net?: number;
+  sector_rotation: string;
+  track1?: string;
+  track2?: string;
+  source: string;
+  model?: string;
+  created_at?: string;
+}
+
 // =========================================================================
 // Phase 2D.0 / 2D.1: Canonical Market Truth & Cognition 统一信封消费接口
 // =========================================================================
@@ -378,10 +395,15 @@ export const canonicalAPI = {
       track1: string;
       track2: string;
       sector_rotation: string;
+      history?: CognitionHistoryItem[];
     }>('/canonical/intraday-game-cognition', {
       method: 'POST',
       body: JSON.stringify(params),
     }),
+  getIntradayGameCognitionHistory: (tradeDate: string) =>
+    fetchAPI<CognitionHistoryItem[]>(
+      `/canonical/intraday-game-cognition/history?trade_date=${encodeURIComponent(tradeDate)}`
+    ),
 };
 
 

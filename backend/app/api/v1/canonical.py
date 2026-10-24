@@ -7,7 +7,7 @@ GET /api/v1/canonical/market-snapshot/{date}
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -367,12 +367,28 @@ async def get_intraday_game_cognition(
         return {"code": 200, "data": res}
     except Exception as e:
         logger.error(f"[GAME COGNITION ERROR]: {e}", exc_info=True)
+        fallback = MicroGameCognitionService._generate_heuristic_cognition(
+            req.stocks, req.strongest_stock, req.sectors
+        )
+        MicroGameCognitionService._record_history(req.trade_date, fallback, req.sectors, force_refresh=req.force_refresh)
+        fallback["history"] = MicroGameCognitionService.get_cognition_history(req.trade_date)
         return {
             "code": 200,
-            "data": MicroGameCognitionService._generate_heuristic_cognition(
-                req.stocks, req.strongest_stock, req.sectors
-            ),
+            "data": fallback,
         }
+
+
+@router.get("/intraday-game-cognition/history")
+async def get_intraday_game_cognition_history(
+    trade_date: str = Query(..., description="交易日期，如 2026-10-24"),
+):
+    """
+    获取指定交易日的 AI 题材轮动推演触发历史记录轨迹
+    """
+    from ...services.micro_game_cognition_service import MicroGameCognitionService
+    records = MicroGameCognitionService.get_cognition_history(trade_date)
+    return {"code": 200, "data": records}
+
 
 
 

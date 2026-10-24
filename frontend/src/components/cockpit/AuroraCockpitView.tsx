@@ -20,7 +20,7 @@ import {
   StockMinutePoint,
   StockTrendData,
 } from '@/types/canonical';
-import { canonicalAPI, api } from '@/lib/api';
+import { canonicalAPI, api, CognitionHistoryItem } from '@/lib/api';
 import { getLatestTradingDateString, getPrevTradingDay, getTodayDateString, isTradingDay } from '@/lib/utils';
 import {
   GlassCard,
@@ -29,6 +29,7 @@ import {
 import { AuditDrawer } from './AuditDrawer';
 import { TacticalBriefingModal } from './TacticalBriefingModal';
 import { BiddingFalsificationModal } from './BiddingFalsificationModal';
+import { IntradayCognitionHistoryModal } from './IntradayCognitionHistoryModal';
 import { TraderCockpitView } from './TraderCockpitView';
 import {
   Calendar,
@@ -553,6 +554,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     model?: string;
   } | null>(null);
   const [isLlmCognitionLoading, setIsLlmCognitionLoading] = useState<boolean>(false);
+  const [cognitionHistory, setCognitionHistory] = useState<CognitionHistoryItem[]>([]);
+  const [isCognitionModalOpen, setIsCognitionModalOpen] = useState<boolean>(false);
 
   // 核心样本股自动选择：
   // 1. 昨日收盘最高板及次高板中选择，总数最多6只，最少可为零。
@@ -1377,6 +1380,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           source: res.source,
           model: res.model,
         });
+        if (res.history && Array.isArray(res.history) && res.history.length > 0) {
+          setCognitionHistory(res.history);
+        }
       }
     } catch (err) {
       console.warn('Failed to fetch LLM game cognition:', err);
@@ -1384,6 +1390,21 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       setIsLlmCognitionLoading(false);
     }
   };
+
+  // 交易日变更时主动对账拉取当日已沉淀的推演历史
+  useEffect(() => {
+    if (!selectedDate) return;
+    canonicalAPI
+      .getIntradayGameCognitionHistory(selectedDate)
+      .then((records) => {
+        if (records && Array.isArray(records) && records.length > 0) {
+          setCognitionHistory(records);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch intraday cognition history on date change:', err);
+      });
+  }, [selectedDate]);
 
   useEffect(() => {
     const key = `${selectedDate}_${stockComparisonList.map((s) => s.code).join(',')}_${dynamicSectorCurves.map((s) => s.name).join(',')}`;
@@ -2680,8 +2701,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
             {/* 右侧控制栏：LLM 认知推演状态 + 添加样本股按钮 */}
             <div className="flex items-center gap-2.5 ml-auto">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-500/15 to-cyan-500/15 border border-purple-500/30 text-[11px] font-mono text-purple-200 shadow-sm">
-                <Brain className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <button
+                type="button"
+                onClick={() => setIsCognitionModalOpen(true)}
+                title="点击弹出窗口查看当日 AI 认知推演触发记录与博弈轨迹"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/15 to-cyan-500/15 border border-purple-500/30 hover:border-purple-400/60 text-[11px] font-mono text-purple-200 shadow-sm hover:shadow-[0_0_12px_rgba(168,85,247,0.3)] transition-all cursor-pointer group"
+              >
+                <Brain className={`w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform ${isLlmCognitionLoading ? 'animate-spin' : 'animate-pulse'}`} />
                 <span>
                   {isLlmCognitionLoading
                     ? 'LLM 深度认知推演中...'
@@ -2689,15 +2715,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     ? `AI 认知推演 (${llmGameCognition.model || 'DeepSeek'})`
                     : 'AI 认知博弈推演'}
                 </span>
-                <button
-                  onClick={() => fetchLlmGameCognition(true)}
-                  title="重新调用 LLM 深度认知推演"
-                  className="hover:text-cyan-300 ml-1 p-0.5 transition-colors"
-                  disabled={isLlmCognitionLoading}
-                >
-                  <RefreshCw className={`w-3 h-3 ${isLlmCognitionLoading ? 'animate-spin text-cyan-400' : ''}`} />
-                </button>
-              </div>
+                <span className="px-1.5 py-0.2 rounded-full bg-purple-500/20 text-cyan-300 border border-purple-500/30 text-[10px] font-sans">
+                  {cognitionHistory.length > 0 ? `${cognitionHistory.length} 次` : '轨迹'}
+                </span>
+              </button>
 
               {stockComparisonList.length < 6 ? (
                 <div className="relative">
@@ -3532,18 +3553,18 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
           <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-mono">
             <div className="flex items-center gap-2 flex-1 min-w-[320px]">
-              <div
-                onClick={() => fetchLlmGameCognition(true)}
-                title="点击重新调用 AI 深度认知推演 (强制穿透缓存)"
-                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold shrink-0 cursor-pointer hover:bg-purple-500/35 hover:border-purple-400/70 transition-all select-none"
+              <button
+                type="button"
+                onClick={() => setIsCognitionModalOpen(true)}
+                title="点击弹出窗口查看当日 AI 题材推演触发记录与博弈轨迹"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 border border-purple-500/40 hover:border-purple-400/80 text-[11px] font-medium shrink-0 cursor-pointer shadow-sm hover:shadow-[0_0_12px_rgba(168,85,247,0.35)] transition-all select-none group"
               >
-                <Brain className={`w-3 h-3 text-cyan-400 ${isLlmCognitionLoading ? 'animate-spin' : 'animate-pulse'}`} />
-                <span>
-                  {llmGameCognition?.source === 'LLM_INFERRED'
-                    ? `AI 题材轮动推演 (${llmGameCognition.model || 'DeepSeek'})`
-                    : 'AI 题材轮动推演'}
+                <Brain className={`w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform ${isLlmCognitionLoading ? 'animate-spin' : 'animate-pulse'}`} />
+                <span className="font-semibold text-purple-100">AI 题材轮动推演</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono tabular-nums">
+                  {cognitionHistory.length > 0 ? `${cognitionHistory.length} 次触发` : '点击查看轨迹'}
                 </span>
-              </div>
+              </button>
               <span className="text-slate-300 leading-relaxed">
                 <strong className="text-purple-200 font-normal">
                   {llmGameCognition?.sector_rotation || (dynamicSectorCurves[0] ? `${dynamicSectorCurves[0]?.name}引领资金攻坚，${dynamicSectorCurves[dynamicSectorCurves.length - 1]?.name}承压失血` : '板块分化博弈中')}
@@ -3551,15 +3572,6 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               </span>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <button
-                onClick={() => fetchLlmGameCognition(true)}
-                title="重新调用 LLM 深度认知推演"
-                className="text-slate-400 hover:text-cyan-300 flex items-center gap-1 transition-colors text-[11px]"
-                disabled={isLlmCognitionLoading}
-              >
-                <RefreshCw className={`w-3 h-3 ${isLlmCognitionLoading ? 'animate-spin text-cyan-400' : ''}`} />
-                <span>刷新推演</span>
-              </button>
               <span className="text-cyan-300">
                 {timeProgress.isAfterClose ? '全天资金沉淀判定' : `当前时点 (${timeProgress.timeLabel.split(' ')[0]}) 资金态势`}
               </span>
@@ -3704,6 +3716,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         isOpen={isBiddingModalOpen}
         onClose={() => setIsBiddingModalOpen(false)}
         verdict={biddingVerdict}
+      />
+
+      {/* AI 题材轮动推演当日触发轨迹弹窗 (Intraday Cognition History Modal) */}
+      <IntradayCognitionHistoryModal
+        isOpen={isCognitionModalOpen}
+        onClose={() => setIsCognitionModalOpen(false)}
+        history={cognitionHistory}
+        selectedDate={selectedDate}
+        isLoading={isLlmCognitionLoading}
       />
     </div>
   );

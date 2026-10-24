@@ -51,3 +51,75 @@ async def test_get_intraday_top_sectors_trend():
         assert "echelon_summary" in top1
         assert "echelon_stocks" in top1
         assert "seesaw_analysis" in data
+
+
+@pytest.mark.asyncio
+async def test_intraday_game_cognition_and_history_audit():
+    """验证 AI 题材轮动推演与当日触发轨迹历史留痕接口"""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        payload = {
+            "trade_date": "2026-10-15",
+            "stocks": [
+                {
+                    "code": "000001",
+                    "name": "平安银行",
+                    "changePct": 3.5,
+                    "tagType": "yesterday_highest",
+                    "roles": ["核心中军"],
+                }
+            ],
+            "strongest_stock": {
+                "code": "300033",
+                "name": "同花顺",
+                "sector": "金融科技",
+                "changePct": 10.0,
+            },
+            "sectors": [
+                {
+                    "name": "金融科技",
+                    "net": 18.5,
+                    "leader": "同花顺",
+                    "leaderPct": 10.0,
+                    "amount_yi": 85.0,
+                    "max_height": 3,
+                    "limit_up_count": 5,
+                },
+                {
+                    "name": "房地产",
+                    "net": -12.3,
+                    "leader": "万科A",
+                    "leaderPct": -2.1,
+                    "amount_yi": 45.0,
+                    "max_height": 1,
+                    "limit_up_count": 0,
+                },
+            ],
+            "force_refresh": True,
+        }
+
+        # 1. 触发生成推演
+        res = await client.post("/api/v1/canonical/intraday-game-cognition", json=payload)
+        assert res.status_code == 200
+        body = res.json()
+        assert body["code"] == 200
+        data = body["data"]
+        assert "sector_rotation" in data
+        assert "history" in data
+        assert len(data["history"]) >= 1
+
+        first_record = data["history"][0]
+        assert "time" in first_record
+        assert "event_type" in first_record
+        assert first_record["lead_sector"] == "金融科技"
+        assert first_record["tail_sector"] == "房地产"
+
+        # 2. 独立拉取当日触发轨迹接口
+        hist_res = await client.get("/api/v1/canonical/intraday-game-cognition/history?trade_date=2026-10-15")
+        assert hist_res.status_code == 200
+        hist_body = hist_res.json()
+        assert hist_body["code"] == 200
+        hist_records = hist_body["data"]
+        assert isinstance(hist_records, list)
+        assert len(hist_records) >= 1
+        assert hist_records[0]["lead_sector"] == "金融科技"
+

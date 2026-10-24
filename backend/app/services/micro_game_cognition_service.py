@@ -1,6 +1,8 @@
 import asyncio
+from datetime import datetime
 import json
 import logging
+import time
 from typing import Any, Dict, List, Optional
 import httpx
 
@@ -10,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 # 内存单日认知缓存字典
 _COGNITION_CACHE: Dict[str, Dict[str, Any]] = {}
+# 内存单日认知触发历史轨迹：trade_date -> List[Dict[str, Any]]
+_COGNITION_HISTORY: Dict[str, List[Dict[str, Any]]] = {}
 
 
 class MicroGameCognitionService:
@@ -37,6 +41,83 @@ class MicroGameCognitionService:
 3. sector_rotation 必须结合提供的成交额、中军龙头与梯队涨停数，写出清晰的盘面定调，60~110 字。"""
 
     @classmethod
+    def get_cognition_history(cls, trade_date: str) -> List[Dict[str, Any]]:
+        """
+        获取指定交易日的 AI 题材轮动推演触发历史记录
+        """
+        return _COGNITION_HISTORY.get(trade_date, [])
+
+    @classmethod
+    def _record_history(
+        cls,
+        trade_date: str,
+        result_data: Dict[str, Any],
+        sectors: List[Dict[str, Any]],
+        force_refresh: bool = False,
+    ) -> None:
+        """
+        将单次推演结果记录入当日事件驱动时间轴中
+        """
+        if trade_date not in _COGNITION_HISTORY:
+            _COGNITION_HISTORY[trade_date] = []
+
+        now_time = datetime.now().strftime("%H:%M:%S")
+        lead_sec = sectors[0] if sectors else {}
+        lead_name = lead_sec.get("name", "主流题材")
+        lead_net = float(lead_sec.get("net", 0) or 0)
+
+        tail_sec = sectors[-1] if sectors else {}
+        tail_name = tail_sec.get("name", "对立题材")
+        tail_net = float(tail_sec.get("net", 0) or 0)
+
+        history_list = _COGNITION_HISTORY[trade_date]
+
+        # 触发时机与盘面事件智能判定
+        if not history_list:
+            event_type = "开盘首次定调"
+        else:
+            prev = history_list[-1]
+            # 若与上一条内容、主线题材均完全一致且未强制刷新，则避免冗余写入
+            if (
+                not force_refresh
+                and prev.get("sector_rotation") == result_data.get("sector_rotation")
+                and prev.get("lead_sector") == lead_name
+            ):
+                return
+
+            if prev.get("lead_sector") != lead_name:
+                event_type = f"主线更替·{lead_name}接棒"
+            elif abs(lead_net - float(prev.get("lead_net", 0))) >= 5.0 or (lead_net > 0 and float(prev.get("lead_net", 0)) <= 0):
+                event_type = "主力资金剪刀差突变"
+            elif now_time >= "15:00:00" and prev.get("time", "") < "15:00:00":
+                event_type = "尾盘收盘沉淀定型"
+            elif now_time >= "11:30:00" and prev.get("time", "") < "11:30:00":
+                event_type = "午盘多空格局定型"
+            else:
+                event_type = "题材轮动动态追踪"
+
+        item = {
+            "id": f"{trade_date}_{int(time.time() * 1000)}_{len(history_list) + 1}",
+            "time": now_time,
+            "event_type": event_type,
+            "event_desc": f"主攻【{lead_name}】({lead_net:+.1f}亿) / 失血【{tail_name}】({tail_net:+.1f}亿)",
+            "lead_sector": lead_name,
+            "lead_net": lead_net,
+            "tail_sector": tail_name,
+            "tail_net": tail_net,
+            "sector_rotation": result_data.get("sector_rotation", ""),
+            "track1": result_data.get("track1", ""),
+            "track2": result_data.get("track2", ""),
+            "source": result_data.get("source", "QUANT_EXPERT_ENGINE"),
+            "model": result_data.get("model", ""),
+            "created_at": datetime.now().isoformat(),
+        }
+
+        history_list.append(item)
+        if len(history_list) > 50:
+            _COGNITION_HISTORY[trade_date] = history_list[-50:]
+
+    @classmethod
     async def generate_game_cognition(
         cls,
         trade_date: str,
@@ -50,7 +131,13 @@ class MicroGameCognitionService:
         """
         cache_key = f"{trade_date}_{len(stocks)}_{strongest_stock.get('code', '') if strongest_stock else ''}"
         if not force_refresh and cache_key in _COGNITION_CACHE:
-            return _COGNITION_CACHE[cache_key]
+            cached_res = _COGNITION_CACHE[cache_key]
+            if trade_date not in _COGNITION_HISTORY or not _COGNITION_HISTORY[trade_date]:
+                cls._record_history(trade_date, cached_res, sectors, force_refresh=False)
+            return {
+                **cached_res,
+                "history": cls.get_cognition_history(trade_date),
+            }
 
         # 1. 组装输入客观事实简报
         stock_facts = []
@@ -149,7 +236,11 @@ class MicroGameCognitionService:
             result_data = cls._generate_heuristic_cognition(stocks, strongest_stock, sectors)
 
         _COGNITION_CACHE[cache_key] = result_data
-        return result_data
+        cls._record_history(trade_date, result_data, sectors, force_refresh=force_refresh)
+        return {
+            **result_data,
+            "history": cls.get_cognition_history(trade_date),
+        }
 
     @classmethod
     def _generate_heuristic_cognition(
