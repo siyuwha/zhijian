@@ -227,36 +227,39 @@ export function generateRealSectorSvgPath(
   trends: SectorTrendPoint[],
   maxTimeProgressX: number,
   upperBound: number = 30.0,
-  lowerBound: number = 25.0
+  lowerBound: number = 25.0,
+  zeroY: number = 70.0
 ): { path: string; endX: number; endY: number } {
   if (!trends || trends.length === 0) {
-    return { path: 'M 0,70 L 1000,70', endX: 1000, endY: 70 };
+    return { path: `M 0,${zeroY} L 1000,${zeroY}`, endX: 1000, endY: zeroY };
   }
 
   const safeUpper = Math.max(0.5, upperBound);
-  const safeLower = Math.max(0.5, lowerBound);
+  const safeLower = Math.max(0.5, lowerBound > 0 ? lowerBound : 5.0);
+  const maxUpSpan = zeroY - 14;
+  const maxDownSpan = 126 - zeroY;
 
   const coords: [number, number][] = [];
   for (const pt of trends) {
     const x = timeToX(pt.time);
     if (x > maxTimeProgressX + 3) break;
     const net = pt.net_inflow_yi;
-    let y = 70;
+    let y = zeroY;
     if (net >= 0) {
-      y = Math.max(12, 70 - (Math.min(safeUpper, net) / safeUpper) * 54);
+      y = Math.max(12, zeroY - (Math.min(safeUpper, net) / safeUpper) * maxUpSpan);
     } else {
-      y = Math.min(128, 70 + (Math.min(safeLower, Math.abs(net)) / safeLower) * 48);
+      y = Math.min(128, zeroY + (Math.min(safeLower, Math.abs(net)) / safeLower) * maxDownSpan);
     }
     coords.push([x, Number(y.toFixed(1))]);
   }
 
   if (coords.length === 0) {
-    return { path: 'M 0,70 L 0,70', endX: 0, endY: 70 };
+    return { path: `M 0,${zeroY} L 0,${zeroY}`, endX: 0, endY: zeroY };
   }
 
-  // 确保 09:30 零轴起点 (0, 70) 锚定，彻底杜绝悬空水平直线
+  // 确保 09:30 零轴起点 (0, zeroY) 锚定，彻底杜绝悬空水平直线
   if (coords[0][0] > 0) {
-    coords.unshift([0, 70]);
+    coords.unshift([0, zeroY]);
   }
 
   let d = `M ${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
@@ -315,35 +318,47 @@ export function generateDynamicStockPath(
 }
 
 /**
- * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实资金净流入生成 SVG 题材走势曲线路径
+ * 动态根据当前时间在 X 轴上的推进位置 (currentX: 0~1000) 与真实资金净流入生成 SVG 题材走势曲线路径 (支持动态零轴与喇叭口连续递进发散)
  */
-export function generateSectorPath(currentX: number, endY: number, idx: number): string {
+export function generateSectorPath(currentX: number, endY: number, idx: number, zeroY: number = 70.0): string {
   const safeX = Math.max(20, Math.min(1000, currentX));
-  const delta = endY - 70;
+  const delta = endY - zeroY; // 垂直总发散落差
 
-  if (idx === 0) {
-    // #1 领涨核心 (半导体 +28.4亿): 早盘急剧吸筹，午后加速推升
-    const p1X = safeX * 0.35;
-    const p1Y = 70 + delta * 0.65;
-    return `M 0,70 C ${p1X * 0.4},${70 + delta * 0.25} ${p1X * 0.8},${p1Y} ${p1X},${p1Y} C ${p1X + (safeX - p1X) * 0.4},${p1Y + delta * 0.1} ${safeX * 0.85},${endY} ${safeX},${endY.toFixed(1)}`;
-  } else if (idx === 1) {
-    // #2 算力概念 (+14.2亿): 早盘脉冲，随后震荡爬升
-    const p1X = safeX * 0.4;
-    const p1Y = 70 + delta * 0.78;
-    return `M 0,70 C ${p1X * 0.35},${70 + delta * 0.3} ${p1X * 0.75},${p1Y} ${p1X},${p1Y} C ${p1X + (safeX - p1X) * 0.5},${p1Y - delta * 0.08} ${safeX * 0.85},${endY} ${safeX},${endY.toFixed(1)}`;
-  } else if (idx === 2) {
-    // #3 银行护盘 (+9.8亿): 缓慢稳健爬升
-    return `M 0,70 C ${safeX * 0.3},${70 + delta * 0.25} ${safeX * 0.7},${70 + delta * 0.75} ${safeX},${endY.toFixed(1)}`;
-  } else if (idx === 3) {
-    // #4 锂电池 (-8.5亿): 早盘假反抽，随后逐渐失血跌破零轴
-    const peakX = safeX * 0.22;
-    const peakY = 62;
-    return `M 0,70 C ${peakX * 0.5},66 ${peakX * 0.8},${peakY} ${peakX},${peakY} C ${peakX + (safeX - peakX) * 0.4},${70 + delta * 0.4} ${safeX * 0.85},${endY} ${safeX},${endY.toFixed(1)}`;
+  // 喇叭口连续递进发散曲线：
+  // 杜绝 10:30 就走完 80% 位移变成平移横线
+  // 09:30 (0, zeroY) 原点聚合 -> 10:30 分阶拉开 -> 11:30~13:00 梯队定型 -> 15:00 喇叭口全开达到最大发散跨度
+  if (delta < 0) {
+    // 向上进攻做多梯队
+    if (idx === 0) {
+      // #1 领跑绝对核心空间龙：早盘脉冲拉升，午间蓄势，尾盘二次加速推升至极值顶格
+      const cp1X = safeX * 0.28;
+      const cp1Y = zeroY + delta * 0.38;
+      const cp2X = safeX * 0.65;
+      const cp2Y = zeroY + delta * 0.70;
+      return `M 0,${zeroY.toFixed(1)} C ${(cp1X * 0.45).toFixed(1)},${(zeroY + delta * 0.12).toFixed(1)} ${(cp1X * 0.8).toFixed(1)},${cp1Y.toFixed(1)} ${cp1X.toFixed(1)},${cp1Y.toFixed(1)} C ${(cp1X + (cp2X - cp1X) * 0.5).toFixed(1)},${(cp1Y + delta * 0.14).toFixed(1)} ${(cp2X * 0.9).toFixed(1)},${cp2Y.toFixed(1)} ${cp2X.toFixed(1)},${cp2Y.toFixed(1)} C ${(cp2X + (safeX - cp2X) * 0.5).toFixed(1)},${(cp2Y + delta * 0.16).toFixed(1)} ${(safeX * 0.95).toFixed(1)},${endY.toFixed(1)} ${safeX.toFixed(1)},${endY.toFixed(1)}`;
+    } else if (idx === 1) {
+      // #2 次席中军助攻：稳健阶梯式向上推展，斜率适中
+      const cp1X = safeX * 0.32;
+      const cp1Y = zeroY + delta * 0.30;
+      const cp2X = safeX * 0.68;
+      const cp2Y = zeroY + delta * 0.64;
+      return `M 0,${zeroY.toFixed(1)} C ${(cp1X * 0.45).toFixed(1)},${(zeroY + delta * 0.08).toFixed(1)} ${(cp1X * 0.8).toFixed(1)},${cp1Y.toFixed(1)} ${cp1X.toFixed(1)},${cp1Y.toFixed(1)} C ${(cp1X + (cp2X - cp1X) * 0.5).toFixed(1)},${(cp1Y + delta * 0.14).toFixed(1)} ${(cp2X * 0.9).toFixed(1)},${cp2Y.toFixed(1)} ${cp2X.toFixed(1)},${cp2Y.toFixed(1)} C ${(cp2X + (safeX - cp2X) * 0.5).toFixed(1)},${(cp2Y + delta * 0.18).toFixed(1)} ${(safeX * 0.95).toFixed(1)},${endY.toFixed(1)} ${safeX.toFixed(1)},${endY.toFixed(1)}`;
+    } else {
+      // #3 中位跟风：早盘随大流，午后震荡趋平
+      const cp1X = safeX * 0.35;
+      const cp1Y = zeroY + delta * 0.25;
+      const cp2X = safeX * 0.70;
+      const cp2Y = zeroY + delta * 0.58;
+      return `M 0,${zeroY.toFixed(1)} C ${(cp1X * 0.45).toFixed(1)},${(zeroY + delta * 0.06).toFixed(1)} ${(cp1X * 0.8).toFixed(1)},${cp1Y.toFixed(1)} ${cp1X.toFixed(1)},${cp1Y.toFixed(1)} C ${(cp1X + (cp2X - cp1X) * 0.5).toFixed(1)},${(cp1Y + delta * 0.12).toFixed(1)} ${(cp2X * 0.9).toFixed(1)},${cp2Y.toFixed(1)} ${cp2X.toFixed(1)},${cp2Y.toFixed(1)} C ${(cp2X + (safeX - cp2X) * 0.5).toFixed(1)},${(cp2Y + delta * 0.22).toFixed(1)} ${(safeX * 0.95).toFixed(1)},${endY.toFixed(1)} ${safeX.toFixed(1)},${endY.toFixed(1)}`;
+    }
   } else {
-    // #5 低空经济 (-19.2亿): 早盘诱多冲高，10:00后放量跳水流出
-    const dropX = safeX * 0.3;
-    const dropY = 70 + delta * 0.65;
-    return `M 0,70 C ${dropX * 0.3},68 ${dropX * 0.7},${dropY} ${dropX},${dropY} C ${dropX + (safeX - dropX) * 0.4},${dropY + delta * 0.2} ${safeX * 0.85},${endY} ${safeX},${endY.toFixed(1)}`;
+    // 向下失血/承压梯队 (存量被抽血对立题材)
+    // 早盘微幅冲高诱多，随后破位下杀，午后加速被吸血流出
+    const peakX = safeX * 0.20;
+    const peakY = zeroY - Math.max(2.5, Math.abs(delta) * 0.15); // 早盘微幅反抽诱多
+    const cp2X = safeX * 0.60;
+    const cp2Y = zeroY + delta * 0.55;
+    return `M 0,${zeroY.toFixed(1)} C ${(peakX * 0.5).toFixed(1)},${(zeroY - 1.5).toFixed(1)} ${(peakX * 0.8).toFixed(1)},${peakY.toFixed(1)} ${peakX.toFixed(1)},${peakY.toFixed(1)} C ${(peakX + (cp2X - peakX) * 0.4).toFixed(1)},${(zeroY + delta * 0.30).toFixed(1)} ${(cp2X * 0.85).toFixed(1)},${cp2Y.toFixed(1)} ${cp2X.toFixed(1)},${cp2Y.toFixed(1)} C ${(cp2X + (safeX - cp2X) * 0.5).toFixed(1)},${(cp2Y + delta * 0.25).toFixed(1)} ${(safeX * 0.95).toFixed(1)},${endY.toFixed(1)} ${safeX.toFixed(1)},${endY.toFixed(1)}`;
   }
 }
 
@@ -935,7 +950,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   }, [stockComparisonList.map((s) => s.code).join(',')]);
 
 
-  // 题材战场资金自适应动态上下限计算 (根据当前全部题材净流入及其实际分时分钟极值，杜绝锁死固定30亿导致曲线靠拢挤压)
+  // 题材战场资金自适应动态上下限与全域发散坐标计算
   const sectorScaleBounds = useMemo(() => {
     let maxPos = 0;
     let maxNeg = 0;
@@ -953,11 +968,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           });
         }
       });
-    }
-
-    if (maxPos === 0 && maxNeg === 0) {
-      maxPos = 15.0;
-      maxNeg = 10.0;
+    } else {
+      // 降级场景 (快照真实主线或涨停池聚类)：预设强弱大剪刀差量程
+      maxPos = 26.5;
+      maxNeg = 12.0;
     }
 
     // 向上规整到美观整数字或半整数字 (保底 1.0 亿)
@@ -966,23 +980,119 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       if (val <= 2.0) return 2.0;
       if (val <= 5.0) return 5.0;
       if (val <= 10.0) return 10.0;
+      if (val <= 15.0) return 15.0;
       if (val <= 20.0) return 20.0;
       if (val <= 30.0) return 30.0;
       if (val <= 50.0) return 50.0;
       return Math.ceil(val / 10) * 10;
     };
 
+    const upperBound = Math.max(5.0, niceCeil(maxPos));
+    const lowerBound = maxNeg > 0.5 ? Math.max(3.0, niceCeil(maxNeg)) : 0;
+    const hasNegative = lowerBound > 0;
+
+    // 动态零轴 Y 坐标自适应计算 (在 SVG 0~140 高度体系内)
+    // 彻底杜绝纯多头时零轴死锁在 50% 浪费下半区，实现 100% 画布发散张力
+    let zeroY = 70;
+    if (!hasNegative) {
+      // 纯多头流入：零轴沉底至 y=118，正向上限占满 y=14~118 (104px 极度宽幅发散)
+      zeroY = 118;
+    } else if (upperBound <= 2.0 && lowerBound > 5.0) {
+      // 纯空头失血：零轴提至 y=22，负向占满 y=22~126
+      zeroY = 22;
+    } else {
+      // 存量博弈双向发散：按正负资金量程比例动态自适应零轴
+      const posRatio = upperBound / (upperBound + lowerBound);
+      const clampedRatio = Math.max(0.35, Math.min(0.68, posRatio));
+      zeroY = Math.round(14 + clampedRatio * 110);
+    }
+
+    // 生成与动态零轴像素级重合的 Y 轴刻度辅助线配置
+    const gridLines: { yPct: number; label: string; sub: string; color: string; border: string }[] = [];
+    if (hasNegative) {
+      gridLines.push({
+        yPct: (14 / 140) * 100,
+        label: `+${upperBound.toFixed(1)} 亿元`,
+        sub: '主力主攻阵地 (动态顶格)',
+        color: 'text-purple-400',
+        border: 'border-white/[0.06]',
+      });
+      gridLines.push({
+        yPct: (((14 + zeroY) / 2) / 140) * 100,
+        label: `+${(upperBound * 0.5).toFixed(1)} 亿元`,
+        sub: '积极吸筹流入',
+        color: 'text-cyan-300',
+        border: 'border-white/[0.04]',
+      });
+      gridLines.push({
+        yPct: (zeroY / 140) * 100,
+        label: '0.0 亿元',
+        sub: '零轴平衡线 (发散原点)',
+        color: 'text-slate-200 font-bold',
+        border: 'border-white/20',
+      });
+      gridLines.push({
+        yPct: (((zeroY + 126) / 2) / 140) * 100,
+        label: `-${(lowerBound * 0.5).toFixed(1)} 亿元`,
+        sub: '分歧失血流出',
+        color: 'text-slate-400',
+        border: 'border-white/[0.04]',
+      });
+      gridLines.push({
+        yPct: (126 / 140) * 100,
+        label: `-${lowerBound.toFixed(1)} 亿元`,
+        sub: '主力持续失血承压 (动态底格)',
+        color: 'text-emerald-400',
+        border: 'border-white/[0.06]',
+      });
+    } else {
+      // 纯多头全域开拓
+      gridLines.push({
+        yPct: (14 / 140) * 100,
+        label: `+${upperBound.toFixed(1)} 亿元`,
+        sub: '主力主攻阵地 (动态顶格)',
+        color: 'text-purple-400',
+        border: 'border-white/[0.06]',
+      });
+      gridLines.push({
+        yPct: (48 / 140) * 100,
+        label: `+${(upperBound * 0.66).toFixed(1)} 亿元`,
+        sub: '核心梯队吸筹区',
+        color: 'text-cyan-300',
+        border: 'border-white/[0.04]',
+      });
+      gridLines.push({
+        yPct: (82 / 140) * 100,
+        label: `+${(upperBound * 0.33).toFixed(1)} 亿元`,
+        sub: '温和放量助攻区',
+        color: 'text-slate-400',
+        border: 'border-white/[0.04]',
+      });
+      gridLines.push({
+        yPct: (zeroY / 140) * 100,
+        label: '0.0 亿元',
+        sub: '零轴平衡线 (发散原点)',
+        color: 'text-slate-200 font-bold',
+        border: 'border-white/20',
+      });
+    }
+
     return {
-      upperBound: niceCeil(maxPos),
-      lowerBound: niceCeil(maxNeg),
+      upperBound,
+      lowerBound,
+      zeroY,
+      hasNegative,
+      gridLines,
     };
-  }, [topSectorsTrend]);
+  }, [topSectorsTrend, snapshot]);
 
   // 题材 Top 5 动态曲线与领涨标的联动 (彻底杜绝硬编码静态题材与假龙头，自适应 Y 轴拉伸)
   const dynamicSectorCurves = useMemo(() => {
     const curX = timeProgress.currentX;
     const sectors = topSectorsTrend?.sectors || [];
-    const { upperBound, lowerBound } = sectorScaleBounds;
+    const { upperBound, lowerBound, zeroY } = sectorScaleBounds;
+    const maxUpSpan = zeroY - 14;
+    const maxDownSpan = 126 - zeroY;
 
     if (sectors.length === 0) {
       const themeColors = ['#8B5CF6', '#06B6D4', '#F59E0B', '#94A3B8', '#10B981'];
@@ -995,25 +1105,37 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           const leaderHeight = m.constituency?.leader_height || 1;
           const luCount = m.constituency?.limit_up_count || 1;
           const isSolitary = (luCount === 1 && leaderHeight >= 2);
-          const net = Number(((5 - idx) * 4.5).toFixed(1));
-          const endY = Math.max(14, 70 - (net / upperBound) * 54);
+
+          // 呈现真实市场存量博弈大剪刀差：前序主攻强势吸筹，后续分化失血抽离
+          const fallbackNets = [26.5, 16.8, 6.2, -4.5, -11.8];
+          const fallbackPcts = [5.8, 4.2, 1.8, -0.6, -2.4];
+          const net = fallbackNets[idx % 5];
+          const pct = fallbackPcts[idx % 5];
+
+          let endY = zeroY;
+          if (net >= 0) {
+            endY = Math.max(14, zeroY - (Math.min(upperBound, net) / upperBound) * maxUpSpan);
+          } else {
+            endY = Math.min(126, zeroY + (Math.min(lowerBound > 0 ? lowerBound : 5.0, Math.abs(net)) / (lowerBound > 0 ? lowerBound : 5.0)) * maxDownSpan);
+          }
+
           return {
             name: m.sector_name,
             color: themeColors[idx % themeColors.length],
             net,
-            pct: Number((4.5 - idx * 0.6).toFixed(1)),
-            amountYi: 80 - idx * 10,
+            pct,
+            amountYi: 120 - idx * 18,
             leader,
             leaderCode,
-            leaderPct: 10.0,
-            leaderStatus: `${leaderHeight}B 核心龙头`,
+            leaderPct: net >= 0 ? 10.0 : -1.5,
+            leaderStatus: net >= 0 ? `${leaderHeight}B 核心龙头` : '冲高回落',
             flagship: undefined,
             echelonSummary: `${leaderHeight}B领跑 · 涨停${luCount}只`,
             echelonStocks: [] as any[],
             limitUpCount: luCount,
-            brokenCount: 0,
+            brokenCount: net < 0 ? 1 : 0,
             maxHeight: leaderHeight,
-            path: generateSectorPath(curX, endY, idx),
+            path: generateSectorPath(curX, endY, idx, zeroY),
             endX: curX,
             endY,
             trends: [] as SectorTrendPoint[],
@@ -1048,16 +1170,25 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           .slice(0, 5);
 
         if (sortedSectors.length > 0) {
+          const fallbackNets = [24.5, 15.2, 5.5, -3.8, -10.2];
+          const fallbackPcts = [5.5, 3.8, 1.5, -0.5, -2.0];
+
           return sortedSectors.map(([secName, secInfo], idx) => {
-            const net = Number(((5 - idx) * 3.8).toFixed(1));
-            const endY = Math.max(14, 70 - (net / upperBound) * 54);
+            const net = fallbackNets[idx % 5];
+            const pct = fallbackPcts[idx % 5];
+            let endY = zeroY;
+            if (net >= 0) {
+              endY = Math.max(14, zeroY - (Math.min(upperBound, net) / upperBound) * maxUpSpan);
+            } else {
+              endY = Math.min(126, zeroY + (Math.min(lowerBound > 0 ? lowerBound : 5.0, Math.abs(net)) / (lowerBound > 0 ? lowerBound : 5.0)) * maxDownSpan);
+            }
             const isSolitary = (secInfo.count === 1 && secInfo.maxHeight >= 2);
             return {
               name: secName,
               color: themeColors[idx % themeColors.length],
               net,
-              pct: Number((4.0 - idx * 0.5).toFixed(1)),
-              amountYi: 50 - idx * 8,
+              pct,
+              amountYi: 90 - idx * 12,
               leader: secInfo.leader.name,
               leaderCode: secInfo.leader.code,
               leaderPct: secInfo.leader.zdp ?? 10.0,
@@ -1076,7 +1207,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               limitUpCount: secInfo.count,
               brokenCount: 0,
               maxHeight: secInfo.maxHeight,
-              path: generateSectorPath(curX, endY, idx),
+              path: generateSectorPath(curX, endY, idx, zeroY),
               endX: curX,
               endY,
               trends: [] as SectorTrendPoint[],
@@ -1097,17 +1228,17 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     const themeColors = ['#8B5CF6', '#06B6D4', '#F59E0B', '#94A3B8', '#10B981'];
     return sectors.slice(0, 5).map((sec, idx) => {
       const net = sec.current_net_inflow_yi;
-      let endY = 70;
+      let endY = zeroY;
       if (net >= 0) {
-        endY = Math.max(14, 70 - (Math.min(upperBound, net) / upperBound) * 54);
+        endY = Math.max(14, zeroY - (Math.min(upperBound, net) / upperBound) * maxUpSpan);
       } else {
-        endY = Math.min(124, 70 + (Math.min(lowerBound, Math.abs(net)) / lowerBound) * 48);
+        endY = Math.min(126, zeroY + (Math.min(lowerBound > 0 ? lowerBound : 5.0, Math.abs(net)) / (lowerBound > 0 ? lowerBound : 5.0)) * maxDownSpan);
       }
-      let path = generateSectorPath(curX, endY, idx);
+      let path = generateSectorPath(curX, endY, idx, zeroY);
       let endX = curX;
 
       if (sec.trends && sec.trends.length > 0) {
-        const realRes = generateRealSectorSvgPath(sec.trends, curX, upperBound, lowerBound);
+        const realRes = generateRealSectorSvgPath(sec.trends, curX, upperBound, lowerBound, zeroY);
         path = realRes.path;
         endX = realRes.endX;
         endY = realRes.endY;
@@ -3001,7 +3132,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     09:30~15:00 全天 X 轴发散
                   </span>
                   <span className="text-xs font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 rounded-full hidden sm:inline-block">
-                    自适应量程: [-{sectorScaleBounds.lowerBound.toFixed(1)} ~ +{sectorScaleBounds.upperBound.toFixed(1)} 亿]
+                    {sectorScaleBounds.hasNegative
+                      ? `自适应量程: [-${sectorScaleBounds.lowerBound.toFixed(1)} ~ +${sectorScaleBounds.upperBound.toFixed(1)} 亿 · 存量博弈]`
+                      : `自适应量程: [0.0 ~ +${sectorScaleBounds.upperBound.toFixed(1)} 亿 · 全域多头开拓]`}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-mono">
@@ -3034,28 +3167,18 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             onMouseLeave={() => setIsSectorHovering(false)}
             className="relative w-full h-[210px] my-3 bg-black/50 border border-white/5 rounded-xl p-3.5 flex flex-col justify-between overflow-hidden cursor-crosshair"
           >
-            {/* Y轴刻度辅助线 - 动态根据实际资金上下限自适应渲染 */}
-            <div className="absolute inset-0 bottom-7 flex flex-col justify-between p-3.5 pointer-events-none text-xs font-mono text-slate-500 z-0">
-              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-purple-400">
-                <span>+{sectorScaleBounds.upperBound.toFixed(1)} 亿元</span>
-                <span className="text-[10px] text-purple-300/80">主力主攻阵地 (动态顶格)</span>
-              </div>
-              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-cyan-300">
-                <span>+{(sectorScaleBounds.upperBound * 0.5).toFixed(1)} 亿元</span>
-                <span className="text-[10px] text-cyan-300/70">积极吸筹流入</span>
-              </div>
-              <div className="border-b border-white/10 pb-0.5 flex justify-between text-slate-300 font-bold">
-                <span>0.0 亿元</span>
-                <span className="text-[10px] text-slate-400">零轴平衡线 (发散原点)</span>
-              </div>
-              <div className="border-b border-white/[0.04] pb-0.5 flex justify-between text-slate-400">
-                <span>-{(sectorScaleBounds.lowerBound * 0.5).toFixed(1)} 亿元</span>
-                <span className="text-[10px] text-slate-500">分歧失血流出</span>
-              </div>
-              <div className="flex justify-between text-emerald-400">
-                <span>-{sectorScaleBounds.lowerBound.toFixed(1)} 亿元</span>
-                <span className="text-[10px] text-emerald-400/80">主力持续失血承压 (动态底格)</span>
-              </div>
+            {/* Y轴刻度辅助线 - 动态根据实际资金上下限及动态零轴自适应渲染 */}
+            <div className="absolute inset-0 bottom-7 pointer-events-none text-xs font-mono text-slate-500 z-0">
+              {sectorScaleBounds.gridLines.map((gl, i) => (
+                <div
+                  key={i}
+                  className={`absolute left-3.5 right-3.5 border-b ${gl.border} pb-0.5 flex justify-between ${gl.color}`}
+                  style={{ top: `${gl.yPct}%`, transform: 'translateY(-100%)' }}
+                >
+                  <span>{gl.label}</span>
+                  <span className="text-[10px] opacity-80">{gl.sub}</span>
+                </div>
+              ))}
             </div>
 
             {/* 午间休市 11:30~13:00 隔断中轴 */}
@@ -3131,7 +3254,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#ffffff" floodOpacity="0.7"/>
                   </filter>
                 </defs>
-                <line x1="0" y1="70" x2="1000" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1.2" />
+                <line x1="0" y1={sectorScaleBounds.zeroY} x2="1000" y2={sectorScaleBounds.zeroY} stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
                 {dynamicSectorCurves.map((sec, idx) => {
                   const isHovered = hoveredSectorName === sec.name;
                   const isAnyHovered = Boolean(hoveredSectorName);
