@@ -84,6 +84,7 @@ async def health_check():
     }
 
 @app.get("/version")
+@app.get("/api/v1/system/version")
 async def version_info():
     return get_version_info()
 
