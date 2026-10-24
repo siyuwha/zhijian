@@ -3532,8 +3532,12 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
           <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-mono">
             <div className="flex items-center gap-2 flex-1 min-w-[320px]">
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold shrink-0">
-                <Brain className="w-3 h-3 text-cyan-400 animate-pulse" />
+              <div
+                onClick={() => fetchLlmGameCognition(true)}
+                title="点击重新调用 AI 深度认知推演 (强制穿透缓存)"
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold shrink-0 cursor-pointer hover:bg-purple-500/35 hover:border-purple-400/70 transition-all select-none"
+              >
+                <Brain className={`w-3 h-3 text-cyan-400 ${isLlmCognitionLoading ? 'animate-spin' : 'animate-pulse'}`} />
                 <span>
                   {llmGameCognition?.source === 'LLM_INFERRED'
                     ? `AI 题材轮动推演 (${llmGameCognition.model || 'DeepSeek'})`
