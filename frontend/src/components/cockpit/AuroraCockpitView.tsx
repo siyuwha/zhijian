@@ -977,9 +977,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       maxNeg = 12.0;
     }
 
-    // 向上规整到美观整数字或半整数字 (保底 1.0 亿)
+    // 动态取当前最大多空极值，根据当日实时量动态演变 (切忌写死固定值，上下严格对称)
+    const maxPeak = Math.max(maxPos, maxNeg, 1.0);
+
     const niceCeil = (val: number): number => {
-      if (val <= 0.8) return 1.0;
       if (val <= 2.0) return 2.0;
       if (val <= 5.0) return 5.0;
       if (val <= 10.0) return 10.0;
@@ -987,107 +988,120 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       if (val <= 20.0) return 20.0;
       if (val <= 30.0) return 30.0;
       if (val <= 50.0) return 50.0;
-      return Math.ceil(val / 10) * 10;
+      if (val <= 80.0) return 80.0;
+      if (val <= 100.0) return 100.0;
+      if (val <= 150.0) return 150.0;
+      if (val <= 200.0) return 200.0;
+      if (val <= 300.0) return 300.0;
+      return Math.ceil(val / 50) * 50;
     };
 
-    const upperBound = Math.max(5.0, niceCeil(maxPos));
-    const lowerBound = maxNeg > 0.5 ? Math.max(3.0, niceCeil(maxNeg)) : 0;
-    const hasNegative = lowerBound > 0;
+    const symBound = niceCeil(maxPeak);
+    const upperBound = symBound;
+    const lowerBound = symBound;
+    // 零轴严格水平居中 y=70 (在 0~140 SVG 高度中，y=14 为 +Bound，y=70 为 0.00，y=126 为 -Bound，上下各 56px 满载发散空间)
+    const zeroY = 70;
 
-    // 动态零轴 Y 坐标自适应计算 (在 SVG 0~140 高度体系内)
-    // 彻底杜绝纯多头时零轴死锁在 50% 浪费下半区，实现 100% 画布发散张力
-    let zeroY = 70;
-    if (!hasNegative) {
-      // 纯多头流入：零轴沉底至 y=118，正向上限占满 y=14~118 (104px 极度宽幅发散)
-      zeroY = 118;
-    } else if (upperBound <= 2.0 && lowerBound > 5.0) {
-      // 纯空头失血：零轴提至 y=22，负向占满 y=22~126
-      zeroY = 22;
-    } else {
-      // 存量博弈双向发散：按正负资金量程比例动态自适应零轴
-      const posRatio = upperBound / (upperBound + lowerBound);
-      const clampedRatio = Math.max(0.35, Math.min(0.68, posRatio));
-      zeroY = Math.round(14 + clampedRatio * 110);
-    }
-
-    // 生成与动态零轴像素级重合的 Y 轴刻度辅助线配置
-    const gridLines: { yPct: number; label: string; sub: string; color: string; border: string }[] = [];
-    if (hasNegative) {
-      gridLines.push({
+    const gridLines = [
+      {
         yPct: (14 / 140) * 100,
         label: `+${upperBound.toFixed(1)} 亿元`,
-        sub: '主力主攻阵地 (动态顶格)',
-        color: 'text-purple-400',
-        border: 'border-white/[0.06]',
-      });
-      gridLines.push({
-        yPct: (((14 + zeroY) / 2) / 140) * 100,
+        sub: '主力主攻上限 (动态演变)',
+        color: 'text-purple-400 font-mono',
+        border: 'border-white/[0.08]',
+      },
+      {
+        yPct: (42 / 140) * 100,
         label: `+${(upperBound * 0.5).toFixed(1)} 亿元`,
-        sub: '积极吸筹流入',
-        color: 'text-cyan-300',
+        sub: '积极吸筹流入区',
+        color: 'text-cyan-300 font-mono',
         border: 'border-white/[0.04]',
-      });
-      gridLines.push({
-        yPct: (zeroY / 140) * 100,
+      },
+      {
+        yPct: (70 / 140) * 100,
         label: '0.0 亿元',
-        sub: '零轴平衡线 (发散原点)',
-        color: 'text-slate-200 font-bold',
-        border: 'border-white/20',
-      });
-      gridLines.push({
-        yPct: (((zeroY + 126) / 2) / 140) * 100,
+        sub: '对称零轴基准 (发散原点)',
+        color: 'text-slate-100 font-bold font-mono',
+        border: 'border-white/25',
+      },
+      {
+        yPct: (98 / 140) * 100,
         label: `-${(lowerBound * 0.5).toFixed(1)} 亿元`,
-        sub: '分歧失血流出',
-        color: 'text-slate-400',
+        sub: '分歧失血流出区',
+        color: 'text-slate-400 font-mono',
         border: 'border-white/[0.04]',
-      });
-      gridLines.push({
+      },
+      {
         yPct: (126 / 140) * 100,
         label: `-${lowerBound.toFixed(1)} 亿元`,
-        sub: '主力持续失血承压 (动态底格)',
-        color: 'text-emerald-400',
-        border: 'border-white/[0.06]',
-      });
-    } else {
-      // 纯多头全域开拓
-      gridLines.push({
-        yPct: (14 / 140) * 100,
-        label: `+${upperBound.toFixed(1)} 亿元`,
-        sub: '主力主攻阵地 (动态顶格)',
-        color: 'text-purple-400',
-        border: 'border-white/[0.06]',
-      });
-      gridLines.push({
-        yPct: (48 / 140) * 100,
-        label: `+${(upperBound * 0.66).toFixed(1)} 亿元`,
-        sub: '核心梯队吸筹区',
-        color: 'text-cyan-300',
-        border: 'border-white/[0.04]',
-      });
-      gridLines.push({
-        yPct: (82 / 140) * 100,
-        label: `+${(upperBound * 0.33).toFixed(1)} 亿元`,
-        sub: '温和放量助攻区',
-        color: 'text-slate-400',
-        border: 'border-white/[0.04]',
-      });
-      gridLines.push({
-        yPct: (zeroY / 140) * 100,
-        label: '0.0 亿元',
-        sub: '零轴平衡线 (发散原点)',
-        color: 'text-slate-200 font-bold',
-        border: 'border-white/20',
-      });
-    }
+        sub: '主力失血下限 (动态演变)',
+        color: 'text-emerald-400 font-mono',
+        border: 'border-white/[0.08]',
+      },
+    ];
 
     return {
       upperBound,
       lowerBound,
+      hasNegative: true,
       zeroY,
-      hasNegative,
       gridLines,
     };
   }, [topSectorsTrend, snapshot]);
+
+  // 大盘基准指数分时走势 (上证指数 sh000001)，用于共振对照与双 Y 轴研判
+  const marketIndexData = useMemo(() => {
+    const idxTrend = topSectorsTrend?.market_index_trend;
+    if (!idxTrend || !idxTrend.points || idxTrend.points.length === 0) return null;
+
+    const points = idxTrend.points;
+    const curX = timeProgress.currentX;
+
+    let minP = Infinity;
+    let maxP = -Infinity;
+    points.forEach((pt) => {
+      if (pt.price > maxP) maxP = pt.price;
+      if (pt.price < minP) minP = pt.price;
+    });
+
+    const preClose = idxTrend.pre_close || 3600.0;
+    // 保证有合理的上下对称指数波幅，使 preClose 落在 y=70 零轴线上！
+    const maxDev = Math.max(Math.abs(maxP - preClose), Math.abs(minP - preClose), preClose * 0.005);
+    const topPrice = preClose + maxDev;
+    const bottomPrice = preClose - maxDev;
+
+    const coords: [number, number][] = [];
+    for (const pt of points) {
+      const x = timeToX(pt.time);
+      if (x > curX + 3) break;
+      const normalized = (topPrice - pt.price) / (topPrice - bottomPrice);
+      const y = Math.max(14, Math.min(126, 14 + normalized * 112));
+      coords.push([x, Number(y.toFixed(1))]);
+    }
+
+    if (coords.length < 2) return null;
+
+    let pathD = `M ${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
+    for (let i = 1; i < coords.length; i++) {
+      pathD += ` L ${coords[i][0].toFixed(1)},${coords[i][1].toFixed(1)}`;
+    }
+
+    const lastCoord = coords[coords.length - 1];
+    const latestPt = points[Math.min(points.length - 1, Math.floor((curX / 1000) * points.length))] || points[0];
+
+    return {
+      name: idxTrend.name || '上证指数',
+      pathD,
+      endX: lastCoord[0],
+      endY: lastCoord[1],
+      topPrice: topPrice.toFixed(2),
+      preClose: preClose.toFixed(2),
+      bottomPrice: bottomPrice.toFixed(2),
+      currentPrice: latestPt.price.toFixed(2),
+      currentPct: latestPt.pct_change,
+      points,
+    };
+  }, [topSectorsTrend?.market_index_trend, timeProgress.currentX]);
 
   // 题材 Top 5 动态曲线与领涨标的联动 (彻底杜绝硬编码静态题材与假龙头，自适应 Y 轴拉伸)
   const dynamicSectorCurves = useMemo(() => {
@@ -2214,7 +2228,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               <span className="text-xs font-bold text-white tracking-wide">
                 盘中 AI 操盘手内参 · 4 大时段动态决策流
               </span>
-              <span className="text-[10px] text-purple-300 font-mono bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
+              <span className="text-xs text-purple-300 font-mono bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 rounded-full">
                 推断有据 · 边界清晰 · 永不覆盖
               </span>
             </div>
@@ -2225,7 +2239,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               {/* 时段 1: 09:26 竞价定调 */}
               <button
                 onClick={() => setActiveStageKey('STAGE_1_AUCTION')}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition flex items-center gap-1.5 ${
+                className={`px-3 py-1 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${
                   activeStageKey === 'STAGE_1_AUCTION'
                     ? 'bg-purple-600/80 text-white font-bold shadow-sm border border-purple-400/40'
                     : 'text-slate-400 hover:text-white'
@@ -2238,7 +2252,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               {/* 时段 2: 10:15 早盘初战 */}
               <button
                 onClick={() => setActiveStageKey('STAGE_2_MORNING')}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition flex items-center gap-1.5 ${
+                className={`px-3 py-1 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${
                   activeStageKey === 'STAGE_2_MORNING'
                     ? 'bg-purple-600/80 text-white font-bold shadow-sm border border-purple-400/40'
                     : 'text-slate-400 hover:text-white'
@@ -2251,7 +2265,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               {/* 时段 3: 11:31 午盘综述 */}
               <button
                 onClick={() => setActiveStageKey('STAGE_3_MIDDAY')}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition flex items-center gap-1.5 ${
+                className={`px-3 py-1 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${
                   activeStageKey === 'STAGE_3_MIDDAY'
                     ? 'bg-purple-600/80 text-white font-bold shadow-sm border border-purple-400/40'
                     : 'text-slate-500 hover:text-slate-300'
@@ -2264,7 +2278,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               {/* 时段 4: 14:15 变盘前哨 */}
               <button
                 onClick={() => setActiveStageKey('STAGE_4_AFTERNOON')}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition flex items-center gap-1.5 ${
+                className={`px-3 py-1 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${
                   activeStageKey === 'STAGE_4_AFTERNOON'
                     ? 'bg-purple-600/80 text-white font-bold shadow-sm border border-purple-400/40'
                     : 'text-slate-500 hover:text-slate-300'
@@ -2277,22 +2291,22 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           </div>
 
           {/* 内参内容展示区 (支持最大 500 字深度推理，四段式严密逻辑) */}
-          <div className="mt-3 grid grid-cols-1 lg:grid-cols-12 gap-3 text-xs">
+          <div className="mt-3 grid grid-cols-1 lg:grid-cols-12 gap-3 text-sm">
             
             {/* 左侧 9 列：深度内参正文 (强弱定调 + 宏微观证据 + 明确建议 + 证伪边界) */}
-            <div className="lg:col-span-9 space-y-2 bg-white/[0.015] border border-white/5 rounded-2xl p-3.5">
+            <div className="lg:col-span-9 space-y-2.5 bg-white/[0.015] border border-white/5 rounded-2xl p-4">
               
               {/* 标题栏：微观状态判定 + 核心信号 */}
               <div className="flex items-center justify-between pb-2 border-b border-white/5">
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${currentBriefingRecord?.status_color || 'bg-amber-500/20 text-amber-300 border-amber-500/30'}`}>
+                  <span className={`px-2.5 py-0.5 rounded text-xs font-bold border ${currentBriefingRecord?.status_color || 'bg-amber-500/20 text-amber-300 border-amber-500/30'}`}>
                     {currentBriefingRecord?.status_badge || '早盘冲高回落分歧期 · 权重吸血失真'}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">
+                  <span className="text-xs font-mono text-slate-400">
                     {currentBriefingRecord?.timing || `采集判定时点: ${timeProgress.timeLabel} · 100% 物理真实快照`}
                   </span>
                 </div>
-                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-800/40 px-2 py-0.5 rounded">
+                <span className="text-xs font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-0.5 rounded">
                   {currentBriefingRecord?.confidence || '置信度 88% · 证据链已闭环'}
                 </span>
               </div>
@@ -2307,30 +2321,30 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 };
 
                 return (
-                  <div className="space-y-2 text-[11px] leading-relaxed text-slate-200">
+                  <div className="space-y-2.5 text-sm leading-relaxed text-slate-200">
                     <p>
-                      <strong className="text-purple-300">【强弱定调与宏微观证据】</strong>{' '}
+                      <strong className="text-purple-300 font-semibold">【强弱定调与宏微观证据】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.strong_weak_judgment.replace(/【.*?】/, '') ||
                           `宏观：两市累计实盘成交 ${twoMarketsTotal.toLocaleString()} 亿，涨停 ${limitUpCount} 家、跌停 ${limitDownCount} 家，动态炸板率 ${(brokenLimitRatio * 100).toFixed(1)}%。微观：领涨板块【${topSectorName}】主力资金处于聚拢态势，市场空间标杆【${activeLeader}】维持高位辨识度。`
                       )}
                     </p>
                     <p>
-                      <strong className="text-cyan-300">【多维共振与博弈归因】</strong>{' '}
+                      <strong className="text-cyan-300 font-semibold">【多维共振与博弈归因】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.resonance_attribution.replace(/【.*?】/, '') ||
                           `当前盘面处于结构性博弈分化格局，主线聚焦于【${topSectorName}】等活跃方向；存量资金博弈环境下，非核心标的面临流动性抽离与分化压力。`
                       )}
                     </p>
                     <p>
-                      <strong className="text-amber-300">【后市明确推断与行动建议】</strong>{' '}
+                      <strong className="text-amber-300 font-semibold">【后市明确推断与行动建议】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.action_inference.replace(/【.*?】/, '') ||
                           `推断当前盘面属于结构性行进。建议：紧扣【${activeLeader}】等核心龙头观察接力承接，坚决不碰无板块效应的中位跟风品种；对破板走弱个股果断减仓；总仓位严格控制在合理防御区间。`
                       )}
                     </p>
                     <p>
-                      <strong className="text-rose-400">【证伪判定硬指标】</strong>{' '}
+                      <strong className="text-rose-400 font-semibold">【证伪判定硬指标】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.falsification_criteria.replace(/【.*?】/, '') ||
                           `成立条件：主线板块【${topSectorName}】分时主力净流入保持正向且【${activeLeader}】不破分时均线；不成立/证伪条件：若【${activeLeader}】炸板且未在 5 分钟内回封，或炸板率突破 35%，则反弹推断彻底证伪，无条件空仓防守。`
@@ -2342,34 +2356,34 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
 
             {/* 右侧 3 列：盘中关键推演指标小黑板 */}
-            <div className="lg:col-span-3 flex flex-col justify-between gap-2 bg-black/40 border border-white/5 rounded-2xl p-3 text-[11px]">
+            <div className="lg:col-span-3 flex flex-col justify-between gap-2.5 bg-black/40 border border-white/5 rounded-2xl p-3.5 text-xs">
               <div>
-                <span className="text-[10px] text-slate-400 font-semibold tracking-wider flex items-center gap-1">
+                <span className="text-xs text-slate-300 font-semibold tracking-wider flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
                   关键量化推演指标
                 </span>
-                <div className="mt-2 space-y-2 font-mono">
-                  <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
-                    <span className="text-slate-400 text-[10px]">时间衰减全天预估:</span>
-                    <span className="font-bold text-cyan-300">
+                <div className="mt-2.5 space-y-2 font-mono">
+                  <div className="flex justify-between items-center bg-white/[0.02] p-2 rounded-lg">
+                    <span className="text-slate-400 text-xs">时间衰减全天预估:</span>
+                    <span className="font-bold text-cyan-300 text-xs">
                       {currentBriefingRecord?.quantitative_indicators?.projected_volume || (twoMarketsTotal > 0 ? `${(projectedVolumeYi / 10000).toFixed(2)} 万亿` : '--')}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
-                    <span className="text-slate-400 text-[10px]">黄白剪刀差背离:</span>
-                    <span className="font-bold text-rose-400">
+                  <div className="flex justify-between items-center bg-white/[0.02] p-2 rounded-lg">
+                    <span className="text-slate-400 text-xs">黄白剪刀差背离:</span>
+                    <span className="font-bold text-rose-400 text-xs">
                       {currentBriefingRecord?.quantitative_indicators?.breadth_divergence || (upCount >= downCount ? `多头占优 (${upCount}涨/${downCount}跌)` : `分化整理 (${upCount}涨/${downCount}跌)`)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
-                    <span className="text-slate-400 text-[10px]">动态炸板大面率:</span>
-                    <span className={`font-bold ${brokenRatioLevel.textColor}`}>
+                  <div className="flex justify-between items-center bg-white/[0.02] p-2 rounded-lg">
+                    <span className="text-slate-400 text-xs">动态炸板大面率:</span>
+                    <span className={`font-bold text-xs ${brokenRatioLevel.textColor}`}>
                       {(brokenLimitRatio * 100).toFixed(1)}% ({brokenRatioLevel.shortTag})
                     </span>
                   </div>
-                  <div className="flex justify-between items-center bg-white/[0.02] p-1.5 rounded-lg">
-                    <span className="text-slate-400 text-[10px]">空间标杆高度:</span>
-                    <span className="font-bold text-purple-300 truncate ml-2 text-right">
+                  <div className="flex justify-between items-center bg-white/[0.02] p-2 rounded-lg">
+                    <span className="text-slate-400 text-xs">空间标杆高度:</span>
+                    <span className="font-bold text-purple-300 truncate ml-2 text-right text-xs">
                       {spaceLeaders && spaceLeaders.length > 0
                         ? `${spaceLeaders.map((s) => s.name).join('、')} (${maxHeight}B)`
                         : (currentBriefingRecord?.quantitative_indicators?.space_height?.replace(/保变电气/g, '空间总龙') || `${maxHeight}B 空间标杆`)}
@@ -2378,9 +2392,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+              <div className="pt-2.5 border-t border-white/5 flex items-center justify-between text-xs">
                 <span className="text-slate-400">当前操作纪律:</span>
-                <span className="px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="px-2.5 py-1 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   {currentBriefingRecord?.quantitative_indicators?.action_advice || '控仓 2~3成 · 拒绝追高'}
                 </span>
               </div>
@@ -2420,63 +2434,63 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
 
             {/* 实时三大指数 (带黄白线剪刀差标识) */}
-            <div className="grid grid-cols-3 gap-2.5 my-3 text-xs">
+            <div className="grid grid-cols-3 gap-2.5 my-3 text-sm">
               {/* 上证 */}
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
-                <div className="text-slate-400 flex justify-between items-center text-xs">
+                <div className="text-slate-400 flex justify-between items-center text-sm">
                   <span>上证指数</span>
-                  <span className="font-mono text-slate-500">000001</span>
+                  <span className="font-mono text-slate-500 text-xs">000001</span>
                 </div>
-                <div className={`text-lg font-black font-mono mt-0.5 ${(shIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                <div className={`text-xl font-black font-mono mt-0.5 ${(shIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                   {shIndex?.current_price ? shIndex.current_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '3,288.42'}
                 </div>
-                <div className={`text-xs font-mono flex items-center justify-between mt-1 ${(shIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                <div className={`text-sm font-mono flex items-center justify-between mt-1 ${(shIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                   <span>
                     {shIndex?.pct_change != null ? (shIndex.pct_change >= 0 ? `+${shIndex.pct_change.toFixed(2)}%` : `${shIndex.pct_change.toFixed(2)}%`) : '+0.62%'}
                     {shIndex?.change_val != null ? ` (${shIndex.change_val >= 0 ? `+${shIndex.change_val.toFixed(1)}` : shIndex.change_val.toFixed(1)})` : ''}
                   </span>
-                  <span className="text-slate-500 text-[10px]">{(shIndex?.pct_change ?? 0) >= 0 ? '白>黄 (权重)' : '权重整理'}</span>
+                  <span className="text-slate-500 text-xs">{(shIndex?.pct_change ?? 0) >= 0 ? '白>黄 (权重)' : '权重整理'}</span>
                 </div>
               </div>
               {/* 深成 */}
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
-                <div className="text-slate-400 flex justify-between items-center text-xs">
+                <div className="text-slate-400 flex justify-between items-center text-sm">
                   <span>深证成指</span>
-                  <span className="font-mono text-slate-500">399001</span>
+                  <span className="font-mono text-slate-500 text-xs">399001</span>
                 </div>
-                <div className={`text-lg font-black font-mono mt-0.5 ${(szIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                <div className={`text-xl font-black font-mono mt-0.5 ${(szIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                   {szIndex?.current_price ? szIndex.current_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '10,512.18'}
                 </div>
-                <div className={`text-xs font-mono flex items-center justify-between mt-1 ${(szIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                <div className={`text-sm font-mono flex items-center justify-between mt-1 ${(szIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                   <span>
                     {szIndex?.pct_change != null ? (szIndex.pct_change >= 0 ? `+${szIndex.pct_change.toFixed(2)}%` : `${szIndex.pct_change.toFixed(2)}%`) : '-0.28%'}
                     {szIndex?.change_val != null ? ` (${szIndex.change_val >= 0 ? `+${szIndex.change_val.toFixed(1)}` : szIndex.change_val.toFixed(1)})` : ''}
                   </span>
-                  <span className="text-slate-500 text-[10px]">中小盘分化</span>
+                  <span className="text-slate-500 text-xs">中小盘分化</span>
                 </div>
               </div>
               {/* 创业板 */}
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
-                <div className="text-slate-400 flex justify-between items-center text-xs">
+                <div className="text-slate-400 flex justify-between items-center text-sm">
                   <span>创业板指</span>
-                  <span className="font-mono text-slate-500">399006</span>
+                  <span className="font-mono text-slate-500 text-xs">399006</span>
                 </div>
-                <div className={`text-lg font-black font-mono mt-0.5 ${(cyIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                <div className={`text-xl font-black font-mono mt-0.5 ${(cyIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                   {cyIndex?.current_price ? cyIndex.current_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '2,204.65'}
                 </div>
-                <div className={`text-xs font-mono flex items-center justify-between mt-1 ${(cyIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                <div className={`text-sm font-mono flex items-center justify-between mt-1 ${(cyIndex?.pct_change ?? 0) >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                   <span>
                     {cyIndex?.pct_change != null ? (cyIndex.pct_change >= 0 ? `+${cyIndex.pct_change.toFixed(2)}%` : `${cyIndex.pct_change.toFixed(2)}%`) : '-0.85%'}
                     {cyIndex?.change_val != null ? ` (${cyIndex.change_val >= 0 ? `+${cyIndex.change_val.toFixed(1)}` : cyIndex.change_val.toFixed(1)})` : ''}
                   </span>
-                  <span className="text-slate-500 text-[10px]">成长赛道</span>
+                  <span className="text-slate-500 text-xs">成长赛道</span>
                 </div>
               </div>
             </div>
 
             {/* 多空极性量柱 (Polar Breadth Heatbar) */}
             <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 my-1">
-              <div className="flex items-center justify-between text-xs mb-1.5 font-mono">
+              <div className="flex items-center justify-between text-sm mb-1.5 font-mono">
                 <span className="text-rose-400 font-bold flex items-center gap-1">
                   <span>▲ 上涨 {upCount.toLocaleString()} 家</span>
                   <span className="text-slate-500 font-normal">({upRatio}%)</span>
@@ -2495,15 +2509,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
 
             {/* 量能动态衰减投影 */}
-            <div className="grid grid-cols-2 gap-2.5 text-xs font-mono my-1">
+            <div className="grid grid-cols-2 gap-2.5 text-sm font-mono my-1">
               <div className="bg-white/[0.02] border border-white/5 p-2.5 rounded-xl">
-                <div className="text-xs text-slate-400">当前实盘累计成交</div>
-                <div className="text-base font-black text-white mt-0.5">{twoMarketsTotal.toLocaleString()} 亿</div>
+                <div className="text-sm text-slate-400">当前实盘累计成交</div>
+                <div className="text-lg font-black text-white mt-0.5">{twoMarketsTotal.toLocaleString()} 亿</div>
                 <div className="text-xs text-slate-400 mt-0.5">沪 {shAmount.toLocaleString()}亿 · 深 {szAmount.toLocaleString()}亿</div>
               </div>
               <div className="bg-cyan-950/20 border border-cyan-500/20 p-2.5 rounded-xl">
-                <div className="text-xs text-cyan-300">时间衰减全天预估总量</div>
-                <div className="text-base font-black text-cyan-400 mt-0.5">
+                <div className="text-sm text-cyan-300">时间衰减全天预估总量</div>
+                <div className="text-lg font-black text-cyan-400 mt-0.5">
                   {projectedVolumeYi > 0 ? `${(projectedVolumeYi / 10000).toFixed(2)} 万亿` : '1.98 万亿'}
                 </div>
                 <div className="text-xs text-rose-400 mt-0.5">
@@ -2513,7 +2527,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
 
             {/* 底部体征指标 (机构级微型态势胶囊) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-2.5 border-t border-white/5 font-mono">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm pt-2.5 border-t border-white/5 font-mono">
               <div className="flex items-center gap-2.5">
                 <span className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1 rounded-lg">
                   <span className="text-slate-400">涨跌停对比:</span>
@@ -2522,14 +2536,14 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   ) : (
                     <span className="tabular-nums">
                       <strong className="text-rose-400 font-bold">{limitUpCount}</strong>
-                      <span className="text-slate-500 text-[11px] ml-0.5">涨停</span>
+                      <span className="text-slate-500 text-xs ml-0.5">涨停</span>
                       <span className="text-slate-600 mx-1.5">/</span>
                       {limitDownCount === 0 ? (
-                        <span className="text-slate-400 font-normal">0 跌停 <span className="text-slate-500 text-[10px]">(无核按钮)</span></span>
+                        <span className="text-slate-400 font-normal">0 跌停 <span className="text-slate-500 text-xs">(无核按钮)</span></span>
                       ) : (
                         <>
                           <strong className="text-emerald-400 font-bold">{limitDownCount}</strong>
-                          <span className="text-emerald-400 text-[11px] ml-0.5">跌停</span>
+                          <span className="text-emerald-400 text-xs ml-0.5">跌停</span>
                         </>
                       )}
                     </span>
@@ -2543,7 +2557,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   ) : (
                     <span className="tabular-nums">
                       <strong className={`${brokenRatioLevel.textColor} font-bold`}>{(brokenLimitRatio * 100).toFixed(1)}%</strong>
-                      <span className="text-slate-400 text-[11px] ml-1">
+                      <span className="text-slate-400 text-xs ml-1">
                         (触板 {touchedTotalCount} / 封死 {limitUpCount} / 炸板 {brokenLimitCount})
                       </span>
                     </span>
@@ -2551,7 +2565,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/30 border border-cyan-800/30 text-cyan-300 text-xs font-sans">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/30 border border-cyan-800/30 text-cyan-300 text-sm font-sans">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
                 <span>
                   {currentBriefingRecord?.quantitative_indicators?.breadth_divergence || (upCount >= downCount ? '盘面多头占优' : '盘面分化承压')}
@@ -2574,7 +2588,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   ② 连板天梯 · 盘中实时标杆与晋级动态
                 </span>
               </div>
-              <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              <span className="text-sm font-mono font-black px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
                 空间极值 MAX {maxHeight}B
               </span>
             </div>
@@ -2594,32 +2608,32 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <div className="bg-gradient-to-r from-purple-950/70 via-indigo-950/50 to-transparent border border-purple-500/40 rounded-xl p-3 my-2 flex items-center justify-between">
                     <div className="min-w-0 pr-2">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-xs font-black font-mono px-2 py-0.5 rounded bg-purple-600 text-white shrink-0">{leaderHeight}B</span>
+                        <span className="text-sm font-black font-mono px-2 py-0.5 rounded bg-purple-600 text-white shrink-0">{leaderHeight}B</span>
                         <span className="text-base font-bold text-white truncate">{leader.name}</span>
-                        <span className="text-xs font-mono text-purple-300">{leader.code}</span>
+                        <span className="text-sm font-mono text-purple-300">{leader.code}</span>
                         <span className="px-2 py-0.5 rounded text-xs bg-rose-500/20 text-rose-300 font-semibold shrink-0">空间总龙</span>
                       </div>
-                      <div className="text-xs text-purple-300 mt-1 truncate">
+                      <div className="text-sm text-purple-300 mt-1 truncate">
                         {theme} · {fbt ? `首封 ${fbt}` : '早盘首封'} · {leader.open_count ? `曾开板 ${leader.open_count} 次` : '封单坚挺无松动'}
                       </div>
                     </div>
-                    <div className="text-right shrink-0 font-mono text-sm">
-                      <div className="font-bold text-rose-400 text-base">封单 {fundVal}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">换手率 {toRatio}</div>
+                    <div className="text-right shrink-0 font-mono text-base">
+                      <div className="font-bold text-rose-400 text-lg">封单 {fundVal}</div>
+                      <div className="text-sm text-slate-400 mt-0.5">换手率 {toRatio}</div>
                     </div>
                   </div>
                 );
               })()
             ) : (
-              <div className="bg-white/[0.02] border border-white/10 rounded-xl p-3 my-2 text-center text-xs text-slate-400">
+              <div className="bg-white/[0.02] border border-white/10 rounded-xl p-3 my-2 text-center text-sm text-slate-400">
                 暂无连板空间总龙（当前最高 1B 首板）
               </div>
             )}
 
             {/* 梯队断层警示 (仅在真实存在断层时报警) */}
             {ladderGapInfo && ladderGapInfo.hasGap && (
-              <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/35 flex items-center justify-between text-xs my-1.5">
-                <div className="flex items-center gap-2 text-amber-300 text-xs font-medium">
+              <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/35 flex items-center justify-between text-sm my-1.5">
+                <div className="flex items-center gap-2 text-amber-300 text-sm font-medium">
                   <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>{ladderGapInfo.message}</span>
                 </div>
@@ -2628,7 +2642,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             )}
 
             {/* 梯队列表 */}
-            <div className="space-y-2 flex-1 max-h-[145px] overflow-y-auto pr-1 no-scrollbar my-1 text-xs">
+            <div className="space-y-2 flex-1 max-h-[145px] overflow-y-auto pr-1 no-scrollbar my-1 text-sm">
               {highBoardTiers && highBoardTiers.length > 0 ? (
                 highBoardTiers.map((tier) => {
                   const stockNames = tier.stocks.map((s) => s.name).join('、');
@@ -2641,27 +2655,27 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                         <span className="font-mono text-xs font-bold text-cyan-300 px-1.5 py-0.5 rounded bg-slate-800 shrink-0">
                           {tier.height}B
                         </span>
-                        <span className="font-bold text-white text-xs truncate" title={stockNames}>
+                        <span className="font-bold text-white text-sm truncate" title={stockNames}>
                           {stockNames}
                         </span>
                         <span className="text-xs text-slate-400 truncate hidden sm:inline">
                           {sectors}
                         </span>
                       </div>
-                      <span className="font-mono text-xs text-emerald-400 font-semibold shrink-0">
+                      <span className="font-mono text-sm text-emerald-400 font-semibold shrink-0">
                         晋级 ({tier.stocks.length}只)
                       </span>
                     </div>
                   );
                 })
               ) : (
-                <div className="text-slate-500 py-3 text-center text-xs">
+                <div className="text-slate-500 py-3 text-center text-sm">
                   今日暂无 2 板及以上梯队
                 </div>
               )}
             </div>
 
-            <div className="pt-2.5 border-t border-white/5 flex items-center justify-between text-xs text-slate-400 font-mono">
+            <div className="pt-2.5 border-t border-white/5 flex items-center justify-between text-sm text-slate-400 font-mono">
               <span>首板基座 (1B): <strong className="text-purple-300">{firstBoardGroup?.stocks_count ?? (limitUpData?.items?.filter(s => (s.lbc || 1) === 1).length ?? 0)} 只</strong></span>
               <span>连板高阶: <strong className="text-amber-400">{highBoardTiers.reduce((acc, t) => acc + t.stocks_count, 0)} 只</strong></span>
               <span className="text-rose-400">炸板: {limitUpData?.broken_limit_count ?? limitUpData?.broken_limit_items?.length ?? 0} 家</span>
@@ -2688,12 +2702,12 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <h2 className="text-sm font-bold text-white tracking-wide">
                     核心个股分时走势对比 · 前日核心(最高/次高) vs 当日最强涨停动态博弈
                   </h2>
-                  <span className="text-xs font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="text-sm font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
                     横向全幅 · 09:30~15:00 标准轴 · 盘中动态更新
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5 font-mono">
+                <p className="text-sm text-slate-400 mt-0.5 font-mono">
                   基准自动锁定前日最高板与次高板 · 开盘根据连板梯队动态更新当日最强涨停 · 直观透视昨日核心今日表现与新涨停的涨跌共振/抽血博弈 ({stockComparisonList.length}/6 支)
                 </p>
               </div>
@@ -2705,7 +2719,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 type="button"
                 onClick={() => setIsCognitionModalOpen(true)}
                 title="点击弹出窗口查看当日 AI 认知推演触发记录与博弈轨迹"
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/15 to-cyan-500/15 border border-purple-500/30 hover:border-purple-400/60 text-[11px] font-mono text-purple-200 shadow-sm hover:shadow-[0_0_12px_rgba(168,85,247,0.3)] transition-all cursor-pointer group"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/15 to-cyan-500/15 border border-purple-500/30 hover:border-purple-400/60 text-xs font-mono text-purple-200 shadow-sm hover:shadow-[0_0_12px_rgba(168,85,247,0.3)] transition-all cursor-pointer group"
               >
                 <Brain className={`w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform ${isLlmCognitionLoading ? 'animate-spin' : 'animate-pulse'}`} />
                 <span>
@@ -2715,7 +2729,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     ? `AI 认知推演 (${llmGameCognition.model || 'DeepSeek'})`
                     : 'AI 认知博弈推演'}
                 </span>
-                <span className="px-1.5 py-0.2 rounded-full bg-purple-500/20 text-cyan-300 border border-purple-500/30 text-[10px] font-sans">
+                <span className="px-1.5 py-0.2 rounded-full bg-purple-500/20 text-cyan-300 border border-purple-500/30 text-xs font-sans">
                   {cognitionHistory.length > 0 ? `${cognitionHistory.length} 次` : '轨迹'}
                 </span>
               </button>
@@ -2731,7 +2745,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   </button>
                   {isAddStockOpen && (
                     <div className="absolute right-0 top-8 w-56 max-h-60 overflow-y-auto bg-slate-900 border border-cyan-500/40 rounded-xl p-2 shadow-2xl z-50 space-y-1">
-                      <div className="text-[11px] text-slate-400 font-mono px-2 py-1 border-b border-white/10">可选样本池 ({availableCandidates.length} 只)</div>
+                      <div className="text-xs text-slate-400 font-mono px-2 py-1 border-b border-white/10">可选样本池 ({availableCandidates.length} 只)</div>
                       {availableCandidates.map((c) => (
                         <button
                           key={c.code}
@@ -2742,7 +2756,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                           className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-white/10 text-xs text-left transition"
                         >
                           <span className="font-bold text-white">{c.name}</span>
-                          <span className="text-slate-400 text-[11px] font-mono">{c.role}</span>
+                          <span className="text-slate-400 text-xs font-mono">{c.role}</span>
                           <span className={`font-mono font-bold ${c.changePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                             {c.changePct >= 0 ? `+${c.changePct.toFixed(1)}%` : `${c.changePct.toFixed(1)}%`}
                           </span>
@@ -2911,7 +2925,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
 
             {/* X 轴时间刻度标尺 */}
-            <div className="flex justify-between text-xs font-mono text-slate-400 pt-2 border-t border-white/10 z-10 shrink-0">
+            <div className="flex justify-between text-sm font-mono text-slate-400 pt-2 border-t border-white/10 z-10 shrink-0">
               <span>09:30</span>
               <span>10:00</span>
               <span>10:30</span>
@@ -2935,12 +2949,12 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <span className="text-xs font-bold text-white tracking-wide">
                     核心样本股微观体检矩阵 · 换手率 / 真实流通盘 / 承接诊断
                   </span>
-                  <span className="text-[11px] font-mono text-cyan-300/80 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-full hidden sm:inline-block">
+                  <span className="text-xs font-mono text-cyan-300/80 bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-full hidden sm:inline-block">
                     量化硬指标支撑 · 杜绝主观臆断 ({stockComparisonList.length}/6 支)
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400">
+                <div className="flex items-center gap-3 text-xs font-mono text-slate-400">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-blue-400" />
                     容量中军 (≥150亿)
@@ -2993,11 +3007,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                                 boxShadow: `0 0 8px ${s.color}cc`,
                               }}
                             />
-                            <span className="text-xs font-bold text-white tracking-tight">{s.name}</span>
-                            <span className="text-[10px] font-mono text-slate-400">{s.code}</span>
+                            <span className="text-sm font-bold text-white tracking-tight">{s.name}</span>
+                            <span className="text-xs font-mono text-slate-400">{s.code}</span>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className={`font-mono font-black text-xs ${safePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            <span className={`font-mono font-black text-sm ${safePct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                               {safePct >= 0 ? `+${safePct.toFixed(1)}%` : `${safePct.toFixed(1)}%`}
                             </span>
                             <button
@@ -3025,14 +3039,14 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                               return (
                                 <span
                                   key={rIdx}
-                                  className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border ${bgClass} ${textClass}`}
+                                  className={`text-xs px-1.5 py-0.5 rounded font-mono font-bold border ${bgClass} ${textClass}`}
                                 >
                                   {r}
                                 </span>
                               );
                             })
                           ) : (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border bg-slate-800/60 border-slate-700/50 text-slate-300">
+                            <span className="text-xs px-1.5 py-0.5 rounded font-mono font-bold border bg-slate-800/60 border-slate-700/50 text-slate-300">
                               {s.tagLabel || s.role}
                             </span>
                           )}
@@ -3040,15 +3054,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       </div>
 
                       {/* 微观三维核心指标 */}
-                      <div className="pl-1.5 grid grid-cols-2 gap-x-2 gap-y-1.5 my-2 font-mono text-[11px] tabular-nums border-t border-b border-white/5 py-1.5">
+                      <div className="pl-1.5 grid grid-cols-2 gap-x-2 gap-y-1.5 my-2 font-mono text-xs tabular-nums border-t border-b border-white/5 py-1.5">
                         <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">流通市值</span>
+                          <span className="text-xs text-slate-500 block leading-tight">流通市值</span>
                           <span className="font-bold text-slate-200">
                             {s.floatMcapYi != null ? `${s.floatMcapYi >= 100 ? s.floatMcapYi.toFixed(0) : s.floatMcapYi.toFixed(1)}亿` : '--'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">日内换手</span>
+                          <span className="text-xs text-slate-500 block leading-tight">日内换手</span>
                           <span className={`font-bold ${
                             s.turnoverRate != null && s.turnoverRate >= 30
                               ? 'text-amber-400'
@@ -3060,14 +3074,14 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">成交额</span>
+                          <span className="text-xs text-slate-500 block leading-tight">成交额</span>
                           <span className="text-slate-300">
                             {s.totalAmountYi != null ? `${s.totalAmountYi.toFixed(1)}亿` : '--'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">体检评级</span>
-                          <span className={`font-bold text-[10px] inline-flex items-center gap-0.5 ${
+                          <span className="text-xs text-slate-500 block leading-tight">体检评级</span>
+                          <span className={`font-bold text-xs inline-flex items-center gap-0.5 ${
                             isDanger ? 'text-emerald-400' : isWarning ? 'text-amber-400' : 'text-cyan-300'
                           }`}>
                             <span className={`w-1 h-1 rounded-full ${
@@ -3080,7 +3094,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
                       {/* 底部微观诊断结论 */}
                       <div className="pl-1.5">
-                        <p className="text-[10px] text-slate-400 font-mono leading-relaxed line-clamp-2" title={diag?.reason}>
+                        <p className="text-xs text-slate-400 font-mono leading-relaxed line-clamp-2" title={diag?.reason}>
                           {diag?.reason || '筹码与走势波动受控，多空均衡博弈'}
                         </p>
                       </div>
@@ -3098,8 +3112,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
                       <Plus className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-bold text-cyan-300">添加对比样本</span>
-                    <span className="text-[10px] font-mono text-slate-500">
+                    <span className="text-sm font-bold text-cyan-300">添加对比样本</span>
+                    <span className="text-xs font-mono text-slate-500">
                       ({stockComparisonList.length} / 6 支)
                     </span>
                   </div>
@@ -3109,23 +3123,23 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           )}
 
           {/* 底部双轨博弈透视结论卡片 (前日核心今日表现 + 今日最强涨停涨跌博弈) */}
-          <div className="mt-2 pt-2.5 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+          <div className="mt-2 pt-2.5 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm font-mono">
             {/* 轨道 1：昨日核心在今日的表现 */}
             <div className="bg-purple-950/20 border border-purple-500/30 rounded-xl p-2.5 flex items-start gap-2.5">
-              <div className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0 mt-0.5 flex items-center gap-1">
+              <div className="px-2 py-0.5 rounded text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0 mt-0.5 flex items-center gap-1">
                 <Brain className="w-3 h-3 text-purple-400" />
                 <span>昨日核心今日表现</span>
               </div>
-              <p className="text-slate-300 leading-relaxed text-xs" dangerouslySetInnerHTML={{ __html: dynamicGamePerspective.track1 }} />
+              <p className="text-slate-300 leading-relaxed text-sm" dangerouslySetInnerHTML={{ __html: dynamicGamePerspective.track1 }} />
             </div>
 
             {/* 轨道 2：当天当时最强涨停与昨日核心的涨跌关系 */}
             <div className="bg-cyan-950/20 border border-cyan-500/30 rounded-xl p-2.5 flex items-start gap-2.5">
-              <div className="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shrink-0 mt-0.5 flex items-center gap-1">
+              <div className="px-2 py-0.5 rounded text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shrink-0 mt-0.5 flex items-center gap-1">
                 <Zap className="w-3 h-3 text-cyan-400" />
                 <span>今日最强 vs 昨日核心</span>
               </div>
-              <p className="text-cyan-200 leading-relaxed text-xs" dangerouslySetInnerHTML={{ __html: dynamicGamePerspective.track2 }} />
+              <p className="text-cyan-200 leading-relaxed text-sm" dangerouslySetInnerHTML={{ __html: dynamicGamePerspective.track2 }} />
             </div>
           </div>
         </GlassCard>
@@ -3149,29 +3163,35 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <h2 className="text-sm font-bold text-white tracking-wide">
                     题材战场 · Top 5 分时主力资金争夺曲线与领涨核心龙头
                   </h2>
-                  <span className="text-xs font-mono text-purple-300 bg-purple-500/10 border border-purple-500/25 px-2 py-0.5 rounded-full">
+                  <span className="text-sm font-mono text-purple-300 bg-purple-500/10 border border-purple-500/25 px-2.5 py-0.5 rounded-full">
                     09:30~15:00 全天 X 轴发散
                   </span>
-                  <span className="text-xs font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 rounded-full hidden sm:inline-block">
+                  <span className="text-sm font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2.5 py-0.5 rounded-full hidden sm:inline-block">
                     {sectorScaleBounds.hasNegative
                       ? `自适应量程: [-${sectorScaleBounds.lowerBound.toFixed(1)} ~ +${sectorScaleBounds.upperBound.toFixed(1)} 亿 · 存量博弈]`
                       : `自适应量程: [0.0 ~ +${sectorScaleBounds.upperBound.toFixed(1)} 亿 · 全域多头开拓]`}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5 font-mono">
+                <p className="text-sm text-slate-400 mt-0.5 font-mono">
                   从 09:30 零轴起点发散至当前时点 · 动态自适应量程拉开强弱张力 · 鼠标 Hover 精确查看各分钟净流入数值
                 </p>
               </div>
             </div>
 
-            {/* 题材图例 */}
-            <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-300">
+            {/* 题材与大盘图例 */}
+            <div className="flex flex-wrap items-center gap-3 text-sm font-mono text-slate-300">
               {dynamicSectorCurves.map((sec) => (
                 <span key={sec.name} className="flex items-center gap-1.5">
                   <span className="w-2.5 h-1 rounded-full" style={{ backgroundColor: sec.color }}></span>
                   {sec.name} ({sec.net >= 0 ? `+${sec.net.toFixed(1)}` : sec.net.toFixed(1)}亿)
                 </span>
               ))}
+              {marketIndexData && (
+                <span className="flex items-center gap-1.5 text-slate-300 bg-white/[0.04] px-2.5 py-0.5 rounded border border-white/10">
+                  <span className="w-3.5 h-0 border-t-2 border-dashed border-slate-300"></span>
+                  <span>{marketIndexData.name} ({marketIndexData.currentPrice} {marketIndexData.currentPct >= 0 ? `+${marketIndexData.currentPct.toFixed(2)}%` : `${marketIndexData.currentPct.toFixed(2)}%`})</span>
+                </span>
+              )}
             </div>
           </div>
 
@@ -3188,16 +3208,25 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             onMouseLeave={() => setIsSectorHovering(false)}
             className="relative w-full h-[210px] my-3 bg-black/50 border border-white/5 rounded-xl p-3.5 flex flex-col justify-between overflow-hidden cursor-crosshair"
           >
-            {/* Y轴刻度辅助线 - 动态根据实际资金上下限及动态零轴自适应渲染 */}
-            <div className="absolute inset-0 bottom-7 pointer-events-none text-xs font-mono text-slate-500 z-0">
+            {/* Y轴刻度辅助线 - 动态根据实际资金上下限及动态零轴自适应渲染 (支持大盘指数双轴对照) */}
+            <div className="absolute inset-0 bottom-7 pointer-events-none text-sm font-mono text-slate-500 z-0">
               {sectorScaleBounds.gridLines.map((gl, i) => (
                 <div
                   key={i}
-                  className={`absolute left-3.5 right-3.5 border-b ${gl.border} pb-0.5 flex justify-between ${gl.color}`}
+                  className={`absolute left-3.5 right-3.5 border-b ${gl.border} pb-0.5 flex justify-between items-center ${gl.color}`}
                   style={{ top: `${gl.yPct}%`, transform: 'translateY(-100%)' }}
                 >
-                  <span>{gl.label}</span>
-                  <span className="text-[10px] opacity-80">{gl.sub}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">{gl.label}</span>
+                    <span className="text-xs opacity-75 hidden sm:inline">{gl.sub}</span>
+                  </div>
+                  {marketIndexData && (
+                    <span className="text-xs font-mono text-slate-400 font-medium">
+                      {i === 0 && `大盘上界: ${marketIndexData.topPrice}`}
+                      {i === 2 && `大盘昨收(零轴基准): ${marketIndexData.preClose}`}
+                      {i === 4 && `大盘下界: ${marketIndexData.bottomPrice}`}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -3222,15 +3251,34 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 鼠标悬停实时 Top 5 题材资金净流数值看板浮窗 */}
             {isSectorHovering && (
               <div
-                className="absolute top-2 pointer-events-none z-30 bg-slate-950/95 border border-purple-500/40 rounded-xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-1 text-[11px] font-mono min-w-[240px]"
+                className="absolute top-2 pointer-events-none z-30 bg-slate-950/95 border border-purple-500/40 rounded-xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-1 text-[11px] font-mono min-w-[270px]"
                 style={{
-                  left: `${Math.min(74, Math.max(4, (sectorHoverX / 1000) * 100))}%`,
+                  left: `${Math.min(72, Math.max(4, (sectorHoverX / 1000) * 100))}%`,
                 }}
               >
                 <div className="flex items-center justify-between border-b border-white/10 pb-1 text-purple-300 font-bold">
                   <span>{getHoverTimeLabel(sectorHoverX)} 主力资金净流 (实盘)</span>
                   <span className="text-[10px] text-slate-400">Top 5 采样</span>
                 </div>
+                {marketIndexData && (
+                  <div className="flex items-center justify-between text-[10px] text-slate-300 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/5 my-0.5">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-0 border-t-2 border-dashed border-slate-300"></span>
+                      <span>{marketIndexData.name}</span>
+                    </span>
+                    {(() => {
+                      const timeStr = getHoverTimeLabel(sectorHoverX);
+                      const pt = marketIndexData.points ? ([...marketIndexData.points].reverse().find((p) => p.time <= timeStr) || marketIndexData.points[0]) : null;
+                      const price = pt ? pt.price.toFixed(2) : marketIndexData.currentPrice;
+                      const pct = pt ? pt.pct_change : marketIndexData.currentPct;
+                      return (
+                        <span className={`font-bold ${pct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {price} ({pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`})
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
                 <div className="flex flex-col gap-0.5 pt-0.5">
                   {dynamicSectorCurves.map((sec, idx) => {
                     const timeStr = getHoverTimeLabel(sectorHoverX);
@@ -3276,6 +3324,28 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   </filter>
                 </defs>
                 <line x1="0" y1={sectorScaleBounds.zeroY} x2="1000" y2={sectorScaleBounds.zeroY} stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
+
+                {/* 大盘基准指数分时走势虚线 (上证指数 sh000001 - 共振对照) */}
+                {marketIndexData && (
+                  <g className="market-index-benchmark opacity-65 hover:opacity-100 transition-opacity">
+                    <path
+                      d={marketIndexData.pathD}
+                      fill="none"
+                      stroke="rgba(203, 213, 225, 0.45)"
+                      strokeWidth="1.8"
+                      strokeDasharray="4,3"
+                      strokeLinecap="round"
+                    />
+                    <circle
+                      cx={marketIndexData.endX}
+                      cy={marketIndexData.endY}
+                      r={3}
+                      fill="#cbd5e1"
+                      stroke="#475569"
+                      strokeWidth="1"
+                    />
+                  </g>
+                )}
                 {dynamicSectorCurves.map((sec, idx) => {
                   const isHovered = hoveredSectorName === sec.name;
                   const isAnyHovered = Boolean(hoveredSectorName);
@@ -3335,7 +3405,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
           {/* 方向3：存量博弈 · 资金跷跷板与吸血效应雷达 */}
           {topSectorsTrend?.seesaw_analysis && (
-            <div className="my-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+            <div className="my-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-sm">
               <div className="flex items-center gap-2 shrink-0">
                 <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
                   <Zap className="w-3.5 h-3.5 text-amber-400" />
@@ -3343,7 +3413,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-white text-xs">资金跷跷板与吸血雷达</span>
-                    <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold border ${
+                    <span className={`px-2 py-0.5 rounded-full font-mono text-xs font-bold border ${
                       topSectorsTrend.seesaw_analysis.seesaw_ratio >= 0.65
                         ? 'bg-rose-500/15 border-rose-500/30 text-rose-300'
                         : topSectorsTrend.seesaw_analysis.seesaw_ratio >= 0.3
@@ -3356,11 +3426,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex-1 text-[11px] font-mono text-slate-300 leading-relaxed">
+              <div className="flex-1 text-sm font-mono text-slate-300 leading-relaxed">
                 {topSectorsTrend.seesaw_analysis.description}
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] font-mono shrink-0">
+              <div className="flex items-center gap-2 text-xs font-mono shrink-0">
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300">
                   <TrendingUp className="w-3 h-3 text-rose-400" />
                   <span>主攻: {topSectorsTrend.seesaw_analysis.primary_siphon_sector}</span>
@@ -3374,7 +3444,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           )}
 
           {/* 5 大题材领涨核心龙头与梯队矩阵卡片 (支持方向1梯队深度下钻) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 my-2 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 my-2 text-sm">
             {dynamicSectorCurves.map((sec, idx) => (
               <div
                 key={sec.name}
@@ -3388,23 +3458,23 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono font-bold" style={{ color: sec.color }}>#{idx + 1} {sec.name}</span>
-                    <span className={`text-xs font-mono font-bold ${sec.net >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    <span className={`text-sm font-mono font-bold ${sec.net >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                       {sec.net >= 0 ? `+${sec.net.toFixed(1)}` : sec.net.toFixed(1)} 亿
                     </span>
                   </div>
 
                   {/* 先锋空间龙 */}
-                  <div className="flex items-center justify-between mt-1 text-[11px]">
+                  <div className="flex items-center justify-between mt-1 text-xs">
                     <span className="text-purple-300 font-bold truncate max-w-[100px]">{sec.leader}</span>
                     <span className={`font-mono font-bold ${sec.leaderPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                       {sec.leaderPct >= 0 ? `+${sec.leaderPct.toFixed(1)}%` : `${sec.leaderPct.toFixed(1)}%`}
                     </span>
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">{sec.leaderStatus}</div>
+                  <div className="text-xs text-slate-400 font-mono">{sec.leaderStatus}</div>
 
                   {/* 容量中军 (若有) */}
                   {sec.flagship && sec.flagship.name !== sec.leader && (
-                    <div className="mt-1 pt-1 border-t border-white/5 flex items-center justify-between text-[10px] font-mono">
+                    <div className="mt-1 pt-1 border-t border-white/5 flex items-center justify-between text-xs font-mono">
                       <span className="text-cyan-300 truncate max-w-[95px]">中军: {sec.flagship.name}</span>
                       <span className="text-slate-400">
                         {sec.flagship.amount_yi ? `${sec.flagship.amount_yi.toFixed(1)}亿` : `${sec.flagship.pct_change.toFixed(1)}%`}
@@ -3414,7 +3484,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
                   {/* 梯队简报徽章 */}
                   {sec.echelonSummary && (
-                    <div className="mt-1.5 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/5 text-[9px] font-mono text-slate-300 truncate" title={sec.echelonSummary}>
+                    <div className="mt-1.5 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/5 text-xs font-mono text-slate-300 truncate" title={sec.echelonSummary}>
                       {sec.echelonSummary}
                     </div>
                   )}
@@ -3423,7 +3493,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 <div>
                   {/* 认知微观体检内嵌：独苗状态 vs 后排负反馈剪刀差 */}
                   {sec.isSolitaryMonopoly ? (
-                    <div className="mt-1.5 flex items-center justify-between px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/35 text-[10px] font-mono text-amber-300">
+                    <div className="mt-1.5 flex items-center justify-between px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/35 text-xs font-mono text-amber-300">
                       <span className="flex items-center gap-1 font-bold">
                         <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
                         独苗高标
@@ -3433,7 +3503,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       </span>
                     </div>
                   ) : (
-                    <div className="mt-1.5 flex items-center justify-between px-1.5 py-0.5 rounded bg-black/40 border border-white/5 text-[10px] font-mono">
+                    <div className="mt-1.5 flex items-center justify-between px-1.5 py-0.5 rounded bg-black/40 border border-white/5 text-xs font-mono">
                       <span className="text-slate-400">
                         剪刀差{' '}
                         <strong className={(sec.crrs ?? 0) >= 6 ? 'text-rose-400 font-bold' : 'text-slate-300'}>
@@ -3455,7 +3525,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       e.stopPropagation();
                       setExpandedEchelonSector(expandedEchelonSector === sec.name ? null : sec.name);
                     }}
-                    className={`mt-1.5 w-full py-0.5 rounded-lg text-[10px] font-mono flex items-center justify-center gap-1 transition-all ${
+                    className={`mt-1.5 w-full py-0.5 rounded-lg text-xs font-mono flex items-center justify-center gap-1 transition-all ${
                       expandedEchelonSector === sec.name
                         ? 'bg-purple-600/30 text-purple-200 border border-purple-400/50 shadow-sm'
                         : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5'
@@ -3478,13 +3548,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <h3 className="text-xs font-bold text-white tracking-wide">
                     【{expandedEchelonSector}】梯队深度下钻矩阵 (先锋 · 容量中军 · 梯队助攻 · 炸板排雷)
                   </h3>
-                  <span className="text-[10px] font-mono text-purple-300 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20">
+                  <span className="text-xs font-mono text-purple-300 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20">
                     {dynamicSectorCurves.find(s => s.name === expandedEchelonSector)?.echelonSummary || '梯队明细'}
                   </span>
                 </div>
                 <button
                   onClick={() => setExpandedEchelonSector(null)}
-                  className="text-slate-400 hover:text-white px-2 py-0.5 rounded text-xs transition-colors hover:bg-white/10"
+                  className="text-slate-400 hover:text-white px-2 py-0.5 rounded text-sm transition-colors hover:bg-white/10"
                 >
                   收起 ✕
                 </button>
@@ -3492,9 +3562,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
               {/* 梯队标的表格 */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
+                <table className="w-full text-left text-sm font-mono">
                   <thead>
-                    <tr className="text-slate-400 border-b border-white/5 pb-1 text-[11px]">
+                    <tr className="text-slate-400 border-b border-white/5 pb-1 text-xs">
                       <th className="py-1 px-2 font-normal">梯队角色</th>
                       <th className="py-1 px-2 font-normal">标的代码/简称</th>
                       <th className="py-1 px-2 font-normal">连板高度</th>
@@ -3511,7 +3581,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       return (
                         <tr key={stock.code || sIdx} className="hover:bg-white/[0.03] transition-colors">
                           <td className="py-1.5 px-2">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                               isPioneer ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' :
                               isFlagship ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' :
                               isBroken ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
@@ -3539,7 +3609,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                           <td className="py-1.5 px-2 text-slate-300 tabular-nums">
                             {stock.amount_yi ? `${stock.amount_yi.toFixed(2)} 亿` : '--'}
                           </td>
-                          <td className="py-1.5 px-2 text-slate-400 text-[11px]">
+                          <td className="py-1.5 px-2 text-slate-400 text-xs">
                             {stock.status_desc}
                           </td>
                         </tr>
@@ -3551,17 +3621,17 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             </div>
           )}
 
-          <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-mono">
+          <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-400 font-mono">
             <div className="flex items-center gap-2 flex-1 min-w-[320px]">
               <button
                 type="button"
                 onClick={() => setIsCognitionModalOpen(true)}
                 title="点击弹出窗口查看当日 AI 题材推演触发记录与博弈轨迹"
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 border border-purple-500/40 hover:border-purple-400/80 text-[11px] font-medium shrink-0 cursor-pointer shadow-sm hover:shadow-[0_0_12px_rgba(168,85,247,0.35)] transition-all select-none group"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 border border-purple-500/40 hover:border-purple-400/80 text-xs font-medium shrink-0 cursor-pointer shadow-sm hover:shadow-[0_0_12px_rgba(168,85,247,0.35)] transition-all select-none group"
               >
                 <Brain className={`w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform ${isLlmCognitionLoading ? 'animate-spin' : 'animate-pulse'}`} />
                 <span className="font-semibold text-purple-100">AI 题材轮动推演</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono tabular-nums">
+                <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-mono tabular-nums">
                   {cognitionHistory.length > 0 ? `${cognitionHistory.length} 次触发` : '点击查看轨迹'}
                 </span>
               </button>
@@ -3595,7 +3665,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 ④ 地雷雷达 · 动态炸板率仪表与跳水排雷 (实时风控防守线)
               </span>
             </div>
-            <span className={`text-xs font-mono px-2.5 py-0.5 rounded-full border transition-colors duration-300 ${brokenRatioLevel.badgeClass}`}>
+            <span className={`text-sm font-mono px-2.5 py-0.5 rounded-full border transition-colors duration-300 ${brokenRatioLevel.badgeClass}`}>
               {brokenRatioLevel.badge}
             </span>
           </div>
@@ -3604,7 +3674,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 动态炸板率仪表 */}
             <div className={`${brokenRatioLevel.panelBg} rounded-2xl p-4 flex flex-col justify-between transition-colors duration-300`}>
               <div>
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-base">
                   <span className={`${brokenRatioLevel.titleColor} font-semibold`}>动态炸板率仪表盘</span>
                   <span className={`text-xl font-black font-mono ${brokenRatioLevel.textColor}`}>{(brokenLimitRatio * 100).toFixed(1)}%</span>
                 </div>
@@ -3615,13 +3685,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     style={{ width: `${Math.min(100, brokenLimitRatio * 100)}%` }}
                   />
                 </div>
-                <div className="text-xs text-slate-400 mt-2 flex justify-between font-mono">
+                <div className="text-sm text-slate-400 mt-2 flex justify-between font-mono">
                   <span>触及涨停 {touchedTotalCount} 只</span>
                   <span className={brokenRatioLevel.countClass}>炸板 {brokenLimitCount} 只 ({brokenRatioLevel.countStatus})</span>
                   <span className="text-rose-500 font-bold">35% 强制防守警戒红线</span>
                 </div>
               </div>
-              <div className="text-xs text-slate-400 font-mono mt-3 pt-2 border-t border-white/5">
+              <div className="text-sm text-slate-400 font-mono mt-3 pt-2 border-t border-white/5">
                 {brokenRatioLevel.discipline}
               </div>
             </div>
@@ -3629,15 +3699,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             {/* 实时跳水大面预警 */}
             <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col justify-between">
               <div>
-                <div className="text-xs text-slate-400 font-medium flex justify-between items-center mb-2">
+                <div className="text-sm text-slate-400 font-medium flex justify-between items-center mb-2">
                   <span className="flex items-center gap-1.5 text-rose-400 font-bold">
                     <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                     日内跳水大面预警 (拒接飞刀 · 盘中实时捕获)
                   </span>
-                  <span className="font-mono text-rose-400 text-xs">已捕获 {brokenLimitList.length} 只</span>
+                  <span className="font-mono text-rose-400 text-sm">已捕获 {brokenLimitList.length} 只</span>
                 </div>
 
-                <div className="space-y-2 text-xs">
+                <div className="space-y-2 text-sm">
                   {brokenLimitList.length > 0 ? (
                     brokenLimitList.slice(0, 3).map((item) => {
                       const pct = item.pct_change != null ? item.pct_change : 0;
@@ -3647,11 +3717,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       return (
                         <div key={item.code} className="border-l-2 border-amber-500 bg-white/[0.025] p-2 rounded-r-xl flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white text-xs">{item.name}</span>
-                            <span className="text-xs text-slate-400 font-mono">({item.code})</span>
-                            <span className="text-xs text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded">{item.sector || '炸板标的'}</span>
+                            <span className="font-bold text-white text-sm">{item.name}</span>
+                            <span className="text-sm text-slate-400 font-mono">({item.code})</span>
+                            <span className="text-sm text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded">{item.sector || '炸板标的'}</span>
                           </div>
-                          <div className="text-right font-mono text-xs">
+                          <div className="text-right font-mono text-sm">
                             <span className={`font-bold ${pct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                               {pct >= 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}
                             </span>
@@ -3661,14 +3731,14 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       );
                     })
                   ) : (
-                    <div className="text-slate-500 py-3 text-center text-xs">
+                    <div className="text-slate-500 py-3 text-center text-sm">
                       今日暂无炸板跳水个股，情绪健康
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400 font-mono mt-2">
+              <div className="pt-2 border-t border-white/5 flex items-center justify-between text-sm text-slate-400 font-mono mt-2">
                 <span>
                   跌停核按钮:{' '}
                   {limitDownCount === 0 ? (
@@ -3676,7 +3746,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   ) : (
                     <strong className="text-emerald-400 font-bold">{limitDownCount} 只</strong>
                   )}{' '}
-                  <span className="text-slate-500 text-[10px]">(ST已剔除)</span>
+                  <span className="text-slate-500 text-xs">(ST已剔除)</span>
                 </span>
                 <span className={brokenRatioLevel.defenseClass}>{brokenRatioLevel.defenseStatus}</span>
               </div>
@@ -3687,7 +3757,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       </main>
 
       {/* 底部备案与免责声明 */}
-      <footer className="max-w-7xl mx-auto w-full text-center text-[10px] text-slate-500 py-1 border-t border-white/5">
+      <footer className="max-w-7xl mx-auto w-full text-center text-xs text-slate-500 py-1 border-t border-white/5">
         知见 · AI认知复盘交易系统 · 极光盘中「4+1」驾驶舱 · 本系统纯客观数理推演与科学证伪，不构成实盘买卖依据
       </footer>
 

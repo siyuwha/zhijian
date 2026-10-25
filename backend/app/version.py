@@ -7,8 +7,8 @@ import subprocess
 from pathlib import Path
 
 APP_NAME = "AI认知复盘交易系统"
-VERSION = "0.8.8"
-STAGE_NAME = "知见·AI题材轮动推演当日触发轨迹版"
+VERSION = "0.8.9"
+STAGE_NAME = "知见·端到端量化闭环与无人值守双轨时钟版"
 BUILD_DATE = "2026-10-25"
 FALLBACK_COMMIT = "1a1e781"
 
@@ -50,4 +50,3 @@ def get_version_info() -> dict:
         "build_date": BUILD_DATE,
         "sina_protocol": "http"
     }
-

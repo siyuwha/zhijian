@@ -49,7 +49,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
     return (
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col items-center justify-center min-h-[220px] text-slate-400 gap-3">
         <RefreshCw className="w-6 h-6 animate-spin text-indigo-400" />
-        <span className="text-xs font-mono tracking-wide">
+        <span className="text-sm font-mono tracking-wide">
           正在核验 09:25 集合竞价物理快照并执行波普尔证伪对账...
         </span>
       </div>
@@ -60,11 +60,11 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
     return (
       <div className="bg-slate-900/90 border border-rose-900/50 rounded-xl p-5 shadow-lg flex flex-col items-center justify-center min-h-[220px] text-slate-300 gap-2">
         <AlertOctagon className="w-8 h-8 text-rose-400" />
-        <p className="text-xs font-semibold text-rose-300">{errorMsg}</p>
+        <p className="text-sm font-semibold text-rose-300">{errorMsg}</p>
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="mt-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-mono rounded text-slate-200 transition"
+            className="mt-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-sm font-mono rounded text-slate-200 transition"
           >
             重试拉取
           </button>
@@ -77,7 +77,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
     return (
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col items-center justify-center min-h-[220px] text-slate-500 gap-2">
         <HelpCircle className="w-7 h-7 text-slate-600" />
-        <span className="text-xs">暂无 09:25 竞价对账数据</span>
+        <span className="text-sm">暂无 09:25 竞价对账数据</span>
       </div>
     );
   }
@@ -171,7 +171,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
                 <span className="text-xs font-black tracking-tight text-slate-100">
                   09:25 集合竞价波普尔证伪对账单
                 </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-950 text-slate-400 border border-slate-800">
+                <span className="text-xs font-mono px-1.5 py-0.2 rounded bg-slate-950 text-slate-400 border border-slate-800">
                   {trade_date}
                 </span>
               </div>
@@ -181,11 +181,11 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
           <div className="flex items-center gap-2">
             {/* 核心定调徽章 */}
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold font-mono ${badge.badgeClass}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-sm font-bold font-mono ${badge.badgeClass}`}
             >
               {badge.icon}
               <span>{badge.label}</span>
-              <span className="text-[10px] font-normal opacity-80 hidden sm:inline">
+              <span className="text-xs font-normal opacity-80 hidden sm:inline">
                 ({badge.subLabel})
               </span>
             </div>
@@ -193,7 +193,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
             {onOpenDetailsModal && compact && (
               <button
                 onClick={onOpenDetailsModal}
-                className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono transition"
+                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono transition"
                 title="展开全屏对账详情"
               >
                 <span>详情</span>
@@ -206,7 +206,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
         {/* 一句话客观全貌通报 */}
         <div className="bg-slate-950/70 border border-slate-800/80 rounded-lg px-3 py-2 flex items-start gap-2">
           <div className="pt-0.5 shrink-0">{badge.icon}</div>
-          <p className="text-xs text-slate-200 font-medium leading-relaxed">
+          <p className="text-sm text-slate-200 font-medium leading-relaxed">
             {verdict_headline}
           </p>
         </div>
@@ -215,9 +215,9 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
       {/* 2. 四维断言客观对比网格 (非休市时完整渲染) */}
       {!isMarketClosed && assertion_results.length > 0 && (
         <div className="my-3 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold px-1">
+          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-1">
             <span>四维物理事实断言比对</span>
-            <span className="font-mono text-[10px] text-slate-500">
+            <span className="font-mono text-xs text-slate-500">
               {rule_version}
             </span>
           </div>
@@ -243,12 +243,12 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
                   </div>
                   <div className="flex items-center gap-1.5">
                     {item.severity === 'CRITICAL_KILL' && (
-                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-rose-950 text-rose-300 border border-rose-800">
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-rose-950 text-rose-300 border border-rose-800">
                         CRITICAL KILL
                       </span>
                     )}
                     <span
-                      className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded ${
+                      className={`text-xs font-mono font-bold px-1.5 py-0.2 rounded ${
                         item.is_violated
                           ? 'bg-rose-950/80 text-rose-300 border border-rose-800'
                           : 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
@@ -259,7 +259,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
                   </div>
                 </div>
 
-                <div className="py-1.5 flex flex-col gap-1 text-[11px]">
+                <div className="py-1.5 flex flex-col gap-1 text-xs">
                   <div className="flex justify-between items-baseline text-slate-400">
                     <span className="shrink-0 text-slate-500">标的/范围：</span>
                     <span className="font-mono text-slate-200 text-right truncate">
@@ -280,7 +280,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
                   </div>
                 </div>
 
-                <div className="pt-1.5 border-t border-slate-800/40 text-[10px] text-slate-400 italic">
+                <div className="pt-1.5 border-t border-slate-800/40 text-xs text-slate-400 italic">
                   {item.deviation_analysis}
                 </div>
               </div>
@@ -297,7 +297,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
               <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
               盘前防守纪律与行动红线
             </span>
-            <span className="text-[10px] font-mono text-rose-400 bg-rose-950/40 px-1.5 py-0.2 rounded border border-rose-800/40">
+            <span className="text-xs font-mono text-rose-400 bg-rose-950/40 px-1.5 py-0.2 rounded border border-rose-800/40">
               触发条件严格执行
             </span>
           </div>
@@ -308,7 +308,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
                 className="flex items-start gap-1.5 text-xs text-slate-300"
               >
                 <Lock className="w-3 h-3 text-slate-400 mt-0.5 shrink-0" />
-                <span className="font-medium text-[11px] leading-relaxed">
+                <span className="font-medium text-xs leading-relaxed">
                   {boundary}
                 </span>
               </div>
@@ -318,7 +318,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
       )}
 
       {/* 4. 底栏核验状态与时间 */}
-      <footer className="pt-2.5 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
+      <footer className="pt-2.5 border-t border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1 text-slate-300">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
@@ -332,7 +332,7 @@ export const BiddingFalsificationCard: React.FC<BiddingFalsificationCardProps> =
 
         <div className="flex items-center gap-2">
           {safety_audit_passed && (
-            <span className="flex items-center gap-1 text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded text-[10px]">
+            <span className="flex items-center gap-1 text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded text-xs">
               <ShieldCheck className="w-3 h-3" />
               规则校验完毕
             </span>

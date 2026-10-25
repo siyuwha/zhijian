@@ -87,29 +87,29 @@ export default function AuctionPage() {
 
   const getRatioBadge = (ratio?: number | null) => {
     if (ratio === null || ratio === undefined) {
-      return <span className="text-slate-400 font-mono text-xs">--</span>;
+      return <span className="text-slate-400 font-mono text-sm">--</span>;
     }
     if (ratio >= 1.50) {
       return (
-        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800">
+        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800">
           活跃放量 ({ratio.toFixed(2)}%)
         </span>
       );
     } else if (ratio >= 1.00) {
       return (
-        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-cyan-950/80 text-cyan-300 border border-cyan-800">
+        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-cyan-950/80 text-cyan-300 border border-cyan-800">
           平量承接 ({ratio.toFixed(2)}%)
         </span>
       );
     } else if (ratio >= 0.60) {
       return (
-        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-800">
+        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-950/80 text-amber-300 border border-amber-800">
           缩量观望 ({ratio.toFixed(2)}%)
         </span>
       );
     } else {
       return (
-        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-950/80 text-rose-300 border border-rose-800">
+        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-rose-950/80 text-rose-300 border border-rose-800">
           地量避险 ({ratio.toFixed(2)}%)
         </span>
       );
@@ -127,7 +127,7 @@ export default function AuctionPage() {
               M3 集合竞价观测归档
             </h1>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="text-base text-slate-400">
             09:25 开盘微观事实观测 · 竞价量能比值 · 高标开盘溢价 · 零交易信号物理测量
           </p>
         </div>
@@ -166,7 +166,7 @@ export default function AuctionPage() {
                 <div className="pt-1">
                   <Link
                     href={`/auction/${lastActiveDate}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 underline underline-offset-4"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-cyan-400 hover:text-cyan-300 underline underline-offset-4"
                   >
                     查看最近有效交易日（{formatDateWithWeekday(lastActiveDate)}）竞价记录
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -204,7 +204,7 @@ export default function AuctionPage() {
           <CardContent className="space-y-4">
             <Clock className="w-12 h-12 text-slate-600 mx-auto" />
             <div className="text-slate-300 font-medium text-lg">暂无已生成的集合竞价观测报告</div>
-            <p className="text-sm text-slate-500 max-w-md mx-auto">
+            <p className="text-base text-slate-500 max-w-md mx-auto">
               系统每日 09:25~09:28 汇聚三大指数开盘跳空、两市竞价金额、高标开盘溢价与一字板多空封单。点击右上角即可生成报告。
             </p>
             <button
@@ -231,7 +231,7 @@ export default function AuctionPage() {
                         <span>{formatDateWithWeekday(item.date)} 集合竞价观测</span>
                       </div>
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getEmotionBadgeStyle(
+                        className={`px-2.5 py-0.5 rounded-full text-sm font-semibold border ${getEmotionBadgeStyle(
                           item.emotion_label
                         )}`}
                       >
@@ -240,7 +240,7 @@ export default function AuctionPage() {
                     </div>
 
                     {/* 指标胶囊：两市竞价总额、量能承接比、一字板 */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-sm">
                       <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700/60">
                         <Activity className="w-3.5 h-3.5 text-cyan-400" />
                         <span className="text-slate-400">两市竞价额:</span>
@@ -268,13 +268,13 @@ export default function AuctionPage() {
 
                   {/* 右侧：生成时间与进入箭头 */}
                   <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
-                    <div className="text-xs text-slate-400">
+                    <div className="text-sm text-slate-400">
                       生成时间:{' '}
                       <span className="font-mono text-slate-400">
                         {formatAuctionTime(item.generated_at, item.date)}
                       </span>
                     </div>
-                    <div className="inline-flex items-center gap-1 text-sm font-medium text-purple-400 group-hover:translate-x-1 transition-transform">
+                    <div className="inline-flex items-center gap-1 text-base font-medium text-purple-400 group-hover:translate-x-1 transition-transform">
                       <span>查看看板</span>
                       <ArrowRight className="w-4 h-4" />
                     </div>

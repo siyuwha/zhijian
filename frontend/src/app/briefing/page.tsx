@@ -95,7 +95,7 @@ export default function BriefingPage() {
               M2 盘前简报归档
             </h1>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="text-base text-slate-400">
             开盘前客观事实映射系统 · 隔夜外盘跟踪 · 纯净状态继承 · 4 维客观观察推演
           </p>
         </div>
@@ -104,7 +104,7 @@ export default function BriefingPage() {
           <button
             onClick={fetchBriefings}
             disabled={loading || generating}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-sm font-medium border border-slate-700 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-base font-medium border border-slate-700 transition disabled:opacity-50"
             title="刷新列表"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -113,7 +113,7 @@ export default function BriefingPage() {
           <button
             onClick={handleGenerateToday}
             disabled={generating || loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-semibold shadow-lg shadow-amber-500/20 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-base font-semibold shadow-lg shadow-amber-500/20 transition disabled:opacity-50"
           >
             <Sparkles className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
             {generating ? '生成中...' : '生成今日盘前简报'}
@@ -123,7 +123,7 @@ export default function BriefingPage() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="p-4 rounded-lg bg-rose-950/40 border border-rose-800/80 text-rose-300 text-sm flex items-start gap-3">
+        <div className="p-4 rounded-lg bg-rose-950/40 border border-rose-800/80 text-rose-300 text-base flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
           <div>
             <div className="font-semibold">操作异常</div>
@@ -147,13 +147,13 @@ export default function BriefingPage() {
           <CardContent className="space-y-4">
             <Globe className="w-12 h-12 text-slate-600 mx-auto" />
             <div className="text-slate-300 font-medium text-lg">暂无已生成的盘前简报</div>
-            <p className="text-sm text-slate-500 max-w-md mx-auto">
+            <p className="text-base text-slate-500 max-w-md mx-auto">
               系统每日开盘前 08:30~09:15 自动汇聚隔夜外盘、财经快讯及前日纯净状态向量。点击右上角即可立即生成今日简报。
             </p>
             <button
               onClick={handleGenerateToday}
               disabled={generating}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-semibold transition"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-base font-semibold transition"
             >
               <Sparkles className="w-4 h-4" />
               立即生成首份简报
@@ -174,7 +174,7 @@ export default function BriefingPage() {
                         <span>{formatDateWithWeekday(item.date)} 盘前简报</span>
                       </div>
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStateBadgeStyle(
+                        className={`px-2.5 py-0.5 rounded-full text-sm font-semibold border ${getStateBadgeStyle(
                           item.yesterday_state_label
                         )}`}
                       >
@@ -184,7 +184,7 @@ export default function BriefingPage() {
 
                     {/* 隔夜外盘概览胶囊 */}
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="text-xs text-slate-400 flex items-center gap-1">
+                      <span className="text-sm text-slate-400 flex items-center gap-1">
                         <Globe className="w-3.5 h-3.5 text-slate-400" />
                         隔夜外盘:
                       </span>
@@ -192,7 +192,7 @@ export default function BriefingPage() {
                         item.overnight_summary.map((idx: OvernightIndexItem) => (
                           <div
                             key={idx.code || idx.symbol}
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700/60 text-xs"
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700/60 text-sm"
                           >
                             <span className="text-slate-300">{idx.name}</span>
                             <span className={`font-mono font-medium ${getPreviewPctColor(idx.pct_change ?? idx.change_pct)}`}>
@@ -201,20 +201,20 @@ export default function BriefingPage() {
                           </div>
                         ))
                       ) : (
-                        <span className="text-xs text-slate-400 font-mono">--</span>
+                        <span className="text-sm text-slate-400 font-mono">--</span>
                       )}
                     </div>
                   </div>
 
                   {/* 右侧：生成时间与进入箭头 */}
                   <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
-                    <div className="text-xs text-slate-400">
+                    <div className="text-sm text-slate-400">
                       生成时间:{' '}
                       <span className="font-mono text-slate-400">
                         {formatBriefingTime(item.generated_at, item.date)}
                       </span>
                     </div>
-                    <div className="inline-flex items-center gap-1 text-sm font-medium text-amber-400 group-hover:translate-x-1 transition-transform">
+                    <div className="inline-flex items-center gap-1 text-base font-medium text-amber-400 group-hover:translate-x-1 transition-transform">
                       <span>查看看板</span>
                       <ArrowRight className="w-4 h-4" />
                     </div>

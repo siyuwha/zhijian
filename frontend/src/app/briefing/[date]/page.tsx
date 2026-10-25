@@ -176,7 +176,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
           >
             <ArrowLeft className="w-4 h-4" /> 返回归档列表
           </Link>
-          <div className="flex items-center gap-1 text-xs text-slate-400 font-mono">
+          <div className="flex items-center gap-1 text-sm text-slate-400 font-mono">
             <Clock className="w-3.5 h-3.5" />
             生成时间: {formatBriefingTime(generated_at, date)}
           </div>
@@ -190,14 +190,14 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                 盘前全景简报 · {formatDateWithWeekday(date)}
               </h1>
             </div>
-            <p className="text-xs md:text-sm text-slate-400">
+            <p className="text-sm md:text-base text-slate-400">
               汇聚隔夜外盘波动 · 继承前日状态向量 · 4 维客观观察方向推演
             </p>
           </div>
         </div>
 
         {/* 免责声明提示条 */}
-        <div className="p-3.5 rounded-lg bg-amber-950/20 border border-amber-900/40 text-amber-300 text-xs flex items-start gap-2.5">
+        <div className="p-3.5 rounded-lg bg-amber-950/20 border border-amber-900/40 text-amber-300 text-sm flex items-start gap-2.5">
           <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <div className="leading-relaxed">
             <span className="font-semibold text-amber-200">【客观事实映射与观察提示】</span>
@@ -212,15 +212,15 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
           <div className="flex items-center gap-2">
             <Globe className="w-5 h-5 text-teal-400" />
             <h2 className="text-lg font-bold text-white tracking-wide">隔夜外盘全景</h2>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-sm text-slate-400 font-mono">
               ({overnight_summary.length} 项标的)
             </span>
           </div>
-          <span className="text-xs text-slate-400">源自新浪财经官方接口清洗</span>
+          <span className="text-sm text-slate-400">源自新浪财经官方接口清洗</span>
         </div>
 
         {overnight_summary.length === 0 ? (
-          <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-sm">
+          <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-base">
             暂无隔夜外盘数据
           </div>
         ) : (
@@ -234,24 +234,24 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                 >
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-200 truncate" title={idx.name}>
+                      <span className="text-sm font-semibold text-slate-200 truncate" title={idx.name}>
                         {idx.name}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono uppercase">
+                      <span className="text-xs text-slate-400 font-mono uppercase">
                         {idx.code || idx.symbol}
                       </span>
                     </div>
 
                     <div className="flex items-baseline justify-between pt-1">
-                      <div className="text-lg font-bold font-mono text-white">
+                      <div className="text-xl font-bold font-mono text-white">
                         {idx.price !== null && idx.price !== undefined ? formatNumber(idx.price, 2) : '--'}
                       </div>
-                      <div className={`text-sm font-bold font-mono ${getPctColor(pct)}`}>
+                      <div className={`text-base font-bold font-mono ${getPctColor(pct)}`}>
                         {formatPct(pct)}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">
+                    <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/80">
                       <span>点位变动</span>
                       <span className={`font-mono ${getPctColor(idx.change_val)}`}>
                         {formatChangeVal(idx.change_val)}
@@ -273,12 +273,12 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
             <h2 className="text-lg font-bold text-white tracking-wide">
               前日纯净状态向量继承
             </h2>
-            <span className="text-xs text-slate-400">（物理事实承接 · 防标量塌缩）</span>
+            <span className="text-sm text-slate-400">（物理事实承接 · 防标量塌缩）</span>
           </div>
           {yesterday_review_summary?.date && (
             <Link
               href={`/review/${yesterday_review_summary.date}`}
-              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition"
+              className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition"
             >
               查阅 {formatDateWithWeekday(yesterday_review_summary.date)} 收盘全景复盘
               <ExternalLink className="w-3.5 h-3.5" />
@@ -287,7 +287,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
         </div>
 
         {!yesterday_review_summary ? (
-          <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-sm">
+          <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-base">
             未关联到前一交易日复盘数据
           </div>
         ) : (
@@ -296,9 +296,9 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
               {/* 核心指标状态摘要 */}
               <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg bg-slate-850/80 border border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="text-xs text-slate-400">前日物理状态:</div>
+                  <div className="text-sm text-slate-400">前日物理状态:</div>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold border ${getStateBadgeStyle(
+                    className={`px-3 py-1 rounded-full text-sm font-bold border ${getStateBadgeStyle(
                       yesterday_review_summary.state_label
                     )}`}
                   >
@@ -306,15 +306,15 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                   </span>
                 </div>
 
-                <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-6 text-base">
                   <div>
-                    <span className="text-xs text-slate-400 mr-2">综合得分:</span>
+                    <span className="text-sm text-slate-400 mr-2">综合得分:</span>
                     <span className="font-mono font-bold text-white">
                       {formatNumber(yesterday_review_summary.composite_score, 1)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-400 mr-2">全市场成交额:</span>
+                    <span className="text-sm text-slate-400 mr-2">全市场成交额:</span>
                     <span className="font-mono font-bold text-teal-300">
                       {isValidNumber(yesterday_review_summary.total_amount)
                         ? `${Number(yesterday_review_summary.total_amount).toFixed(0)} 亿元`
@@ -329,32 +329,32 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                 {/* 左列：全市场广度 */}
                 <div className="p-4 rounded-lg bg-slate-900 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
                       <Activity className="w-3.5 h-3.5 text-cyan-400" />
                       全市场多空广度 (Breadth)
                     </span>
-                    <span className="text-[11px] text-slate-400">全市场沪深北</span>
+                    <span className="text-xs text-slate-400">全市场沪深北</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center pt-1">
                     <div className="p-2 rounded bg-slate-850 border border-slate-800">
-                      <div className="text-[11px] text-slate-400 mb-0.5">上涨家数</div>
-                      <div className="text-sm font-mono font-bold text-rose-400">
+                      <div className="text-xs text-slate-400 mb-0.5">上涨家数</div>
+                      <div className="text-base font-mono font-bold text-rose-400">
                         {isValidNumber(yesterday_review_summary.breadth?.up_count)
                           ? `${yesterday_review_summary.breadth?.up_count} 家`
                           : '--'}
                       </div>
                     </div>
                     <div className="p-2 rounded bg-slate-850 border border-slate-800">
-                      <div className="text-[11px] text-slate-400 mb-0.5">下跌家数</div>
-                      <div className="text-sm font-mono font-bold text-emerald-400">
+                      <div className="text-xs text-slate-400 mb-0.5">下跌家数</div>
+                      <div className="text-base font-mono font-bold text-emerald-400">
                         {isValidNumber(yesterday_review_summary.breadth?.down_count)
                           ? `${yesterday_review_summary.breadth?.down_count} 家`
                           : '--'}
                       </div>
                     </div>
                     <div className="p-2 rounded bg-slate-850 border border-slate-800">
-                      <div className="text-[11px] text-slate-400 mb-0.5">涨跌比值</div>
-                      <div className="text-sm font-mono font-bold text-white">
+                      <div className="text-xs text-slate-400 mb-0.5">涨跌比值</div>
+                      <div className="text-base font-mono font-bold text-white">
                         {formatNumber(yesterday_review_summary.breadth?.up_down_ratio, 2)}
                       </div>
                     </div>
@@ -364,18 +364,18 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                 {/* 右列：D3 投机博弈事实 (Sub-A + Sub-B) */}
                 <div className="p-4 rounded-lg bg-slate-900 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
                       <Flame className="w-3.5 h-3.5 text-amber-400" />
                       D3 投机博弈双子域事实 (Speculative & Extremes)
                     </span>
-                    <span className="text-[10px] text-amber-400/80 font-mono bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-900/60">
+                    <span className="text-xs text-amber-400/80 font-mono bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-900/60">
                       核心分: -- (防塌缩)
                     </span>
                   </div>
 
                   <div className="space-y-2 pt-1">
                     {/* Sub-A 投机结构 */}
-                    <div className="flex items-center justify-between text-xs p-2 rounded bg-slate-850 border border-slate-800">
+                    <div className="flex items-center justify-between text-sm p-2 rounded bg-slate-850 border border-slate-800">
                       <span className="text-slate-300 font-medium">Sub-A 投机结构:</span>
                       <div className="flex items-center gap-3 font-mono">
                         <span className="text-slate-400">
@@ -396,7 +396,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                     </div>
 
                     {/* Sub-B 尾部极端 */}
-                    <div className="flex items-center justify-between text-xs p-2 rounded bg-slate-850 border border-slate-800">
+                    <div className="flex items-center justify-between text-sm p-2 rounded bg-slate-850 border border-slate-800">
                       <span className="text-slate-300 font-medium">Sub-B 尾部极端:</span>
                       <div className="flex items-center gap-3 font-mono">
                         <span className="text-slate-400">
@@ -427,7 +427,7 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
 
               {/* 叙事段落 */}
               {yesterday_review_summary.narrative && (
-                <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-sm text-slate-300 leading-relaxed">
                   <span className="font-semibold text-slate-100 mr-2">【前日复盘事实述评】</span>
                   {yesterday_review_summary.narrative}
                 </div>
@@ -445,15 +445,15 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
             <h2 className="text-lg font-bold text-white tracking-wide">
               早盘 4 维客观观察方向推演
             </h2>
-            <span className="text-xs text-slate-400">（物理观察维度 · 严禁主观买卖指令）</span>
+            <span className="text-sm text-slate-400">（物理观察维度 · 严禁主观买卖指令）</span>
           </div>
-          <span className="text-xs px-2.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
+          <span className="text-sm px-2.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
             开盘竞价客观核验
           </span>
         </div>
 
         {today_focus.length === 0 ? (
-          <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-sm">
+          <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-base">
             暂无今日关注推演
           </div>
         ) : (
@@ -480,11 +480,11 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                   <CardHeader className="pb-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <span
-                        className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${tagColors[idx % 4]}`}
+                        className={`text-sm px-2.5 py-0.5 rounded-full font-semibold border ${tagColors[idx % 4]}`}
                       >
                         {focus.dimension}
                       </span>
-                      <span className="text-[11px] text-slate-400">维度 {idx + 1}</span>
+                      <span className="text-xs text-slate-400">维度 {idx + 1}</span>
                     </div>
                     <CardTitle className="text-base text-slate-100 font-bold leading-snug">
                       {focus.title}
@@ -493,18 +493,18 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
 
                   <CardContent className="space-y-3 pt-0">
                     {/* 观察核心 */}
-                    <div className="p-2.5 rounded bg-slate-850/90 border border-slate-800 text-xs">
+                    <div className="p-2.5 rounded bg-slate-850/90 border border-slate-800 text-sm">
                       <span className="text-slate-400 font-medium mr-1.5">核心观察点:</span>
                       <span className="text-slate-200 font-semibold">{focus.observation_point}</span>
                     </div>
 
                     {/* 客观推演 */}
-                    <p className="text-xs text-slate-300 leading-relaxed">
+                    <p className="text-sm text-slate-300 leading-relaxed">
                       {focus.analysis}
                     </p>
 
                     {/* 免责声明提示 */}
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 pt-2 border-t border-slate-800/80">
                       <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span>{focus.disclaimer}</span>
                     </div>
@@ -522,15 +522,15 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-sky-400" />
             <h2 className="text-lg font-bold text-white tracking-wide">盘前财经快讯</h2>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-sm text-slate-400 font-mono">
               (最新 Top {news_digest.length})
             </span>
           </div>
-          <span className="text-xs text-slate-400">实时源汇聚 · 盘前宏观与行业动态</span>
+          <span className="text-sm text-slate-400">实时源汇聚 · 盘前宏观与行业动态</span>
         </div>
 
         {news_digest.length === 0 ? (
-          <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-sm">
+          <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-base">
             暂无早盘快讯记录
           </div>
         ) : (
@@ -540,12 +540,12 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                 key={idx}
                 className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 hover:bg-slate-850/60 transition space-y-1.5"
               >
-                <div className="flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center justify-between gap-3 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-teal-400/90 font-medium">
                       {news.time || news.publish_time || '--:--'}
                     </span>
-                    <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[10px] uppercase">
+                    <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-xs uppercase">
                       {news.source || '快讯'}
                     </span>
                   </div>
@@ -561,12 +561,12 @@ export default function BriefingDetailPage({ params }: { params: Promise<{ date:
                   )}
                 </div>
 
-                <div className="text-sm font-semibold text-slate-100 leading-snug">
+                <div className="text-base font-semibold text-slate-100 leading-snug">
                   {news.title}
                 </div>
 
                 {news.brief && (
-                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                  <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">
                     {news.brief}
                   </p>
                 )}

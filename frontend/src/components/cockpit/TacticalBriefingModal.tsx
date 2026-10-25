@@ -51,16 +51,16 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                 </h2>
                 {briefing && (
                   <>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-700/60 font-mono">
+                    <span className="text-sm font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-700/60 font-mono">
                       {briefing.trade_date}
                     </span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-rose-950/60 text-rose-300 border border-rose-800/60">
+                    <span className="text-sm font-semibold px-2 py-0.5 rounded-md bg-rose-950/60 text-rose-300 border border-rose-800/60">
                       {briefing.market_state_label}
                     </span>
                   </>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-sm text-slate-400 mt-0.5">
                 多空博弈定调 · 核心战场梯队 · 盘面负反馈预警与次日观察哨
               </p>
             </div>
@@ -68,7 +68,7 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
 
           <div className="flex items-center gap-3">
             {briefing && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border bg-slate-950/80 border-white/10">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium border bg-slate-950/80 border-white/10">
                 <span className="flex items-center gap-1 text-purple-300">
                   <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
                   盘后官方归档
@@ -104,11 +104,11 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                     <FileCheck2 className="w-4 h-4 text-purple-400" />
                     <span>核心战术研判与定调结论</span>
                   </div>
-                  <span className="text-[11px] font-mono text-slate-400">
+                  <span className="text-xs font-mono text-slate-400">
                     时点: {briefing.trade_date} 15:00
                   </span>
                 </div>
-                <p className="text-sm leading-relaxed text-slate-200 font-sans tracking-wide indent-0">
+                <p className="text-base leading-relaxed text-slate-200 font-sans tracking-wide indent-0">
                   {briefing.tactical_briefing_text}
                 </p>
               </div>
@@ -121,10 +121,10 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                     <Swords className="w-4 h-4 text-indigo-400" />
                     <span>核心战场与梯队</span>
                   </div>
-                  <ul className="flex flex-col gap-1.5 text-xs text-slate-300">
+                  <ul className="flex flex-col gap-1.5 text-sm text-slate-300">
                     {briefing.key_battlegrounds.map((bg, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
-                        <span className="text-indigo-500 font-mono text-[10px] mt-0.5">▸</span>
+                        <span className="text-indigo-500 font-mono text-xs mt-0.5">▸</span>
                         <span>{bg}</span>
                       </li>
                     ))}
@@ -137,10 +137,10 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                     <AlertOctagon className="w-4 h-4 text-rose-400" />
                     <span>盘面负反馈与风险</span>
                   </div>
-                  <ul className="flex flex-col gap-1.5 text-xs text-slate-300">
+                  <ul className="flex flex-col gap-1.5 text-sm text-slate-300">
                     {briefing.risk_warnings.map((rw, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
-                        <span className="text-rose-500 font-mono text-[10px] mt-0.5">▸</span>
+                        <span className="text-rose-500 font-mono text-xs mt-0.5">▸</span>
                         <span>{rw}</span>
                       </li>
                     ))}
@@ -153,10 +153,10 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                     <Eye className="w-4 h-4 text-amber-400" />
                     <span>明日观察哨与证伪</span>
                   </div>
-                  <ul className="flex flex-col gap-1.5 text-xs text-slate-300">
+                  <ul className="flex flex-col gap-1.5 text-sm text-slate-300">
                     {briefing.next_day_observation_posts.map((ob, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
-                        <span className="text-amber-500 font-mono text-[10px] mt-0.5">▸</span>
+                        <span className="text-amber-500 font-mono text-xs mt-0.5">▸</span>
                         <span>{ob}</span>
                       </li>
                     ))}
@@ -165,7 +165,7 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
               </div>
 
               {/* 底部导航与行动链接 */}
-              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-3">
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-white/5 flex flex-wrap items-center justify-between text-sm text-slate-400 gap-3">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                   <span>客观事实与研报已归档</span>
@@ -178,7 +178,7 @@ export const TacticalBriefingModal: React.FC<TacticalBriefingModalProps> = ({
                       onClose();
                       onOpenBiddingFalsification();
                     }}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-purple-300 hover:text-purple-200 bg-purple-950/70 hover:bg-purple-900/80 border border-purple-700/60 px-3 py-1.5 rounded-lg transition"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-purple-300 hover:text-purple-200 bg-purple-950/70 hover:bg-purple-900/80 border border-purple-700/60 px-3 py-1.5 rounded-lg transition"
                   >
                     <Compass className="w-3.5 h-3.5 text-purple-400" />
                     <span>查看次日 09:25 竞价对账回执 &rarr;</span>

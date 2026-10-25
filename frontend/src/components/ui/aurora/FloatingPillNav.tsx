@@ -124,7 +124,7 @@ export function FloatingPillNav({
       value: item.key,
       label: item.label,
       badge: item.badge ? (
-        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-purple-500/30 text-purple-200">
+        <span className="text-xs font-mono px-1.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200">
           {item.badge}
         </span>
       ) : undefined,
@@ -166,7 +166,7 @@ export function FloatingPillNav({
       <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0 ml-auto">
         {safetyStatusText && (
           <div
-            className="h-8 flex items-center gap-1.5 px-2.5 xl:px-3 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs shadow-sm shrink-0"
+            className="h-8 flex items-center gap-1.5 px-2.5 xl:px-3 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-sm shadow-sm shrink-0"
             title="纯客观研究，无实盘委托风险"
           >
             <span className="relative flex h-2 w-2 shrink-0">

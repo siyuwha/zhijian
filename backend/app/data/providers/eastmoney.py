@@ -26,6 +26,15 @@ from ...core.block_registry import BlockRegistry
 
 logger = logging.getLogger(__name__)
 
+# 纯指数/宽基/杂类概念黑名单 (严格过滤，保证题材战场均为纯正产业与热点板块)
+INDEX_CONCEPT_BLACKLIST = {
+    "深股通", "深成500", "东方财富热股", "深证100R", "富时罗素", "MSCI中国",
+    "标普道琼斯A股", "融资融券", "转融券标的", "预盈预增", "微盘股", "破净股",
+    "昨日涨停", "昨日连板", "昨日涨停_含一字", "沪股通", "标准普尔", "创业成份",
+    "中证500", "沪深300", "上证180", "上证50", "科创50", "国企改革", "央企国企改革",
+    "基金重仓", "社保重仓", "证金持股", "QFII重仓", "陆股通重仓", "机构重仓", "百元股"
+}
+
 class EastmoneyProvider(
     BaseProvider,
     MarketBreadthCapability,
@@ -365,23 +374,31 @@ class EastmoneyProvider(
                 error_message=str(e)
             )
 
-    async def get_top_sectors(self, limit: int = 15, sector_type: str = "industry") -> DataResult:
+    async def get_top_sectors(
+        self,
+        limit: int = 15,
+        sector_type: str = "concept",
+        sort_by: str = "net_inflow",
+    ) -> DataResult:
         """
         获取当日实时板块排行 (含成交额、主力资金净流向及领涨龙头)
         - sector_type: 'industry' (行业, fs=m:90+t:2) 或 'concept' (概念, fs=m:90+t:3)
+        - sort_by: 'net_inflow' (按主力净流入 f62 降序) 或 'pct' (按涨幅 f3 降序)
         - 补充字段: f6 (成交额), f62 (主力净流入), f128 (领涨股名), f140 (领涨股代码), f136 (领涨股涨幅)
         """
         try:
             fs_val = "m:90+t:3+f:!50" if sector_type == "concept" else "m:90+t:2+f:!50"
+            fid_val = "f62" if sort_by == "net_inflow" else "f3"
+            fetch_count = min(100, limit * 2 + 30) if sector_type == "concept" else limit
             url = "https://push2delay.eastmoney.com/api/qt/clist/get"
             params = {
                 "pn": "1",
-                "pz": str(limit),
+                "pz": str(fetch_count),
                 "po": "1",
                 "np": "1",
                 "fltt": "2",
                 "invt": "2",
-                "fid": "f3",
+                "fid": fid_val,
                 "fs": fs_val,
                 "fields": "f12,f14,f2,f3,f6,f62,f128,f140,f136"
             }
@@ -411,6 +428,13 @@ class EastmoneyProvider(
             diff_list = res_data.get("data", {}).get("diff", [])
             sectors = []
             for item in diff_list:
+                sec_name = str(item.get("f14") or "").strip()
+                if not sec_name:
+                    continue
+                # 过滤宽基指数、纯金融属性概念，保证题材战场纯正性
+                if sector_type == "concept" and sec_name in INDEX_CONCEPT_BLACKLIST:
+                    continue
+
                 amount_raw = float(item.get("f6", 0) or 0)
                 net_inflow_raw = float(item.get("f62", 0) or 0)
                 leader_n = item.get("f128")
@@ -419,7 +443,7 @@ class EastmoneyProvider(
 
                 sectors.append({
                     "code": item.get("f12"),
-                    "name": item.get("f14"),
+                    "name": sec_name,
                     "price": float(item.get("f2", 0.0) or 0.0),
                     "pct_change": float(item.get("f3", 0.0) or 0.0),
                     "amount_yi": round(amount_raw / 1e8, 2),
@@ -428,6 +452,8 @@ class EastmoneyProvider(
                     "leader_code": str(leader_c) if leader_c else None,
                     "leader_pct": float(leader_pct) if leader_pct is not None and leader_pct != "-" else None,
                 })
+                if len(sectors) >= limit:
+                    break
 
             if not sectors:
                 return DataResult(
@@ -465,11 +491,54 @@ class EastmoneyProvider(
                 error_message=str(e)
             )
 
-    async def get_sector_ranking(self, sector_type: str = "industry", limit: int = 60) -> DataResult:
+    async def get_sector_ranking(
+        self,
+        sector_type: str = "concept",
+        limit: int = 60,
+        sort_by: str = "net_inflow",
+    ) -> DataResult:
         """
-        SectorCapability 协议标准实现：获取板块排行与主力资金流
+        SectorCapability 协议标准实现：获取板块排行与主力资金流 (默认纯净概念题材 + 主力净流入降序)
         """
-        return await self.get_top_sectors(limit=limit, sector_type=sector_type)
+        return await self.get_top_sectors(limit=limit, sector_type=sector_type, sort_by=sort_by)
+
+    async def get_market_index_trend(self, index_code: str = "sh000001") -> Optional[Dict[str, Any]]:
+        """
+        获取大盘基准指数 (如上证指数 sh000001) 的 241 分钟分时走势 (用于共振对齐与双轴对比)
+        """
+        try:
+            url = f"https://web.ifzq.gtimg.cn/appstock/app/minute/query?code={index_code}"
+            async with httpx.AsyncClient(timeout=6.0, trust_env=False) as client:
+                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code == 200:
+                    payload = resp.json().get("data", {}).get(index_code, {})
+                    qt_info = payload.get("qt", {}).get(index_code, [])
+                    pre_close = float(qt_info[4]) if len(qt_info) > 4 and qt_info[4] else 3650.0
+                    name = qt_info[1] if len(qt_info) > 1 and qt_info[1] else "上证指数"
+                    raw_data = payload.get("data", {}).get("data", [])
+                    points = []
+                    for row in raw_data:
+                        parts = row.split(" ")
+                        if len(parts) >= 2:
+                            t_raw = parts[0]
+                            t_formatted = f"{t_raw[:2]}:{t_raw[2:4]}" if len(t_raw) == 4 else t_raw
+                            price = float(parts[1])
+                            pct = round((price - pre_close) / pre_close * 100.0, 2) if pre_close > 0 else 0.0
+                            points.append({
+                                "time": t_formatted,
+                                "price": price,
+                                "pct_change": pct,
+                            })
+                    if points:
+                        return {
+                            "name": name,
+                            "code": index_code,
+                            "pre_close": pre_close,
+                            "points": points,
+                        }
+        except Exception as e:
+            logger.warning(f"Failed to fetch market index trend for {index_code}: {e}")
+        return None
 
     async def get_large_cap_turnover_cores(self, min_cap_yi: float = 1000.0, top_turnover: int = 20) -> DataResult:
         """

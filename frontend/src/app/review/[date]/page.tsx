@@ -228,7 +228,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
         </Link>
         <div className="p-6 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-200">
           <h3 className="font-semibold text-lg mb-2">未找到该日期的复盘数据</h3>
-          <p className="text-sm text-slate-300">{error || '该日期可能尚未生成复盘记录。'}</p>
+          <p className="text-base text-slate-300">{error || '该日期可能尚未生成复盘记录。'}</p>
         </div>
       </div>
     );
@@ -249,7 +249,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
         <div className="fixed bottom-6 right-6 z-40">
           <button
             onClick={() => setViewMode('classical')}
-            className="text-xs px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 shadow-2xl backdrop-blur-md transition flex items-center gap-1.5"
+            className="text-sm px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 shadow-2xl backdrop-blur-md transition flex items-center gap-1.5"
           >
             <span>📊 切换至分层指标审计视图</span>
           </button>
@@ -273,7 +273,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
       <div className="space-y-4 border-b border-slate-800 pb-6">
         <Link
           href="/review"
-          className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-teal-400 transition-colors"
+          className="inline-flex items-center gap-1 text-base text-slate-400 hover:text-teal-400 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> 返回复盘归档
         </Link>
@@ -286,7 +286,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                 收盘认知复盘全景 · {formatDateWithWeekday(date)}
               </h1>
             </div>
-            <p className="text-xs md:text-sm text-slate-400">
+            <p className="text-sm md:text-base text-slate-400">
               数据采集与计算时间: {data.generated_at ? new Date(data.generated_at).toLocaleString('zh-CN') : '--'}
             </p>
           </div>
@@ -294,13 +294,13 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setViewMode('zhijian')}
-              className="text-xs px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md transition"
+              className="text-sm px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md transition"
             >
               返回「知见」杂志级全景复盘
             </button>
             {ms?.state_label && (
               <span
-                className={`px-3.5 py-1 rounded-full text-xs md:text-sm font-semibold border ${getStateBadgeStyle(
+                className={`px-3.5 py-1 rounded-full text-sm md:text-base font-semibold border ${getStateBadgeStyle(
                   ms.state_label
                 )}`}
               >
@@ -314,14 +314,14 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
 
       {/* 铁律质量警示条 */}
       {data.data_quality?.toLowerCase() === 'invalid' && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-sm flex items-start gap-3">
+        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-base flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-rose-400" />
           <div className="space-y-1">
             <div className="font-semibold text-rose-200">数据质量警示：INVALID (关键维度缺失)</div>
-            <div className="text-xs text-rose-300/90 leading-relaxed">
+            <div className="text-sm text-rose-300/90 leading-relaxed">
               根据系统防伪铁律（Zero-Falsification Invariant），因核心市场数据缺失，全局综合分依法置空（None），严禁使用默认值伪造，不可作为策略执行的输入。
               {ms?.missing_metrics && ms.missing_metrics.length > 0 && (
-                <span className="block mt-1 text-xs text-slate-300">
+                <span className="block mt-1 text-sm text-slate-300">
                   缺失指标: {ms.missing_metrics.join(', ')}
                 </span>
               )}
@@ -331,7 +331,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
       )}
 
       {data.data_quality?.toLowerCase() === 'partial' && (
-        <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/80 text-amber-300 text-xs flex items-center gap-2.5">
+        <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/80 text-amber-300 text-sm flex items-center gap-2.5">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
           <span>
             提示：本期存在部分非关键指标缺失，已启用重归一化动态权重补偿。缺失项：
@@ -354,7 +354,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
             <Sliders className="w-5 h-5 text-teal-400" />
             <h2 className="text-lg font-bold text-white">市场状态向量 (Market State Vector)</h2>
           </div>
-          <div className="text-xs text-slate-400 flex items-center gap-1">
+          <div className="text-sm text-slate-400 flex items-center gap-1">
             <Info className="w-3.5 h-3.5 text-teal-400" />
             <span>极性仅为物理测量属性，绝非买卖建议</span>
           </div>
@@ -387,17 +387,17 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
             </CardHeader>
             <CardContent className="space-y-3 pt-2">
               <div className="flex items-baseline justify-between">
-                <span className="text-xs text-slate-400">全局综合标量分</span>
+                <span className="text-sm text-slate-400">全局综合标量分</span>
                 <span className="text-2xl font-mono font-bold text-cyan-300">
                   {ms?.composite_score !== null ? ms?.composite_score : '--'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-sm text-slate-400 leading-relaxed">
                 {ms?.composite_score !== null
                   ? '由 D1、D2、D4、D5、D6 按动态有效权重综合。D3 已按铁律正交隔离，绝不计入。'
                   : '因关键维度数据质量不满足阈值，全局综合分依法置空。'}
               </p>
-              <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-500">
+              <div className="pt-2 border-t border-slate-800/80 text-xs text-slate-500">
                 铁律：状态向量为主，综合标量仅作历史趋势辅助参考。
               </div>
             </CardContent>
@@ -427,12 +427,12 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
             return (
               <Card key={i} className="bg-slate-900/90 border-slate-800">
                 <CardContent className="p-4 space-y-2">
-                  <div className="text-xs text-slate-400 font-medium">{idx.name}</div>
-                  <div className="text-lg font-mono font-bold text-white">
+                  <div className="text-sm text-slate-400 font-medium">{idx.name}</div>
+                  <div className="text-xl font-mono font-bold text-white">
                     {idx.price !== null && idx.price !== undefined ? Number(idx.price).toFixed(2) : '--'}
                   </div>
                   <div
-                    className={`flex items-center gap-1 text-xs font-semibold ${
+                    className={`flex items-center gap-1 text-sm font-semibold ${
                       isUp ? 'text-rose-400' : isDown ? 'text-emerald-400' : 'text-slate-400'
                     }`}
                   >
@@ -440,7 +440,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                     <span>{pct !== null ? (pct >= 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`) : '--'}</span>
                   </div>
                   {idx.amount_wan !== null && idx.amount_wan !== undefined && (
-                    <div className="text-[11px] text-slate-500 font-mono">
+                    <div className="text-xs text-slate-500 font-mono">
                       成交: {(Number(idx.amount_wan) / 10000).toFixed(0)} 亿元
                     </div>
                   )}
@@ -461,7 +461,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
         </div>
 
         <Card className="bg-slate-900/80 border-slate-800">
-          <CardContent className="p-6 space-y-4 text-slate-300 text-sm leading-relaxed">
+          <CardContent className="p-6 space-y-4 text-slate-300 text-base leading-relaxed">
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-teal-300">维度事实总览</h3>
               <p>
@@ -490,7 +490,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
               </p>
             </div>
 
-            <div className="p-3 rounded bg-slate-950/70 border border-slate-800/80 text-xs text-slate-400">
+            <div className="p-3 rounded bg-slate-950/70 border border-slate-800/80 text-sm text-slate-400">
               系统认知准则：本复盘严格基于客观物理指标输出，不作任何“主升、退潮”等主观交易周期定性，不构成任何投资买卖信号。
             </div>
           </CardContent>
@@ -505,7 +505,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
           <div className="flex items-center gap-2">
             <Crosshair className="w-5 h-5 text-teal-400" />
             <h2 className="text-lg font-bold text-white">跨交易日推演假说跟踪与客观核对</h2>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-950 text-teal-300 border border-teal-800 font-mono">
+            <span className="text-sm px-2.5 py-0.5 rounded-full bg-teal-950 text-teal-300 border border-teal-800 font-mono">
               Hypothesis Tracker
             </span>
           </div>
@@ -522,7 +522,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                   setNewHypoForm(f => ({ ...f, target_date: nextDateStr }));
                 }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs transition shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-medium text-sm transition shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               {showCreateHypo ? '收起录入表单' : '录入推演假说'}
@@ -530,7 +530,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
             <button
               onClick={loadHypotheses}
               disabled={hypoLoading}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 transition"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm border border-slate-700 transition"
               title="刷新假说与兑现核对状态"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${hypoLoading ? 'animate-spin' : ''}`} />
@@ -540,13 +540,13 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
 
         {/* 提示消息 */}
         {hypoSuccess && (
-          <div className="flex items-center gap-2 p-3 bg-emerald-950/70 border border-emerald-800 text-emerald-300 rounded-lg text-xs">
+          <div className="flex items-center gap-2 p-3 bg-emerald-950/70 border border-emerald-800 text-emerald-300 rounded-lg text-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{hypoSuccess}</span>
           </div>
         )}
         {hypoError && (
-          <div className="flex items-center gap-2 p-3 bg-rose-950/70 border border-rose-800 text-rose-300 rounded-lg text-xs">
+          <div className="flex items-center gap-2 p-3 bg-rose-950/70 border border-rose-800 text-rose-300 rounded-lg text-sm">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{hypoError}</span>
           </div>
@@ -560,12 +560,12 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                 <Crosshair className="w-4 h-4 text-teal-400" />
                 录入前向推演假说（不可篡改锁定）
               </CardTitle>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm text-slate-400">
                 依据科学哲学原则，假说必须具备可证伪性与客观兑现条件，开盘后状态机将自动锁定并禁止篡改。
               </p>
             </CardHeader>
             <CardContent className="p-4 md:p-6">
-              <form onSubmit={handleCreateHypo} className="space-y-4 text-xs">
+              <form onSubmit={handleCreateHypo} className="space-y-4 text-sm">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-slate-400 mb-1">
@@ -660,14 +660,14 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                   <button
                     type="button"
                     onClick={() => setShowCreateHypo(false)}
-                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-medium"
+                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-medium text-sm"
                   >
                     取消
                   </button>
                   <button
                     type="submit"
                     disabled={creatingHypo}
-                    className="px-5 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded font-bold transition shadow-sm disabled:opacity-50"
+                    className="px-5 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded font-bold transition shadow-sm disabled:opacity-50 text-sm"
                   >
                     {creatingHypo ? '正在锁定...' : '锁定并提交假说'}
                   </button>
@@ -681,8 +681,8 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
         {hypotheses.length === 0 ? (
           <div className="p-8 text-center rounded-xl bg-slate-900/40 border border-dashed border-slate-800 text-slate-400 space-y-2">
             <Crosshair className="w-8 h-8 mx-auto text-slate-600" />
-            <div className="text-sm font-semibold text-slate-300">本日暂无推演假说跟踪记录</div>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
+            <div className="text-base font-semibold text-slate-300">本日暂无推演假说跟踪记录</div>
+            <p className="text-sm text-slate-500 max-w-md mx-auto">
               可以在上方点击【录入推演假说】针对下一交易日制定推演预案，系统将在开盘后执行 09:25 竞价初判与 15:30 收盘终核。
             </p>
           </div>
@@ -695,17 +695,17 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
               const getOutcomeBadge = (outcome?: string) => {
                 switch (outcome) {
                   case 'CONFIRMED':
-                    return <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold text-[10px]">🟢 逻辑证实 (CONFIRMED)</span>;
+                    return <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold text-xs">🟢 逻辑证实 (CONFIRMED)</span>;
                   case 'FALSIFIED':
-                    return <span className="px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold text-[10px]">🔴 逻辑证伪 (FALSIFIED)</span>;
+                    return <span className="px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold text-xs">🔴 逻辑证伪 (FALSIFIED)</span>;
                   case 'PARTIAL':
-                    return <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-bold text-[10px]">🟡 部分兑现 (PARTIAL)</span>;
+                    return <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-bold text-xs">🟡 部分兑现 (PARTIAL)</span>;
                   case 'INCONCLUSIVE':
-                    return <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-bold text-[10px]">⚪ 数据缺失防伪 (INCONCLUSIVE)</span>;
+                    return <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-bold text-xs">⚪ 数据缺失防伪 (INCONCLUSIVE)</span>;
                   case 'INVALID':
-                    return <span className="px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-bold text-[10px]">🟣 前提失效 (INVALID)</span>;
+                    return <span className="px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-bold text-xs">🟣 前提失效 (INVALID)</span>;
                   default:
-                    return <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px]">待核验</span>;
+                    return <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-xs">待核验</span>;
                 }
               };
 
@@ -714,22 +714,22 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                   <CardHeader className="pb-3 border-b border-slate-800/80">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-teal-400 border border-slate-700">
+                        <span className="font-mono text-sm px-2 py-0.5 rounded bg-slate-800 text-teal-400 border border-slate-700">
                           #{hypo.id}
                         </span>
                         <CardTitle className="text-base font-bold text-slate-100">
                           {hypo.target_asset} · {hypo.expected_scenario}
                         </CardTitle>
-                        <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="text-sm px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
                           {hypo.hypothesis_type}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400 font-mono">
+                        <span className="text-sm text-slate-400 font-mono">
                           目标验证日: <strong className="text-slate-200">{formatDateWithWeekday(hypo.target_date)}</strong>
                         </span>
-                        <span className={`text-[11px] px-2 py-0.5 rounded font-mono font-semibold uppercase ${
+                        <span className={`text-xs px-2 py-0.5 rounded font-mono font-semibold uppercase ${
                           hypo.status === 'CLOSED'
                             ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
                             : hypo.status === 'VERIFYING'
@@ -742,19 +742,19 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                     </div>
                   </CardHeader>
 
-                  <CardContent className="p-4 md:p-6 space-y-4 text-xs">
+                  <CardContent className="p-4 md:p-6 space-y-4 text-sm">
                     {/* 推演前提与预期 */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60">
                       <div>
-                        <div className="text-[10px] text-slate-500 font-semibold mb-1">核心逻辑依据 (Premise)</div>
+                        <div className="text-xs text-slate-500 font-semibold mb-1">核心逻辑依据 (Premise)</div>
                         <div className="text-slate-300 leading-relaxed">{hypo.premise_logic}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-teal-400 font-semibold mb-1">预期兑现盘面现象 (Phenomenon)</div>
+                        <div className="text-xs text-teal-400 font-semibold mb-1">预期兑现盘面现象 (Phenomenon)</div>
                         <div className="text-slate-300 leading-relaxed">{hypo.expected_phenomenon}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-rose-400 font-semibold mb-1">失效/证伪刚性条件 (Invalidation)</div>
+                        <div className="text-xs text-rose-400 font-semibold mb-1">失效/证伪刚性条件 (Invalidation)</div>
                         <div className="text-slate-300 leading-relaxed">{hypo.invalidation_condition}</div>
                       </div>
                     </div>
@@ -764,7 +764,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                       {/* Stage 1: 早盘竞价初判 */}
                       <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-200 text-sm">
                             <Clock className="w-3.5 h-3.5 text-teal-400" />
                             <span>早盘竞价初判快照 (AUCTION_0925)</span>
                           </div>
@@ -772,7 +772,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                             <button
                               onClick={() => handleVerify(hypo.id, 'AUCTION_0925')}
                               disabled={verifyingId === hypo.id}
-                              className="px-2.5 py-1 rounded bg-teal-700 hover:bg-teal-600 text-white font-medium text-[11px] transition shadow-sm disabled:opacity-50 flex items-center gap-1"
+                              className="px-2.5 py-1 rounded bg-teal-700 hover:bg-teal-600 text-white font-medium text-xs transition shadow-sm disabled:opacity-50 flex items-center gap-1"
                             >
                               <Play className="w-3 h-3" />
                               {verifyingId === hypo.id ? '核对中...' : '执行早盘初核'}
@@ -781,17 +781,17 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                         </div>
 
                         {vAuction ? (
-                          <div className="space-y-1.5 text-slate-400 text-xs">
+                          <div className="space-y-1.5 text-slate-400 text-sm">
                             <div className="text-slate-300 bg-slate-900/60 p-2 rounded border border-slate-800">
                               <span className="text-slate-500 font-semibold">客观偏差分析: </span>
                               {vAuction.deviation_analysis}
                             </div>
-                            <div className="text-[11px] text-slate-500 font-mono">
+                            <div className="text-xs text-slate-500 font-mono">
                               核验时间: {vAuction.verified_at || '--'}
                             </div>
                           </div>
                         ) : (
-                          <p className="text-slate-500 text-[11px] italic">
+                          <p className="text-slate-500 text-xs italic">
                             早盘 09:25:30 竞价数据到达后，将自动对撞高标溢价与竞价量能比。
                           </p>
                         )}
@@ -800,7 +800,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                       {/* Stage 2: 全天收盘终核 */}
                       <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-200 text-sm">
                             <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
                             <span>全天收盘结案终核 (CLOSE_1530)</span>
                           </div>
@@ -808,7 +808,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                             <button
                               onClick={() => handleVerify(hypo.id, 'CLOSE_1530')}
                               disabled={verifyingId === hypo.id}
-                              className="px-2.5 py-1 rounded bg-indigo-700 hover:bg-indigo-600 text-white font-medium text-[11px] transition shadow-sm disabled:opacity-50 flex items-center gap-1"
+                              className="px-2.5 py-1 rounded bg-indigo-700 hover:bg-indigo-600 text-white font-medium text-xs transition shadow-sm disabled:opacity-50 flex items-center gap-1"
                             >
                               <Play className="w-3 h-3" />
                               {verifyingId === hypo.id ? '终核中...' : '执行收盘终核'}
@@ -817,17 +817,17 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
                         </div>
 
                         {vClose ? (
-                          <div className="space-y-1.5 text-slate-400 text-xs">
+                          <div className="space-y-1.5 text-slate-400 text-sm">
                             <div className="text-slate-300 bg-slate-900/60 p-2 rounded border border-slate-800">
                               <span className="text-slate-500 font-semibold">终局 Gap 归因: </span>
                               {vClose.deviation_analysis}
                             </div>
-                            <div className="text-[11px] text-slate-500 font-mono">
+                            <div className="text-xs text-slate-500 font-mono">
                               终核时间: {vClose.verified_at || '--'}
                             </div>
                           </div>
                         ) : (
-                          <p className="text-slate-500 text-[11px] italic">
+                          <p className="text-slate-500 text-xs italic">
                             15:30 收盘后终局裁决。联合唯一键确保双快照并存，不可物理覆盖。
                           </p>
                         )}
@@ -850,16 +850,16 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ date: s
 function DimensionCard({ dimension: dim }: { dimension: SubDimensionState }) {
   const getQualityBadge = (quality: string) => {
     const q = quality.toLowerCase();
-    if (q === 'full') return <span className="text-[11px] text-emerald-400">Full</span>;
-    if (q === 'partial') return <span className="text-[11px] text-amber-400">Partial</span>;
-    return <span className="text-[11px] text-rose-400">Invalid</span>;
+    if (q === 'full') return <span className="text-xs text-emerald-400">Full</span>;
+    if (q === 'partial') return <span className="text-xs text-amber-400">Partial</span>;
+    return <span className="text-xs text-rose-400">Invalid</span>;
   };
 
   return (
     <Card className="bg-slate-900/90 border-slate-800 flex flex-col justify-between">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-mono font-bold text-teal-400 uppercase tracking-wide">
+          <span className="text-sm font-mono font-bold text-teal-400 uppercase tracking-wide">
             {dim.dimension_id}
           </span>
           {getQualityBadge(dim.quality)}
@@ -867,24 +867,24 @@ function DimensionCard({ dimension: dim }: { dimension: SubDimensionState }) {
         <CardTitle className="text-base font-semibold text-slate-100 mt-1">
           {dim.name}
         </CardTitle>
-        <div className="text-xs text-slate-400 line-clamp-1">{dim.semantics_desc}</div>
+        <div className="text-sm text-slate-400 line-clamp-1">{dim.semantics_desc}</div>
       </CardHeader>
 
       <CardContent className="space-y-3 pt-1">
         <div className="flex items-baseline justify-between border-t border-slate-800/80 pt-2">
-          <span className="text-xs text-slate-400">归一化得分</span>
+          <span className="text-sm text-slate-400">归一化得分</span>
           <span className="text-2xl font-mono font-bold text-white">
             {dim.score !== null ? dim.score : '--'}
           </span>
         </div>
 
-        <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center justify-between text-sm">
           <span className="text-slate-400">物理刻度标签:</span>
           <span className="font-medium text-slate-200">{dim.state_label || '--'}</span>
         </div>
 
         {/* 关键物理指标数值 */}
-        <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800/60 space-y-1 text-xs font-mono">
+        <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800/60 space-y-1 text-sm font-mono">
           {Object.entries(dim.metrics || {}).map(([key, val]) => (
             <div key={key} className="flex justify-between items-center text-slate-400">
               <span className="truncate max-w-[150px]">{key}</span>
@@ -893,7 +893,7 @@ function DimensionCard({ dimension: dim }: { dimension: SubDimensionState }) {
           ))}
         </div>
 
-        <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1">
+        <div className="text-xs text-slate-500 flex items-center justify-between pt-1">
           <span>极性元数据: {dim.metric_polarity}</span>
           <span>非买卖信号</span>
         </div>
@@ -915,22 +915,22 @@ function D3OrthogonalCard({ dimension: dim }: { dimension: SubDimensionState }) 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-teal-950 text-teal-400 border border-teal-800">
+              <span className="text-sm font-mono font-bold px-2 py-0.5 rounded bg-teal-950 text-teal-400 border border-teal-800">
                 {dim.dimension_id} 特殊正交维度
               </span>
-              <span className="text-xs text-amber-400 font-medium">
+              <span className="text-sm text-amber-400 font-medium">
                 [铁律：核心综合分强制为 None，杜绝标量塌缩]
               </span>
             </div>
             <CardTitle className="text-lg font-bold text-white mt-1.5">
               {dim.name}
             </CardTitle>
-            <p className="text-xs text-slate-400 mt-0.5">{dim.semantics_desc}</p>
+            <p className="text-sm text-slate-400 mt-0.5">{dim.semantics_desc}</p>
           </div>
 
           <div className="text-right sm:self-center">
-            <span className="text-xs text-slate-400 block">诊断参考分 (仅回溯备查):</span>
-            <span className="text-lg font-mono font-bold text-slate-300">
+            <span className="text-sm text-slate-400 block">诊断参考分 (仅回溯备查):</span>
+            <span className="text-xl font-mono font-bold text-slate-300">
               {dim.reference_score !== null && dim.reference_score !== undefined
                 ? dim.reference_score
                 : '--'}
@@ -950,19 +950,19 @@ function D3OrthogonalCard({ dimension: dim }: { dimension: SubDimensionState }) 
                   子域 A：投机高标结构事实
                 </h4>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+              <span className="text-sm px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                 质量: {subA?.quality || 'partial'}
               </span>
             </div>
 
             <div className="flex items-baseline justify-between border-t border-slate-800/80 pt-2">
-              <span className="text-xs text-slate-400">子域独立物理得分</span>
+              <span className="text-sm text-slate-400">子域独立物理得分</span>
               <span className="text-xl font-mono font-bold text-orange-300">
                 {subA?.score !== null && subA?.score !== undefined ? subA.score : '--'}
               </span>
             </div>
 
-            <div className="space-y-1.5 text-xs font-mono">
+            <div className="space-y-1.5 text-sm font-mono">
               <div className="flex justify-between py-1 border-b border-slate-800/40 text-slate-400">
                 <span>最高空间板 (max_board_height):</span>
                 <span className="text-white font-bold">
@@ -978,7 +978,7 @@ function D3OrthogonalCard({ dimension: dim }: { dimension: SubDimensionState }) 
                 </span>
               </div>
             </div>
-            <div className="text-[11px] text-slate-500">
+            <div className="text-xs text-slate-500">
               描述连板空间与高标梯度，不掺杂任何涨跌停总数。
             </div>
           </div>
@@ -992,19 +992,19 @@ function D3OrthogonalCard({ dimension: dim }: { dimension: SubDimensionState }) 
                   子域 B：尾部极端博弈事实
                 </h4>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+              <span className="text-sm px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                 质量: {subB?.quality || 'partial'}
               </span>
             </div>
 
             <div className="flex items-baseline justify-between border-t border-slate-800/80 pt-2">
-              <span className="text-xs text-slate-400">子域独立物理得分</span>
+              <span className="text-sm text-slate-400">子域独立物理得分</span>
               <span className="text-xl font-mono font-bold text-cyan-300">
                 {subB?.score !== null && subB?.score !== undefined ? subB.score : '--'}
               </span>
             </div>
 
-            <div className="space-y-1.5 text-xs font-mono">
+            <div className="space-y-1.5 text-sm font-mono">
               <div className="flex justify-between py-1 border-b border-slate-800/40 text-slate-400">
                 <span>全市场涨停 (limit_up_count):</span>
                 <span className="text-rose-400 font-bold">
@@ -1032,7 +1032,7 @@ function D3OrthogonalCard({ dimension: dim }: { dimension: SubDimensionState }) 
                 </span>
               </div>
             </div>
-            <div className="text-[11px] text-slate-500">
+            <div className="text-xs text-slate-500">
               描述涨停封板率与极端尾部冷热，由 D3 独立原生统计。
             </div>
           </div>

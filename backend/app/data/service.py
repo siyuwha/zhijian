@@ -234,3 +234,14 @@ class DataService:
     async def get_stock_trends(self, codes: list[str]) -> DataResult:
         return await self._execute_pipeline("stock_trends", "get_stock_trends", codes)
 
+    async def get_market_index_trend(self, index_code: str = "sh000001") -> Optional[Dict[str, Any]]:
+        """获取大盘基准指数分时走势 (上证指数等)"""
+        try:
+            from backend.app.data.providers.eastmoney import EastmoneyProvider
+            em = EastmoneyProvider()
+            return await em.get_market_index_trend(index_code)
+        except Exception as e:
+            logger.warning(f"Failed to fetch market index trend in DataService: {e}")
+            return None
+
+

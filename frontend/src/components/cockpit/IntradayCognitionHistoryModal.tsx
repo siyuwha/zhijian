@@ -106,14 +106,14 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
                 <h2 className="text-base font-black tracking-tight text-slate-100 flex items-center gap-2">
                   <span>当日 AI 题材推演触发记录与博弈轨迹</span>
                 </h2>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-700/60 font-mono">
+                <span className="text-sm font-bold px-2.5 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-700/60 font-mono">
                   {selectedDate}
                 </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 font-mono">
+                <span className="text-sm font-semibold px-2 py-0.5 rounded-md bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 font-mono">
                   共 {history.length} 次触发
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-sm text-slate-400 mt-0.5">
                 全自动盘面事件驱动（开盘定调、领涨主线轮动更替、资金剪刀差异动突变、午盘定型与尾盘沉淀），自动留痕可审计追溯
               </p>
             </div>
@@ -179,14 +179,14 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
                     <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-white/5">
                       <div className="flex items-center gap-2">
                         {/* 时间戳 */}
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-mono text-xs font-bold tabular-nums">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-mono text-sm font-bold tabular-nums">
                           <Clock className="w-3 h-3 text-cyan-400" />
                           <span>{item.time || '--:--:--'}</span>
                         </div>
 
                         {/* 事件类型标签 */}
                         <div
-                          className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${badge.bg}`}
+                          className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-xs font-bold ${badge.bg}`}
                         >
                           {badge.icon}
                           <span>{item.event_type || '盘中推演'}</span>
@@ -194,21 +194,21 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
 
                         {/* 最新标旗 */}
                         {isLatest && (
-                          <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold animate-pulse">
+                          <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold animate-pulse">
                             最新态势
                           </span>
                         )}
                       </div>
 
                       {/* 盘面资金攻防与模型 */}
-                      <div className="flex items-center gap-2 text-xs font-mono">
+                      <div className="flex items-center gap-2 text-sm font-mono">
                         {item.lead_sector && (
                           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800/80 border border-white/5">
-                            <span className="text-slate-400 text-[11px]">主攻</span>
+                            <span className="text-slate-400 text-xs">主攻</span>
                             <span className="text-rose-400 font-bold">
                               {item.lead_sector}
                               {typeof item.lead_net === 'number' && (
-                                <span className="ml-1 text-[11px] tabular-nums">
+                                <span className="ml-1 text-xs tabular-nums">
                                   ({item.lead_net >= 0 ? `+${item.lead_net.toFixed(1)}` : item.lead_net.toFixed(1)}亿)
                                 </span>
                               )}
@@ -216,11 +216,11 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
                             {item.tail_sector && (
                               <>
                                 <span className="text-slate-600">/</span>
-                                <span className="text-slate-400 text-[11px]">抽血</span>
+                                <span className="text-slate-400 text-xs">抽血</span>
                                 <span className="text-emerald-400 font-bold">
                                   {item.tail_sector}
                                   {typeof item.tail_net === 'number' && (
-                                    <span className="ml-1 text-[11px] tabular-nums">
+                                    <span className="ml-1 text-xs tabular-nums">
                                       ({item.tail_net >= 0 ? `+${item.tail_net.toFixed(1)}` : item.tail_net.toFixed(1)}亿)
                                     </span>
                                   )}
@@ -230,7 +230,7 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
                           </div>
                         )}
 
-                        <div className="flex items-center gap-1 text-[11px] text-slate-400 px-2 py-0.5 rounded bg-white/5 border border-white/5">
+                        <div className="flex items-center gap-1 text-xs text-slate-400 px-2 py-0.5 rounded bg-white/5 border border-white/5">
                           <Cpu className="w-3 h-3 text-purple-400" />
                           <span>
                             {item.source === 'LLM_INFERRED'
@@ -243,10 +243,10 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
 
                     {/* 题材战场资金轮动本质 (核心推演结论) */}
                     <div className="border-l-2 border-purple-400/80 pl-3 py-1 bg-purple-500/5 rounded-r">
-                      <div className="text-[11px] font-bold text-purple-300 uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <div className="text-xs font-bold text-purple-300 uppercase tracking-wider mb-1 flex items-center gap-1">
                         <span>题材战场资金轮动推演结论</span>
                       </div>
-                      <p className="text-xs text-slate-200 leading-relaxed font-sans">
+                      <p className="text-sm text-slate-200 leading-relaxed font-sans">
                         {item.sector_rotation || '盘中题材快速轮动博弈中'}
                       </p>
                     </div>
@@ -257,7 +257,7 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
                         <button
                           type="button"
                           onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                          className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-cyan-300 transition-colors"
+                          className="flex items-center gap-1 text-xs text-slate-400 hover:text-cyan-300 transition-colors"
                         >
                           {isExpanded ? (
                             <>
@@ -273,23 +273,23 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
                         </button>
 
                         {isExpanded && (
-                          <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs animate-in fade-in duration-100">
+                          <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm animate-in fade-in duration-100">
                             {item.track1 && (
                               <div className="p-2.5 rounded-lg bg-slate-950/60 border border-white/5">
-                                <div className="text-[10px] font-bold text-amber-400/90 mb-1">
+                                <div className="text-xs font-bold text-amber-400/90 mb-1">
                                   昨日核心标的表现剖析
                                 </div>
-                                <p className="text-slate-300 text-[11px] leading-relaxed">
+                                <p className="text-slate-300 text-xs leading-relaxed">
                                   {item.track1}
                                 </p>
                               </div>
                             )}
                             {item.track2 && (
                               <div className="p-2.5 rounded-lg bg-slate-950/60 border border-white/5">
-                                <div className="text-[10px] font-bold text-cyan-400/90 mb-1">
+                                <div className="text-xs font-bold text-cyan-400/90 mb-1">
                                   日内最强先锋与高标动态博弈
                                 </div>
-                                <p className="text-slate-300 text-[11px] leading-relaxed">
+                                <p className="text-slate-300 text-xs leading-relaxed">
                                   {item.track2}
                                 </p>
                               </div>
@@ -306,17 +306,17 @@ export const IntradayCognitionHistoryModal: React.FC<IntradayCognitionHistoryMod
         </div>
 
         {/* 底部状态栏 */}
-        <footer className="px-6 py-3 bg-[#0e1526] border-t border-white/10 flex items-center justify-between text-xs text-slate-400 shrink-0">
+        <footer className="px-6 py-3 bg-[#0e1526] border-t border-white/10 flex items-center justify-between text-sm text-slate-400 shrink-0">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-slate-300 text-[11px]">
+            <span className="text-slate-300 text-xs">
               盘中智能事件驱动监听中 · 无需人工刷新，逢变盘自动触发推演并形成审计轨迹
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/10 transition-colors"
+            className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold border border-white/10 transition-colors"
           >
             关闭窗口
           </button>

@@ -29,20 +29,20 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
           <span className="text-sm font-bold text-slate-200">
             问 4 · 主线候选与证据契约 (Candidates)
           </span>
-          <span className="text-[10px] font-mono text-amber-300 bg-amber-950/60 border border-amber-800/80 px-1.5 py-0.5 rounded">
+          <span className="text-xs font-mono text-amber-300 bg-amber-950/60 border border-amber-800/80 px-1.5 py-0.5 rounded">
             PROVISIONAL 候选
           </span>
         </div>
 
         {/* 语义类型收口血缘标签 */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-teal-400 bg-teal-950/40 border border-teal-800/60 px-2 py-0.5 rounded flex items-center gap-1">
+          <span className="text-xs text-teal-400 bg-teal-950/40 border border-teal-800/60 px-2 py-0.5 rounded flex items-center gap-1">
             <Filter className="w-3 h-3" />
             已排除 {lineage.excluded_meta_tags_count} 元标签 / {lineage.solitary_leader_noise_count} 孤立单票
           </span>
           <button
             onClick={onOpenAudit}
-            className="text-[11px] text-slate-400 hover:text-slate-200 underline transition"
+            className="text-xs text-slate-400 hover:text-slate-200 underline transition"
           >
             血缘公式
           </button>
@@ -81,7 +81,7 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-mono text-xs font-bold text-slate-400">
+                    <span className="font-mono text-sm font-bold text-slate-400">
                       #{m.rank}
                     </span>
                     <span className="font-bold text-sm text-slate-100 flex items-center gap-1">
@@ -93,24 +93,24 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
                       )}
                     </span>
                     {m.market_narrative && m.market_narrative !== m.sector_name && (
-                      <span className="text-[10px] text-slate-400 font-mono">
+                      <span className="text-xs text-slate-400 font-mono">
                         ({m.sector_name})
                       </span>
                     )}
                   </div>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap ${tierBadgeClass}`}>
+                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap ${tierBadgeClass}`}>
                     {tierBadgeText}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
                   <span>
                     龙头: <span className="text-slate-200 font-semibold">{m.constituency.leader_name}</span> ({m.constituency.leader_height}B)
                   </span>
                   <span>共振 {m.constituency.limit_up_count} 只涨停</span>
                 </div>
                 {m.subtheme_catalysts && m.subtheme_catalysts.length > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] text-purple-300 bg-purple-950/40 border border-purple-800/40 px-1.5 py-0.5 rounded">
+                  <div className="flex items-center gap-1 text-xs text-purple-300 bg-purple-950/40 border border-purple-800/40 px-1.5 py-0.5 rounded">
                     <Sparkles className="w-3 h-3 text-purple-400" />
                     <span>挂载: {m.subtheme_catalysts[0].sector_name} ({m.subtheme_catalysts[0].catalyst_height}B)</span>
                   </div>
@@ -122,7 +122,7 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
 
         {/* 右侧：所选主线候选正反方证据、成分穿透与重叠度审计 (7 cols) */}
         {currentMainline && (
-          <div className="md:col-span-7 bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex flex-col justify-between overflow-y-auto text-xs space-y-3">
+          <div className="md:col-span-7 bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex flex-col justify-between overflow-y-auto text-sm space-y-3">
             {/* 顶栏：成分与梯队 */}
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
@@ -130,22 +130,22 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
                   <span className="font-bold text-base text-slate-100">
                     {currentMainline.market_narrative || currentMainline.sector_name}
                   </span>
-                  <span className="text-[10px] text-slate-400 bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded font-mono">
+                  <span className="text-xs text-slate-400 bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded font-mono">
                     底座行业: {currentMainline.static_taxonomy_name || `${currentMainline.sector_name} (${currentMainline.sector_code})`}
                   </span>
                   {currentMainline.is_thematic_frontier && (
-                    <span className="text-[10px] text-purple-300 bg-purple-950/60 border border-purple-800/60 px-1.5 py-0.5 rounded flex items-center gap-1">
+                    <span className="text-xs text-purple-300 bg-purple-950/60 border border-purple-800/60 px-1.5 py-0.5 rounded flex items-center gap-1">
                       <Sparkles className="w-3 h-3" /> 前沿题材保护
                     </span>
                   )}
                 </div>
-                <div className="text-slate-400 text-[11px] font-mono">
+                <div className="text-slate-400 text-xs font-mono">
                   梯队: {Object.entries(currentMainline.constituency.ladder_distribution).map(([k, v]) => `${k}:${v}`).join(' / ')}
                 </div>
               </div>
 
               {/* 裁决综述 */}
-              <p className="mt-2 text-slate-300 leading-relaxed font-medium">
+              <p className="mt-2 text-sm text-slate-300 leading-relaxed font-medium">
                 {currentMainline.conviction_summary}
               </p>
             </div>
@@ -153,19 +153,19 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
             {/* 挂载的前沿技术催化分支 (Parent-Child Hierarchy) */}
             {currentMainline.subtheme_catalysts && currentMainline.subtheme_catalysts.length > 0 && (
               <div className="bg-purple-950/20 border border-purple-900/40 rounded-md p-2">
-                <span className="text-purple-300 font-bold flex items-center gap-1 text-[11px] mb-1">
+                <span className="text-purple-300 font-bold flex items-center gap-1 text-xs mb-1">
                   <Sparkles className="w-3.5 h-3.5 text-purple-400" /> 挂载前沿技术催化分支 (Subtheme Catalysts)
                 </span>
                 <div className="space-y-1">
                   {currentMainline.subtheme_catalysts.map((sub, idx) => (
                     <div
                       key={idx}
-                      className="bg-slate-900/80 border border-slate-800 p-1.5 rounded flex items-center justify-between text-[11px]"
+                      className="bg-slate-900/80 border border-slate-800 p-1.5 rounded flex items-center justify-between text-xs"
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-purple-200">{sub.sector_name}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">({sub.sector_code})</span>
-                        <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded font-mono">
+                        <span className="text-xs text-slate-400 font-mono">({sub.sector_code})</span>
+                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded font-mono">
                           分支标杆: {sub.catalyst_leader} ({sub.catalyst_height}B)
                         </span>
                       </div>
@@ -184,18 +184,18 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
             {/* P0.1-1: 成分股重叠度 (Shared-Evidence Ratio) 审计 */}
             {currentMainline.shared_evidence_affiliates && currentMainline.shared_evidence_affiliates.length > 0 && (
               <div className="bg-amber-950/20 border border-amber-900/40 rounded-md p-2">
-                <span className="text-amber-400 font-bold flex items-center gap-1 text-[11px] mb-1">
+                <span className="text-amber-400 font-bold flex items-center gap-1 text-xs mb-1">
                   <Share2 className="w-3.5 h-3.5" /> 成分股重叠度审计 (Shared-Evidence Ratio)
                 </span>
                 <div className="space-y-1">
                   {currentMainline.shared_evidence_affiliates.map((aff, idx) => (
                     <div
                       key={idx}
-                      className="bg-slate-900/80 border border-slate-800 p-1.5 rounded flex items-center justify-between text-[11px]"
+                      className="bg-slate-900/80 border border-slate-800 p-1.5 rounded flex items-center justify-between text-xs"
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-slate-200">{aff.target_sector_name}</span>
-                        <span className="text-[10px] text-slate-400">({aff.relationship})</span>
+                        <span className="text-xs text-slate-400">({aff.relationship})</span>
                       </div>
                       <div className="flex items-center gap-2 font-mono">
                         <span className="text-amber-300">
@@ -213,10 +213,10 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
 
             {/* 正向支撑证据 */}
             <div className="bg-emerald-950/20 border border-emerald-900/40 rounded-md p-2">
-              <span className="text-emerald-400 font-bold flex items-center gap-1 text-[11px] mb-1">
+              <span className="text-emerald-400 font-bold flex items-center gap-1 text-xs mb-1">
                 <CheckCircle2 className="w-3.5 h-3.5" /> 正向支撑证据 (Constituency Support)
               </span>
-              <ul className="list-disc list-inside text-slate-300 space-y-0.5 text-[11px]">
+              <ul className="list-disc list-inside text-slate-300 space-y-0.5 text-xs">
                 {currentMainline.supporting_evidence.map((note, idx) => (
                   <li key={idx}>{note}</li>
                 ))}
@@ -225,10 +225,10 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
 
             {/* 反方证据集 (波普尔批判) */}
             <div className="bg-rose-950/20 border border-rose-900/40 rounded-md p-2">
-              <span className="text-rose-400 font-bold flex items-center gap-1 text-[11px] mb-1">
+              <span className="text-rose-400 font-bold flex items-center gap-1 text-xs mb-1">
                 <AlertTriangle className="w-3.5 h-3.5" /> 反方证据集 (Counter-Evidence Set 风险暴露)
               </span>
-              <ul className="list-disc list-inside text-rose-200/90 space-y-0.5 text-[11px]">
+              <ul className="list-disc list-inside text-rose-200/90 space-y-0.5 text-xs">
                 {currentMainline.counter_evidence.map((note, idx) => (
                   <li key={idx}>{note}</li>
                 ))}
@@ -237,14 +237,14 @@ export const MainlineMatrixCard: React.FC<MainlineMatrixCardProps> = ({
 
             {/* 独立成分股清单 */}
             <div className="pt-2 border-t border-slate-800/60">
-              <span className="text-slate-400 text-[11px] block mb-1">
+              <span className="text-slate-400 text-xs block mb-1">
                 独立涨停成分 ({currentMainline.constituency.limit_up_count} 只):
               </span>
               <div className="flex flex-wrap gap-1">
                 {currentMainline.constituency.constituent_symbols.map((sym, idx) => (
                   <span
                     key={idx}
-                    className="bg-slate-900 text-slate-300 border border-slate-800 px-1.5 py-0.5 rounded text-[11px]"
+                    className="bg-slate-900 text-slate-300 border border-slate-800 px-1.5 py-0.5 rounded text-xs"
                   >
                     {sym}
                   </span>

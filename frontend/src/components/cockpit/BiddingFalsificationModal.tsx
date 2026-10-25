@@ -45,12 +45,12 @@ export const BiddingFalsificationModal: React.FC<BiddingFalsificationModalProps>
                   09:25 集合竞价假设核验与实盘对账
                 </h2>
                 {verdict && (
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-700/60">
+                  <span className="text-sm font-mono font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-700/60">
                     {verdict.trade_date}
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-sm text-slate-400 mt-0.5">
                 昨夜多空预设 vs 今晨 09:25 撮合实测 · 客观检验关键标的开盘承接
               </p>
             </div>

@@ -39,7 +39,7 @@ export function ResearchBoundaryBanner({
     <div
       role="alert"
       className={cn(
-        "max-w-7xl mx-auto w-full bg-amber-950/25 border border-amber-500/30 rounded-2xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs text-amber-200 backdrop-blur-md transition-all shadow-sm",
+        "max-w-7xl mx-auto w-full bg-amber-950/25 border border-amber-500/30 rounded-2xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-sm text-amber-200 backdrop-blur-md transition-all shadow-sm",
         className
       )}
       {...props}
@@ -57,7 +57,7 @@ export function ResearchBoundaryBanner({
 
       <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto ml-auto">
         {badgeText && (
-          <span className="text-[10px] font-mono tracking-wider bg-amber-900/40 px-2 py-0.5 rounded-full border border-amber-600/40 text-amber-300 select-none shadow-sm">
+          <span className="text-xs font-mono tracking-wider bg-amber-900/40 px-2.5 py-0.5 rounded-full border border-amber-600/40 text-amber-300 select-none shadow-sm">
             {badgeText}
           </span>
         )}

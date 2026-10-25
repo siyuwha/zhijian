@@ -54,7 +54,7 @@ export const AuditDrawer: React.FC<AuditDrawerProps> = ({
             一、官方数据来源与核验时点
           </h3>
 
-          <div className="bg-slate-950/80 border border-white/5 rounded-xl p-3 space-y-2 text-xs">
+          <div className="bg-slate-950/80 border border-white/5 rounded-xl p-3 space-y-2 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-slate-400">统计日期与时点</span>
               <span className="font-mono text-purple-300 font-semibold">{snapshot.trade_date} 15:00 官方收盘结算</span>
@@ -74,13 +74,13 @@ export const AuditDrawer: React.FC<AuditDrawerProps> = ({
             <div className="pt-2 border-t border-white/5">
               <button
                 onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-                className="text-[10px] text-slate-500 hover:text-slate-400 flex items-center justify-between w-full"
+                className="text-xs text-slate-500 hover:text-slate-400 flex items-center justify-between w-full"
               >
                 <span>底层数字校验指纹</span>
                 <span>{showTechnicalDetails ? '收起 ▴' : '展开 ▾'}</span>
               </button>
               {showTechnicalDetails && (
-                <div className="mt-2 space-y-1.5 font-mono text-[10px] text-slate-400 bg-black/40 p-2 rounded">
+                <div className="mt-2 space-y-1.5 font-mono text-xs text-slate-400 bg-black/40 p-2 rounded">
                   <div className="truncate">Truth 指纹: {snapshot.truth.truth_fingerprint}</div>
                   <div className="truncate">Cognition 指纹: {snapshot.cognition.cognition_fingerprint}</div>
                   <div className="truncate">Envelope 指纹: {snapshot.envelope_fingerprint}</div>
@@ -98,45 +98,45 @@ export const AuditDrawer: React.FC<AuditDrawerProps> = ({
               二、主线题材准入与过滤漏斗
             </h3>
             {la.is_mathematically_closed && (
-              <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded">
+              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded">
                 <CheckCircle className="w-3 h-3" /> 筛选逻辑闭环
               </span>
             )}
           </div>
 
-          <div className="bg-slate-950/80 border border-white/5 rounded-xl p-3 space-y-2 text-xs">
-            <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
+          <div className="bg-slate-950/80 border border-white/5 rounded-xl p-3 space-y-2 text-sm">
+            <div className="grid grid-cols-2 gap-2 font-mono text-xs">
               <div className="p-2 bg-slate-900/60 rounded-lg border border-white/5">
-                <span className="text-slate-400 block text-[10px]">全市场评估题材数</span>
-                <span className="text-base font-bold text-slate-200 mt-0.5 block">{la.total_raw_evaluated}</span>
+                <span className="text-slate-400 block text-xs">全市场评估题材数</span>
+                <span className="text-lg font-bold text-slate-200 mt-0.5 block">{la.total_raw_evaluated}</span>
               </div>
               <div className="p-2 bg-slate-900/60 rounded-lg border border-white/5">
-                <span className="text-slate-400 block text-[10px]">通过初步准入题材</span>
-                <span className="text-base font-bold text-purple-300 mt-0.5 block">{la.admission_admitted_count}</span>
+                <span className="text-slate-400 block text-xs">通过初步准入题材</span>
+                <span className="text-lg font-bold text-purple-300 mt-0.5 block">{la.admission_admitted_count}</span>
               </div>
               <div className="p-2 bg-slate-900/60 rounded-lg border border-white/5">
-                <span className="text-slate-400 block text-[10px]">排除统计/区域非交易概念</span>
-                <span className="text-base font-bold text-amber-400 mt-0.5 block">{la.excluded_meta_tags_count}</span>
+                <span className="text-slate-400 block text-xs">排除统计/区域非交易概念</span>
+                <span className="text-lg font-bold text-amber-400 mt-0.5 block">{la.excluded_meta_tags_count}</span>
               </div>
               <div className="p-2 bg-slate-900/60 rounded-lg border border-white/5">
-                <span className="text-slate-400 block text-[10px]">排除单票寄生概念</span>
-                <span className="text-base font-bold text-amber-400 mt-0.5 block">{la.solitary_leader_noise_count}</span>
+                <span className="text-slate-400 block text-xs">排除单票寄生概念</span>
+                <span className="text-lg font-bold text-amber-400 mt-0.5 block">{la.solitary_leader_noise_count}</span>
               </div>
               <div className="p-2 bg-slate-900/60 rounded-lg border border-white/5">
-                <span className="text-slate-400 block text-[10px]">过滤日内弱脉冲杂音</span>
-                <span className="text-base font-bold text-slate-400 mt-0.5 block">{la.pulse_noise_count}</span>
+                <span className="text-slate-400 block text-xs">过滤日内弱脉冲杂音</span>
+                <span className="text-lg font-bold text-slate-400 mt-0.5 block">{la.pulse_noise_count}</span>
               </div>
               <div className="p-2 bg-slate-900/60 rounded-lg border border-white/5">
-                <span className="text-slate-400 block text-[10px]">重合成分聚类去重</span>
-                <span className="text-base font-bold text-indigo-400 mt-0.5 block">{la.deduplicated_clusters_count}</span>
+                <span className="text-slate-400 block text-xs">重合成分聚类去重</span>
+                <span className="text-lg font-bold text-indigo-400 mt-0.5 block">{la.deduplicated_clusters_count}</span>
               </div>
               <div className="p-2 bg-slate-900/60 rounded-lg border border-white/5">
-                <span className="text-slate-400 block text-[10px]">有效主线候选池</span>
-                <span className="text-base font-bold text-cyan-300 mt-0.5 block">{la.eligible_candidates_count}</span>
+                <span className="text-slate-400 block text-xs">有效主线候选池</span>
+                <span className="text-lg font-bold text-cyan-300 mt-0.5 block">{la.eligible_candidates_count}</span>
               </div>
               <div className="p-2 bg-slate-900/60 rounded-lg border border-purple-500/20 bg-purple-950/20">
-                <span className="text-purple-300 block text-[10px] font-semibold">驾驶舱重点聚焦展示</span>
-                <span className="text-base font-bold text-purple-300 mt-0.5 block">{la.top_mainlines_count} 个核心方向</span>
+                <span className="text-purple-300 block text-xs font-semibold">驾驶舱重点聚焦展示</span>
+                <span className="text-lg font-bold text-purple-300 mt-0.5 block">{la.top_mainlines_count} 个核心方向</span>
               </div>
             </div>
           </div>
@@ -151,7 +151,7 @@ export const AuditDrawer: React.FC<AuditDrawerProps> = ({
             </h3>
             <button
               onClick={handleCopyJson}
-              className="text-xs font-medium text-purple-400 hover:text-purple-300 flex items-center gap-1 transition"
+              className="text-sm font-medium text-purple-400 hover:text-purple-300 flex items-center gap-1 transition"
             >
               {copied ? (
                 <>
@@ -165,7 +165,7 @@ export const AuditDrawer: React.FC<AuditDrawerProps> = ({
             </button>
           </div>
 
-          <pre className="flex-1 bg-slate-950 p-3 rounded-xl border border-white/5 font-mono text-[10px] text-slate-400 overflow-auto max-h-52">
+          <pre className="flex-1 bg-slate-950 p-3 rounded-xl border border-white/5 font-mono text-xs text-slate-400 overflow-auto max-h-52">
             {JSON.stringify(snapshot, null, 2)}
           </pre>
         </div>

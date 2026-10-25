@@ -69,17 +69,17 @@ const SIZE_CONFIGS: Record<
   xs: {
     pill: "px-2 py-0.5 gap-1",
     dot: "w-1.5 h-1.5",
-    text: "text-[10px] leading-tight font-mono",
+    text: "text-xs leading-tight font-mono",
   },
   sm: {
     pill: "px-2.5 py-1 gap-1.5",
     dot: "w-2 h-2",
-    text: "text-xs font-mono font-medium",
+    text: "text-sm font-mono font-medium",
   },
   md: {
     pill: "px-3 py-1.5 gap-2",
     dot: "w-2.5 h-2.5",
-    text: "text-xs font-semibold",
+    text: "text-sm font-semibold",
   },
 };
 

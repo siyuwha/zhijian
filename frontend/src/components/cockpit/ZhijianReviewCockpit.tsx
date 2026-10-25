@@ -423,11 +423,11 @@ export function ZhijianReviewCockpit({
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-base tracking-widest text-white">知见 · 全景深度复盘</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold tracking-wider">
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold tracking-wider">
                 认知推演 v4.2
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 -mt-0.5">A股短线微观博弈 · 假说证伪闭环</span>
+            <span className="text-xs text-slate-400 -mt-0.5">A股短线微观博弈 · 假说证伪闭环</span>
           </div>
 
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
@@ -439,7 +439,7 @@ export function ZhijianReviewCockpit({
                 <button
                   type="button"
                   onClick={() => setDatePickerOpen(!datePickerOpen)}
-                  className="text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-200 font-mono border border-white/10 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                  className="text-sm px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-200 font-mono border border-white/10 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   title="点击切换历史复盘日期"
                 >
                   <Calendar className="w-3.5 h-3.5 text-amber-400" />
@@ -449,7 +449,7 @@ export function ZhijianReviewCockpit({
 
                 {datePickerOpen && (
                   <div className="absolute left-0 mt-2 w-64 bg-[#0B0E17] border border-white/10 rounded-xl shadow-2xl py-1 z-50 divide-y divide-white/5 animate-fade-in backdrop-blur-xl">
-                    <div className="px-3 py-1.5 text-[10px] text-slate-500 font-mono uppercase tracking-wider">
+                    <div className="px-3 py-1.5 text-xs text-slate-500 font-mono uppercase tracking-wider">
                       切换历史复盘日 ({historicalDates.length})
                     </div>
                     <div className="max-h-64 overflow-y-auto no-scrollbar">
@@ -461,7 +461,7 @@ export function ZhijianReviewCockpit({
                             setDatePickerOpen(false);
                             if (onSelectDate) onSelectDate(item.date);
                           }}
-                          className={`w-full text-left px-3 py-2 text-xs font-mono flex items-center justify-between hover:bg-white/5 transition ${
+                          className={`w-full text-left px-3 py-2 text-sm font-mono flex items-center justify-between hover:bg-white/5 transition ${
                             item.date === date
                               ? 'text-amber-400 bg-amber-950/40 font-bold'
                               : 'text-slate-300'
@@ -470,12 +470,12 @@ export function ZhijianReviewCockpit({
                           <div className="flex items-center gap-1.5">
                             <span>{formatDateWithWeekday(item.date)}</span>
                             {idx === 0 && (
-                              <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded font-bold">
+                              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded font-bold">
                                 最新
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-xs text-slate-500">
                             {item.state_label || (item.composite_score ? `${item.composite_score}分` : '')}
                           </span>
                         </button>
@@ -485,12 +485,12 @@ export function ZhijianReviewCockpit({
                 )}
               </div>
             ) : (
-              <span className="text-xs px-2.5 py-1 rounded bg-white/5 text-slate-300 font-mono border border-white/10">
+              <span className="text-sm px-2.5 py-1 rounded bg-white/5 text-slate-300 font-mono border border-white/10">
                 {formatDateWithWeekday(date) || `${date} · 盘后复盘`}
               </span>
             )}
 
-            <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded bg-amber-950/40 text-amber-300 font-medium border border-amber-800/40">
+            <span className="hidden sm:inline-block text-sm px-2.5 py-1 rounded bg-amber-950/40 text-amber-300 font-medium border border-amber-800/40">
               周期定位：{cyclePhase}
             </span>
           </div>
@@ -498,7 +498,7 @@ export function ZhijianReviewCockpit({
 
         {/* 顶部工具链 */}
         <div className="flex items-center gap-2">
-          <span className="hidden xl:inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded bg-emerald-950/40 text-emerald-400 font-mono border border-emerald-800/40">
+          <span className="hidden xl:inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-emerald-950/40 text-emerald-400 font-mono border border-emerald-800/40">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             16:30 自动收盘结算
           </span>
@@ -506,7 +506,7 @@ export function ZhijianReviewCockpit({
           {onToggleArchiveView && (
             <button
               onClick={onToggleArchiveView}
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
+              className="text-sm px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
               title="切换至历史复盘列表视图"
             >
               <ListFilter className="w-3.5 h-3.5 text-slate-400" />
@@ -529,7 +529,7 @@ export function ZhijianReviewCockpit({
                 }
               }}
               disabled={isRegenerating}
-              className="text-xs px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition active:scale-95 shadow-sm bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30 disabled:opacity-50"
+              className="text-sm px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition active:scale-95 shadow-sm bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30 disabled:opacity-50"
               title="基于最新大模型与物理事实重新推演生成当日研报"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />
@@ -539,7 +539,7 @@ export function ZhijianReviewCockpit({
 
           <button
             onClick={copyFullMarkdown}
-            className={`text-xs px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition active:scale-95 shadow-sm ${
+            className={`text-sm px-3 py-1.5 rounded-lg font-medium border flex items-center gap-1.5 transition active:scale-95 shadow-sm ${
               copied
                 ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700/80'
                 : 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10'
@@ -561,7 +561,7 @@ export function ZhijianReviewCockpit({
 
           <button
             onClick={() => setEvidenceOpen(!evidenceOpen)}
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
+            className="text-sm px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 transition"
           >
             <span className="hidden lg:inline">伴随证据:</span>
             <span className={evidenceOpen ? "text-amber-400 font-semibold" : "text-slate-500"}>
@@ -571,7 +571,7 @@ export function ZhijianReviewCockpit({
 
           <button
             onClick={() => setAiDrawerOpen(true)}
-            className="text-xs px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-bold flex items-center gap-1.5 transition active:scale-95 shadow-md shadow-amber-900/40"
+            className="text-sm px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-bold flex items-center gap-1.5 transition active:scale-95 shadow-md shadow-amber-900/40"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>向 AI 深入提问</span>
@@ -581,7 +581,7 @@ export function ZhijianReviewCockpit({
 
       {/* Toast 提示飘窗 */}
       {toastMessage && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-[#0F1422] border border-amber-500/40 text-amber-100 px-5 py-2.5 rounded-xl text-xs shadow-2xl backdrop-blur-xl flex items-center gap-3 animate-fade-in">
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-[#0F1422] border border-amber-500/40 text-amber-100 px-5 py-2.5 rounded-xl text-sm shadow-2xl backdrop-blur-xl flex items-center gap-3 animate-fade-in">
           <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</div>
           <span className="font-medium">{toastMessage}</span>
         </div>
@@ -594,8 +594,8 @@ export function ZhijianReviewCockpit({
         <main className="flex-1 p-6 lg:p-10 overflow-y-auto space-y-8 max-w-5xl mx-auto">
           
           {/* 研报快速锚点索引横栏（自适应动态章节与传统11章） */}
-          <nav className="flex items-center gap-1.5 overflow-x-auto py-2.5 px-3.5 rounded-xl bg-[#0B0E17] border border-white/10 text-xs no-scrollbar shadow-lg">
-            <span className="text-slate-500 font-mono text-[11px] shrink-0 mr-1 font-semibold flex items-center gap-1">
+          <nav className="flex items-center gap-1.5 overflow-x-auto py-2.5 px-3.5 rounded-xl bg-[#0B0E17] border border-white/10 text-sm no-scrollbar shadow-lg">
+            <span className="text-slate-500 font-mono text-xs shrink-0 mr-1 font-semibold flex items-center gap-1">
               <Compass className="w-3.5 h-3.5 text-amber-400" />
               {reportNavItems ? '研报导读:' : '11章直达:'}
             </span>
@@ -644,51 +644,51 @@ export function ZhijianReviewCockpit({
               <div className="col-span-12 lg:col-span-7 bg-[#0B0E17] border border-white/10 p-5 rounded-xl flex flex-col justify-between space-y-4 shadow-xl">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] text-slate-400">三大指数微观博弈剪刀差</span>
-                    <span className="text-[10px] font-mono text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/40">
+                    <span className="text-xs text-slate-400">三大指数微观博弈剪刀差</span>
+                    <span className="text-xs font-mono text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/40">
                       剪刀差裂口: {scissorDiff}%
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-3 pt-1">
                     {/* 上证指数 */}
                     <div className="bg-black/40 p-3 rounded-lg border border-white/5">
-                      <div className="text-[11px] text-slate-400">上证指数 (大盘)</div>
+                      <div className="text-xs text-slate-400">上证指数 (大盘)</div>
                       <div className="text-xl font-black font-mono text-white mt-1">
                         {typeof shClose === 'number' ? shClose.toFixed(2) : shClose}
                       </div>
-                      <div className={`text-xs font-mono font-bold flex items-center gap-1 mt-0.5 ${shPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <div className={`text-sm font-mono font-bold flex items-center gap-1 mt-0.5 ${shPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                         <span>{shPct >= 0 ? `+${shPct.toFixed(2)}%` : `${shPct.toFixed(2)}%`}</span>
-                        <span className="text-[9px] text-slate-500 font-normal">({shChange})</span>
+                        <span className="text-[10px] text-slate-500 font-normal">({shChange})</span>
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-1">
+                      <div className="text-xs text-slate-400 mt-1">
                         {shPct >= 0 ? '偏强抗跌震荡' : '大盘承压调整'}
                       </div>
                     </div>
                     {/* 深证成指 */}
                     <div className="bg-black/40 p-3 rounded-lg border border-white/5">
-                      <div className="text-[11px] text-slate-400">深证成指</div>
+                      <div className="text-xs text-slate-400">深证成指</div>
                       <div className="text-xl font-black font-mono text-white mt-1">
                         {typeof szClose === 'number' ? szClose.toFixed(2) : szClose}
                       </div>
-                      <div className={`text-xs font-mono font-bold flex items-center gap-1 mt-0.5 ${szPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <div className={`text-sm font-mono font-bold flex items-center gap-1 mt-0.5 ${szPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                         <span>{szPct >= 0 ? `+${szPct.toFixed(2)}%` : `${szPct.toFixed(2)}%`}</span>
-                        <span className="text-[9px] text-slate-500 font-normal">({szChange})</span>
+                        <span className="text-[10px] text-slate-500 font-normal">({szChange})</span>
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-1">
+                      <div className="text-xs text-slate-400 mt-1">
                         {szPct >= 0 ? '跟随多头扩散' : '成长题材承压'}
                       </div>
                     </div>
                     {/* 创业板指 */}
                     <div className="bg-black/40 p-3 rounded-lg border border-white/5">
-                      <div className="text-[11px] text-slate-400">创业板指 (成长)</div>
+                      <div className="text-xs text-slate-400">创业板指 (成长)</div>
                       <div className="text-xl font-black font-mono text-white mt-1">
                         {typeof cybClose === 'number' ? cybClose.toFixed(2) : cybClose}
                       </div>
-                      <div className={`text-xs font-mono font-bold flex items-center gap-1 mt-0.5 ${cybPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <div className={`text-sm font-mono font-bold flex items-center gap-1 mt-0.5 ${cybPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                         <span>{cybPct >= 0 ? `+${cybPct.toFixed(2)}%` : `${cybPct.toFixed(2)}%`}</span>
-                        <span className="text-[9px] text-slate-500 font-normal">({cybChange})</span>
+                        <span className="text-[10px] text-slate-500 font-normal">({cybChange})</span>
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-1">
+                      <div className="text-xs text-slate-400 mt-1">
                         {cybPct >= 0 ? '高弹性反弹' : '科技成长分化'}
                       </div>
                     </div>
@@ -698,16 +698,16 @@ export function ZhijianReviewCockpit({
                 {/* 成交额流动性分析栏 */}
                 <div className="border-t border-white/5 pt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div>
-                    <span className="text-[10px] text-slate-500 block">两市全天总成交金额</span>
+                    <span className="text-xs text-slate-500 block">两市全天总成交金额</span>
                     <div className="flex items-baseline gap-1.5 mt-0.5">
                       <span className="text-2xl font-black font-mono text-white">{totalTurnoverStr.replace('万亿元', '').replace('亿元', '')}</span>
-                      <span className="text-xs text-slate-400 font-medium">{totalTurnoverStr.includes('万亿') ? '万亿元' : '亿元'}</span>
-                      <span className={`text-xs font-mono font-bold ml-2 ${shrinkageAmount.startsWith('+') ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <span className="text-sm text-slate-400 font-medium">{totalTurnoverStr.includes('万亿') ? '万亿元' : '亿元'}</span>
+                      <span className={`text-sm font-mono font-bold ml-2 ${shrinkageAmount.startsWith('+') ? 'text-rose-400' : 'text-emerald-400'}`}>
                         环比变动 {shrinkageAmount} ({shrinkagePct})
                       </span>
                     </div>
                   </div>
-                  <div className="text-[11px] text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                  <div className="text-xs text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
                     <span className="text-amber-400 font-bold">流动性评估:</span> {shrinkageAmount.startsWith('+') ? '放量支撑 · 局部资金活跃' : '缩量存量博弈 · 防守为主'}
                   </div>
                 </div>
@@ -718,14 +718,14 @@ export function ZhijianReviewCockpit({
                 
                 {/* 多空极性对决卡 */}
                 <div className="bg-[#0B0E17] border border-white/10 p-4 rounded-xl flex-1 flex flex-col justify-between shadow-xl">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
                     <span>全市场多空涨跌分布</span>
                     <span className="text-slate-500 font-mono">上涨比例: {upRatio}%</span>
                   </div>
                   
                   {/* 极性对比双色柱 (红涨绿跌) */}
                   <div className="my-2 space-y-1.5">
-                    <div className="flex justify-between items-baseline font-mono text-xs font-bold">
+                    <div className="flex justify-between items-baseline font-mono text-sm font-bold">
                       <span className="text-rose-400">
                         {upCount !== null ? `${upCount} 涨 (${upRatio}%)` : '上涨 -- (数据降级)'}
                       </span>
@@ -739,16 +739,16 @@ export function ZhijianReviewCockpit({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
+                  <div className="grid grid-cols-2 gap-2 text-sm font-mono pt-1">
                     <div className="bg-black/30 p-2 rounded border border-white/5">
-                      <div className="text-[10px] text-slate-400">涨停 / 炸板率</div>
-                      <div className="text-sm font-bold text-rose-400 mt-0.5">
-                        {limitUpCount} 家 <span className="text-[10px] text-amber-400 font-normal">(炸板 {brokenRatioStr})</span>
+                      <div className="text-xs text-slate-400">涨停 / 炸板率</div>
+                      <div className="text-base font-bold text-rose-400 mt-0.5">
+                        {limitUpCount} 家 <span className="text-xs text-amber-400 font-normal">(炸板 {brokenRatioStr})</span>
                       </div>
                     </div>
                     <div className="bg-black/30 p-2 rounded border border-white/5">
-                      <div className="text-[10px] text-slate-400">跌停家数</div>
-                      <div className="text-sm font-bold text-emerald-400 mt-0.5">{limitDownCount} 家</div>
+                      <div className="text-xs text-slate-400">跌停家数</div>
+                      <div className="text-base font-bold text-emerald-400 mt-0.5">{limitDownCount} 家</div>
                     </div>
                   </div>
                 </div>
@@ -757,11 +757,11 @@ export function ZhijianReviewCockpit({
                 <div className="bg-[#0B0E17] border-l-4 border-l-amber-500 border-r border-t border-b border-white/10 p-4 rounded-xl">
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="font-bold text-amber-400 tracking-wider">周期状态与推演</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50 font-medium">
+                    <span className="text-xs px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50 font-medium">
                       {cyclePhase}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-sm text-slate-300 leading-relaxed">
                     <strong className="text-white">置信度 {cycleConfidence}：</strong> 
                     全市场多空呈现「{cyclePhase}」格局。严禁盲目臆测，严格以集合竞价探针与刚性证伪红线指导交易防守。
                   </p>
@@ -1267,25 +1267,25 @@ export function ZhijianReviewCockpit({
                 <span className="w-2 h-2 rounded-full bg-amber-400" />
                 <span className="text-xs font-bold text-white tracking-wider">伴随式微观证据</span>
               </div>
-              <span className="text-[10px] text-slate-500">动态联动</span>
+              <span className="text-xs text-slate-500">动态联动</span>
             </div>
 
             {/* 聚焦个股样本 */}
             <div className="bg-[#0B0E17] border border-amber-500/30 p-3.5 rounded-xl shadow-lg">
               <div className="flex justify-between items-center mb-1">
                 <span className="font-bold text-white text-sm">{selectedStock.name}</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">
+                <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">
                   {selectedStock.tag}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed mt-2">
+              <p className="text-sm text-slate-400 leading-relaxed mt-2">
                 {selectedStock.desc}
               </p>
             </div>
 
             {/* 微观关键指标 */}
-            <div className="space-y-2 text-xs">
-              <span className="text-[11px] text-slate-400 font-bold block">当日微观结构关键事实</span>
+            <div className="space-y-2 text-sm">
+              <span className="text-xs text-slate-400 font-bold block">当日微观结构关键事实</span>
               <div className="bg-[#0B0E17] border border-white/10 p-3 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-400">真实涨停家数:</span>
@@ -1308,17 +1308,17 @@ export function ZhijianReviewCockpit({
 
             {/* 推荐高频追问 */}
             <div className="space-y-2 pt-2">
-              <span className="text-[11px] text-slate-400 font-bold block">高频追问建议</span>
-              <div className="space-y-1.5 text-xs">
+              <span className="text-xs text-slate-400 font-bold block">高频追问建议</span>
+              <div className="space-y-1.5 text-sm">
                 <button
                   onClick={() => { setAiDrawerOpen(true); handleSendChat(`今日市场「${cyclePhase}」状态下，前排连板晋级概率多大？`); }}
-                  className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition text-[11px]"
+                  className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition text-xs"
                 >
                   • 今日市场状态下，前排连板晋级概率？
                 </button>
                 <button
                   onClick={() => { setAiDrawerOpen(true); handleSendChat('09:25 集合竞价最核心的刚性证伪指标是什么？'); }}
-                  className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition text-[11px]"
+                  className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition text-xs"
                 >
                   • 09:25 集合竞价最核心的证伪指标？
                 </button>
@@ -1339,13 +1339,13 @@ export function ZhijianReviewCockpit({
               </div>
               <div>
                 <h3 className="font-bold text-white text-sm">知见 · 智能推演助手</h3>
-                <p className="text-[10px] text-slate-400">依据 {date} 盘面真实数据与推演逻辑解答</p>
+                <p className="text-xs text-slate-400">依据 {date} 盘面真实数据与推演逻辑解答</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={handleClearChat}
-                className="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-amber-400 hover:bg-white/10 transition flex items-center gap-1 font-mono border border-white/5"
+                className="px-2.5 py-1 rounded-md text-xs text-slate-400 hover:text-amber-400 hover:bg-white/10 transition flex items-center gap-1 font-mono border border-white/5"
                 title="清空当前日期的 AI 深入推演记录"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -1360,7 +1360,7 @@ export function ZhijianReviewCockpit({
             </div>
           </div>
 
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs leading-relaxed">
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 text-sm leading-relaxed">
             {chatMessages.map((msg, i) => (
               <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'ai' && (
@@ -1397,12 +1397,12 @@ export function ZhijianReviewCockpit({
               onChange={e => setUserInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleSendChat(); }}
               placeholder="输入您的问题，如：明日集合竞价核心防守指标是什么？..."
-              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 placeholder:text-slate-500"
+              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400 placeholder:text-slate-500"
             />
             <button
               onClick={() => handleSendChat()}
               disabled={sendingAi}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg text-xs transition active:scale-95 shadow disabled:opacity-50"
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg text-sm transition active:scale-95 shadow disabled:opacity-50"
             >
               <Send className="w-3.5 h-3.5" />
             </button>

@@ -293,19 +293,19 @@ export default function MonitorPage() {
               <Activity className="h-6 w-6 text-purple-400" />
               盘中动态监控与异动感知 (M4)
             </h1>
-            <div className={`px-2.5 py-1 rounded-full text-xs font-medium border flex items-center gap-1.5 ${sessionInfo.className}`}>
+            <div className={`px-2.5 py-1 rounded-full text-sm font-medium border flex items-center gap-1.5 ${sessionInfo.className}`}>
               <span className={`w-2 h-2 rounded-full ${sessionInfo.dot}`} />
               {sessionInfo.text}
             </div>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="text-base text-slate-400">
             热内存环形时序感知引擎 · 连续分钟度量 · 边沿跃迁检测 · 绝无交易信号
           </p>
         </div>
 
         {/* 交互控制组 */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700/60 text-xs text-slate-300">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700/60 text-sm text-slate-300">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>时钟: <span className="font-mono text-cyan-400 font-semibold">{realtime?.timestamp || '--:--:--'}</span></span>
             <span className="text-slate-500">|</span>
@@ -314,7 +314,7 @@ export default function MonitorPage() {
 
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-all ${
               autoRefresh 
                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30' 
                 : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
@@ -327,7 +327,7 @@ export default function MonitorPage() {
 
           <button
             onClick={() => setIsMuted(!isMuted)}
-            className={`p-2 rounded-lg border text-xs font-medium transition-all ${
+            className={`p-2 rounded-lg border text-sm font-medium transition-all ${
               isMuted 
                 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
                 : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
@@ -340,7 +340,7 @@ export default function MonitorPage() {
           <button
             onClick={handleTriggerScan}
             disabled={triggeringScan}
-            className="px-3.5 py-1.5 bg-indigo-600/30 text-indigo-200 border border-indigo-500/50 hover:bg-indigo-600/50 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50"
+            className="px-3.5 py-1.5 bg-indigo-600/30 text-indigo-200 border border-indigo-500/50 hover:bg-indigo-600/50 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all disabled:opacity-50"
             title="手动触发全市场盘中异动与时序扫描"
           >
             <Zap className={`w-3.5 h-3.5 text-indigo-400 ${triggeringScan ? 'animate-spin' : ''}`} />
@@ -350,7 +350,7 @@ export default function MonitorPage() {
           <button
             onClick={() => loadData(true)}
             disabled={refreshing}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
             刷新
@@ -359,7 +359,7 @@ export default function MonitorPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-950/40 border border-rose-800/80 rounded-xl text-rose-300 text-sm flex items-center gap-3">
+        <div className="p-4 bg-rose-950/40 border border-rose-800/80 rounded-xl text-rose-300 text-base flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
           <span>{error}</span>
         </div>
@@ -372,17 +372,17 @@ export default function MonitorPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>上证指数实时分时</span>
-              <span className="text-[10px] font-mono text-slate-500">
+              <span className="text-xs font-mono text-slate-500">
                 Minute #{minuteIndex ?? '--'} / 240
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline justify-between">
-              <span className="text-2xl font-bold font-mono text-slate-100">
+              <span className="text-3xl font-bold font-mono text-slate-100">
                 {shPrice}
               </span>
-              <span className={`text-base font-bold font-mono flex items-center ${
+              <span className={`text-lg font-bold font-mono flex items-center ${
                 shPct !== null && shPct >= 0 ? 'text-rose-400' : 'text-emerald-400'
               }`}>
                 {shPct !== null ? (
@@ -409,7 +409,7 @@ export default function MonitorPage() {
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>两市成交额与全天投影</span>
               {(macro?.is_proj_estimated || macro?.volume_proj_status === 'ESTIMATED') && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   ESTIMATED 估算
                 </span>
               )}
@@ -418,14 +418,14 @@ export default function MonitorPage() {
           <CardContent>
             <div className="space-y-1.5">
               <div className="flex items-baseline justify-between">
-                <span className="text-xs text-slate-400">当前成交额:</span>
-                <span className="text-lg font-bold font-mono text-cyan-300">
+                <span className="text-sm text-slate-400">当前成交额:</span>
+                <span className="text-xl font-bold font-mono text-cyan-300">
                   {totalAmountYi}
                 </span>
               </div>
               <div className="flex items-baseline justify-between border-t border-slate-800/80 pt-1.5">
-                <span className="text-xs text-slate-400">W(T) 全天投影:</span>
-                <span className="text-sm font-semibold font-mono text-amber-300">
+                <span className="text-sm text-slate-400">W(T) 全天投影:</span>
+                <span className="text-base font-semibold font-mono text-amber-300">
                   {volumeProjYi !== null ? volumeProjYi : <span className="text-xs text-slate-500 font-normal">-- (09:45后测算)</span>}
                 </span>
               </div>
@@ -438,7 +438,7 @@ export default function MonitorPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>全市场普适涨跌分布</span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-xs text-slate-500">
                 净涨: {netUpStr}
               </span>
             </CardTitle>
@@ -446,14 +446,14 @@ export default function MonitorPage() {
           <CardContent>
             <div className="flex items-center justify-between mb-2">
               <div className="text-left">
-                <div className="text-xs text-slate-400">上涨家数</div>
-                <div className="text-lg font-bold font-mono text-rose-400">
+                <div className="text-sm text-slate-400">上涨家数</div>
+                <div className="text-xl font-bold font-mono text-rose-400">
                   {upCount !== null ? upCount : '--'}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-slate-400">下跌家数</div>
-                <div className="text-lg font-bold font-mono text-emerald-400">
+                <div className="text-sm text-slate-400">下跌家数</div>
+                <div className="text-xl font-bold font-mono text-emerald-400">
                   {downCount !== null ? downCount : '--'}
                 </div>
               </div>
@@ -477,27 +477,27 @@ export default function MonitorPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>短线极端生态与最高高度</span>
-              <span className="text-[10px] text-slate-500">炸板: {brokenCount ?? '--'}</span>
+              <span className="text-xs text-slate-500">炸板: {brokenCount ?? '--'}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs text-slate-400">涨停 / 跌停</div>
-                <div className="text-lg font-bold font-mono">
+                <div className="text-sm text-slate-400">涨停 / 跌停</div>
+                <div className="text-xl font-bold font-mono">
                   <span className="text-rose-400">{limitUpCount ?? '--'}</span>
                   <span className="text-slate-600 mx-1">/</span>
                   <span className="text-emerald-400">{limitDownCount ?? '--'}</span>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-slate-400">最高空间</div>
-                <div className="text-lg font-bold font-mono text-amber-400">
+                <div className="text-sm text-slate-400">最高空间</div>
+                <div className="text-xl font-bold font-mono text-amber-400">
                   {maxHeight}
                 </div>
               </div>
             </div>
-            <div className="mt-2 text-[11px] text-slate-400 truncate">
+            <div className="mt-2 text-xs text-slate-400 truncate">
               空间龙头: <span className="font-semibold text-slate-200">{leaderStock}</span>
             </div>
           </CardContent>
@@ -516,7 +516,7 @@ export default function MonitorPage() {
                   <BarChart3 className="w-4 h-4 text-cyan-400" />
                   上证日内分时时序曲线
                 </CardTitle>
-                <div className="text-xs text-slate-400">
+                <div className="text-sm text-slate-400">
                   {hoveredPoint ? (
                     <span className="font-mono text-cyan-300">
                       #{hoveredPoint.minute_index}m ({hoveredPoint.timestamp}): {hoveredPoint.sh_pct !== null ? `${hoveredPoint.sh_pct >= 0 ? '+' : ''}${hoveredPoint.sh_pct.toFixed(2)}%` : '--'} | 成交: {hoveredPoint.total_amount_yi ?? '--'}亿
@@ -563,7 +563,7 @@ export default function MonitorPage() {
                 </svg>
 
                 {/* X 轴时间标签 */}
-                <div className="flex justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-slate-800/60">
+                <div className="flex justify-between text-xs text-slate-500 font-mono pt-1 border-t border-slate-800/60">
                   <span>09:30</span>
                   <span>10:30</span>
                   <span>11:30 / 13:00</span>
@@ -582,14 +582,14 @@ export default function MonitorPage() {
                   <Flame className="w-4 h-4 text-amber-400" />
                   重点监控池盘中追踪 (领涨龙头 & 千亿中军)
                 </CardTitle>
-                <span className="text-xs text-slate-500">
+                <span className="text-sm text-slate-500">
                   共计 {realtime?.watchlist?.length ?? 0} 只核心标的 (已排除ST/退市)
                 </span>
               </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
+                <table className="w-full text-sm text-left">
                   <thead className="bg-slate-800/50 text-slate-400 border-b border-white/10">
                     <tr>
                       <th className="py-2.5 px-3">代码 / 名称</th>
@@ -656,23 +656,23 @@ export default function MonitorPage() {
                         <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
                           <td className="py-2 px-3 font-medium text-slate-200">
                             <div>{item.name}</div>
-                            <div className="text-[10px] text-slate-500">{item.symbol}</div>
+                            <div className="text-xs text-slate-500">{item.symbol}</div>
                           </td>
                           <td className="py-2 px-2">
                             {item.status === 'SEALED' ? (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30">
                                 <Lock className="w-2.5 h-2.5" /> 封板
                               </span>
                             ) : item.status === 'BROKEN' ? (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                 <Unlock className="w-2.5 h-2.5" /> 炸板
                               </span>
                             ) : item.status === 'HALTED' ? (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-700 text-slate-400">
+                              <span className="px-1.5 py-0.5 rounded text-xs bg-slate-700 text-slate-400">
                                 停牌
                               </span>
                             ) : (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">
+                              <span className="px-1.5 py-0.5 rounded text-xs bg-slate-800 text-slate-300">
                                 正常
                               </span>
                             )}
@@ -722,7 +722,7 @@ export default function MonitorPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setSeverityFilter(null)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                    className={`px-2 py-0.5 rounded text-xs font-medium transition-all ${
                       severityFilter === null 
                         ? 'bg-slate-700 text-white' 
                         : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700'
@@ -732,7 +732,7 @@ export default function MonitorPage() {
                   </button>
                   <button
                     onClick={() => setSeverityFilter('CRITICAL')}
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                    className={`px-2 py-0.5 rounded text-xs font-medium transition-all ${
                       severityFilter === 'CRITICAL' 
                         ? 'bg-rose-950 text-rose-300 border border-rose-800' 
                         : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700'
@@ -742,7 +742,7 @@ export default function MonitorPage() {
                   </button>
                   <button
                     onClick={() => setSeverityFilter('TRANSITION')}
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                    className={`px-2 py-0.5 rounded text-xs font-medium transition-all ${
                       severityFilter === 'TRANSITION' 
                         ? 'bg-amber-950 text-amber-300 border border-amber-800' 
                         : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700'
@@ -761,19 +761,19 @@ export default function MonitorPage() {
                   return (
                     <div 
                       key={idx} 
-                      className="p-3 bg-slate-950/70 rounded-lg border border-slate-800/80 hover:border-slate-700 transition-all text-xs space-y-1.5"
+                      className="p-3 bg-slate-950/70 rounded-lg border border-slate-800/80 hover:border-slate-700 transition-all text-sm space-y-1.5"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1 ${catMeta.badge}`}>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium border flex items-center gap-1 ${catMeta.badge}`}>
                             <Icon className="w-3 h-3" />
                             {catMeta.label}
                           </span>
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono border ${getSeverityBadge(ev.severity_level)}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${getSeverityBadge(ev.severity_level)}`}>
                             {ev.severity_level}
                           </span>
                         </div>
-                        <span className="font-mono text-slate-500 text-[11px]">
+                        <span className="font-mono text-slate-500 text-xs">
                           {ev.timestamp} (#{ev.minute_index}m)
                         </span>
                       </div>
@@ -793,7 +793,7 @@ export default function MonitorPage() {
 
                       {/* 量化指标遥测四元组 */}
                       {(ev.window_delta_pct !== null || ev.window_amount_wan !== null || ev.surge_ratio !== null) && (
-                        <div className="flex flex-wrap items-center gap-2 pt-1 font-mono text-[10px] text-slate-400 bg-slate-900/60 p-1.5 rounded">
+                        <div className="flex flex-wrap items-center gap-2 pt-1 font-mono text-xs text-slate-400 bg-slate-900/60 p-1.5 rounded">
                           {ev.window_delta_pct !== null && (
                             <span>ΔP(5m): <strong className={ev.window_delta_pct >= 0 ? 'text-rose-400' : 'text-emerald-400'}>{ev.window_delta_pct >= 0 ? '+' : ''}{ev.window_delta_pct.toFixed(2)}%</strong></span>
                           )}
@@ -808,7 +808,7 @@ export default function MonitorPage() {
 
                       {/* 结构化客观明细 */}
                       {ev.details && (
-                        <div className="text-[11px] text-slate-400 font-sans pt-0.5 leading-relaxed">
+                        <div className="text-xs text-slate-400 font-sans pt-0.5 leading-relaxed">
                           {typeof ev.details === 'string' ? ev.details : JSON.stringify(ev.details)}
                         </div>
                       )}
@@ -819,7 +819,7 @@ export default function MonitorPage() {
                 <div className="py-16 text-center text-slate-500 space-y-2">
                   <ShieldAlert className="w-8 h-8 mx-auto text-slate-600" />
                   <p>当前暂未感知到达到阈值的边沿相变异动</p>
-                  <p className="text-[11px] text-slate-600">系统持续以 15 分钟降噪过滤并防刷屏</p>
+                  <p className="text-xs text-slate-600">系统持续以 15 分钟降噪过滤并防刷屏</p>
                 </div>
               )}
             </CardContent>
@@ -828,12 +828,12 @@ export default function MonitorPage() {
       </div>
 
       {/* 4. 底部客观物理事实测量提示与免责隔离横幅 (7+1 铁律必修项) */}
-      <div className="p-4 rounded-xl bg-slate-950/80 border border-white/10 text-xs text-slate-400 flex items-start gap-3 shadow-lg">
+      <div className="p-4 rounded-xl bg-slate-950/80 border border-white/10 text-sm text-slate-400 flex items-start gap-3 shadow-lg">
         <ShieldAlert className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <div className="font-semibold text-slate-300 flex items-center gap-2">
             客观物理事实测量提示与边界隔离
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
+            <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
               纯客观度量
             </span>
           </div>

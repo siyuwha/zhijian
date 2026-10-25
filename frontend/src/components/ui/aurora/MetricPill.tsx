@@ -106,28 +106,28 @@ const SIZE_STYLES: Record<
   }
 > = {
   xs: {
-    container: "px-2 py-0.5 rounded-lg gap-1.5 text-[11px]",
-    label: "text-[10px] text-slate-400",
+    container: "px-2 py-0.5 rounded-lg gap-1.5 text-xs",
+    label: "text-xs text-slate-400",
     value: "font-mono font-semibold",
-    delta: "font-mono text-[10px]",
+    delta: "font-mono text-xs",
   },
   sm: {
-    container: "px-2.5 py-1 rounded-xl gap-2 text-xs",
-    label: "text-[11px] text-slate-400",
+    container: "px-2.5 py-1 rounded-xl gap-2 text-sm",
+    label: "text-xs text-slate-400",
     value: "font-mono font-bold",
-    delta: "font-mono text-[11px]",
+    delta: "font-mono text-xs",
   },
   md: {
-    container: "px-3.5 py-2 rounded-2xl gap-2.5 text-sm",
-    label: "text-xs text-slate-400 font-medium",
-    value: "text-base font-mono font-bold",
-    delta: "font-mono text-xs font-semibold",
+    container: "px-3.5 py-2 rounded-2xl gap-2.5 text-base",
+    label: "text-sm text-slate-400 font-medium",
+    value: "text-lg font-mono font-bold",
+    delta: "font-mono text-sm font-semibold",
   },
   lg: {
-    container: "p-4 rounded-2xl gap-3 text-base",
-    label: "text-xs text-slate-400 font-medium",
-    value: "text-xl md:text-2xl font-mono font-extrabold",
-    delta: "font-mono text-xs font-bold",
+    container: "p-4 rounded-2xl gap-3 text-lg",
+    label: "text-sm text-slate-400 font-medium",
+    value: "text-2xl md:text-3xl font-mono font-extrabold",
+    delta: "font-mono text-sm font-bold",
   },
 };
 

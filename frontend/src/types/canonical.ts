@@ -565,6 +565,17 @@ export interface TopSectorTrendItem {
   sector_broken_ratio?: number;
 }
 
+export interface MarketIndexTrend {
+  name: string;
+  code: string;
+  pre_close: number;
+  points: {
+    time: string;
+    price: number;
+    pct_change: number;
+  }[];
+}
+
 export interface TopSectorsTrendResponse {
   trade_date: string;
   snapshot_time: string;
@@ -576,6 +587,7 @@ export interface TopSectorsTrendResponse {
     siphoned_sector: string;
     description: string;
   };
+  market_index_trend?: MarketIndexTrend;
 }
 
 export interface StockMinutePoint {

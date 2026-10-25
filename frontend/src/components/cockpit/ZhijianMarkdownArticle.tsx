@@ -215,7 +215,7 @@ export function ZhijianMarkdownArticle({
             key={tIdx}
             type="button"
             onClick={() => onStockClick && onStockClick(token)}
-            className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-xs font-mono font-bold transition cursor-pointer ${
+            className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-sm font-mono font-bold transition cursor-pointer ${
               isSelected
                 ? 'bg-amber-500 text-black shadow-md ring-2 ring-amber-300'
                 : 'bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 hover:text-amber-100 border border-amber-800/40'
@@ -268,7 +268,7 @@ export function ZhijianMarkdownArticle({
     return (
       <div key={tableKey} className="my-4 rounded-xl border border-white/10 bg-black/40 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-sm border-collapse">
             <thead>
               <tr className="bg-white/[0.04] border-b border-white/10 text-slate-300 font-bold uppercase tracking-wider">
                 {headers.map((h, i) => (
@@ -296,11 +296,11 @@ export function ZhijianMarkdownArticle({
                     return (
                       <td key={cIdx} className="py-2.5 px-4 font-mono text-slate-300 group-hover:text-white transition-colors">
                         {isVerdict ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-950/70 text-amber-300 border border-amber-700/60 text-[11px] font-bold shadow-sm">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-950/70 text-amber-300 border border-amber-700/60 text-xs font-bold shadow-sm">
                             {cell.replace(/\*\*/g, '')}
                           </span>
                         ) : isFalsified ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose-950/70 text-rose-300 border border-rose-700/60 text-[11px] font-bold shadow-sm">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose-950/70 text-rose-300 border border-rose-700/60 text-xs font-bold shadow-sm">
                             {cell.replace(/\*\*/g, '')}
                           </span>
                         ) : (
@@ -374,7 +374,7 @@ export function ZhijianMarkdownArticle({
         elements.push(
           <div
             key={`quote-${i}`}
-            className="my-3 p-4 rounded-xl border-l-4 border-l-amber-500 bg-amber-950/15 italic text-sm text-slate-200 leading-relaxed shadow-md"
+            className="my-3 p-4 rounded-xl border-l-4 border-l-amber-500 bg-amber-950/15 italic text-base text-slate-200 leading-relaxed shadow-md"
           >
             {renderInlineFormattedText(quoteText)}
           </div>
@@ -386,7 +386,7 @@ export function ZhijianMarkdownArticle({
       if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
         const itemText = trimmed.replace(/^[-*]\s+/, '');
         elements.push(
-          <div key={`li-${i}`} className="flex items-start gap-2.5 text-xs text-slate-300 leading-relaxed pl-1 py-0.5">
+          <div key={`li-${i}`} className="flex items-start gap-2.5 text-sm text-slate-300 leading-relaxed pl-1 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400/80 mt-1.5 shrink-0" />
             <div className="flex-1">{renderInlineFormattedText(itemText)}</div>
           </div>
@@ -400,8 +400,8 @@ export function ZhijianMarkdownArticle({
         const numStr = numMatch[1];
         const itemText = numMatch[2];
         elements.push(
-          <div key={`num-${i}`} className="flex items-start gap-2.5 text-xs text-slate-300 leading-relaxed pl-1 py-1">
-            <span className="w-4 h-4 rounded-full bg-white/10 text-slate-300 font-mono text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+          <div key={`num-${i}`} className="flex items-start gap-2.5 text-sm text-slate-300 leading-relaxed pl-1 py-1">
+            <span className="w-4 h-4 rounded-full bg-white/10 text-slate-300 font-mono text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
               {numStr}
             </span>
             <div className="flex-1">{renderInlineFormattedText(itemText)}</div>
@@ -412,7 +412,7 @@ export function ZhijianMarkdownArticle({
 
       // 普通段落
       elements.push(
-        <p key={`p-${i}`} className="text-xs md:text-sm text-slate-300 leading-relaxed py-1">
+        <p key={`p-${i}`} className="text-sm md:text-base text-slate-300 leading-relaxed py-1">
           {renderInlineFormattedText(trimmed)}
         </p>
       );
@@ -429,7 +429,7 @@ export function ZhijianMarkdownArticle({
     <div className="space-y-10">
       {/* 研报前置声明或引言 */}
       {preambleContent && (
-        <div className="p-4 rounded-xl border border-white/10 bg-[#0B0E17]/60 text-xs text-slate-300 leading-relaxed shadow-lg">
+        <div className="p-4 rounded-xl border border-white/10 bg-[#0B0E17]/60 text-sm text-slate-300 leading-relaxed shadow-lg">
           {renderChapterContent(preambleContent)}
         </div>
       )}

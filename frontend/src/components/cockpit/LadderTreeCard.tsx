@@ -30,17 +30,17 @@ export const LadderTreeCard: React.FC<LadderTreeCardProps> = ({ ladderTree, maxH
         </div>
 
         {spaceLeaderStock && (
-          <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-950/60 to-amber-900/40 border border-amber-600/40 px-2.5 py-1 rounded-md text-xs font-semibold text-amber-300">
+          <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-950/60 to-amber-900/40 border border-amber-600/40 px-2.5 py-1 rounded-md text-sm font-semibold text-amber-300">
             <Crown className="w-3.5 h-3.5 text-amber-400" />
             <span>标杆: {spaceLeaderStock.name}</span>
             <span className="font-mono text-amber-200 font-bold ml-1">{maxHeight}B</span>
-            <span className="text-[10px] text-amber-400/80 ml-0.5">({spaceLeaderStock.reason_type})</span>
+            <span className="text-xs text-amber-400/80 ml-0.5">({spaceLeaderStock.reason_type})</span>
           </div>
         )}
       </div>
 
       {/* 天梯递降阶梯树 (8 -> 4 -> 3 -> 2 -> 1) */}
-      <div className="flex-1 overflow-y-auto space-y-2 mt-3 pr-1 text-xs">
+      <div className="flex-1 overflow-y-auto space-y-2 mt-3 pr-1 text-sm">
         {ladderTree.map((group) => {
           const isSpace = group.is_space_leader;
           const isFirstBoard = group.height === 1;
@@ -54,16 +54,16 @@ export const LadderTreeCard: React.FC<LadderTreeCardProps> = ({ ladderTree, maxH
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded font-mono font-bold text-slate-300 bg-slate-800/80">
+                    <span className="px-2 py-0.5 rounded font-mono font-bold text-slate-300 bg-slate-800/80 text-sm">
                       1B 基座
                     </span>
-                    <span className="text-slate-400 font-mono">
+                    <span className="text-slate-400 font-mono text-sm">
                       共 {group.stocks_count} 只首板
                     </span>
                   </div>
                   <button
                     onClick={() => setExpandFirstBoards(!expandFirstBoards)}
-                    className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 text-[11px] font-medium transition"
+                    className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 text-xs font-medium transition"
                   >
                     {expandFirstBoards ? (
                       <>
@@ -82,10 +82,10 @@ export const LadderTreeCard: React.FC<LadderTreeCardProps> = ({ ladderTree, maxH
                     {group.stocks.map((st) => (
                       <span
                         key={st.code}
-                        className="bg-slate-900 border border-slate-800 text-slate-300 px-2 py-0.5 rounded text-[11px] font-mono flex items-center gap-1"
+                        className="bg-slate-900 border border-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs font-mono flex items-center gap-1"
                       >
                         <span>{st.name}</span>
-                        <span className="text-[10px] text-slate-400 font-sans">
+                        <span className="text-xs text-slate-400 font-sans">
                           {st.reason_type}
                         </span>
                       </span>
@@ -111,7 +111,7 @@ export const LadderTreeCard: React.FC<LadderTreeCardProps> = ({ ladderTree, maxH
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`px-2 py-0.5 rounded font-mono font-black text-xs ${
+                    className={`px-2 py-0.5 rounded font-mono font-black text-sm ${
                       isSpace
                         ? 'bg-amber-500/30 text-amber-300 border border-amber-500/40'
                         : group.height >= 3
@@ -121,12 +121,12 @@ export const LadderTreeCard: React.FC<LadderTreeCardProps> = ({ ladderTree, maxH
                   >
                     {group.height}B 梯队
                   </span>
-                  <span className="text-slate-400 font-mono text-[11px]">
+                  <span className="text-slate-400 font-mono text-xs">
                     ({group.stocks_count} 只)
                   </span>
                 </div>
                 {isSpace && (
-                  <span className="text-[10px] text-amber-400 bg-amber-950/60 border border-amber-800 px-1.5 py-0.2 rounded font-semibold flex items-center gap-1">
+                  <span className="text-xs text-amber-400 bg-amber-950/60 border border-amber-800 px-1.5 py-0.2 rounded font-semibold flex items-center gap-1">
                     <Sparkles className="w-3 h-3" /> 市场空间总高度
                   </span>
                 )}
@@ -137,17 +137,17 @@ export const LadderTreeCard: React.FC<LadderTreeCardProps> = ({ ladderTree, maxH
                 {group.stocks.map((st) => (
                   <div
                     key={st.code}
-                    className={`px-2 py-1 rounded border text-xs flex items-center gap-1.5 ${
+                    className={`px-2 py-1 rounded border text-sm flex items-center gap-1.5 ${
                       isSpace
                         ? 'bg-amber-900/30 border-amber-600/50 text-amber-200'
                         : 'bg-slate-900 border-slate-700 text-slate-200'
                     }`}
                   >
                     <span className="font-bold">{st.name}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-xs text-slate-400 font-mono">
                       {st.code}
                     </span>
-                    <span className="text-[10px] text-indigo-400 bg-indigo-950/60 px-1 rounded">
+                    <span className="text-xs text-indigo-400 bg-indigo-950/60 px-1 rounded">
                       {st.reason_type}
                     </span>
                   </div>

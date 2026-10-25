@@ -206,7 +206,7 @@ export default function SimulationPage() {
       
       {/* 顶部通知条 */}
       {actionNotice && (
-        <div className={`p-3.5 rounded-xl border text-xs font-mono flex items-center justify-between transition-all animate-fade-in ${
+        <div className={`p-3.5 rounded-xl border text-sm font-mono flex items-center justify-between transition-all animate-fade-in ${
           actionNotice.type === 'success'
             ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
             : 'bg-rose-950/80 border-rose-500/50 text-rose-300'
@@ -231,12 +231,12 @@ export default function SimulationPage() {
               </span>
               模拟交易沙盒 · 策略实时联动台账
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/35 text-xs font-mono font-bold flex items-center gap-1.5">
+            <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/35 text-sm font-mono font-bold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
               虚拟 PaperBroker · 严格 A 股 T+1
             </span>
           </div>
-          <p className="text-xs text-slate-400 font-mono mt-1">
+          <p className="text-sm text-slate-400 font-mono mt-1">
             三大经典策略全自动信号驱动 · 真实计算印花税 (0.05%)、佣金 (万一) 与 0.1% 冲击滑点
           </p>
         </div>
@@ -245,7 +245,7 @@ export default function SimulationPage() {
           <button
             onClick={() => loadAllData(true)}
             disabled={isRefreshing}
-            className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-semibold text-slate-200 transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm font-semibold text-slate-200 transition flex items-center gap-1.5"
             title="刷新持仓、流水与最新行情"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -264,7 +264,7 @@ export default function SimulationPage() {
                 }
               }
             }}
-            className="px-3.5 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/40 border border-rose-800/40 text-xs font-semibold text-rose-300 transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/40 border border-rose-800/40 text-sm font-semibold text-rose-300 transition flex items-center gap-1.5"
             title="一键清空模拟持仓与流水，恢复初始 100 万"
           >
             <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
@@ -273,7 +273,7 @@ export default function SimulationPage() {
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-cyan-900/30"
+            className="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-sm font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-cyan-900/30"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>新建模拟交易</span>
@@ -281,7 +281,7 @@ export default function SimulationPage() {
 
           <Link 
             href="/strategy"
-            className="px-3.5 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 border border-purple-500/40 text-xs font-semibold text-purple-200 transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 border border-purple-500/40 text-sm font-semibold text-purple-200 transition flex items-center gap-1.5"
           >
             <Sliders className="w-3.5 h-3.5 text-purple-300" />
             <span>策略工作台</span>
@@ -295,9 +295,9 @@ export default function SimulationPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 总资产卡 */}
         <div className="glass-card rounded-2xl p-5 bg-white/[0.02] border border-white/10 space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400">
+          <div className="flex justify-between items-center text-sm text-slate-400">
             <span>虚拟账户总资产</span>
-            <span className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-bold ${
+            <span className={`px-1.5 py-0.5 rounded font-mono text-xs font-bold ${
               totalPnlRatio >= 0 ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
             }`}>
               {totalPnlRatio >= 0 ? `+${totalPnlRatio}%` : `${totalPnlRatio}%`}
@@ -306,7 +306,7 @@ export default function SimulationPage() {
           <div className="text-2xl font-black font-mono text-white tabular-nums">
             {totalAssets.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-slate-400">元</span>
           </div>
-          <div className={`text-xs font-mono flex items-center gap-1 ${totalFloatingPnl >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+          <div className={`text-sm font-mono flex items-center gap-1 ${totalFloatingPnl >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
             {totalFloatingPnl >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
             <span>当前浮动盈亏: {totalFloatingPnl >= 0 ? `+${totalFloatingPnl.toFixed(2)}` : totalFloatingPnl.toFixed(2)} 元</span>
           </div>
@@ -314,39 +314,39 @@ export default function SimulationPage() {
 
         {/* 可用现金 */}
         <div className="glass-card rounded-2xl p-5 bg-white/[0.02] border border-white/10 space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400">
+          <div className="flex justify-between items-center text-sm text-slate-400">
             <span>可用现金 (Cash)</span>
-            <span className="text-slate-500 font-mono text-[10px]">初始金 100 万</span>
+            <span className="text-slate-500 font-mono text-xs">初始金 100 万</span>
           </div>
           <div className="text-2xl font-black font-mono text-white tabular-nums">
             {availableCash.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-slate-400">元</span>
           </div>
-          <div className="text-xs text-slate-400 font-mono">
+          <div className="text-sm text-slate-400 font-mono">
             现金储备率: <span className="text-emerald-400 font-bold">{((availableCash / (totalAssets || 1)) * 100).toFixed(1)}%</span>
           </div>
         </div>
 
         {/* 当前持仓市值与仓位 */}
         <div className="glass-card rounded-2xl p-5 bg-white/[0.02] border border-white/10 space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400">
+          <div className="flex justify-between items-center text-sm text-slate-400">
             <span>持仓总市值 ({positions.length} 只标的)</span>
-            <span className="text-amber-400 font-mono text-[10px]">
+            <span className="text-amber-400 font-mono text-xs">
               {strategyData?.market_stage_name || '大盘门禁'}
             </span>
           </div>
           <div className="text-2xl font-black font-mono text-white tabular-nums">
             {totalMarketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-slate-400">元</span>
           </div>
-          <div className="text-xs text-slate-400 font-mono">
+          <div className="text-sm text-slate-400 font-mono">
             当前实战仓位: <span className="text-amber-400 font-bold">{positionRatio}%</span> (建议 {strategyData?.suggested_position || '30%~50%'})
           </div>
         </div>
 
         {/* 胜率与累计交易统计 */}
         <div className="glass-card rounded-2xl p-5 bg-white/[0.02] border border-white/10 space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400">
+          <div className="flex justify-between items-center text-sm text-slate-400">
             <span>实战演练胜率统计</span>
-            <span className="text-slate-500 font-mono text-[10px]">已平仓周期</span>
+            <span className="text-slate-500 font-mono text-xs">已平仓周期</span>
           </div>
           <div className="text-2xl font-black font-mono text-rose-400 tabular-nums">
             {stats?.closed_leg_win_rate != null ? `${stats.closed_leg_win_rate}%` : '--'}
@@ -354,7 +354,7 @@ export default function SimulationPage() {
               ({stats?.win_trades || 0}/{stats?.closed_trades || 0} 胜)
             </span>
           </div>
-          <div className="text-xs text-slate-400 font-mono">
+          <div className="text-sm text-slate-400 font-mono">
             盈亏比: <span className="text-white font-bold">{stats?.payoff_ratio != null ? `${stats.payoff_ratio} : 1` : '--'}</span> | 已实现: {totalRealizedPnl.toFixed(2)}元
           </div>
         </div>
@@ -370,13 +370,13 @@ export default function SimulationPage() {
             <h2 className="text-sm font-bold text-white tracking-wide">
               今日三大经典策略推演联动信号池 (可一键虚拟跟单)
             </h2>
-            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-mono font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold">
               共 {allStrategyCandidates.length} 只推荐候选
             </span>
           </div>
           <Link
             href="/strategy"
-            className="text-xs text-purple-300 hover:text-white flex items-center gap-1 font-mono transition"
+            className="text-sm text-purple-300 hover:text-white flex items-center gap-1 font-mono transition"
           >
             <span>进入策略工作台细看逻辑</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -384,7 +384,7 @@ export default function SimulationPage() {
         </div>
 
         {allStrategyCandidates.length === 0 ? (
-          <div className="py-4 text-center text-xs text-slate-500 font-mono">
+          <div className="py-4 text-center text-sm text-slate-500 font-mono">
             当前交易日暂无符合门禁的策略触发候选，保持防守观望
           </div>
         ) : (
@@ -402,35 +402,35 @@ export default function SimulationPage() {
                     <div>
                       <div className="font-bold text-white text-sm flex items-center gap-1.5">
                         <span>{cand.name}</span>
-                        <span className="font-mono text-[10px] text-slate-400">{cand.code}</span>
+                        <span className="font-mono text-xs text-slate-400">{cand.code}</span>
                       </div>
-                      <div className="text-[10px] text-cyan-300 font-mono mt-0.5">
+                      <div className="text-xs text-cyan-300 font-mono mt-0.5">
                         {strategyName} · {cand.status_tag || '触发候选'}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`font-mono font-bold text-xs ${isUp ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <div className={`font-mono font-bold text-sm ${isUp ? 'text-rose-400' : 'text-emerald-400'}`}>
                         {isUp ? '+' : ''}{Number(cand.pct_change || 0).toFixed(2)}%
                       </div>
-                      <div className="text-[10px] font-mono text-slate-400">
+                      <div className="text-xs font-mono text-slate-400">
                         评分 {cand.score}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-1 border-t border-white/5">
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-xs text-slate-400 font-mono">
                       现价: {Number(cand.current_price || 0) > 0 ? `¥${Number(cand.current_price).toFixed(2)}` : '--'}
                     </span>
                     {isHolding ? (
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
                         已在持仓中
                       </span>
                     ) : (
                       <button
                         onClick={() => handleQuickStrategyBuy(cand, strategyName)}
                         disabled={isSubmitting}
-                        className="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-bold transition flex items-center gap-1 shadow-sm"
+                        className="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm"
                       >
                         <PlaySquare className="w-3 h-3" />
                         <span>模拟跟单</span>
@@ -452,7 +452,7 @@ export default function SimulationPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('positions')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${
                 activeTab === 'positions'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                   : 'text-slate-400 hover:text-white'
@@ -462,7 +462,7 @@ export default function SimulationPage() {
             </button>
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${
                 activeTab === 'orders'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                   : 'text-slate-400 hover:text-white'
@@ -472,7 +472,7 @@ export default function SimulationPage() {
             </button>
             <button
               onClick={() => setActiveTab('strategy_linkage')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${
                 activeTab === 'strategy_linkage'
                   ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                   : 'text-slate-400 hover:text-white'
@@ -482,7 +482,7 @@ export default function SimulationPage() {
             </button>
             <button
               onClick={() => setActiveTab('risk')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${
                 activeTab === 'risk'
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                   : 'text-slate-400 hover:text-white'
@@ -491,7 +491,7 @@ export default function SimulationPage() {
               <span>波普尔证伪哨兵</span>
             </button>
           </div>
-          <span className="text-xs font-mono text-slate-500">更新频率: 盘中每 3 秒实时拉取</span>
+          <span className="text-sm font-mono text-slate-500">更新频率: 盘中每 3 秒实时拉取</span>
         </div>
 
         {/* 1. 当前持仓列表 */}
@@ -500,13 +500,13 @@ export default function SimulationPage() {
             {positions.length === 0 ? (
               <div className="py-12 text-center text-slate-500 space-y-2 font-mono">
                 <Target className="w-8 h-8 text-slate-600 mx-auto" />
-                <div className="text-sm font-bold text-slate-300">当前暂无模拟持仓标的</div>
-                <div className="text-xs text-slate-500">
+                <div className="text-base font-bold text-slate-300">当前暂无模拟持仓标的</div>
+                <div className="text-sm text-slate-500">
                   可点击上方“今日策略联动信号池”一键跟单，或点击右上角“新建模拟交易”开仓
                 </div>
               </div>
             ) : (
-              <table className="w-full text-left text-xs font-mono border-collapse">
+              <table className="w-full text-left text-sm font-mono border-collapse">
                 <thead>
                   <tr className="border-b border-white/10 text-slate-400">
                     <th className="py-2.5 px-3">代码/名称</th>
@@ -531,11 +531,11 @@ export default function SimulationPage() {
                       <tr key={pos.code} className="hover:bg-white/[0.02] transition">
                         <td className="py-3 px-3">
                           <div className="font-bold text-white text-sm font-sans">{pos.name || pos.code}</div>
-                          <div className="text-[11px] text-slate-400 font-mono">{pos.code}</div>
+                          <div className="text-xs text-slate-400 font-mono">{pos.code}</div>
                         </td>
                         <td className="py-3 px-3 text-right tabular-nums">
                           <div>{pos.quantity.toLocaleString()} 股</div>
-                          <div className="text-[10px] text-amber-400">0 股可用 (T+1锁定)</div>
+                          <div className="text-xs text-amber-400">0 股可用 (T+1锁定)</div>
                         </td>
                         <td className="py-3 px-3 text-right tabular-nums text-slate-300">
                           {pos.avg_cost.toFixed(3)}
@@ -548,10 +548,10 @@ export default function SimulationPage() {
                         </td>
                         <td className={`py-3 px-3 text-right tabular-nums font-bold ${isUp ? 'text-rose-400' : 'text-emerald-400'}`}>
                           <div>{isUp ? `+${pnl.toFixed(2)}` : pnl.toFixed(2)} 元</div>
-                          <div className="text-[10px]">{isUp ? `+${pnlPct.toFixed(2)}` : pnlPct.toFixed(2)}%</div>
+                          <div className="text-xs">{isUp ? `+${pnlPct.toFixed(2)}` : pnlPct.toFixed(2)}%</div>
                         </td>
                         <td className="py-3 px-3 text-center">
-                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] border border-amber-500/30">
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs border border-amber-500/30">
                             今日买入 · 次日可卖
                           </span>
                         </td>
@@ -559,7 +559,7 @@ export default function SimulationPage() {
                           <button
                             onClick={() => handleSellPosition(pos)}
                             disabled={isSubmitting}
-                            className="px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[10px] font-bold border border-rose-500/30 transition"
+                            className="px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold border border-rose-500/30 transition"
                           >
                             模拟平仓
                           </button>
@@ -577,11 +577,11 @@ export default function SimulationPage() {
         {activeTab === 'orders' && (
           <div className="overflow-x-auto">
             {records.length === 0 ? (
-              <div className="py-12 text-center text-slate-500 font-mono text-xs">
+              <div className="py-12 text-center text-slate-500 font-mono text-sm">
                 暂无历史模拟交易成交流水
               </div>
             ) : (
-              <table className="w-full text-left text-xs font-mono border-collapse">
+              <table className="w-full text-left text-sm font-mono border-collapse">
                 <thead>
                   <tr className="border-b border-white/10 text-slate-400">
                     <th className="py-2.5 px-3">委托时间</th>
@@ -601,7 +601,7 @@ export default function SimulationPage() {
                       <tr key={r.id} className="hover:bg-white/[0.02] transition">
                         <td className="py-2.5 px-3 text-slate-400">{r.trade_time}</td>
                         <td className="py-2.5 px-3 font-bold text-white font-sans">
-                          {r.name || r.code} <span className="font-mono text-slate-400 text-[11px]">({r.code})</span>
+                          {r.name || r.code} <span className="font-mono text-slate-400 text-xs">({r.code})</span>
                         </td>
                         <td className={`py-2.5 px-3 font-bold ${isBuy ? 'text-rose-400' : 'text-emerald-400'}`}>
                           {isBuy ? '买入' : '卖出'}
@@ -633,9 +633,9 @@ export default function SimulationPage() {
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-cyan-400" />
                     <span className="font-bold text-white text-sm">{strat.name}</span>
-                    <span className="text-xs text-slate-400 font-mono">({strat.candidates_count} 只推荐标的)</span>
+                    <span className="text-sm text-slate-400 font-mono">({strat.candidates_count} 只推荐标的)</span>
                   </div>
-                  <span className="text-[11px] text-slate-500 font-mono">{strat.description}</span>
+                  <span className="text-xs text-slate-500 font-mono">{strat.description}</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -649,14 +649,14 @@ export default function SimulationPage() {
                         className="p-3 rounded-lg border border-white/10 bg-black/40 flex items-center justify-between gap-3"
                       >
                         <div className="space-y-1">
-                          <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                          <div className="font-bold text-white text-sm flex items-center gap-1.5">
                             <span>{cand.name}</span>
-                            <span className="text-slate-400 font-mono text-[10px]">{cand.code}</span>
-                            <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 text-[9px] font-bold">
+                            <span className="text-slate-400 font-mono text-xs">{cand.code}</span>
+                            <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">
                               {cand.status_tag}
                             </span>
                           </div>
-                          <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+                          <div className="text-xs text-slate-400 font-mono flex items-center gap-2">
                             <span>评分: <b className="text-rose-400">{cand.score}</b></span>
                             <span className={isUp ? 'text-rose-400' : 'text-emerald-400'}>
                               {isUp ? '+' : ''}{Number(cand.pct_change || 0).toFixed(2)}%
@@ -666,14 +666,14 @@ export default function SimulationPage() {
 
                         <div>
                           {isHolding ? (
-                            <span className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                            <span className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 text-xs font-bold">
                               已持仓
                             </span>
                           ) : (
                             <button
                               onClick={() => handleQuickStrategyBuy(cand, strat.name)}
                               disabled={isSubmitting}
-                              className="px-2.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-bold transition flex items-center gap-1"
+                              className="px-2.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition flex items-center gap-1"
                             >
                               <PlaySquare className="w-3 h-3" />
                               <span>跟单</span>
@@ -693,7 +693,7 @@ export default function SimulationPage() {
         {activeTab === 'risk' && (
           <div className="space-y-3">
             {positions.length === 0 ? (
-              <div className="py-8 text-center text-slate-500 font-mono text-xs">
+              <div className="py-8 text-center text-slate-500 font-mono text-sm">
                 当前暂无持仓标的需要风控哨兵监控
               </div>
             ) : (
@@ -702,13 +702,13 @@ export default function SimulationPage() {
                 const stopPrice = (pos.avg_cost * 0.95).toFixed(2);
 
                 return (
-                  <div key={pos.code} className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-1.5">
+                  <div key={pos.code} className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm space-y-1.5">
                     <div className="font-bold text-amber-300 flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <AlertTriangle className="w-4 h-4" />
                         <span>{pos.name || pos.code} ({pos.code}) · 波普尔证伪哨兵生效中</span>
                       </div>
-                      <span className="font-mono text-[11px] text-slate-400">
+                      <span className="font-mono text-xs text-slate-400">
                         买入均价: ¥{pos.avg_cost.toFixed(2)} | 当前现价: ¥{curPrice.toFixed(2)}
                       </span>
                     </div>
@@ -739,7 +739,7 @@ export default function SimulationPage() {
               </button>
             </div>
 
-            <form onSubmit={handleManualOrderSubmit} className="space-y-3.5 text-xs font-mono">
+            <form onSubmit={handleManualOrderSubmit} className="space-y-3.5 text-sm font-mono">
               <div>
                 <label className="block text-slate-400 mb-1">股票代码 (如 002724, 600519)</label>
                 <input
@@ -748,7 +748,7 @@ export default function SimulationPage() {
                   value={orderCode}
                   onChange={(e) => setOrderCode(e.target.value)}
                   placeholder="输入6位代码"
-                  className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500 text-sm"
                 />
               </div>
 
@@ -759,7 +759,7 @@ export default function SimulationPage() {
                   value={orderName}
                   onChange={(e) => setOrderName(e.target.value)}
                   placeholder="如 海洋王"
-                  className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500 text-sm"
                 />
               </div>
 
@@ -769,7 +769,7 @@ export default function SimulationPage() {
                   <select
                     value={orderDirection}
                     onChange={(e) => setOrderDirection(e.target.value as DirectionType)}
-                    className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500 text-sm"
                   >
                     <option value="buy">买入 (Buy)</option>
                     <option value="sell">卖出 (Sell)</option>
@@ -784,7 +784,7 @@ export default function SimulationPage() {
                     required
                     value={orderPrice}
                     onChange={(e) => setOrderPrice(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500 text-sm"
                   />
                 </div>
               </div>
@@ -797,7 +797,7 @@ export default function SimulationPage() {
                   required
                   value={orderQuantity}
                   onChange={(e) => setOrderQuantity(parseInt(e.target.value, 10) || 0)}
-                  className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500 text-sm"
                 />
               </div>
 
@@ -807,7 +807,7 @@ export default function SimulationPage() {
                   type="text"
                   value={orderReason}
                   onChange={(e) => setOrderReason(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 rounded-lg bg-black/50 border border-white/10 text-white focus:outline-none focus:border-cyan-500 text-sm"
                 />
               </div>
 
@@ -815,14 +815,14 @@ export default function SimulationPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-slate-300 text-sm font-semibold"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-md shadow-cyan-900/40"
+                  className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold shadow-md shadow-cyan-900/40"
                 >
                   {isSubmitting ? '正在提交...' : '确认执行模拟交易'}
                 </button>

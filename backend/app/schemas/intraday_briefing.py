@@ -134,3 +134,4 @@ class TopSectorsTrendResponse(BaseModel):
     snapshot_time: str = Field(..., description="采样时间 HH:MM:SS")
     sectors: List[TopSectorTrendItem] = Field(..., description="Top 5 题材列表")
     seesaw_analysis: Optional[Dict[str, Any]] = Field(None, description="主力资金跷跷板吸血效应全局雷达")
+    market_index_trend: Optional[Dict[str, Any]] = Field(None, description="大盘基准指数分时走势(如上证指数)")

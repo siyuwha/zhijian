@@ -136,11 +136,11 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
           <div>
             <h1 className="text-base font-black tracking-tight text-slate-100 flex items-center gap-2">
               交易员驾驶舱 · Trader Cockpit
-              <span className="text-[10px] font-mono font-normal text-amber-400 bg-amber-950/60 border border-amber-800/60 px-1.5 py-0.5 rounded">
+              <span className="text-xs font-mono font-normal text-amber-400 bg-amber-950/60 border border-amber-800/60 px-1.5 py-0.5 rounded">
                 PROVISIONAL 实验性认知绑定
               </span>
             </h1>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-xs text-slate-400">
               三层倒金字塔架构 · L0~L2 物理事实严密呈现 · L3 认知假说推断仅供交叉核验
             </p>
           </div>
@@ -149,19 +149,19 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
         {/* 顶部右侧控制项 */}
         <div className="flex items-center gap-3">
           {/* 日期选择器 */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs">
+          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-sm">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent border-none text-xs font-mono text-slate-200 focus:outline-none"
+              className="bg-transparent border-none text-sm font-mono text-slate-200 focus:outline-none"
             />
           </div>
 
           <button
             onClick={() => fetchSnapshot(selectedDate)}
-            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-slate-100 transition"
+            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-755 text-slate-300 hover:text-slate-100 transition"
             title="刷新数据"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -170,14 +170,14 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
           {/* 09:25 集合竞价对账按钮 */}
           <button
             onClick={() => setIsBiddingModalOpen(true)}
-            className="flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-750 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 transition"
+            className="flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-750 px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-200 transition"
             title="查看 09:25 集合竞价自动对账单"
           >
             <Compass className="w-3.5 h-3.5 text-indigo-400" />
             <span>09:25 竞价对账</span>
             {biddingVerdict && (
               <span
-                className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded border ${
+                className={`text-xs font-mono font-bold px-1.5 py-0.2 rounded border ${
                   biddingVerdict.overall_verdict === 'CONFIRMED'
                     ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800'
                     : biddingVerdict.overall_verdict === 'DIVERGENT'
@@ -195,7 +195,7 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
           {/* 操盘内参战报按钮 */}
           <button
             onClick={() => setIsBriefingOpen(true)}
-            className="flex items-center gap-1.5 bg-indigo-950/70 hover:bg-indigo-900/80 border border-indigo-700/60 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-200 transition"
+            className="flex items-center gap-1.5 bg-indigo-950/70 hover:bg-indigo-900/80 border border-indigo-700/60 px-3 py-1.5 rounded-lg text-sm font-semibold text-indigo-200 transition"
           >
             <FileText className="w-3.5 h-3.5 text-indigo-400" />
             <span>操盘内参 (Briefing)</span>
@@ -204,7 +204,7 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
           {/* 审计抽屉按钮 */}
           <button
             onClick={() => setIsAuditOpen(true)}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-200 transition"
+            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-200 transition"
           >
             <Shield className="w-3.5 h-3.5 text-indigo-400" />
             <span>审计抽屉 (Audit)</span>
@@ -229,7 +229,7 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
             <p className="text-sm text-slate-300 font-medium">{errorMsg}</p>
             <button
               onClick={() => fetchSnapshot(selectedDate)}
-              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg transition"
+              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold rounded-lg transition"
             >
               重新加载
             </button>
@@ -273,7 +273,7 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
             {/* 第三层：亏钱效应、监管风险与 09:25 次日波普尔证伪闭环 (~30% 高度) */}
             <section className="shrink-0 flex flex-col gap-2">
               <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-lg p-0.5 text-xs font-semibold">
+                <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-lg p-0.5 text-sm font-semibold">
                   <button
                     onClick={() => setActiveBottomTab('RISK_FALSIFICATION')}
                     className={`px-3 py-1 rounded-md transition ${
@@ -295,7 +295,7 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
                     <span>09:25 集合竞价波普尔对账 (次晨开盘)</span>
                     {biddingVerdict && (
                       <span
-                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-bold border ${
+                        className={`text-xs font-mono px-1.5 py-0.2 rounded font-bold border ${
                           biddingVerdict.overall_verdict === 'CONFIRMED'
                             ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
                             : biddingVerdict.overall_verdict === 'DIVERGENT'
@@ -320,7 +320,7 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
                     <span>盘中 4 阶段偏离告警 (动态追踪)</span>
                     {intradayVerdict && (
                       <span
-                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-bold border ${
+                        className={`text-xs font-mono px-1.5 py-0.2 rounded font-bold border ${
                           intradayVerdict.overall_drift_state === 'NORMAL'
                             ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
                             : intradayVerdict.overall_drift_state === 'DRIFT_WARNING'
@@ -339,7 +339,7 @@ export const TraderCockpitView: React.FC<TraderCockpitViewProps> = ({
                 {activeBottomTab === 'BIDDING_AUCTION' && (
                   <button
                     onClick={() => setIsBiddingModalOpen(true)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono transition"
+                    className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono transition"
                   >
                     <span>全屏详情</span>
                     <Compass className="w-3.5 h-3.5" />

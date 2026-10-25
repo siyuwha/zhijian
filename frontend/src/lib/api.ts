@@ -150,6 +150,23 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(params),
     }),
+  getAutonomousStatus: () =>
+    fetchAPI<any>('/strategy/autonomous/status'),
+  vetoAutonomousOrder: (code: string, reason?: string) =>
+    fetchAPI<any>('/strategy/autonomous/veto', {
+      method: 'POST',
+      body: JSON.stringify({ code, reason }),
+    }),
+  runAutonomousReplay: (date: string) =>
+    fetchAPI<any>('/strategy/autonomous/replay', {
+      method: 'POST',
+      body: JSON.stringify({ date }),
+    }),
+  runAutonomousSync: (date?: string, force: boolean = false) =>
+    fetchAPI<any>('/strategy/autonomous/sync', {
+      method: 'POST',
+      body: JSON.stringify({ date, force }),
+    }),
 
   // G1-M3 交易记录与持仓管理端点
   getPositions: (refreshQuote: boolean = true) =>

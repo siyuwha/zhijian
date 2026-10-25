@@ -67,7 +67,7 @@ export const MarketStateBanner: React.FC<MarketStateBannerProps> = ({
             >
               <Cpu className="w-3 h-3 inline" />
               {calibration.state_display_name}
-              <span className="text-[10px] opacity-75 font-normal">
+              <span className="text-xs opacity-75 font-normal">
                 ({(calibration.state_confidence * 100).toFixed(0)}% 置信度)
               </span>
             </span>
@@ -75,12 +75,12 @@ export const MarketStateBanner: React.FC<MarketStateBannerProps> = ({
 
           {/* 转移信号提示 */}
           {calibration?.transition_signal && (
-            <span className="text-[10px] text-amber-300/90 bg-amber-950/40 border border-amber-800/50 px-2 py-0.5 rounded font-mono shrink-0">
+            <span className="text-xs text-amber-300/90 bg-amber-950/40 border border-amber-800/50 px-2 py-0.5 rounded font-mono shrink-0">
               ⚡ {calibration.transition_signal}
             </span>
           )}
 
-          <p className="text-sm font-semibold text-slate-100 leading-snug">
+          <p className="text-base font-semibold text-slate-100 leading-snug">
             {summary}
           </p>
         </div>
@@ -90,18 +90,18 @@ export const MarketStateBanner: React.FC<MarketStateBannerProps> = ({
           {onOpenBriefing && (
             <button
               onClick={onOpenBriefing}
-              className="flex items-center gap-1.5 bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 px-2.5 py-1 rounded text-xs font-semibold text-indigo-300 transition"
+              className="flex items-center gap-1.5 bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 px-2.5 py-1 rounded text-sm font-semibold text-indigo-300 transition"
               title="查看受约束 LLM 操盘内参实战战报"
             >
               <FileText className="w-3.5 h-3.5 text-indigo-400" />
               <span>操盘战报</span>
             </button>
           )}
-          <span className="text-[10px] text-amber-300 font-mono bg-amber-950/60 border border-amber-800/80 px-2 py-0.5 rounded">
+          <span className="text-xs text-amber-300 font-mono bg-amber-950/60 border border-amber-800/80 px-2 py-0.5 rounded">
             PROVISIONAL 推断
           </span>
           {breadthStatus === 'UNAVAILABLE' && (
-            <div className="flex items-center gap-2 text-xs bg-amber-950/40 text-amber-300 border border-amber-800/60 px-2.5 py-1 rounded-md">
+            <div className="flex items-center gap-2 text-sm bg-amber-950/40 text-amber-300 border border-amber-800/60 px-2.5 py-1 rounded-md">
               <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
               <span>全市场广度单源 HTTP 502 (已安全降级，微观池正常)</span>
             </div>
@@ -113,12 +113,12 @@ export const MarketStateBanner: React.FC<MarketStateBannerProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 pt-1">
         {/* 两市真实总额 (无二次累加) */}
         <div className="lg:col-span-2 bg-slate-950/60 border border-slate-800 rounded-lg p-2.5 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="flex items-center justify-between text-sm text-slate-400 mb-1">
             <span className="font-medium text-slate-300 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               问 2 · 沪深两市真实总成交
             </span>
-            <span className="text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 px-1.5 py-0.5 rounded">
+            <span className="text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 px-1.5 py-0.5 rounded">
               防重算冻结口径
             </span>
           </div>
@@ -126,12 +126,12 @@ export const MarketStateBanner: React.FC<MarketStateBannerProps> = ({
             <span className="text-2xl font-black text-slate-100 font-mono tracking-tight">
               {(turnover.two_markets_total_yi / 10000).toFixed(2)}
             </span>
-            <span className="text-xs text-slate-400 font-medium">万亿元</span>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-sm text-slate-400 font-medium">万亿元</span>
+            <span className="text-sm text-slate-400 font-mono">
               ({turnover.two_markets_total_yi.toLocaleString()} 亿)
             </span>
           </div>
-          <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between border-t border-slate-800/60 pt-1">
+          <div className="text-xs text-slate-400 mt-1 flex items-center justify-between border-t border-slate-800/60 pt-1">
             <span>沪: {turnover.sh_amount_yi.toFixed(0)} 亿 | 深(含创): {turnover.sz_total_amount_yi.toFixed(0)} 亿</span>
             <span className="text-slate-400 font-mono">
               创占比 {(turnover.chinext_ratio_in_sz * 100).toFixed(1)}% (切片)
@@ -147,18 +147,18 @@ export const MarketStateBanner: React.FC<MarketStateBannerProps> = ({
               key={idx.symbol}
               className="bg-slate-950/40 border border-slate-800/80 rounded-lg p-2.5 flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-sm text-slate-400">
                 <span className="font-medium text-slate-300">{idx.name}</span>
-                <span className="text-[10px] font-mono text-slate-400">
+                <span className="text-xs font-mono text-slate-400">
                   {idx.amount_yi.toFixed(0)} 亿
                 </span>
               </div>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-lg font-bold font-mono text-slate-100">
+                <span className="text-xl font-bold font-mono text-slate-100">
                   {idx.current_price.toFixed(2)}
                 </span>
                 <span
-                  className={`text-xs font-bold font-mono flex items-center ${
+                  className={`text-sm font-bold font-mono flex items-center ${
                     isUp ? 'text-red-400' : 'text-emerald-400'
                   }`}
                 >

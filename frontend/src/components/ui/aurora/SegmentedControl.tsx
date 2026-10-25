@@ -37,12 +37,12 @@ const SIZE_STYLES: Record<
   md: {
     container: "p-1 gap-1",
     item: "min-w-[5.75rem] px-3.5 py-1.5 h-8",
-    text: "text-xs",
+    text: "text-sm",
   },
   lg: {
     container: "p-1.5 gap-1.5",
     item: "min-w-[6.75rem] px-4 py-2 h-9",
-    text: "text-sm",
+    text: "text-base",
   },
 };
 

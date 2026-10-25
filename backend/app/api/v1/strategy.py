@@ -27,6 +27,17 @@ class BacktestRunRequest(BaseModel):
     holding_days: int = 2
     market_filter: bool = True
 
+class VetoOrderRequest(BaseModel):
+    code: str
+    reason: Optional[str] = "Manual Trader Veto"
+
+class ReplayRunRequest(BaseModel):
+    date: str = "2024-03-05"
+
+class SyncRunRequest(BaseModel):
+    date: Optional[str] = None
+    force: bool = False
+
 @router.get("/strategies")
 async def list_strategies(db: AsyncSession = Depends(get_db)):
     service = SelectionService(db)
@@ -83,3 +94,46 @@ async def run_strategy_backtest(payload: BacktestRunRequest):
         market_filter=payload.market_filter,
     )
     return res
+
+# =============================================================================
+# 无人值守交易时钟、双轨一票否决与单日全真回放 API
+# =============================================================================
+@router.get("/autonomous/status")
+async def get_autonomous_status():
+    """获取当前无人值守交易时钟、双轨否决缓冲窗口与待撮合指令状态"""
+    from ...tasks.scheduler import task_scheduler
+    status = task_scheduler.get_autonomous_state()
+    return {"code": 200, "data": status}
+
+@router.post("/autonomous/veto")
+async def execute_order_veto(payload: VetoOrderRequest):
+    """
+    在 09:25:00 ~ 09:29:50 双轨缓冲窗口内行使交易员一票否决权
+    """
+    from ...tasks.scheduler import task_scheduler
+    ok = task_scheduler.veto_order(payload.code, payload.reason or "Manual Trader Veto")
+    if ok:
+        return {"code": 200, "message": f"标的 {payload.code} 已被成功否决废弃，不会在 09:30 撮合成交", "data": {"code": payload.code, "vetoed": True}}
+    else:
+        return {"code": 400, "message": f"否决失败：标的 {payload.code} 不在缓冲队列中或当前不在 09:25~09:29:50 缓冲窗口", "data": {"code": payload.code, "vetoed": False}}
+
+@router.post("/autonomous/replay")
+async def run_single_day_replay(payload: ReplayRunRequest, db: AsyncSession = Depends(get_db)):
+    """
+    单交易日全时钟全真倍速闭环回放测试：
+    09:26 策略计算 ➔ 09:28 预埋队列 ➔ 09:30 开盘撮合 ➔ 盘中风控守护 ➔ 15:05 收盘结算
+    """
+    from ...services.autonomous_executor import AutonomousJobEngine
+    engine = AutonomousJobEngine(db)
+    res = await engine.replay_single_day(test_date=payload.date)
+    return {"code": 200, "data": res}
+
+@router.post("/autonomous/sync")
+async def run_incremental_data_sync(payload: SyncRunRequest):
+    """
+    手动/定时触发 方案 A 增量行情自给同步 (无头直接补齐本地 Parquet)
+    """
+    from ...services.incremental_sync import incremental_sync_pipeline
+    res = await incremental_sync_pipeline(target_date=payload.date, force=payload.force)
+    return {"code": 200, "data": res}
+

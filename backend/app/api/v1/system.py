@@ -26,6 +26,13 @@ async def list_task_logs(limit: int = 50, db: AsyncSession = Depends(get_db)):
     return {"code": 200, "data": logs}
 
 
+@router.get("/doctor")
+async def run_system_doctor():
+    """L0 级底座工程与运行环境健康体检探针"""
+    from ...services.doctor import run_doctor
+    return {"code": 200, "data": run_doctor(auto_heal=True)}
+
+
 # =========================================================================
 # 系统 LLM 与兼容 OpenAI 中转站 API 设置与连通性测试
 # =========================================================================

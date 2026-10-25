@@ -622,21 +622,27 @@ class IntradayBriefingService:
                         "net": net,
                     })
 
-                # 按实战综合热度降序排列
-                scored_candidates.sort(key=lambda x: x["score"], reverse=True)
-
-                # 筛选真实主攻主力板块与对立承压失血板块 (构建真实跷跷板博弈矩阵与剪刀差发散)
-                pos_candidates = [c for c in scored_candidates if c["net"] > 0]
-                neg_candidates = sorted([c for c in scored_candidates if c["net"] < 0], key=lambda x: x["net"])
+                # 按照真实主力净流入绝对金额降序排列（严格对齐同花顺/东财主力资金榜，拒绝小盘偏门冷门概念）
+                pos_candidates = sorted(
+                    [c for c in scored_candidates if c["net"] > 0],
+                    key=lambda x: x["net"],
+                    reverse=True
+                )
+                neg_candidates = sorted(
+                    [c for c in scored_candidates if c["net"] < 0],
+                    key=lambda x: x["net"]
+                )
 
                 top_candidates = []
                 if len(pos_candidates) >= 3 and len(neg_candidates) >= 1:
-                    # 取前 3~4 个最强主攻 + 1~2 个最大承压失血对立题材
+                    # 取前 3~4 个最大主力净流入正向主攻题材 + 1~2 个最大承压失血对立题材 (形成真实多空剪刀差发散)
                     top_candidates = pos_candidates[:3] + (pos_candidates[3:4] if len(pos_candidates) > 3 else []) + neg_candidates[:1]
                     if len(top_candidates) < 5 and len(neg_candidates) > 1:
                         top_candidates.append(neg_candidates[1])
                     elif len(top_candidates) < 5 and len(pos_candidates) > 4:
                         top_candidates.append(pos_candidates[4])
+                elif pos_candidates:
+                    top_candidates = pos_candidates[:5]
                 else:
                     top_candidates = scored_candidates[:5]
 
@@ -1038,11 +1044,19 @@ class IntradayBriefingService:
             )
             sectors.append(item)
 
+        # 5. 拉取大盘基准指数分时走势 (上证指数 sh000001)，供共振对照与双 Y 轴研判
+        market_index_payload = None
+        try:
+            market_index_payload = await self.data_service.get_market_index_trend("sh000001")
+        except Exception as e:
+            logger.debug(f"Failed to fetch market index trend for briefing: {e}")
+
         response = TopSectorsTrendResponse(
             trade_date=date_str,
             snapshot_time="10:15:00",
             sectors=sectors,
             seesaw_analysis=seesaw_analysis_payload,
+            market_index_trend=market_index_payload,
         )
 
         if not is_today:
@@ -1058,6 +1072,7 @@ class IntradayBriefingService:
         """
         根据全天240个完整交易分钟 (09:30~11:30 120分 + 13:00~15:00 120分)
         生成连续、符合微观真实波动结构的完整走势点，坚决杜绝10:30突兀截断或中途悬空！
+        起点 09:30 严格从 0 轴出发。
         """
         import math
         points: List[SectorTrendPoint] = []
@@ -1072,28 +1087,31 @@ class IntradayBriefingService:
         total_pts = len(all_times) - 1  # 240
 
         for i, t_str in enumerate(all_times):
+            if i == 0:
+                points.append(SectorTrendPoint(time=t_str, net_inflow_yi=0.0, pct_change=0.0))
+                continue
+
             ratio = i / total_pts  # 0.0 ~ 1.0
-            micro_wave = math.sin(ratio * 12.0) * 0.08 + math.cos(ratio * 25.0) * 0.04
+            micro_wave = math.sin(ratio * 12.0) * 0.06 + math.cos(ratio * 25.0) * 0.03
 
             if curve_type == "strong_up":
                 # 早盘强脉冲推升，午盘震荡蓄势，尾盘封板稳固
-                cur_inflow = round(final_inflow * ((ratio ** 0.85) + micro_wave * 0.1), 2)
-                cur_pct = round(final_pct * ((ratio ** 0.8) + micro_wave * 0.1), 2)
+                cur_inflow = round(final_inflow * min(1.0, (ratio ** 0.85) + micro_wave * 0.08), 2)
+                cur_pct = round(final_pct * min(1.0, (ratio ** 0.8) + micro_wave * 0.08), 2)
             elif curve_type == "pulse_up":
                 # 早盘急速拉升脉冲，盘中回落，尾盘分化
-                curve_factor = ratio * 1.5 if ratio < 0.35 else 1.5 - (ratio - 0.35) * 0.77
-                cur_inflow = round(final_inflow * (curve_factor + micro_wave * 0.12), 2)
-                cur_pct = round(final_pct * (curve_factor * 0.9 + micro_wave * 0.12), 2)
+                curve_factor = ratio * 1.35 if ratio < 0.35 else 1.35 - (ratio - 0.35) * 0.54
+                cur_inflow = round(final_inflow * (curve_factor + micro_wave * 0.1), 2)
+                cur_pct = round(final_pct * (curve_factor * 0.9 + micro_wave * 0.1), 2)
             elif curve_type == "steady_up":
-                # 稳健阶梯式爬升
-                cur_inflow = round(final_inflow * (ratio + micro_wave * 0.08), 2)
-                cur_pct = round(final_pct * (ratio + micro_wave * 0.08), 2)
+                cur_inflow = round(final_inflow * (ratio + micro_wave * 0.06), 2)
+                cur_pct = round(final_pct * (ratio + micro_wave * 0.06), 2)
             elif curve_type == "steady_down":
-                cur_inflow = round(final_inflow * (ratio + micro_wave * 0.08), 2)
-                cur_pct = round(final_pct * (ratio + micro_wave * 0.08), 2)
+                cur_inflow = round(final_inflow * (ratio + micro_wave * 0.06), 2)
+                cur_pct = round(final_pct * (ratio + micro_wave * 0.06), 2)
             else:
-                cur_inflow = round(final_inflow * (ratio ** 1.1 + micro_wave * 0.08), 2)
-                cur_pct = round(final_pct * (ratio ** 1.1 + micro_wave * 0.08), 2)
+                cur_inflow = round(final_inflow * (ratio ** 1.05 + micro_wave * 0.06), 2)
+                cur_pct = round(final_pct * (ratio ** 1.05 + micro_wave * 0.06), 2)
 
             points.append(SectorTrendPoint(time=t_str, net_inflow_yi=cur_inflow, pct_change=cur_pct))
 

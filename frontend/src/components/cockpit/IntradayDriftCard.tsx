@@ -50,7 +50,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
     return (
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col items-center justify-center min-h-[240px] text-slate-400 gap-3">
         <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
-        <span className="text-xs font-mono tracking-wide">
+        <span className="text-sm font-mono tracking-wide">
           正在获取盘中微观行情切片并执行 4 阶段动态波普尔偏离判定...
         </span>
       </div>
@@ -72,7 +72,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
               <p className="text-sm font-bold text-rose-300 font-mono">
                 安全合规审查物理拦截 (ERR_INTRADAY_SAFETY_INTERCEPTION)
               </p>
-              <p className="text-xs text-rose-400/80 mt-1">
+              <p className="text-sm text-rose-400/80 mt-1">
                 检测到交易诱导指令或非法行动边界，已触发物理级脱敏拒止保护，零违规信息外泄。
               </p>
             </div>
@@ -80,13 +80,13 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
         ) : (
           <>
             <AlertOctagon className="w-8 h-8 text-rose-400" />
-            <p className="text-xs font-semibold text-rose-300">{errorMsg}</p>
+            <p className="text-sm font-semibold text-rose-300">{errorMsg}</p>
           </>
         )}
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="mt-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-mono rounded text-slate-200 transition"
+            className="mt-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-sm font-mono rounded text-slate-200 transition"
           >
             重试拉取
           </button>
@@ -99,7 +99,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
     return (
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col items-center justify-center min-h-[240px] text-slate-500 gap-2">
         <HelpCircle className="w-7 h-7 text-slate-600" />
-        <span className="text-xs">暂无盘中认知偏离判定数据 (请确认是否为有效交易时段)</span>
+        <span className="text-sm">暂无盘中认知偏离判定数据 (请确认是否为有效交易时段)</span>
       </div>
     );
   }
@@ -262,15 +262,15 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
                 <span className="text-xs font-bold text-slate-200 tracking-wide">
                   盘中 4 阶段动态跟踪与认知偏离实时告警
                 </span>
-                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-1.5 py-0.2 rounded">
+                <span className="text-xs font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-1.5 py-0.2 rounded">
                   {trade_date}
                 </span>
                 <span
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded border font-semibold ${stageInfo.badgeClass}`}
+                  className={`text-xs font-mono px-2 py-0.5 rounded border font-semibold ${stageInfo.badgeClass}`}
                 >
                   {stageInfo.label}
                 </span>
-                <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-1.5 py-0.2 rounded border border-slate-700">
+                <span className="text-xs font-mono text-slate-400 bg-slate-800/80 px-1.5 py-0.2 rounded border border-slate-700">
                   已交易 {elapsed_trading_minutes} / 240 分钟
                 </span>
               </div>
@@ -288,7 +288,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
               </button>
             )}
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-bold font-mono ${badge.badgeClass}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-sm font-bold font-mono ${badge.badgeClass}`}
             >
               {badge.icon}
               <span>{badge.label}</span>
@@ -308,10 +308,10 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-slate-200 font-medium leading-relaxed">
+            <p className="text-sm text-slate-200 font-medium leading-relaxed">
               {verdict_headline}
             </p>
-            <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-slate-500">
+            <div className="flex items-center gap-2 mt-1 text-xs font-mono text-slate-500">
               <span>评估时点: {evaluated_at.replace('T', ' ')}</span>
               <span>·</span>
               <span>细分原因: {inconclusive_reason || 'N/A'}</span>
@@ -322,11 +322,11 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
         {/* 检测到的突发异动事件流 */}
         <div className="mb-3.5">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+            <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
               <Flame className="w-3.5 h-3.5 text-rose-400" />
               突发偏离异动事件检测
             </span>
-            <span className="text-[10px] font-mono text-slate-500">
+            <span className="text-xs font-mono text-slate-500">
               {detected_drift_events.length > 0
                 ? `检测到 ${detected_drift_events.length} 项异动`
                 : '盘中无突发异动'}
@@ -339,7 +339,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
                 return (
                   <div
                     key={idx}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded border text-xs font-mono font-medium ${eb.badgeClass}`}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded border text-sm font-mono font-medium ${eb.badgeClass}`}
                   >
                     {eb.icon}
                     <span>{eb.label}</span>
@@ -357,7 +357,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
         {/* 四大微观客观断言证据链 */}
         {!compact && assertion_results.length > 0 && (
           <div className="mb-3.5">
-            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mb-2">
+            <span className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-2">
               <Activity className="w-3.5 h-3.5 text-indigo-400" />
               四大微观客观断言裁判明细
             </span>
@@ -369,7 +369,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
                 return (
                   <div
                     key={idx}
-                    className={`p-2.5 rounded-lg border text-xs flex flex-col justify-between gap-1.5 ${
+                    className={`p-2.5 rounded-lg border text-sm flex flex-col justify-between gap-1.5 ${
                       isViolated
                         ? isCritical
                           ? 'bg-rose-950/30 border-rose-900/50 text-rose-200'
@@ -378,11 +378,11 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold font-mono text-[11px] text-slate-200">
+                      <span className="font-bold font-mono text-xs text-slate-200">
                         {rule.rule_name}
                       </span>
                       <span
-                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded border font-semibold ${
+                        className={`text-xs font-mono px-1.5 py-0.2 rounded border font-semibold ${
                           isViolated
                             ? isCritical
                               ? 'bg-rose-950 text-rose-300 border-rose-800'
@@ -393,12 +393,12 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
                         {isViolated ? (isCritical ? 'CRITICAL_KILL' : 'VIOLATED') : 'ALIGNED'}
                       </span>
                     </div>
-                    <div className="text-[10px] font-mono text-slate-400 flex flex-col gap-0.5">
+                    <div className="text-xs font-mono text-slate-400 flex flex-col gap-0.5">
                       <div>标的/板块: {rule.target_entity}</div>
                       <div>观测事实: {rule.actual_observation}</div>
                       <div>预设门槛: {rule.expected_condition}</div>
                     </div>
-                    <div className="text-[10px] text-slate-400/90 pt-1 border-t border-slate-800/60 leading-tight">
+                    <div className="text-xs text-slate-400/90 pt-1 border-t border-slate-800/60 leading-tight">
                       {rule.deviation_analysis}
                     </div>
                   </div>
@@ -411,11 +411,11 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
         {/* 封闭安全防守行动边界 */}
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+            <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
               <Lock className="w-3.5 h-3.5 text-cyan-400" />
               客观防守行动边界 (封闭词库 · 严禁买卖诱导)
             </span>
-            <span className="text-[10px] font-mono text-cyan-500/80">
+            <span className="text-xs font-mono text-cyan-500/80">
               {preservation_boundaries.length} 项纪律
             </span>
           </div>
@@ -423,7 +423,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
             {preservation_boundaries.map((boundary, idx) => (
               <div
                 key={idx}
-                className="p-2 rounded-md bg-slate-950/60 border border-slate-800/80 flex items-center gap-2 text-xs font-mono text-slate-300"
+                className="p-2 rounded-md bg-slate-950/60 border border-slate-800/80 flex items-center gap-2 text-sm font-mono text-slate-300"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                 <span className="leading-tight">{boundary}</span>
@@ -434,7 +434,7 @@ export const IntradayDriftCard: React.FC<IntradayDriftCardProps> = ({
       </div>
 
       {/* 底部防伪水印栏 */}
-      <div className="pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-slate-500">
+      <div className="pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-500">
         <div className="flex items-center gap-2">
           <Fingerprint className="w-3.5 h-3.5 text-slate-400" />
           <span>Trace: {trace_id.slice(0, 24)}...</span>
