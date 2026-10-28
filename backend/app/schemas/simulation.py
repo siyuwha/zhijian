@@ -56,9 +56,9 @@ class SimStatsResponse(BaseModel):
     win_trades: int
     loss_trades: int
     closed_trades: int = 0
-    win_rate: float
-    closed_leg_win_rate: float = 0.0
-    payoff_ratio: float = 1.8
+    win_rate: Optional[float] = None
+    closed_leg_win_rate: Optional[float] = None
+    payoff_ratio: Optional[float] = None
     total_pnl: float
     total_realized_pnl: float = 0.0
     available_cash: float

@@ -243,34 +243,109 @@ class SimulationService:
         """获取策略实盘模拟胜率与盈亏比统计"""
         account = await self.get_or_create_default_account()
         positions = await self.get_positions(refresh_quote=True)
-        trades = await self.get_records(limit=200)
+
+        # 完整流水按 id 升序读取，不截断为 200 条
+        stmt_trades = (
+            select(SimTrade)
+            .where(SimTrade.account_id == account.id)
+            .order_by(SimTrade.id.asc())
+        )
+        trades = list((await self.session.execute(stmt_trades)).scalars().all())
 
         market_value = sum(p.market_value for p in positions)
         total_asset = round(account.current_capital + market_value, 2)
         total_pnl = round(total_asset - account.initial_capital, 2)
 
-        sell_trades = [t for t in trades if t.direction == "sell"]
-        total_sells = len(sell_trades)
+        # 重建各代码持仓与平仓交易腿 (移动加权平均成本，与 execute_trade 舍入口径完全一致)
+        pos_tracker: Dict[str, Dict[str, Any]] = {}
+        closed_leg_pnls: List[float] = []
+        win_pnls: List[float] = []
+        loss_pnls: List[float] = []
         win_trades = 0
         loss_trades = 0
 
-        # 根据卖出与均价简单粗略估算胜率
-        for st in sell_trades:
-            # 若有实际盈利记为 win
-            win_trades += 1 # 默认正向样本
+        for t in trades:
+            direction = (t.direction or "").lower().strip()
+            price = round(float(t.price), 3)
+            qty = int(t.quantity)
+            code = t.code
 
-        win_rate = round((win_trades / total_sells) * 100, 1) if total_sells > 0 else 66.7
+            if direction == "buy":
+                if code not in pos_tracker:
+                    pos_tracker[code] = {"quantity": qty, "avg_cost": price}
+                else:
+                    curr = pos_tracker[code]
+                    if curr["quantity"] > 0:
+                        amount = round(price * qty, 2)
+                        new_qty = curr["quantity"] + qty
+                        total_cost = round(curr["quantity"] * curr["avg_cost"] + amount, 2)
+                        curr["avg_cost"] = round(total_cost / new_qty, 3)
+                        curr["quantity"] = new_qty
+                    else:
+                        curr["quantity"] = qty
+                        curr["avg_cost"] = price
+            elif direction == "sell":
+                curr = pos_tracker.get(code)
+                if not curr or curr["quantity"] <= 0:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            f"模拟交易统计失败: 流水 ID {t.id} 存在无成本卖出异常 "
+                            f"(标的代码 {code}, 拟卖出 {qty} 股, 当前持仓 0 股)"
+                        ),
+                    )
+
+                if curr["quantity"] < qty:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            f"模拟交易统计失败: 流水 ID {t.id} 存在超卖异常 "
+                            f"(标的代码 {code}, 拟卖出 {qty} 股, 当前持仓仅 {curr['quantity']} 股)"
+                        ),
+                    )
+
+                realized_pnl = round((price - curr["avg_cost"]) * qty, 2)
+                curr["quantity"] -= qty
+                if curr["quantity"] == 0:
+                    curr["avg_cost"] = 0.0
+
+                closed_leg_pnls.append(realized_pnl)
+                if realized_pnl > 0:
+                    win_trades += 1
+                    win_pnls.append(realized_pnl)
+                elif realized_pnl < 0:
+                    loss_trades += 1
+                    loss_pnls.append(realized_pnl)
+
+        total_trades = len(trades)
+        closed_trades = len(closed_leg_pnls)
+
+        if closed_trades > 0:
+            win_rate = round((win_trades / closed_trades) * 100, 2)
+            closed_leg_win_rate = win_rate
+        else:
+            win_rate = None
+            closed_leg_win_rate = None
+
+        if len(win_pnls) > 0 and len(loss_pnls) > 0:
+            avg_win = sum(win_pnls) / len(win_pnls)
+            avg_loss = abs(sum(loss_pnls) / len(loss_pnls))
+            payoff_ratio = round(avg_win / avg_loss, 2) if avg_loss > 0 else None
+        else:
+            payoff_ratio = None
+
+        total_realized_pnl = round(sum(closed_leg_pnls), 2) if closed_leg_pnls else 0.0
 
         return SimStatsResponse(
-            total_trades=len(trades),
+            total_trades=total_trades,
             win_trades=win_trades,
-            loss_trades=total_sells - win_trades,
-            closed_trades=total_sells,
+            loss_trades=loss_trades,
+            closed_trades=closed_trades,
             win_rate=win_rate,
-            closed_leg_win_rate=win_rate,
-            payoff_ratio=1.8,
+            closed_leg_win_rate=closed_leg_win_rate,
+            payoff_ratio=payoff_ratio,
             total_pnl=total_pnl,
-            total_realized_pnl=round(account.total_pnl, 2),
+            total_realized_pnl=total_realized_pnl,
             available_cash=round(account.current_capital, 2),
             market_value=round(market_value, 2),
             total_asset=total_asset

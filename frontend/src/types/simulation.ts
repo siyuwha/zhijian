@@ -46,9 +46,9 @@ export interface SimStats {
   win_trades: number;
   loss_trades: number;
   closed_trades?: number;
-  win_rate: number;
-  closed_leg_win_rate?: number;
-  payoff_ratio?: number;
+  win_rate: number | null;
+  closed_leg_win_rate?: number | null;
+  payoff_ratio?: number | null;
   total_pnl: number;
   total_realized_pnl?: number;
   available_cash: number;

@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { 
-  PlaySquare, 
-  Wallet, 
-  TrendingUp, 
-  ShieldCheck, 
-  Clock, 
-  CheckCircle2, 
+import {
+  PlaySquare,
+  Wallet,
+  TrendingUp,
+  ShieldCheck,
+  Clock,
+  CheckCircle2,
   AlertTriangle,
   RotateCcw,
   Zap,
@@ -29,10 +29,14 @@ export default function SimulationPage() {
   const [positions, setPositions] = useState<SimPosition[]>([]);
   const [records, setRecords] = useState<SimTrade[]>([]);
   const [stats, setStats] = useState<SimStats | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [isStatsInitialLoaded, setIsStatsInitialLoaded] = useState<boolean>(false);
   const [strategyData, setStrategyData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [actionNotice, setActionNotice] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const reqSequenceRef = useRef<number>(0);
 
   // 模拟下单弹窗状态
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,6 +50,7 @@ export default function SimulationPage() {
 
   // 综合加载核心数据
   const loadAllData = useCallback(async (quiet: boolean = false) => {
+    const currentReqSeq = ++reqSequenceRef.current;
     if (!quiet) setIsLoading(true);
     else setIsRefreshing(true);
 
@@ -57,23 +62,45 @@ export default function SimulationPage() {
         api.getClassicStrategies(),
       ]);
 
+      // 若已有更新的请求发出，丢弃早前过时请求的响应，避免旧状态覆盖新状态
+      if (currentReqSeq !== reqSequenceRef.current) {
+        return;
+      }
+
       if (posRes.status === 'fulfilled' && Array.isArray(posRes.value)) {
         setPositions(posRes.value);
       }
       if (recRes.status === 'fulfilled' && recRes.value?.items) {
         setRecords(recRes.value.items);
       }
-      if (statsRes.status === 'fulfilled' && statsRes.value) {
-        setStats(statsRes.value);
+
+      // 统计数据独立处理：成功且有效则更新；失败或空数据清空旧值并记录持续错误
+      if (statsRes.status === 'fulfilled') {
+        const val = statsRes.value;
+        if (val && typeof val === 'object' && val.total_trades !== undefined) {
+          setStats(val);
+          setStatsError(null);
+        } else {
+          setStats(null);
+          setStatsError('统计数据为空或无法解析，请重试');
+        }
+      } else {
+        setStats(null);
+        const errMsg = statsRes.reason?.message || '统计加载失败，请重试';
+        setStatsError(errMsg);
       }
+
       if (stratRes.status === 'fulfilled' && stratRes.value) {
         setStrategyData(stratRes.value);
       }
     } catch (err) {
       console.warn('Simulation data load error:', err);
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (currentReqSeq === reqSequenceRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+        setIsStatsInitialLoaded(true);
+      }
     }
   }, []);
 
@@ -183,11 +210,48 @@ export default function SimulationPage() {
   const totalMarketValue = positions.reduce((acc, p) => acc + (p.market_value || (p.current_price || p.avg_cost) * p.quantity), 0);
   const totalCost = positions.reduce((acc, p) => acc + p.total_cost, 0);
   const totalFloatingPnl = positions.reduce((acc, p) => acc + (p.floating_pnl || 0), 0);
-  const totalRealizedPnl = stats?.total_realized_pnl || 0;
-  const availableCash = Math.max(0, initialCapital - totalCost + totalRealizedPnl);
-  const totalAssets = availableCash + totalMarketValue;
-  const totalPnlRatio = Number((((totalAssets - initialCapital) / initialCapital) * 100).toFixed(2));
-  const positionRatio = totalAssets > 0 ? Number(((totalMarketValue / totalAssets) * 100).toFixed(1)) : 0;
+
+  // 依赖统计真实性的资产计算防线：已实现盈亏必须是接收到的真实有限数值，缺失/null/非数值时不参与资金重算，展示 '--'
+  const isStatsAvailable = Boolean(stats && !statsError && isStatsInitialLoaded);
+  const isRealizedPnlAvailable = Boolean(
+    isStatsAvailable &&
+    stats &&
+    typeof stats.total_realized_pnl === 'number' &&
+    Number.isFinite(stats.total_realized_pnl)
+  );
+  const totalRealizedPnl = isRealizedPnlAvailable ? (stats!.total_realized_pnl as number) : null;
+
+  // 依赖已实现盈亏的资金指标：已实现盈亏不可用时必须为 null 并展示 '--'，不得以 0 代替
+  const availableCash = totalRealizedPnl !== null
+    ? Math.max(0, initialCapital - totalCost + totalRealizedPnl)
+    : null;
+  const totalAssets = availableCash !== null ? availableCash + totalMarketValue : null;
+  const totalPnlRatio = totalAssets !== null
+    ? Number((((totalAssets - initialCapital) / initialCapital) * 100).toFixed(2))
+    : null;
+  const positionRatio = (totalAssets !== null && totalAssets > 0)
+    ? Number(((totalMarketValue / totalAssets) * 100).toFixed(1))
+    : null;
+  const cashRatio = (availableCash !== null && totalAssets !== null && totalAssets > 0)
+    ? Number(((availableCash / totalAssets) * 100).toFixed(1))
+    : null;
+
+  // 平仓腿数与盈利腿数必须严格来自平仓统计字段，不得以买卖流水总数 total_trades 代替
+  const hasClosedTrades = Boolean(
+    isStatsAvailable &&
+    stats &&
+    typeof stats.closed_trades === 'number' &&
+    Number.isFinite(stats.closed_trades)
+  );
+  const closedTradesCount = hasClosedTrades ? (stats!.closed_trades as number) : null;
+
+  const hasWinTrades = Boolean(
+    isStatsAvailable &&
+    stats &&
+    typeof stats.win_trades === 'number' &&
+    Number.isFinite(stats.win_trades)
+  );
+  const winTradesCount = hasWinTrades ? (stats!.win_trades as number) : null;
 
   // 策略推演候选总列表
   const allStrategyCandidates: Array<{ cand: any; strategyName: string }> = [];
@@ -203,7 +267,7 @@ export default function SimulationPage() {
 
   return (
     <div className="min-h-screen px-4 md:px-6 py-6 max-w-[1780px] mx-auto space-y-6 select-none">
-      
+
       {/* 顶部通知条 */}
       {actionNotice && (
         <div className={`p-3.5 rounded-xl border text-sm font-mono flex items-center justify-between transition-all animate-fade-in ${
@@ -244,8 +308,8 @@ export default function SimulationPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => loadAllData(true)}
-            disabled={isRefreshing}
-            className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm font-semibold text-slate-200 transition flex items-center gap-1.5"
+            disabled={isRefreshing || isLoading}
+            className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm font-semibold text-slate-200 transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             title="刷新持仓、流水与最新行情"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -279,7 +343,7 @@ export default function SimulationPage() {
             <span>新建模拟交易</span>
           </button>
 
-          <Link 
+          <Link
             href="/strategy"
             className="px-3.5 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 border border-purple-500/40 text-sm font-semibold text-purple-200 transition flex items-center gap-1.5"
           >
@@ -297,14 +361,27 @@ export default function SimulationPage() {
         <div className="glass-card rounded-2xl p-5 bg-white/[0.02] border border-white/10 space-y-2">
           <div className="flex justify-between items-center text-sm text-slate-400">
             <span>虚拟账户总资产</span>
-            <span className={`px-1.5 py-0.5 rounded font-mono text-xs font-bold ${
-              totalPnlRatio >= 0 ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
-            }`}>
-              {totalPnlRatio >= 0 ? `+${totalPnlRatio}%` : `${totalPnlRatio}%`}
-            </span>
+            {totalPnlRatio !== null ? (
+              <span className={`px-1.5 py-0.5 rounded font-mono text-xs font-bold ${
+                totalPnlRatio >= 0 ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
+              }`}>
+                {totalPnlRatio >= 0 ? `+${totalPnlRatio}%` : `${totalPnlRatio}%`}
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded font-mono text-xs font-bold bg-white/5 text-slate-400 border border-white/10">
+                --
+              </span>
+            )}
           </div>
           <div className="text-2xl font-black font-mono text-white tabular-nums">
-            {totalAssets.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-slate-400">元</span>
+            {totalAssets !== null ? (
+              <>
+                {totalAssets.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+                <span className="text-xs font-normal text-slate-400">元</span>
+              </>
+            ) : (
+              <span className="text-slate-400">--</span>
+            )}
           </div>
           <div className={`text-sm font-mono flex items-center gap-1 ${totalFloatingPnl >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
             {totalFloatingPnl >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
@@ -319,10 +396,22 @@ export default function SimulationPage() {
             <span className="text-slate-500 font-mono text-xs">初始金 100 万</span>
           </div>
           <div className="text-2xl font-black font-mono text-white tabular-nums">
-            {availableCash.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-slate-400">元</span>
+            {availableCash !== null ? (
+              <>
+                {availableCash.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+                <span className="text-xs font-normal text-slate-400">元</span>
+              </>
+            ) : (
+              <span className="text-slate-400">--</span>
+            )}
           </div>
           <div className="text-sm text-slate-400 font-mono">
-            现金储备率: <span className="text-emerald-400 font-bold">{((availableCash / (totalAssets || 1)) * 100).toFixed(1)}%</span>
+            现金储备率:{' '}
+            {cashRatio !== null ? (
+              <span className="text-emerald-400 font-bold">{cashRatio}%</span>
+            ) : (
+              <span className="text-slate-400 font-bold">--</span>
+            )}
           </div>
         </div>
 
@@ -338,25 +427,124 @@ export default function SimulationPage() {
             {totalMarketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-slate-400">元</span>
           </div>
           <div className="text-sm text-slate-400 font-mono">
-            当前实战仓位: <span className="text-amber-400 font-bold">{positionRatio}%</span> (建议 {strategyData?.suggested_position || '30%~50%'})
+            当前实战仓位:{' '}
+            {positionRatio !== null ? (
+              <span className="text-amber-400 font-bold">{positionRatio}%</span>
+            ) : (
+              <span className="text-slate-400 font-bold">--</span>
+            )}{' '}
+            (建议 {strategyData?.suggested_position || '30%~50%'})
           </div>
         </div>
 
-        {/* 胜率与累计交易统计 */}
-        <div className="glass-card rounded-2xl p-5 bg-white/[0.02] border border-white/10 space-y-2">
+        {/* 平仓交易腿胜率统计 */}
+        <div className={`glass-card rounded-2xl p-5 bg-white/[0.02] border space-y-2 transition-all ${
+          statsError ? 'border-rose-500/40 bg-rose-950/10' : 'border-white/10'
+        }`}>
           <div className="flex justify-between items-center text-sm text-slate-400">
-            <span>实战演练胜率统计</span>
-            <span className="text-slate-500 font-mono text-xs">已平仓周期</span>
-          </div>
-          <div className="text-2xl font-black font-mono text-rose-400 tabular-nums">
-            {stats?.closed_leg_win_rate != null ? `${stats.closed_leg_win_rate}%` : '--'}
-            <span className="text-xs font-normal text-slate-400 ml-1.5">
-              ({stats?.win_trades || 0}/{stats?.closed_trades || 0} 胜)
+            <div className="flex items-center gap-1.5">
+              <span>平仓交易腿胜率统计</span>
+              {isRefreshing && (
+                <span className="text-cyan-400 font-mono text-[11px] animate-pulse">
+                  (刷新中...)
+                </span>
+              )}
+            </div>
+            <span className={`font-mono text-xs ${
+              statsError
+                ? 'px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold'
+                : 'text-slate-500'
+            }`}>
+              {statsError ? '统计异常' : '平仓交易腿'}
             </span>
           </div>
-          <div className="text-sm text-slate-400 font-mono">
-            盈亏比: <span className="text-white font-bold">{stats?.payoff_ratio != null ? `${stats.payoff_ratio} : 1` : '--'}</span> | 已实现: {totalRealizedPnl.toFixed(2)}元
+
+          <div className="text-2xl font-black font-mono tabular-nums">
+            {isStatsAvailable && typeof stats?.closed_leg_win_rate === 'number' && Number.isFinite(stats.closed_leg_win_rate) ? (
+              <span className={stats.closed_leg_win_rate > 0 ? 'text-rose-400' : 'text-slate-200'}>
+                {stats.closed_leg_win_rate}%
+              </span>
+            ) : (
+              <span className="text-slate-400">--</span>
+            )}
+            <span className="text-xs font-normal text-slate-400 ml-1.5 font-mono">
+              {winTradesCount !== null && closedTradesCount !== null ? (
+                `(${winTradesCount} 盈利 / ${closedTradesCount} 平仓腿)`
+              ) : closedTradesCount !== null ? (
+                `(-- 盈利 / ${closedTradesCount} 平仓腿)`
+              ) : (
+                '(-- 盈利 / -- 平仓腿)'
+              )}
+            </span>
           </div>
+
+          <div className="text-sm text-slate-400 font-mono flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              盈亏比:{' '}
+              {isStatsAvailable && typeof stats?.payoff_ratio === 'number' && Number.isFinite(stats.payoff_ratio) ? (
+                <span className="text-white font-bold">{stats.payoff_ratio} : 1</span>
+              ) : (
+                <span className="text-slate-400 font-bold">--</span>
+              )}
+            </span>
+            <span className="text-slate-600">|</span>
+            <span>
+              已实现:{' '}
+              {totalRealizedPnl !== null ? (
+                <span className={`font-bold ${
+                  totalRealizedPnl > 0
+                    ? 'text-rose-400'
+                    : totalRealizedPnl < 0
+                    ? 'text-emerald-400'
+                    : 'text-slate-300'
+                }`}>
+                  {totalRealizedPnl > 0 ? `+${totalRealizedPnl.toFixed(2)}` : totalRealizedPnl.toFixed(2)} 元
+                </span>
+              ) : (
+                <span className="text-slate-400 font-bold">--</span>
+              )}
+            </span>
+          </div>
+
+          {/* 样本说明 (成功但无平仓或缺少盈亏样本；closed_trades 缺失时不得误报暂无样本) */}
+          {isStatsAvailable && stats && (
+            closedTradesCount === 0 ? (
+              <div className="text-xs text-amber-400 font-mono flex items-center gap-1.5 pt-1" aria-live="polite">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span>暂无平仓样本</span>
+              </div>
+            ) : (closedTradesCount !== null && closedTradesCount > 0 && stats.payoff_ratio == null) ? (
+              <div className="text-xs text-amber-400 font-mono flex items-center gap-1.5 pt-1" aria-live="polite">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span>盈亏样本不足</span>
+              </div>
+            ) : null
+          )}
+
+          {/* 持续错误提示 (role="alert" aria-live="assertive") */}
+          {statsError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="mt-2 p-2.5 rounded-xl bg-rose-950/70 border border-rose-500/40 text-xs font-mono text-rose-300 space-y-1"
+            >
+              <div className="flex items-start gap-1.5 font-bold">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-400" />
+                <span className="break-all">{statsError}</span>
+              </div>
+              <div className="text-[11px] text-slate-400">
+                统计已清空 · 请点击右上角“刷新行情”重试
+              </div>
+            </div>
+          )}
+
+          {/* 首次加载提示 */}
+          {!isStatsInitialLoaded && isLoading && (
+            <div className="text-xs text-slate-500 font-mono flex items-center gap-1.5 pt-1" aria-live="polite">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              <span>正在获取平仓统计...</span>
+            </div>
+          )}
         </div>
       </div>
 
