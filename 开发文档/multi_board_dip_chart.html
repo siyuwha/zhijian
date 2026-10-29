@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>连板分歧低吸策略 vs 上证指数 · 双轴全景走势图</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --background: 222 47% 11%;
+      --foreground: 210 40% 98%;
+      --card: 222 47% 15%;
+      --border: 217 33% 22%;
+      --muted-foreground: 215 20% 65%;
+      --primary: 346 84% 61%;
+      --accent: 199 89% 48%;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .hud-stat {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="bg-transparent text-[var(--foreground)] antialiased p-3 sm:p-5">
+  <div class="bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl p-5 shadow-2xl max-w-5xl mx-auto space-y-5">
+    
+    <!-- 顶部标题与坐标模式切换 -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="px-2.5 py-1 rounded-md bg-rose-500/20 text-rose-400 font-mono text-xs font-bold border border-rose-500/30">
+            双轴独立量程 (Dual-Axis)
+          </span>
+          <h2 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            连板分歧低吸 vs 上证指数 · 3年真实走势图
+          </h2>
+        </div>
+        <p class="text-xs text-[var(--muted-foreground)] mt-1 font-mono">
+          左轴: 策略净值 (0~85x) · 右轴: 上证指数真实点位 (2600~4200点) · 消除 8000% 暴利对大盘走势的压平效应
+        </p>
+      </div>
+
+      <!-- 模式切换：双轴联动 vs 单轴对数 -->
+      <div class="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-xl p-1 text-xs font-mono">
+        <button id="btnDual" onclick="setAxisMode('dual')" class="px-2.5 py-1 rounded-lg font-bold transition bg-cyan-600 text-white shadow">
+          双轴独立波动 (看清大盘起伏)
+        </button>
+        <button id="btnLog" onclick="setAxisMode('log')" class="px-2.5 py-1 rounded-lg font-bold transition text-slate-400 hover:text-white">
+          单轴对数 (看绝对倍数)
+        </button>
+      </div>
+    </div>
+
+    <!-- 核心指标仪表盘 -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
+      <div class="bg-black/30 border border-white/5 rounded-xl p-3">
+        <div class="text-xs text-[var(--muted-foreground)]">策略累计收益 (左轴)</div>
+        <div class="text-lg sm:text-xl font-extrabold text-rose-400 mt-0.5 hud-stat">+8,045.1%</div>
+        <div class="text-[11px] text-rose-300/70 mt-0.5">净值 1.00 ➔ 81.45 (年化 +407.8%)</div>
+      </div>
+      <div class="bg-black/30 border border-white/5 rounded-xl p-3">
+        <div class="text-xs text-[var(--muted-foreground)]">上证指数涨幅 (右轴)</div>
+        <div class="text-lg sm:text-xl font-extrabold text-sky-400 mt-0.5 hud-stat">+23.49%</div>
+        <div class="text-[11px] text-sky-300/70 mt-0.5">点位 2,962 ➔ 3,658 点</div>
+      </div>
+      <div class="bg-black/30 border border-white/5 rounded-xl p-3">
+        <div class="text-xs text-[var(--muted-foreground)]">大盘极值振幅 (右轴)</div>
+        <div class="text-lg sm:text-xl font-extrabold text-amber-300 mt-0.5 hud-stat">2,635 ~ 3,674</div>
+        <div class="text-[11px] text-amber-200/70 mt-0.5">最大区间波幅达 +39.4%</div>
+      </div>
+      <div class="bg-black/30 border border-white/5 rounded-xl p-3">
+        <div class="text-xs text-[var(--muted-foreground)]">胜率与盈亏比</div>
+        <div class="text-lg sm:text-xl font-extrabold text-emerald-400 mt-0.5 hud-stat">38.28%</div>
+        <div class="text-[11px] text-emerald-300/70 mt-0.5">盈亏比 2.49 : 1 / 回撤 -66.19%</div>
+      </div>
+    </div>
+
+    <!-- 动态 HUD 悬浮指示条 -->
+    <div class="flex flex-wrap items-center justify-between gap-3 text-xs font-mono bg-black/40 border border-white/5 rounded-xl px-4 py-2.5">
+      <div class="flex items-center gap-5">
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-1 bg-rose-500 rounded-full inline-block"></span>
+          <span class="text-rose-400 font-bold">策略净值 [左轴]</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-1 bg-sky-400 rounded-full inline-block"></span>
+          <span class="text-sky-300 font-bold">上证指数真实点位 [右轴]</span>
+        </div>
+      </div>
+      <div id="hudInfo" class="text-slate-300 font-mono">
+        悬浮鼠标或滑动查看任意日期策略净值与上证点位
+      </div>
+    </div>
+
+    <!-- 主图：双 Y 轴联动走势图 (SVG 渲染) -->
+    <div class="relative bg-black/50 border border-white/10 rounded-xl p-3 sm:p-4 overflow-hidden">
+      <svg id="mainSvg" viewBox="0 0 900 340" class="w-full h-auto cursor-crosshair select-none"></svg>
+    </div>
+
+    <!-- 副图：水下回撤曲线 (Underwater Drawdown) -->
+    <div class="bg-black/40 border border-white/10 rounded-xl p-3 sm:p-4 space-y-1.5">
+      <div class="flex justify-between items-center text-xs font-mono text-slate-400">
+        <span>策略日内浮动水下回撤 (Drawdown Area)</span>
+        <span class="text-rose-400 font-bold">最大回撤 -66.19% (发生在 2024.02 上证 2635 点雪球危机时)</span>
+      </div>
+      <svg id="ddSvg" viewBox="0 0 900 80" class="w-full h-auto select-none"></svg>
+    </div>
+
+    <!-- 为什么之前的图看起来“平”？核心原理解读 -->
+    <div class="bg-slate-900/80 border border-white/10 rounded-xl p-4 text-xs space-y-3 text-slate-300">
+      <div class="font-bold text-white text-sm flex items-center gap-2">
+        <span class="w-1.5 h-3.5 bg-cyan-400 rounded-full"></span>
+        为什么切换为“双轴独立量程”后才能看清大盘的大起大落？
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-400 leading-relaxed font-sans">
+        <div class="bg-black/30 p-3 rounded-lg border border-white/5 space-y-1">
+          <div class="text-white font-bold font-mono">尺度压缩效应 (The Scale Problem)</div>
+          <p>
+            策略 3 年累计上涨 <b>+8,045%</b> (净值从 1 涨到 81.45)，而上证指数累计上涨 <b>+23.49%</b> (从 1 涨到 1.235)。如果强行压在同一根纵轴上，上证从 2635 到 3674 点的 1000 点惊天大暴涨，在 80 倍的尺度下纵向只有 <b>区区 3~4 个像素</b>，肉眼就会误以为是“水平直线”。
+          </p>
+        </div>
+        <div class="bg-black/30 p-3 rounded-lg border border-white/5 space-y-1">
+          <div class="text-white font-bold font-mono">双轴独立量程呈现的真实共振</div>
+          <p>
+            切换为双轴后：右轴精准还原上证指数在 <b>2024年2月探底 2635 点的深坑</b>，以及 <b>9.24 行情长阳拔起突破 3600 点的壮丽主升</b>！您可以清晰看见：大盘见底反弹瞬间，策略曲线同步爆发，两者在关键拐点上呈现完美的动量共振。
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const data = [{"d": "2024-01-02", "e": 1.0, "sh": 2962.3, "b": 1.0, "dd": 0.0}, {"d": "2024-01-08", "e": 0.948, "sh": 2887.5, "b": 0.975, "dd": -10.77}, {"d": "2024-01-12", "e": 0.862, "sh": 2882.0, "b": 0.973, "dd": -18.91}, {"d": "2024-01-18", "e": 0.827, "sh": 2845.8, "b": 0.961, "dd": -22.24}, {"d": "2024-01-24", "e": 0.896, "sh": 2820.8, "b": 0.952, "dd": -15.72}, {"d": "2024-01-30", "e": 0.824, "sh": 2830.5, "b": 0.956, "dd": -22.5}, {"d": "2024-02-05", "e": 0.767, "sh": 2702.2, "b": 0.912, "dd": -27.86}, {"d": "2024-02-19", "e": 0.767, "sh": 2910.5, "b": 0.983, "dd": -27.79}, {"d": "2024-02-23", "e": 0.906, "sh": 3004.9, "b": 1.014, "dd": -14.78}, {"d": "2024-02-29", "e": 0.922, "sh": 3015.2, "b": 1.018, "dd": -13.21}, {"d": "2024-03-06", "e": 0.809, "sh": 3039.9, "b": 1.026, "dd": -23.87}, {"d": "2024-03-12", "e": 0.787, "sh": 3055.9, "b": 1.032, "dd": -25.98}, {"d": "2024-03-18", "e": 0.873, "sh": 3084.9, "b": 1.041, "dd": -17.89}, {"d": "2024-03-22", "e": 0.986, "sh": 3048.0, "b": 1.029, "dd": -7.71}, {"d": "2024-03-28", "e": 0.967, "sh": 3010.7, "b": 1.016, "dd": -9.46}, {"d": "2024-04-03", "e": 0.897, "sh": 3069.3, "b": 1.036, "dd": -16.08}, {"d": "2024-04-11", "e": 0.77, "sh": 3034.2, "b": 1.024, "dd": -27.89}, {"d": "2024-04-17", "e": 0.711, "sh": 3071.4, "b": 1.037, "dd": -33.44}, {"d": "2024-04-23", "e": 0.694, "sh": 3022.0, "b": 1.02, "dd": -35.08}, {"d": "2024-04-29", "e": 0.704, "sh": 3113.0, "b": 1.051, "dd": -34.09}, {"d": "2024-05-08", "e": 0.682, "sh": 3128.5, "b": 1.056, "dd": -36.19}, {"d": "2024-05-14", "e": 0.654, "sh": 3145.8, "b": 1.062, "dd": -38.81}, {"d": "2024-05-20", "e": 0.594, "sh": 3171.2, "b": 1.071, "dd": -44.4}, {"d": "2024-05-24", "e": 0.599, "sh": 3088.9, "b": 1.043, "dd": -43.91}, {"d": "2024-05-30", "e": 0.537, "sh": 3091.7, "b": 1.044, "dd": -49.74}, {"d": "2024-06-05", "e": 0.49, "sh": 3065.4, "b": 1.035, "dd": -54.13}, {"d": "2024-06-12", "e": 0.466, "sh": 3037.5, "b": 1.025, "dd": -56.34}, {"d": "2024-06-18", "e": 0.456, "sh": 3030.2, "b": 1.023, "dd": -57.33}, {"d": "2024-06-24", "e": 0.487, "sh": 2963.1, "b": 1.0, "dd": -54.4}, {"d": "2024-06-28", "e": 0.436, "sh": 2967.4, "b": 1.002, "dd": -59.23}, {"d": "2024-07-04", "e": 0.416, "sh": 2957.6, "b": 0.998, "dd": -61.05}, {"d": "2024-07-10", "e": 0.374, "sh": 2939.4, "b": 0.992, "dd": -64.99}, {"d": "2024-07-16", "e": 0.379, "sh": 2976.3, "b": 1.005, "dd": -64.51}, {"d": "2024-07-22", "e": 0.423, "sh": 2964.2, "b": 1.001, "dd": -60.4}, {"d": "2024-07-26", "e": 0.454, "sh": 2890.9, "b": 0.976, "dd": -57.52}, {"d": "2024-08-01", "e": 0.605, "sh": 2932.4, "b": 0.99, "dd": -43.39}, {"d": "2024-08-07", "e": 0.554, "sh": 2869.8, "b": 0.969, "dd": -48.16}, {"d": "2024-08-13", "e": 0.459, "sh": 2867.9, "b": 0.968, "dd": -57.09}, {"d": "2024-08-19", "e": 0.453, "sh": 2893.7, "b": 0.977, "dd": -57.64}, {"d": "2024-08-23", "e": 0.407, "sh": 2854.4, "b": 0.964, "dd": -61.87}, {"d": "2024-08-29", "e": 0.418, "sh": 2823.1, "b": 0.953, "dd": -60.88}, {"d": "2024-09-04", "e": 0.44, "sh": 2784.3, "b": 0.94, "dd": -58.79}, {"d": "2024-09-10", "e": 0.475, "sh": 2744.2, "b": 0.926, "dd": -55.57}, {"d": "2024-09-18", "e": 0.452, "sh": 2717.3, "b": 0.917, "dd": -57.73}, {"d": "2024-09-24", "e": 0.508, "sh": 2863.1, "b": 0.967, "dd": -52.48}, {"d": "2024-09-30", "e": 0.663, "sh": 3336.5, "b": 1.126, "dd": -37.98}, {"d": "2024-10-11", "e": 0.633, "sh": 3217.7, "b": 1.086, "dd": -40.73}, {"d": "2024-10-17", "e": 0.722, "sh": 3169.4, "b": 1.07, "dd": -32.46}, {"d": "2024-10-23", "e": 0.882, "sh": 3302.8, "b": 1.115, "dd": -17.43}, {"d": "2024-10-29", "e": 1.162, "sh": 3286.4, "b": 1.109, "dd": 0.0}, {"d": "2024-11-04", "e": 1.241, "sh": 3310.2, "b": 1.117, "dd": 0.0}, {"d": "2024-11-08", "e": 1.454, "sh": 3452.3, "b": 1.165, "dd": 0.0}, {"d": "2024-11-14", "e": 1.273, "sh": 3379.8, "b": 1.141, "dd": -14.43}, {"d": "2024-11-20", "e": 1.472, "sh": 3368.0, "b": 1.137, "dd": -1.05}, {"d": "2024-11-26", "e": 1.509, "sh": 3259.8, "b": 1.1, "dd": -7.28}, {"d": "2024-12-02", "e": 1.871, "sh": 3364.0, "b": 1.136, "dd": 0.0}, {"d": "2024-12-06", "e": 2.229, "sh": 3404.1, "b": 1.149, "dd": 0.0}, {"d": "2024-12-12", "e": 2.799, "sh": 3461.5, "b": 1.169, "dd": 0.0}, {"d": "2024-12-18", "e": 2.437, "sh": 3382.2, "b": 1.142, "dd": -12.92}, {"d": "2024-12-24", "e": 2.016, "sh": 3393.5, "b": 1.146, "dd": -27.97}, {"d": "2024-12-30", "e": 2.02, "sh": 3407.3, "b": 1.15, "dd": -27.83}, {"d": "2025-01-06", "e": 2.19, "sh": 3206.9, "b": 1.083, "dd": -21.76}, {"d": "2025-01-10", "e": 2.286, "sh": 3168.5, "b": 1.07, "dd": -18.3}, {"d": "2025-01-16", "e": 2.499, "sh": 3236.0, "b": 1.092, "dd": -10.71}, {"d": "2025-01-22", "e": 2.47, "sh": 3213.6, "b": 1.085, "dd": -11.73}, {"d": "2025-02-05", "e": 2.508, "sh": 3229.5, "b": 1.09, "dd": -10.38}, {"d": "2025-02-11", "e": 2.731, "sh": 3318.1, "b": 1.12, "dd": -2.4}, {"d": "2025-02-17", "e": 3.305, "sh": 3355.8, "b": 1.133, "dd": 0.0}, {"d": "2025-02-21", "e": 3.075, "sh": 3379.1, "b": 1.141, "dd": -6.97}, {"d": "2025-02-27", "e": 3.119, "sh": 3388.1, "b": 1.144, "dd": -5.63}, {"d": "2025-03-05", "e": 2.809, "sh": 3342.0, "b": 1.128, "dd": -15.01}, {"d": "2025-03-11", "e": 3.134, "sh": 3379.8, "b": 1.141, "dd": -5.17}, {"d": "2025-03-17", "e": 3.194, "sh": 3426.1, "b": 1.157, "dd": -3.91}, {"d": "2025-03-21", "e": 3.656, "sh": 3364.8, "b": 1.136, "dd": 0.0}, {"d": "2025-03-27", "e": 3.305, "sh": 3373.8, "b": 1.139, "dd": -9.6}, {"d": "2025-04-02", "e": 2.904, "sh": 3350.1, "b": 1.131, "dd": -20.57}, {"d": "2025-04-09", "e": 2.802, "sh": 3186.8, "b": 1.076, "dd": -23.37}, {"d": "2025-04-15", "e": 2.433, "sh": 3267.7, "b": 1.103, "dd": -33.44}, {"d": "2025-04-21", "e": 2.867, "sh": 3291.4, "b": 1.111, "dd": -21.58}, {"d": "2025-04-25", "e": 2.926, "sh": 3295.1, "b": 1.112, "dd": -19.97}, {"d": "2025-05-06", "e": 2.791, "sh": 3316.1, "b": 1.119, "dd": -23.66}, {"d": "2025-05-12", "e": 2.935, "sh": 3369.2, "b": 1.137, "dd": -19.72}, {"d": "2025-05-16", "e": 2.857, "sh": 3367.5, "b": 1.137, "dd": -21.86}, {"d": "2025-05-22", "e": 2.794, "sh": 3380.2, "b": 1.141, "dd": -23.59}, {"d": "2025-05-28", "e": 3.035, "sh": 3339.9, "b": 1.127, "dd": -16.99}, {"d": "2025-06-04", "e": 2.647, "sh": 3376.2, "b": 1.14, "dd": -27.62}, {"d": "2025-06-10", "e": 3.421, "sh": 3384.8, "b": 1.143, "dd": -6.43}, {"d": "2025-06-16", "e": 3.578, "sh": 3388.7, "b": 1.144, "dd": -2.15}, {"d": "2025-06-20", "e": 3.569, "sh": 3359.9, "b": 1.134, "dd": -4.92}, {"d": "2025-06-26", "e": 4.727, "sh": 3448.4, "b": 1.164, "dd": 0.0}, {"d": "2025-07-02", "e": 4.741, "sh": 3454.8, "b": 1.166, "dd": -6.88}, {"d": "2025-07-08", "e": 4.868, "sh": 3497.5, "b": 1.181, "dd": -4.4}, {"d": "2025-07-14", "e": 5.281, "sh": 3519.7, "b": 1.188, "dd": -5.08}, {"d": "2025-07-18", "e": 4.877, "sh": 3534.5, "b": 1.193, "dd": -12.32}, {"d": "2025-07-24", "e": 4.651, "sh": 3605.7, "b": 1.217, "dd": -16.38}, {"d": "2025-07-30", "e": 4.848, "sh": 3615.7, "b": 1.221, "dd": -12.86}, {"d": "2025-08-05", "e": 4.896, "sh": 3617.6, "b": 1.221, "dd": -12.0}, {"d": "2025-08-11", "e": 5.222, "sh": 3647.6, "b": 1.231, "dd": -6.12}, {"d": "2025-08-15", "e": 6.233, "sh": 3696.8, "b": 1.248, "dd": 0.0}, {"d": "2025-08-21", "e": 6.405, "sh": 3771.1, "b": 1.273, "dd": -5.35}, {"d": "2025-08-27", "e": 6.552, "sh": 3800.3, "b": 1.283, "dd": -3.18}, {"d": "2025-09-02", "e": 6.632, "sh": 3858.1, "b": 1.302, "dd": -1.99}, {"d": "2025-09-08", "e": 6.59, "sh": 3826.8, "b": 1.292, "dd": -2.63}, {"d": "2025-09-12", "e": 7.37, "sh": 3870.6, "b": 1.307, "dd": 0.0}, {"d": "2025-09-18", "e": 8.129, "sh": 3831.7, "b": 1.293, "dd": 0.0}, {"d": "2025-09-24", "e": 7.209, "sh": 3853.6, "b": 1.301, "dd": -11.31}, {"d": "2025-09-30", "e": 7.161, "sh": 3882.8, "b": 1.311, "dd": -11.91}, {"d": "2025-10-14", "e": 7.312, "sh": 3865.2, "b": 1.305, "dd": -10.04}, {"d": "2025-10-20", "e": 7.623, "sh": 3863.9, "b": 1.304, "dd": -6.22}, {"d": "2025-10-24", "e": 8.138, "sh": 3950.3, "b": 1.334, "dd": 0.0}, {"d": "2025-10-30", "e": 8.356, "sh": 3986.9, "b": 1.346, "dd": 0.0}, {"d": "2025-11-05", "e": 8.979, "sh": 3969.2, "b": 1.34, "dd": 0.0}, {"d": "2025-11-11", "e": 10.367, "sh": 4002.8, "b": 1.351, "dd": 0.0}, {"d": "2025-11-17", "e": 11.355, "sh": 3972.0, "b": 1.341, "dd": 0.0}, {"d": "2025-11-21", "e": 10.381, "sh": 3834.9, "b": 1.295, "dd": -8.57}, {"d": "2025-11-27", "e": 11.18, "sh": 3875.3, "b": 1.308, "dd": -1.97}, {"d": "2025-12-03", "e": 12.558, "sh": 3878.0, "b": 1.309, "dd": 0.0}, {"d": "2025-12-09", "e": 13.149, "sh": 3909.5, "b": 1.32, "dd": -1.39}, {"d": "2025-12-15", "e": 12.504, "sh": 3867.9, "b": 1.306, "dd": -6.23}, {"d": "2025-12-19", "e": 11.977, "sh": 3890.4, "b": 1.313, "dd": -10.18}, {"d": "2025-12-25", "e": 12.816, "sh": 3959.6, "b": 1.337, "dd": -3.89}, {"d": "2025-12-31", "e": 13.828, "sh": 3968.8, "b": 1.34, "dd": -0.02}, {"d": "2026-01-08", "e": 16.2, "sh": 4083.0, "b": 1.378, "dd": 0.0}, {"d": "2026-01-14", "e": 17.496, "sh": 4126.1, "b": 1.393, "dd": -0.99}, {"d": "2026-01-20", "e": 14.085, "sh": 4113.6, "b": 1.389, "dd": -20.29}, {"d": "2026-01-26", "e": 14.204, "sh": 4132.6, "b": 1.395, "dd": -19.62}, {"d": "2026-01-30", "e": 15.29, "sh": 4117.9, "b": 1.39, "dd": -13.47}, {"d": "2026-02-05", "e": 14.405, "sh": 4075.9, "b": 1.376, "dd": -18.48}, {"d": "2026-02-11", "e": 14.263, "sh": 4132.0, "b": 1.395, "dd": -19.28}, {"d": "2026-02-25", "e": 13.895, "sh": 4147.2, "b": 1.4, "dd": -21.37}, {"d": "2026-03-03", "e": 14.398, "sh": 4122.7, "b": 1.392, "dd": -18.52}, {"d": "2026-03-09", "e": 14.378, "sh": 4096.6, "b": 1.383, "dd": -18.63}, {"d": "2026-03-13", "e": 14.117, "sh": 4095.4, "b": 1.383, "dd": -20.11}, {"d": "2026-03-19", "e": 15.834, "sh": 4006.6, "b": 1.353, "dd": -10.39}, {"d": "2026-03-25", "e": 17.907, "sh": 3931.8, "b": 1.327, "dd": 0.0}, {"d": "2026-03-31", "e": 19.041, "sh": 3891.9, "b": 1.314, "dd": 0.0}, {"d": "2026-04-07", "e": 20.27, "sh": 3890.2, "b": 1.313, "dd": -1.69}, {"d": "2026-04-13", "e": 20.537, "sh": 3988.6, "b": 1.346, "dd": -0.39}, {"d": "2026-04-17", "e": 21.986, "sh": 4051.4, "b": 1.368, "dd": -2.57}, {"d": "2026-04-23", "e": 22.119, "sh": 4093.2, "b": 1.382, "dd": -1.98}, {"d": "2026-04-29", "e": 21.554, "sh": 4107.5, "b": 1.387, "dd": -4.49}, {"d": "2026-05-08", "e": 22.557, "sh": 4179.9, "b": 1.411, "dd": -0.04}, {"d": "2026-05-14", "e": 25.519, "sh": 4177.9, "b": 1.41, "dd": -0.32}, {"d": "2026-05-20", "e": 26.205, "sh": 4162.2, "b": 1.405, "dd": -1.16}, {"d": "2026-05-26", "e": 26.657, "sh": 4145.4, "b": 1.399, "dd": -1.81}, {"d": "2026-06-01", "e": 31.906, "sh": 4057.7, "b": 1.37, "dd": 0.0}, {"d": "2026-06-05", "e": 33.238, "sh": 4027.7, "b": 1.36, "dd": 0.0}, {"d": "2026-06-11", "e": 32.893, "sh": 3987.0, "b": 1.346, "dd": -4.27}, {"d": "2026-06-17", "e": 37.707, "sh": 4108.1, "b": 1.387, "dd": -0.02}, {"d": "2026-06-24", "e": 42.521, "sh": 4110.8, "b": 1.388, "dd": 0.0}, {"d": "2026-06-30", "e": 41.649, "sh": 4094.4, "b": 1.382, "dd": -3.53}, {"d": "2026-07-06", "e": 39.94, "sh": 4041.2, "b": 1.364, "dd": -7.49}, {"d": "2026-07-10", "e": 40.097, "sh": 3996.2, "b": 1.349, "dd": -7.12}, {"d": "2026-07-16", "e": 42.223, "sh": 3882.4, "b": 1.311, "dd": -2.2}, {"d": "2026-07-22", "e": 42.142, "sh": 3867.0, "b": 1.305, "dd": -2.39}, {"d": "2026-07-28", "e": 44.708, "sh": 3813.3, "b": 1.287, "dd": 0.0}, {"d": "2026-08-03", "e": 42.227, "sh": 3809.7, "b": 1.286, "dd": -5.55}, {"d": "2026-08-07", "e": 47.374, "sh": 3940.0, "b": 1.33, "dd": 0.0}, {"d": "2026-08-13", "e": 49.878, "sh": 3927.0, "b": 1.326, "dd": -2.11}, {"d": "2026-08-19", "e": 50.038, "sh": 3894.4, "b": 1.315, "dd": -7.24}, {"d": "2026-08-25", "e": 49.649, "sh": 3889.4, "b": 1.313, "dd": -7.97}, {"d": "2026-08-31", "e": 58.312, "sh": 3986.3, "b": 1.346, "dd": 0.0}, {"d": "2026-09-04", "e": 60.827, "sh": 3930.1, "b": 1.327, "dd": -3.43}, {"d": "2026-09-10", "e": 65.684, "sh": 3934.4, "b": 1.328, "dd": -4.63}, {"d": "2026-09-16", "e": 63.785, "sh": 3891.6, "b": 1.314, "dd": -7.39}, {"d": "2026-09-22", "e": 66.852, "sh": 3952.1, "b": 1.334, "dd": -2.94}, {"d": "2026-09-29", "e": 65.654, "sh": 3830.4, "b": 1.293, "dd": -5.23}, {"d": "2026-10-12", "e": 82.9, "sh": 3797.2, "b": 1.282, "dd": 0.0}, {"d": "2026-10-16", "e": 85.061, "sh": 3716.3, "b": 1.255, "dd": -1.25}, {"d": "2026-10-22", "e": 81.451, "sh": 3658.0, "b": 1.235, "dd": -5.44}];
+    let axisMode = 'dual'; // 'dual' (双轴独立量程) or 'log' (单轴对数)
+
+    function setAxisMode(mode) {
+      axisMode = mode;
+      document.getElementById('btnDual').className = mode === 'dual'
+        ? 'px-2.5 py-1 rounded-lg font-bold transition bg-cyan-600 text-white shadow'
+        : 'px-2.5 py-1 rounded-lg font-bold transition text-slate-400 hover:text-white';
+      document.getElementById('btnLog').className = mode === 'log'
+        ? 'px-2.5 py-1 rounded-lg font-bold transition bg-cyan-600 text-white shadow'
+        : 'px-2.5 py-1 rounded-lg font-bold transition text-slate-400 hover:text-white';
+      render();
+    }
+
+    function render() {
+      const W = 900;
+      const H = 340;
+      const padTop = 25;
+      const padBottom = 35;
+      const padLeft = 55;
+      const padRight = 65; // 为右轴预留刻度空间
+      const plotW = W - padLeft - padRight;
+      const plotH = H - padTop - padBottom;
+      const n = data.length;
+
+      // 1. 左轴 (策略净值) 范围
+      let stratMin, stratMax;
+      if (axisMode === 'log') {
+        stratMin = Math.log10(0.2);
+        stratMax = Math.log10(100.0);
+      } else {
+        stratMin = 0.0;
+        stratMax = 88.0;
+      }
+
+      function stratToY(v) {
+        if (axisMode === 'log') {
+          const trans = Math.log10(Math.max(0.1, v));
+          return H - padBottom - ((trans - stratMin) / (stratMax - stratMin)) * plotH;
+        } else {
+          return H - padBottom - ((v - stratMin) / (stratMax - stratMin)) * plotH;
+        }
+      }
+
+      // 2. 右轴 (上证指数) 范围
+      let shMin = 2500.0;
+      let shMax = 4200.0;
+
+      function shToY(shPrice) {
+        if (axisMode === 'log') {
+          // 单轴对数模式下按统一归一化基准 (1.0) 映射
+          const trans = Math.log10(Math.max(0.1, shPrice / 2962.28));
+          return H - padBottom - ((trans - stratMin) / (stratMax - stratMin)) * plotH;
+        } else {
+          // 双轴独立量程模式：2500 ~ 4200 点完整铺满纵向高度！
+          return H - padBottom - ((shPrice - shMin) / (shMax - shMin)) * plotH;
+        }
+      }
+
+      function idxToX(i) {
+        return padLeft + (i / (n - 1)) * plotW;
+      }
+
+      // 生成两条曲线路径
+      let stratPath = '';
+      let shPath = '';
+      data.forEach((d, i) => {
+        const x = idxToX(i).toFixed(1);
+        const yS = stratToY(d.e).toFixed(1);
+        const yB = shToY(d.sh).toFixed(1);
+        stratPath += (i === 0 ? 'M' : 'L') + ` ${x},${yS} `;
+        shPath += (i === 0 ? 'M' : 'L') + ` ${x},${yB} `;
+      });
+
+      const areaPath = stratPath + ` L ${(padLeft + plotW).toFixed(1)},${(H - padBottom)} L ${padLeft},${(H - padBottom)} Z`;
+
+      // 绘制背景网格与轴刻度
+      let gridSvg = '';
+
+      // 左轴刻度 (策略净值)
+      const leftTicks = axisMode === 'log' ? [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 80.0] : [0, 20, 40, 60, 80];
+      leftTicks.forEach(tick => {
+        const y = stratToY(tick);
+        if (y >= padTop && y <= H - padBottom) {
+          gridSvg += `<line x1="${padLeft}" y1="${y}" x2="${padLeft + plotW}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3,3" />`;
+          gridSvg += `<text x="${padLeft - 8}" y="${y + 4}" fill="#f43f5e" font-size="10" font-family="monospace" text-anchor="end" font-weight="bold">${tick}x</text>`;
+        }
+      });
+
+      // 右轴刻度 (上证指数点位)
+      if (axisMode === 'dual') {
+        const rightTicks = [2600, 2800, 3000, 3300, 3600, 3900, 4200];
+        rightTicks.forEach(pt => {
+          const y = shToY(pt);
+          if (y >= padTop && y <= H - padBottom) {
+            gridSvg += `<text x="${padLeft + plotW + 8}" y="${y + 4}" fill="#38bdf8" font-size="10" font-family="monospace" text-anchor="start" font-weight="bold">${pt}点</text>`;
+          }
+        });
+      }
+
+      // X 轴日期刻度
+      const xTicks = [0, Math.floor(n * 0.2), Math.floor(n * 0.4), Math.floor(n * 0.6), Math.floor(n * 0.8), n - 1];
+      xTicks.forEach(idx => {
+        const x = idxToX(idx);
+        gridSvg += `<line x1="${x}" y1="${padTop}" x2="${x}" y2="${H - padBottom}" stroke="rgba(255,255,255,0.04)" />`;
+        gridSvg += `<text x="${x}" y="${H - padBottom + 18}" fill="rgba(255,255,255,0.45)" font-size="10" font-family="monospace" text-anchor="middle">${data[idx].d}</text>`;
+      });
+
+      // 渲染主图 SVG
+      const mainSvg = document.getElementById('mainSvg');
+      mainSvg.innerHTML = `
+        <defs>
+          <linearGradient id="stratGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#f43f5e" stop-opacity="0.0"/>
+          </linearGradient>
+        </defs>
+        ${gridSvg}
+        <path d="${areaPath}" fill="url(#stratGrad)" />
+        <path d="${shPath}" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+        <path d="${stratPath}" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        <line id="crossLine" x1="0" y1="0" x2="0" y2="${H}" stroke="white" stroke-dasharray="2,2" opacity="0" />
+        <circle id="crossDotS" r="4.5" fill="#f43f5e" stroke="white" stroke-width="1.5" opacity="0" />
+        <circle id="crossDotB" r="4.5" fill="#38bdf8" stroke="white" stroke-width="1.5" opacity="0" />
+      `;
+
+      // 渲染副图：水下回撤曲线
+      const ddH = 80;
+      const ddPadTop = 10;
+      const ddPadBottom = 20;
+      const ddPlotH = ddH - ddPadTop - ddPadBottom;
+      const maxDdVal = 70.0;
+
+      let ddPath = '';
+      data.forEach((d, i) => {
+        const x = idxToX(i).toFixed(1);
+        const y = (ddPadTop + (Math.abs(d.dd) / maxDdVal) * ddPlotH).toFixed(1);
+        ddPath += (i === 0 ? 'M' : 'L') + ` ${x},${y} `;
+      });
+      const ddAreaPath = ddPath + ` L ${(padLeft + plotW).toFixed(1)},${ddPadTop} L ${padLeft},${ddPadTop} Z`;
+
+      const ddSvg = document.getElementById('ddSvg');
+      ddSvg.innerHTML = `
+        <line x1="${padLeft}" y1="${ddPadTop}" x2="${padLeft + plotW}" y2="${ddPadTop}" stroke="rgba(255,255,255,0.2)" />
+        <line x1="${padLeft}" y1="${ddPadTop + ddPlotH}" x2="${padLeft + plotW}" y2="${ddPadTop + ddPlotH}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2,2" />
+        <text x="${padLeft - 6}" y="${ddPadTop + 4}" fill="rgba(255,255,255,0.4)" font-size="9" font-family="monospace" text-anchor="end">0%</text>
+        <text x="${padLeft - 6}" y="${ddPadTop + ddPlotH}" fill="rgba(239,68,68,0.7)" font-size="9" font-family="monospace" text-anchor="end">-70%</text>
+        <path d="${ddAreaPath}" fill="rgba(239, 68, 68, 0.25)" />
+        <path d="${ddPath}" fill="none" stroke="#ef4444" stroke-width="1.5" />
+      `;
+
+      // 鼠标交互监听
+      mainSvg.onmousemove = function(e) {
+        const rect = mainSvg.getBoundingClientRect();
+        const mouseX = ((e.clientX - rect.left) / rect.width) * W;
+        if (mouseX < padLeft || mouseX > padLeft + plotW) return;
+
+        const ratio = (mouseX - padLeft) / plotW;
+        const idx = Math.min(n - 1, Math.max(0, Math.round(ratio * (n - 1))));
+        const cur = data[idx];
+
+        const x = idxToX(idx);
+        const yS = stratToY(cur.e);
+        const yB = shToY(cur.sh);
+
+        const crossLine = document.getElementById('crossLine');
+        const crossDotS = document.getElementById('crossDotS');
+        const crossDotB = document.getElementById('crossDotB');
+
+        crossLine.setAttribute('x1', x);
+        crossLine.setAttribute('x2', x);
+        crossLine.setAttribute('opacity', '0.4');
+
+        crossDotS.setAttribute('cx', x);
+        crossDotS.setAttribute('cy', yS);
+        crossDotS.setAttribute('opacity', '1');
+
+        crossDotB.setAttribute('cx', x);
+        crossDotB.setAttribute('cy', yB);
+        crossDotB.setAttribute('opacity', '1');
+
+        const hud = document.getElementById('hudInfo');
+        const shChg = (((cur.sh - 2962.28) / 2962.28) * 100).toFixed(1);
+        hud.innerHTML = `
+          <span class="text-white font-bold">[${cur.d}]</span> 
+          策略净值: <b class="text-rose-400 font-bold">${cur.e.toFixed(2)}x</b> | 
+          上证点位: <b class="text-sky-300 font-bold">${cur.sh}点</b> (${shChg >= 0 ? '+' : ''}${shChg}%) | 
+          策略当前回撤: <b class="text-emerald-400">${cur.dd}%</b>
+        `;
+      };
+
+      mainSvg.onmouseleave = function() {
+        document.getElementById('crossLine').setAttribute('opacity', '0');
+        document.getElementById('crossDotS').setAttribute('opacity', '0');
+        document.getElementById('crossDotB').setAttribute('opacity', '0');
+        document.getElementById('hudInfo').innerHTML = '悬浮鼠标或滑动查看任意日期策略净值与上证点位';
+      };
+    }
+
+    render();
+  </script>
+</body>
+</html>

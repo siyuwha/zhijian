@@ -182,6 +182,7 @@ class DataResult:
     error_code: ProviderErrorCode = ProviderErrorCode.NONE
     observation_id: str = ""
     status: Optional[DataStatus] = None
+    missing_codes: Optional[List[str]] = None
 
     def __post_init__(self):
         if self.status is None:
@@ -324,8 +325,8 @@ class ConceptBlocksCapability(ABC):
 class StockTrendsCapability(ABC):
     """个股与板块分时走势分钟数据能力 (Intraday Minute Trends)"""
     @abstractmethod
-    async def get_stock_trends(self, codes: list[str]) -> DataResult:
-        """获取指定股票代码的分时走势分钟数据"""
+    async def get_stock_trends(self, codes: list[str], trade_date: Optional[str] = None) -> DataResult:
+        """获取指定股票代码的分时走势分钟数据 (支持历史日期拉取)"""
         pass
 
 

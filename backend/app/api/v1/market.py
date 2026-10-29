@@ -47,10 +47,21 @@ async def get_sectors(
 @router.get("/stock-trends")
 async def get_stock_trends(
     codes: str = Query(..., description="逗号分隔的股票/板块代码列表，例如 002696,002343,BK0480"),
+    trade_date: Optional[str] = Query(None, description="交易日期，格式 YYYY-MM-DD 或 YYYYMMDD"),
+    date: Optional[str] = Query(None, description="别名兼容：交易日期"),
     db: AsyncSession = Depends(get_db)
 ):
+    actual_date = trade_date or date
     code_list = [c.strip() for c in codes.split(",") if c.strip()]
     service = DataService(db)
-    res = await service.get_stock_trends(code_list)
-    return {"code": 200, "data": res.data, "quality": res.quality.value, "provider": res.provider}
+    res = await service.get_stock_trends(code_list, trade_date=actual_date)
+    resp = {
+        "code": 200,
+        "data": res.data if res.data is not None else [],
+        "quality": res.quality.value if hasattr(res, "quality") and hasattr(res.quality, "value") else str(getattr(res, "quality", "UNKNOWN")),
+        "provider": res.provider,
+    }
+    if getattr(res, "missing_codes", None) is not None:
+        resp["missing_codes"] = res.missing_codes
+    return resp
 

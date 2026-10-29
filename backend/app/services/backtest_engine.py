@@ -103,14 +103,16 @@ class BacktestService:
         if not all_dates:
             raise ValueError(f"指定时间区间 [{start_date} ~ {end_date}] 内无交易日数据")
 
-        # 读取沪深300基准走势
+        # 读取上证指数 (优先 sh000001，兜底 sh000300) 基准走势
         benchmark_map = {}
         if self.benchmark_parquet.exists():
             try:
                 df_bm = pd.read_parquet(self.benchmark_parquet)
-                df_hs300 = df_bm[df_bm["code"] == "sh000300"]
-                if not df_hs300.empty:
-                    benchmark_map = df_hs300.set_index("date")["close"].to_dict()
+                df_bench = df_bm[df_bm["code"] == "sh000001"]
+                if df_bench.empty:
+                    df_bench = df_bm[df_bm["code"] == "sh000300"]
+                if not df_bench.empty:
+                    benchmark_map = df_bench.set_index("date")["close"].to_dict()
             except Exception:
                 pass
 
@@ -129,9 +131,9 @@ class BacktestService:
         fee_buy = 0.0011   # 买入：0.1% 滑点 + 万一佣金
         fee_sell = 0.0016  # 卖出：0.1% 滑点 + 万一佣金 + 万五印花税
 
-        # 沪深300基准归一化基数
+        # 上证指数基准归一化基数
         first_date = all_dates[0]
-        bm_base_price = benchmark_map.get(first_date, 3500.0)
+        bm_base_price = benchmark_map.get(first_date, 2962.28)
 
         for date_idx, date in enumerate(all_dates):
             # -------------------------------------------------------------
@@ -335,7 +337,7 @@ class BacktestService:
 
         avg_holding = round(float(np.mean([t["holding_days"] for t in trades])), 1) if trades else 0.0
 
-        # 沪深300同期收益率
+        # 上证指数同期收益率
         bm_final = equity_history[-1]["benchmark_equity"] if equity_history else initial_capital
         bm_return_pct = round((bm_final - initial_capital) / initial_capital * 100.0, 2)
 

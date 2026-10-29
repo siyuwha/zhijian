@@ -161,34 +161,33 @@ export function getHoverTimeLabel(x: number): string {
  */
 export function generateRealStockSvgPath(
   points: StockMinutePoint[],
-  maxTimeProgressX: number,
-  offsetIndex: number = 0
+  maxTimeProgressX: number
 ): { path: string; endX: number; endY: number } {
   if (!points || points.length === 0) {
-    return { path: 'M 0,70 L 1000,70', endX: 1000, endY: 70 };
+    return { path: '', endX: 0, endY: 70 };
+  }
+
+  const validPoints = points.filter((pt) =>
+    {
+      if (!pt || !/^\d{2}:\d{2}$/.test(pt.time) || !Number.isFinite(pt.pct_change)) return false;
+      const [hour, minute] = pt.time.split(':').map(Number);
+      const minuteOfDay = hour * 60 + minute;
+      return (minuteOfDay >= 570 && minuteOfDay <= 690) || (minuteOfDay >= 781 && minuteOfDay <= 900);
+    }
+  );
+  if (validPoints.length < 2) {
+    return { path: '', endX: 0, endY: 70 };
   }
 
   const coords: [number, number][] = [];
-  // 针对相同极限涨跌幅 (如双双跌停 -10% 或涨停 +10%) 引入微视差偏移，彻底消除线条被后画者绝对覆盖遮挡
-  const limitOffset = (offsetIndex % 4 - 1.5) * 1.8;
-
-  let lastPct = 0;
-  for (const pt of points) {
-    if (!pt || !pt.time) continue;
+  const maxAbsPct = Math.max(10, ...validPoints.map((pt) => Math.abs(pt.pct_change)));
+  const yScale = 60 / maxAbsPct;
+  for (const pt of validPoints) {
     const x = timeToX(pt.time);
     if (!Number.isFinite(x)) continue;
     if (x > maxTimeProgressX + 3) break;
 
-    const rawPct = (typeof pt.pct_change === 'number' && Number.isFinite(pt.pct_change))
-      ? pt.pct_change
-      : lastPct;
-    lastPct = rawPct;
-
-    const clampedPct = Math.max(-10, Math.min(10, rawPct));
-    let y = 70 - clampedPct * 6;
-    if (Math.abs(clampedPct) >= 9.2) {
-      y += limitOffset;
-    }
+    const y = 70 - pt.pct_change * yScale;
     const finalY = Number.isFinite(y) ? Number(y.toFixed(1)) : 70;
 
     // 剔除相同 X 坐标的毛刺杂点，保留最新点
@@ -200,16 +199,11 @@ export function generateRealStockSvgPath(
   }
 
   if (coords.length === 0) {
-    return { path: 'M 0,70 L 1000,70', endX: 1000, endY: 70 };
+    return { path: '', endX: 0, endY: 70 };
   }
 
-  // 确保 09:30 零轴起点 (0, 70) 锚定
-  if (coords[0][0] > 0) {
-    coords.unshift([0, 70]);
-  }
-
-  if (coords.length === 1) {
-    coords.push([Math.min(1000, coords[0][0] + 5), coords[0][1]]);
+  if (coords.length < 2) {
+    return { path: '', endX: 0, endY: 70 };
   }
 
   let d = `M ${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
@@ -532,6 +526,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   // 核心个股分时涨跌幅走势对比样本股状态 (最少 0 支，上限 6 支)
   const [stockComparisonList, setStockComparisonList] = useState<StockComparisonItem[]>([]);
   const [stockTrendsMap, setStockTrendsMap] = useState<Record<string, StockTrendData>>({});
+  const currentFetchDateRef = useRef<string>(selectedDate);
   const [isAddStockOpen, setIsAddStockOpen] = useState<boolean>(false);
   const [stockHoverX, setStockHoverX] = useState<number>(timeProgress.currentX);
   const [isStockHovering, setIsStockHovering] = useState<boolean>(false);
@@ -786,12 +781,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       }
 
       const trendData = stockTrendsMap[item.stock.code];
-      let pathD = generateDynamicStockPath(curX, todayPct, item.tagType, idx);
+      const hasRealTrend = Boolean(trendData?.trends && trendData.trends.length > 0);
+      let pathD = '';
       let endX = curX;
       let endY = Math.round(70 - Math.max(-10, Math.min(10, todayPct)) * 6);
 
-      if (trendData?.trends && trendData.trends.length > 0) {
-        const realRes = generateRealStockSvgPath(trendData.trends, curX, idx);
+      if (hasRealTrend && trendData?.trends) {
+        const realRes = generateRealStockSvgPath(trendData.trends, curX);
         pathD = realRes.path;
         endX = realRes.endX;
         endY = realRes.endY;
@@ -921,7 +917,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     setStockComparisonList(dynamicList);
   }, [limitUpData, yesterdayLimitUpData, timeProgress.currentX, stockTrendsMap]);
 
-  // 动态自动拉取入选样本股真实分钟分时走势
+  // 选定日期变更时立即清空旧分时，避免旧日期走势短暂复用或闪烁
+  useEffect(() => {
+    currentFetchDateRef.current = selectedDate;
+    setStockTrendsMap({});
+  }, [selectedDate]);
+
+  // 动态自动拉取入选样本股真实分钟分时走势 (透传交易日期)
   useEffect(() => {
     const codes = stockComparisonList.map((s) => s.code).filter(Boolean);
     if (codes.length === 0) return;
@@ -929,9 +931,10 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     if (missingCodes.length === 0) return;
 
     let isMounted = true;
-    api.getStockTrends(missingCodes)
+    const reqDate = selectedDate;
+    api.getStockTrends(missingCodes, reqDate)
       .then((res: any) => {
-        if (!isMounted) return;
+        if (!isMounted || currentFetchDateRef.current !== reqDate) return;
         const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
         if (data.length > 0) {
           const map: Record<string, StockTrendData> = {};
@@ -944,13 +947,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
         }
       })
       .catch((err) => {
-        console.warn('Failed to fetch stock trends:', err);
+        if (isMounted) {
+          console.warn('Failed to fetch stock trends:', err);
+        }
       });
 
     return () => {
       isMounted = false;
     };
-  }, [stockComparisonList.map((s) => s.code).join(',')]);
+  }, [selectedDate, stockComparisonList.map((s) => s.code).join(',')]);
 
 
   // 题材战场资金自适应动态上下限与全域发散坐标计算
@@ -1467,7 +1472,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             tagLabel: `${item.lbc || 1}B 连板`,
             changePct: pct,
             color: colors[idx % colors.length],
-            pathD: generateDynamicStockPath(curX, pct, 'normal'),
+            pathD: '',
             endX: curX,
             endY: Math.round(70 - Math.max(-10, Math.min(10, pct)) * 6),
             roles: candRoles,
@@ -1492,7 +1497,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           ...c,
           endX: curX,
           endY: Math.round(70 - Math.max(-10, Math.min(10, c.changePct)) * 6),
-          pathD: generateDynamicStockPath(curX, c.changePct, 'normal'),
+          pathD: '',
         });
       }
     });
@@ -1580,7 +1585,9 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           });
         }
         if (targetCodes.size > 0) {
-          api.getStockTrends(Array.from(targetCodes)).then((res: any) => {
+          const reqDate = date;
+          api.getStockTrends(Array.from(targetCodes), reqDate).then((res: any) => {
+            if (currentFetchDateRef.current !== reqDate) return;
             const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
             if (data.length > 0) {
               const map: Record<string, StockTrendData> = {};
@@ -2826,18 +2833,15 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   {stockComparisonList.map((s) => {
                     const timeStr = getHoverTimeLabel(stockHoverX);
                     const trendData = stockTrendsMap[s.code];
-                    let displayPct = s.changePct;
+                    let displayPct: number | null = null;
                     let displayPrice = '--';
                     if (trendData?.trends && trendData.trends.length > 0) {
-                      const pt = [...trendData.trends].reverse().find((p) => p.time <= timeStr) || trendData.trends[0];
+                      // 严格只匹配 <= 目标时间的最后有效点，绝不回退至首个未来点
+                      const pt = [...trendData.trends].reverse().find((p) => p.time <= timeStr);
                       if (pt) {
                         displayPct = pt.pct_change;
                         displayPrice = `${pt.price.toFixed(2)}元`;
                       }
-                    }
-                    if (displayPrice === '--') {
-                      const base = trendData?.pre_close || (s.changePct > 0 ? 10.0 : 15.0);
-                      displayPrice = `${(base * (1 + displayPct / 100)).toFixed(2)}元`;
                     }
                     return (
                       <div key={s.code} className="flex items-center justify-between gap-2">
@@ -2858,8 +2862,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                             </span>
                           )}
                           <span className="text-slate-300 font-bold">{displayPrice}</span>
-                          <span className={`font-black ${displayPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                            {displayPct >= 0 ? `+${displayPct.toFixed(2)}%` : `${displayPct.toFixed(2)}%`}
+                          <span className={`font-black ${displayPct != null ? (displayPct >= 0 ? 'text-rose-400' : 'text-emerald-400') : 'text-slate-500'}`}>
+                            {displayPct != null ? (displayPct >= 0 ? `+${displayPct.toFixed(2)}%` : `${displayPct.toFixed(2)}%`) : '--'}
                           </span>
                         </div>
                       </div>
@@ -2875,6 +2879,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 <div className="text-slate-500 text-xs text-center py-6">
                   昨日无连板最高板/次高板核心标的，当前样本股为 0 只
                 </div>
+              ) : !stockComparisonList.some((s) => s.pathD && s.pathD.trim() !== '') ? (
+                <div className="text-slate-500 text-xs text-center py-6 flex flex-col items-center gap-1.5 z-10">
+                  <span className="text-slate-400 font-medium">该日期暂无真实分时</span>
+                  <span className="text-[11px] text-slate-500 font-mono">（无物理真实分时数据或非交易时段）</span>
+                </div>
               ) : (
                 <svg className="w-full h-full z-10 overflow-visible" viewBox="0 0 1000 140" preserveAspectRatio="none">
                   <defs>
@@ -2884,6 +2893,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   </defs>
                   <line x1="0" y1="70" x2="1000" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1.2" />
                   {stockComparisonList.map((s) => {
+                    if (!s.pathD || s.pathD.trim() === '') return null;
                     const isHovered = hoveredStockCode === s.code;
                     const isAnyHovered = Boolean(hoveredStockCode);
                     const opacity = isHovered ? 1 : (isAnyHovered ? 0.25 : 0.95);

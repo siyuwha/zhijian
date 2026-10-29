@@ -90,7 +90,8 @@ class DataService:
         """
         七重抗压管线核心驱动器
         """
-        cache_key = f"{capability}:{method}:{str(args)}"
+        kwargs_part = f":{sorted(kwargs.items())}" if kwargs else ""
+        cache_key = f"{capability}:{method}:{str(args)}{kwargs_part}"
         now = time.time()
         ttl = self.CAPABILITY_TTL.get(capability, 15.0)
 
@@ -231,8 +232,8 @@ class DataService:
     async def get_concept_blocks(self, code: str) -> DataResult:
         return await self._execute_pipeline("concept_blocks", "get_concept_blocks", code)
 
-    async def get_stock_trends(self, codes: list[str]) -> DataResult:
-        return await self._execute_pipeline("stock_trends", "get_stock_trends", codes)
+    async def get_stock_trends(self, codes: list[str], trade_date: Optional[str] = None) -> DataResult:
+        return await self._execute_pipeline("stock_trends", "get_stock_trends", codes, trade_date=trade_date)
 
     async def get_market_index_trend(self, index_code: str = "sh000001") -> Optional[Dict[str, Any]]:
         """获取大盘基准指数分时走势 (上证指数等)"""

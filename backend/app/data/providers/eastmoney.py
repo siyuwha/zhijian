@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import urllib.parse
+from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
 import asyncio
 import httpx
@@ -1039,7 +1040,7 @@ class EastmoneyProvider(
             provider=self.name,
         )
 
-    async def get_stock_trends(self, codes: list[str]) -> DataResult:
+    async def get_stock_trends(self, codes: list[str], trade_date: Optional[str] = None) -> DataResult:
         """
         获取指定股票/板块的分时走势分钟数据 (Intraday Minute Trends)
         支持个股 (002696, 600000) 与概念板块 (BK0480)
@@ -1093,6 +1094,42 @@ class EastmoneyProvider(
                 raw_trends = data.get("trends") or []
                 name = str(data.get("name") or pure_code)
 
+                # 严格校验整组分钟记录的交易日期。只检查第一条记录会让接口
+                # 返回的跨日混合序列穿透，进而把另一交易日的走势画进当前曲线。
+                row_dates: List[Optional[str]] = []
+                for row in raw_trends:
+                    timestamp = str(row).split(",", 1)[0].strip() if row is not None else ""
+                    date_part = timestamp.split(" ", 1)[0].replace("-", "").strip()
+                    row_dates.append(date_part if len(date_part) == 8 and date_part.isdigit() else None)
+
+                target_d: Optional[str] = None
+                if trade_date:
+                    target_text = str(trade_date).strip()
+                    for fmt in ("%Y-%m-%d", "%Y%m%d"):
+                        try:
+                            target_d = datetime.strptime(target_text, fmt).strftime("%Y%m%d")
+                            break
+                        except ValueError:
+                            continue
+                    if target_d is None:
+                        logger.info("Eastmoney trend date is invalid: %s", trade_date)
+                        return None
+
+                    # 显式历史日期要求每一条记录都带可验证的日期，且必须全部命中请求日。
+                    if not raw_trends or any(row_date != target_d for row_date in row_dates):
+                        logger.info(
+                            "Eastmoney trend date mismatch: requested %s, got %s",
+                            target_d,
+                            sorted({row_date for row_date in row_dates if row_date}),
+                        )
+                        return None
+                else:
+                    # 即使未指定日期，也不能接受跨交易日的混合分钟序列。
+                    observed_dates = {row_date for row_date in row_dates if row_date}
+                    if len(observed_dates) > 1:
+                        logger.info("Eastmoney trend contains mixed dates: %s", sorted(observed_dates))
+                        return None
+
                 trend_points: List[Dict[str, Any]] = []
                 for row in raw_trends:
                     parts = row.split(",")
@@ -1115,6 +1152,7 @@ class EastmoneyProvider(
                     "name": name,
                     "pre_close": pre_price,
                     "trends": trend_points,
+                    "is_real": True,
                 }
             except Exception as e:
                 logger.warning(f"Failed to fetch stock trend for {code_str}: {e}")
@@ -1133,19 +1171,18 @@ class EastmoneyProvider(
         except Exception as e:
             logger.error(f"Eastmoney get_stock_trends batch failed: {e}")
 
-        # 针对网络抖动、超时或历史离线标的做高保真分钟走势兜底合成，确保每个被请求的代码必有241点走势
+        # 严格真实性准则：缺数绝不能调用 _synthesize_stock_minute_trend 冒充真实分时！
+        # 统计缺失代码清单，原样标记
+        clean_input_codes = [str(c).strip().split(".")[-1] for c in codes if str(c).strip()]
         fetched_codes = {r.get("code") for r in results if isinstance(r, dict)}
-        for c in codes:
-            clean_c = str(c).strip().split(".")[-1]
-            if clean_c not in fetched_codes:
-                synthetic_item = self._synthesize_stock_minute_trend(clean_c)
-                results.append(synthetic_item)
+        missing_codes = [c for c in clean_input_codes if c not in fetched_codes]
 
         return DataResult(
             data=results,
-            quality=DataQuality.FULL if results else DataQuality.UNAVAILABLE,
+            quality=DataQuality.FULL if len(results) == len(codes) else (DataQuality.PARTIAL if results else DataQuality.UNAVAILABLE),
             status=DataStatus.AVAILABLE if results else DataStatus.EMPTY,
             provider=self.name,
+            missing_codes=missing_codes,
         )
 
     def _synthesize_stock_minute_trend(self, code_str: str) -> Dict[str, Any]:

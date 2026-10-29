@@ -8,7 +8,7 @@ set -e
 
 echo "================================================================="
 echo "  [AI 认知复盘交易系统] NAS Docker 生产环境一键部署与验证"
-echo "  生产发布版本: v0.8.9"
+echo "  生产发布版本: v0.9.0"
 echo "================================================================="
 
 # 1. 检查 Docker 与 Docker Compose
@@ -32,11 +32,18 @@ echo "--> 检查数据持久化目录..."
 mkdir -p ./data ./logs
 chmod 777 ./data ./logs || true
 
-# 3. 构建并启动容器
-echo "--> 开始构建与拉起容器 (构建前端生产包与后端环境)..."
-$COMPOSE_CMD down --remove-orphans || true
-$COMPOSE_CMD build --no-cache
-$COMPOSE_CMD up -d
+# 3. 构建或拉取启动容器 (优先使用预编译 GHCR 镜像，防止 NAS 本地编译卡死)
+if [ -f "docker-compose.nas.yml" ]; then
+    echo "--> 检测到 NAS 预编译镜像配置，拉取云端高速镜像..."
+    $COMPOSE_CMD -f docker-compose.nas.yml pull
+    $COMPOSE_CMD -f docker-compose.nas.yml down --remove-orphans || true
+    $COMPOSE_CMD -f docker-compose.nas.yml up -d
+else
+    echo "--> 开始构建与拉起容器 (构建前端生产包与后端环境)..."
+    $COMPOSE_CMD down --remove-orphans || true
+    $COMPOSE_CMD build --no-cache
+    $COMPOSE_CMD up -d
+fi
 
 # 4. 等待后端健康检查
 echo "--> 等待后端服务健康检查通过..."

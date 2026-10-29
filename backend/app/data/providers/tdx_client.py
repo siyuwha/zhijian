@@ -129,7 +129,7 @@ class TdxDirectClient:
         """批量获取多只个股实时五档快照"""
         if not self.connect_best_server():
             return []
-        
+
         param_list = [parse_code_market(c) for c in codes]
         raw_quotes = self.api.get_security_quotes(param_list)
         if not raw_quotes:
@@ -141,7 +141,7 @@ class TdxDirectClient:
             price = q.get("price", 0.0)
             last_close = q.get("last_close", 0.0)
             pct_chg = round(((price - last_close) / last_close) * 100, 2) if last_close else 0.0
-            
+
             results.append({
                 "code": code,
                 "market": q.get("market"),
@@ -178,88 +178,136 @@ class TdxDirectClient:
         - 盘中实时时段严格校验数据真实性 (防 pytdx 6 字节对齐漂移与 0.0/800+ 荒谬数据)
         - 盘后闭市时段或校验不通过时自动无缝回退至交易日历史分时
         """
-        if not self.connect_best_server():
-            return []
-        market, clean_code = parse_code_market(code)
-        
         from datetime import datetime, time as dt_time
         from ...core.calendar import calendar
 
+        requested_date = None
+        if date is not None:
+            date_text = str(date).strip()
+            try:
+                if len(date_text) == 8 and date_text.isdigit():
+                    requested_date = datetime.strptime(date_text, "%Y%m%d").date()
+                else:
+                    requested_date = datetime.strptime(date_text, "%Y-%m-%d").date()
+            except (TypeError, ValueError):
+                # A malformed explicit date is a bad request, not permission to
+                # silently switch back to the live/latest session.
+                return []
+
+            if requested_date > datetime.now().date():
+                return []
+
+        if not self.connect_best_server():
+            return []
+        market, clean_code = parse_code_market(code)
+
         now = datetime.now()
         is_trading_day = calendar.is_trading_day(now.date())
-        # A 股交易时段窗口：09:25 ~ 15:05
-        is_intraday_active = is_trading_day and (
-            dt_time(9, 25) <= now.time() <= dt_time(15, 5)
-        )
+        today_int = int(now.strftime("%Y%m%d"))
+        req_date_int = int(requested_date.strftime("%Y%m%d")) if requested_date else None
 
         raw_minutes = None
+        resolved_date = requested_date
 
-        # 1. 若显式指定了历史日期，直接拉取历史分时数据
-        if date:
-            try:
-                date_int = int(str(date).replace("-", ""))
-                raw_minutes = self.api.get_history_minute_time_data(market, clean_code, date_int)
-            except Exception:
-                pass
+        # 1. 若显式指定了交易日期 (严格防穿透：不得回退到其他交易日)
+        if req_date_int is not None:
+            if req_date_int > today_int:
+                return []
 
-        # 2. 若在盘中活跃时段且未指定历史日期，拉取实时分时并做严格物理校验
-        if not raw_minutes and is_intraday_active and not date:
-            try:
-                real_data = self.api.get_minute_time_data(market, clean_code)
-                if real_data and len(real_data) > 0:
-                    first_p = float(real_data[0].get("price") or 0.0)
-                    last_p = float(real_data[-1].get("price") or 0.0)
-                    
-                    # 校验价格有效性：A股不可能小于等于 0.05 元
-                    is_valid = (first_p > 0.05 and last_p > 0.05)
-                    if pre_close and pre_close > 0.0:
-                        # 涨跌幅偏离不能超过 30% (允许 20% 涨跌停缓冲)
-                        dev_first = abs(first_p - pre_close) / pre_close
-                        dev_last = abs(last_p - pre_close) / pre_close
-                        if dev_first > 0.30 or dev_last > 0.30:
-                            is_valid = False
-
-                    if is_valid:
-                        raw_minutes = real_data
-            except Exception:
-                pass
-
-        # 3. 若非交易时段、实时分时无效、或出现漂移，使用日历向前回溯拉取有效历史分时
-        if not raw_minutes or len(raw_minutes) == 0:
-            chk_dt = now.date()
-            if not is_trading_day or now.time() < dt_time(9, 30):
-                chk_dt = calendar.prev_trading_day(chk_dt)
-
-            for _ in range(5):
-                chk_date_int = int(chk_dt.strftime("%Y%m%d"))
+            if req_date_int < today_int:
+                # 严格历史日期：只能拉取该日历史分时
                 try:
-                    hist_data = self.api.get_history_minute_time_data(market, clean_code, chk_date_int)
-                    if hist_data and len(hist_data) >= 120:
-                        chk_p0 = float(hist_data[0].get("price") or 0.0)
-                        chk_plast = float(hist_data[-1].get("price") or 0.0)
-                        if chk_p0 > 0.05 and chk_plast > 0.05:
-                            if pre_close and pre_close > 0.0:
-                                if abs(chk_plast - pre_close) / pre_close <= 0.30:
-                                    raw_minutes = hist_data
-                                    break
-                            else:
-                                raw_minutes = hist_data
-                                break
+                    raw_minutes = self.api.get_history_minute_time_data(market, clean_code, req_date_int)
                 except Exception:
                     pass
-                chk_dt = calendar.prev_trading_day(chk_dt)
+                # Historical pytdx minute records carry no timestamps. A short
+                # or overlong result cannot be mapped to the trading clock
+                # without guessing, so reject it instead of shifting the curve.
+                if not raw_minutes or len(raw_minutes) != 240:
+                    return []
+            else:
+                # 显式指定今天：尝试历史归档或当日实时分时，但绝不可回退到昨天
+                try:
+                    raw_minutes = self.api.get_history_minute_time_data(market, clean_code, req_date_int)
+                except Exception:
+                    pass
+                if not raw_minutes or len(raw_minutes) == 0:
+                    try:
+                        raw_minutes = self.api.get_minute_time_data(market, clean_code)
+                    except Exception:
+                        pass
+                if not raw_minutes or len(raw_minutes) == 0:
+                    return []
+                resolved_date = requested_date
+
+        # 2. 未指定日期 (date is None)：按盘中活跃时段拉取实时分时并做严格物理校验
+        if req_date_int is None:
+            # A 股交易时段窗口：09:25 ~ 15:05
+            is_intraday_active = is_trading_day and (
+                dt_time(9, 25) <= now.time() <= dt_time(15, 5)
+            )
+            if is_intraday_active:
+                try:
+                    real_data = self.api.get_minute_time_data(market, clean_code)
+                    if real_data and len(real_data) > 0:
+                        first_p = float(real_data[0].get("price") or 0.0)
+                        last_p = float(real_data[-1].get("price") or 0.0)
+
+                        # 校验价格有效性：A股不可能小于等于 0.05 元
+                        is_valid = (first_p > 0.05 and last_p > 0.05)
+                        if pre_close and pre_close > 0.0:
+                            # 涨跌幅偏离不能超过 30% (允许 20% 涨跌停缓冲)
+                            dev_first = abs(first_p - pre_close) / pre_close
+                            dev_last = abs(last_p - pre_close) / pre_close
+                            if dev_first > 0.30 or dev_last > 0.30:
+                                is_valid = False
+
+                        if is_valid:
+                            raw_minutes = real_data
+                            resolved_date = now.date()
+                except Exception:
+                    pass
+
+            # 3. 仅在未指定日期且（非交易时段、实时分时无效、或出现漂移）时，使用日历向前回溯拉取有效历史分时
+            if not raw_minutes or len(raw_minutes) == 0:
+                chk_dt = now.date()
+                if not is_trading_day or now.time() < dt_time(9, 30):
+                    chk_dt = calendar.prev_trading_day(chk_dt)
+
+                for _ in range(5):
+                    chk_date_int = int(chk_dt.strftime("%Y%m%d"))
+                    try:
+                        hist_data = self.api.get_history_minute_time_data(market, clean_code, chk_date_int)
+                        if hist_data and len(hist_data) >= 120:
+                            chk_p0 = float(hist_data[0].get("price") or 0.0)
+                            chk_plast = float(hist_data[-1].get("price") or 0.0)
+                            if chk_p0 > 0.05 and chk_plast > 0.05:
+                                if pre_close and pre_close > 0.0:
+                                    if abs(chk_plast - pre_close) / pre_close <= 0.30:
+                                        raw_minutes = hist_data
+                                        resolved_date = chk_dt
+                                        break
+                                else:
+                                    raw_minutes = hist_data
+                                    resolved_date = chk_dt
+                                    break
+                    except Exception:
+                        pass
+                    chk_dt = calendar.prev_trading_day(chk_dt)
 
         if not raw_minutes:
             return []
-        
+
         points = []
+        resolved_date_text = resolved_date.isoformat() if resolved_date else None
         for i, item in enumerate(raw_minutes):
             p = float(item.get("price") or 0.0)
             v = int(item.get("vol") or 0)
             points.append({
                 "minute_idx": i,
                 "price": p,
-                "vol": v
+                "vol": v,
+                "trade_date": resolved_date_text,
             })
         return points
 
@@ -271,7 +319,7 @@ class TdxDirectClient:
         if not self.connect_best_server():
             return []
         market, clean_code = parse_code_market(code)
-        
+
         category_map = {
             "5m": 0, "15m": 1, "30m": 2, "60m": 3, "1h": 3,
             "1d": 4, "day": 4, "daily": 4,
@@ -282,7 +330,7 @@ class TdxDirectClient:
         bars = self.api.get_security_bars(category=cat, market=market, code=clean_code, start=0, count=count)
         if not bars:
             return []
-        
+
         results = []
         for b in bars:
             results.append({
@@ -305,7 +353,7 @@ class TdxDirectClient:
         raw_ticks = self.api.get_transaction_data(market, clean_code, start=0, count=count)
         if not raw_ticks:
             return []
-        
+
         results = []
         for t in raw_ticks:
             bs = t.get("buyorsell")
@@ -323,14 +371,14 @@ class TdxDirectClient:
         """获取大盘核心指数 (上证、深证、创业板、科创50)"""
         if not self.connect_best_server():
             return []
-        
+
         index_targets = [
             ("上证指数", TDXParams.MARKET_SH, "000001"),
             ("深证成指", TDXParams.MARKET_SZ, "399001"),
             ("创业板指", TDXParams.MARKET_SZ, "399006"),
             ("科创50", TDXParams.MARKET_SH, "000688"),
         ]
-        
+
         indices = []
         for name, mkt, code in index_targets:
             bars = self.api.get_index_bars(category=4, market=mkt, code=code, start=0, count=1)
