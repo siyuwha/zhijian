@@ -81,6 +81,7 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                     low_price = float(parts[5]) if len(parts) > 5 and parts[5] != "" else None
                     amount_yuan = float(parts[9]) if len(parts) > 9 and parts[9] != "" else None
                     trade_date = parts[30].strip() if len(parts) > 30 else None
+                    trade_time = parts[31].strip() if len(parts) > 31 else None
                     change = (price - pre_close) if (price is not None and pre_close is not None) else None
                     pct_change = ((change / pre_close) * 100) if (change is not None and pre_close and pre_close > 0) else None
                     amount_wan = (amount_yuan / 10000.0) if amount_yuan is not None else None
@@ -108,7 +109,9 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                             "rebound_pct": rebound_pct,
                             "amplitude": amplitude,
                             "amount_wan": round(amount_wan, 2) if amount_wan is not None else None,
+                            "date": trade_date,
                             "trade_date": trade_date,
+                            "time": f"{trade_date} {trade_time}" if (trade_date and trade_time) else None,
                         })
                 elif len(parts) >= 6:
                     # 兼容简版格式 s_sh000001: name(0), price(1), change(2), pct_change(3), volume(4), amount(5)
@@ -274,7 +277,8 @@ class SinaProvider(BaseProvider, IndexQuoteCapability, StockQuoteCapability, Ove
                                     "is_one_word_up": is_one_word_up,
                                     "is_one_word_down": is_one_word_down,
                                     "date": trade_date,
-                                    "time": f"{trade_date} {trade_time}" if (trade_date and trade_time) else datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    "trade_date": trade_date,
+                                    "time": f"{trade_date} {trade_time}" if (trade_date and trade_time) else None,
                                 })
 
             return DataResult(

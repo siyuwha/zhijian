@@ -5,6 +5,7 @@ from .baostock_provider import BaostockProvider
 from .cls import CLSProvider
 from .eastmoney import EastmoneyProvider
 from .tdx_provider import TdxProvider
+from .tencent import TencentProvider
 
 def init_providers():
     """初始化并注册默认数据提供者"""
@@ -14,10 +15,15 @@ def init_providers():
     cls = CLSProvider()
     east = EastmoneyProvider()
     tdx = TdxProvider()
+    tencent = TencentProvider()
 
-    # 指数与个股行情 (Primary: Sina)
+    # 指数与个股行情 (Primary: Sina, Secondary: Tencent 备用源, Tertiary: TDX Direct)
     registry.register("index_quote", "sina", sina, is_primary=True)
+    registry.register("index_quote", "tencent", tencent, is_primary=False)
+    registry.register("index_quote", "tdx_direct", tdx, is_primary=False)
     registry.register("stock_quote", "sina", sina, is_primary=True)
+    registry.register("stock_quote", "tencent", tencent, is_primary=False)
+    registry.register("stock_quote", "tdx_direct", tdx, is_primary=False)
 
     # 涨跌停与情绪
     registry.register("limit_up", "tonghuashun_eastmoney", ths, is_primary=True)

@@ -147,3 +147,37 @@ async def test_monday_comparison_skips_weekend_contamination(test_session: Async
     assert prev_summary["total_amount"] == 15000.0
     assert prev_summary["sub_b_extremes"]["limit_up_count"] == 58
 
+
+def test_trading_calendar_2023_holidays_and_coverage():
+    """验证 2023 年法定节假日休市日历完整覆盖与跨年/未覆盖年份边界"""
+    from datetime import date
+    from app.core.calendar import CalendarCoverageError
+
+    # 1. 2023 年清明节休市核验 (2023-04-05 周三休市)
+    assert calendar.is_trading_day("2023-04-05") is False
+    assert calendar.is_trading_day(date(2023, 4, 5)) is False
+    assert str(calendar.next_trading_day("2023-04-04")) == "2023-04-06"
+    assert "清明休市" in calendar.format_date_with_weekday("2023-04-05")
+
+    # 2. 2023 年其他主要法定休市核验
+    assert calendar.is_trading_day("2023-01-02") is False  # 元旦
+    assert calendar.is_trading_day("2023-01-23") is False  # 春节
+    assert calendar.is_trading_day("2023-05-01") is False  # 劳动节
+    assert calendar.is_trading_day("2023-06-22") is False  # 端午节
+    assert calendar.is_trading_day("2023-09-29") is False  # 中秋节
+    assert calendar.is_trading_day("2023-10-02") is False  # 国庆节
+
+    # 3. 正常交易日核验
+    assert calendar.is_trading_day("2023-04-04") is True
+    assert calendar.is_trading_day("2023-04-06") is True
+
+    # 4. 覆盖范围防御检验：2023 覆盖成功，2022 与 2027 硬性抛出 CalendarCoverageError
+    calendar.check_coverage(date(2023, 4, 5))  # 正常通过
+    with pytest.raises(CalendarCoverageError) as exc_2022:
+        calendar.check_coverage(date(2022, 12, 31))
+    assert "未覆盖年份 2022" in str(exc_2022.value)
+
+    with pytest.raises(CalendarCoverageError) as exc_2027:
+        calendar.check_coverage(date(2027, 1, 1))
+    assert "未覆盖年份 2027" in str(exc_2027.value)
+

@@ -28,6 +28,7 @@ class SimPositionResponse(BaseModel):
     code: str
     name: Optional[str] = None
     quantity: int
+    available_quantity: Optional[int] = Field(None, description="T+1 规则下当前实际可卖数量")
     avg_cost: float
     total_cost: float = 0.0
     current_price: Optional[float] = None

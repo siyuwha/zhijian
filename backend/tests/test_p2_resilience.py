@@ -248,15 +248,15 @@ async def test_p2_09_ttl_cache_verify():
     ds = DataService()
     DataService._CACHE.clear()
 
-    # 第一次查询 (Cache Miss)
+    # 第一次查询 (Cache Miss, 单元测试禁用新鲜度过滤以确保非交易时段稳定跑通)
     t0 = time.perf_counter()
-    r1 = await ds.get_stock_quotes(["sh600519"])
+    r1 = await ds.get_stock_quotes(["sh600519"], validate_freshness=False)
     d1 = time.perf_counter() - t0
 
     # 随后 9 次并发查询 (必须 100% 命中缓存，耗时 < 5ms)
     for _ in range(9):
         t_sub = time.perf_counter()
-        r_sub = await ds.get_stock_quotes(["sh600519"])
+        r_sub = await ds.get_stock_quotes(["sh600519"], validate_freshness=False)
         d_sub = (time.perf_counter() - t_sub) * 1000
         assert d_sub < 15.0  # 本地内存毫秒级返回
         assert r_sub.quality in (DataQuality.FULL, DataQuality.PARTIAL, DataQuality.DEGRADED)

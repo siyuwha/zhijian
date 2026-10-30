@@ -788,9 +788,11 @@ class MonitorService:
             if events_to_add:
                 self.session.add_all(events_to_add)
             await self.session.commit()
+            return True
         except Exception as e:
             await self.session.rollback()
             logger.error(f"SQLite 异步批处理写入失败: {e}")
+            raise
 
     # ==========================================
     # 8. 对外只读查询接口 (API 服务层)

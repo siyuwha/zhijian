@@ -70,6 +70,9 @@ class DataService:
 
     def __init__(self, session: Optional[AsyncSession] = None):
         self.session = session
+        self.last_quality_log_success: bool = True
+        self.current_now: Optional[datetime] = None
+        self.current_date: Optional[str] = None
 
     @classmethod
     def get_pipeline_metrics(cls) -> dict:
@@ -90,7 +93,8 @@ class DataService:
         """
         七重抗压管线核心驱动器
         """
-        kwargs_part = f":{sorted(kwargs.items())}" if kwargs else ""
+        cache_kwargs = {k: v for k, v in kwargs.items() if k not in ("reference_now", "validate_freshness")}
+        kwargs_part = f":{sorted(cache_kwargs.items())}" if cache_kwargs else ""
         cache_key = f"{capability}:{method}:{str(args)}{kwargs_part}"
         now = time.time()
         ttl = self.CAPABILITY_TTL.get(capability, 15.0)
@@ -102,8 +106,26 @@ class DataService:
         if cached:
             ts, res = cached
             if (now - ts) < ttl and res.quality not in (DataQuality.INVALID, DataQuality.UNAVAILABLE, DataQuality.FAILED):
-                self._metrics["cache_hits"] += 1
-                return res
+                # 针对行情报价类能力，缓存命中时必须重新校验当前时态与新鲜度 (防止缓存期内超过 300 秒或跨日)
+                validate_freshness = kwargs.get("validate_freshness", True)
+                if capability in ("stock_quote", "index_quote") and validate_freshness and res.data:
+                    from .quote_validator import validate_quote_batch
+                    reference_now = kwargs.get("reference_now") or getattr(self, "current_now", None)
+                    is_fresh, freshness_err = validate_quote_batch(res.data, now=reference_now)
+                    if not is_fresh:
+                        logger.info(f"Cache invalidated for {capability} due to quote aging or date mismatch: {freshness_err}")
+                        self._CACHE.pop(cache_key, None)
+                        cached = None
+
+                if cached:
+                    self._metrics["cache_hits"] += 1
+                    if getattr(res, "quality_log_success", None) is False:
+                        QualityTracker.record_failure(
+                            capability=capability,
+                            provider=res.provider or "cache",
+                            error=f"Reused cached result with failed quality log: {capability}"
+                        )
+                    return res
 
         self._metrics["cache_misses"] += 1
 
@@ -162,19 +184,24 @@ class DataService:
                 t_start = time.perf_counter()
                 last_good = self._LAST_GOOD_CACHE.get(cache_key)
                 timeout_ms = self.CAPABILITY_TIMEOUTS.get(capability, 5000)
+                call_kwargs = dict(kwargs)
+                ref_now = call_kwargs.get("reference_now") or getattr(self, "current_now", None)
+                if ref_now is not None:
+                    call_kwargs["reference_now"] = ref_now
                 result = await registry.execute_with_fallback(
                     capability,
                     method,
                     *args,
                     last_good_cache=last_good,
                     timeout_ms=timeout_ms,
-                    **kwargs,
+                    **call_kwargs,
                 )
                 duration_ms = int((time.perf_counter() - t_start) * 1000)
 
-                # 记录审计日志
-                if self.session:
-                    await QualityTracker.log_quality(self.session, capability, result, duration_ms)
+                # 记录审计日志 (独立事务隔离落库，不占用或污染外部会话)
+                log_success = await QualityTracker.log_quality(self.session, capability, result, duration_ms)
+                result.quality_log_success = log_success
+                self.last_quality_log_success = log_success
 
                 # 写入缓存与最后有效快照
                 if result.quality not in (DataQuality.INVALID, DataQuality.UNAVAILABLE, DataQuality.FAILED) and result.data is not None:
@@ -184,14 +211,20 @@ class DataService:
                 return result
 
         result, is_leader = await self._singleflight.execute(cache_key, _execute_stages_3_to_7)
+        if not is_leader and getattr(result, "quality_log_success", None) is False:
+            QualityTracker.record_failure(
+                capability=capability,
+                provider=result.provider or "singleflight",
+                error=f"Reused singleflight result with failed quality log: {capability}"
+            )
         return result
 
     # 业务接口方法封装
-    async def get_index_quotes(self, codes: List[str]) -> DataResult:
-        return await self._execute_pipeline("index_quote", "get_index_quotes", codes)
+    async def get_index_quotes(self, codes: List[str], **kwargs) -> DataResult:
+        return await self._execute_pipeline("index_quote", "get_index_quotes", codes, **kwargs)
 
-    async def get_stock_quotes(self, codes: List[str]) -> DataResult:
-        return await self._execute_pipeline("stock_quote", "get_stock_quotes", codes)
+    async def get_stock_quotes(self, codes: List[str], **kwargs) -> DataResult:
+        return await self._execute_pipeline("stock_quote", "get_stock_quotes", codes, **kwargs)
 
     async def get_limit_up_pool(self, date: Optional[str] = None) -> DataResult:
         return await self._execute_pipeline("limit_up", "get_limit_up_pool", date)

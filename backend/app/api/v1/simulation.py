@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from ...core.database import get_db
@@ -45,9 +45,18 @@ async def execute_simulation_trade(
     payload: SimTradeCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    """执行策略实盘模拟买入/卖出委托（策略跟单建仓/手动模拟订单）"""
-    service = SimulationService(db)
-    result = await service.execute_trade(payload)
+    """
+    执行策略实盘模拟买入/卖出委托。
+    正式模拟交易入口严格由服务端控制执行时间与 A 股 T+1 刚性规则。
+    客户端禁止指定 trade_time（杜绝倒填买入时间绕过 T+1 漏洞）。
+    """
+    if payload.trade_time is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="正式模拟交易入口禁止客户端指定成交时间 (trade_time)，成交时间严格由服务端当前时钟受控决定"
+        )
+    service = SimulationService(db, enforce_t1=True)
+    result = await service.execute_trade(payload, check_t1=True, allow_future=False)
     return {"code": 200, "data": result}
 
 @router.get("/stats")

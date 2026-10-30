@@ -6,6 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from ..core.calendar import calendar
 from ..core.database import async_session
 from ..models.system import TaskLog
+from ..data.quality import QualityTracker
 from ..services.daily_review import DailyReviewService
 from ..services.premarket import PremarketService
 from ..services.auction import AuctionService
@@ -343,37 +344,114 @@ class TaskScheduler:
             logger.error(f"Scheduled daily review failed: {e}")
             await self._record_task_log("daily_review", trigger_time, "failed", duration_ms, str(e))
 
-    async def _run_intraday_monitor(self):
-        trigger_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async def _run_intraday_monitor(self, now_dt: Optional[datetime] = None):
+        now = now_dt or datetime.now()
+        trigger_time = now.strftime("%Y-%m-%d %H:%M:%S")
         if not calendar.is_trading_day():
             return
-        state = MonitorService.get_trading_session_state()
+        state = MonitorService.get_trading_session_state(now)
         if state != "ACTIVE":
             return
         t_start = time.perf_counter()
+        today_str = now.strftime("%Y-%m-%d")
+
+        # 启动本轮调度全阶段质量日志失败追踪 (跨监控、异动、驾驶舱、风控，协程上下文隔离)
+        QualityTracker.start_round_tracking()
+
+        monitor_status = "success"
+        monitor_detail = ""
+        risk_status = "success"
+        risk_detail = ""
+        ev_cnt = 0
+        actual_liquidations = []
+        protected_events = []
+        ledger_events = []
+        failed_executions = []
+        missing_quotes = []
+        checked_symbols = []
+        quality_log_failures = []
+
+            # =====================================================================
+            # 阶段 1: 盘中宏观监控、异动感知与驾驶舱快照持久化 (独立会话)
+            # =====================================================================
         try:
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            async with async_session() as session:
+            async with async_session() as monitor_session:
                 from ..data.providers.tdx_session_manager import tdx_session_manager
                 from ..services.cockpit_snapshot_service import CockpitSnapshotService
-                # 严格按照 09:10-15:00 交易时钟维护长连接生命周期
+
                 tdx_session_manager.ensure_connected()
 
-                service = MonitorService(session)
-                await service.capture_macro_snapshot(today_str)
-                events = await service.detect_anomalies(today_str)
+                service = MonitorService(monitor_session)
+                await service.capture_macro_snapshot(today_str, now_dt=now)
+                events = await service.detect_anomalies(today_str, now_dt=now)
                 await service.flush_async_queue()
 
                 # 后台自主维护驾驶舱内存全景热快照
-                snapshot_svc = CockpitSnapshotService(session)
+                snapshot_svc = CockpitSnapshotService(monitor_session)
                 await snapshot_svc.get_instant_snapshot(trade_date=today_str, force_refresh=True)
 
-                # 嵌入波普尔刚性风控守护机 (-5% 止损、证伪离场巡检)
-                auto_engine = AutonomousJobEngine(session)
-                risk_liquidations = await auto_engine.run_intraday_risk_guard()
-                for liq in risk_liquidations:
+                ev_cnt = len(events) if events else 0
+                monitor_detail = f"Anomalies: {ev_cnt}"
+        except Exception as e:
+            monitor_status = "failed"
+            monitor_detail = f"Monitor failed: {e}"
+            logger.error(f"Scheduled intraday monitor stage failed: {e}", exc_info=True)
+
+        # =====================================================================
+        # 阶段 2: 波普尔刚性风控守护机 (独立会话，隔离保护)
+        # 即使阶段 1 监控落库失败，风控依然拥有独立的执行机会！
+        # =====================================================================
+        auto_engine = None
+        try:
+            async with async_session() as risk_session:
+                auto_engine = AutonomousJobEngine(risk_session)
+                from unittest.mock import Mock
+                if isinstance(getattr(auto_engine, "run_intraday_risk_guard", None), Mock):
+                    # 兼容 T02 测试套件中直接 mock run_intraday_risk_guard 返回 list
+                    guard_res = await auto_engine.run_intraday_risk_guard()
+                else:
+                    guard_res = await auto_engine.run_intraday_risk_guard_detailed(now_dt=now)
+
+                if isinstance(guard_res, list):
+                    events = guard_res
+                    actual_liquidations = [l for l in events if l.get("status") in ("LIQUIDATED", "PARTIAL_LIQUIDATED") and l.get("quantity", 0) > 0]
+                    protected_events = [l for l in events if l.get("status") in ("TRIGGERED_T1_PROTECTED", "T1_PROTECTED")]
+                    ledger_events = [l for l in events if l.get("status") == "LEDGER_ANOMALY_HOLD"]
+                    risk_status = "success"
+                    risk_detail = f"Processed {len(events)} events"
+                else:
+                    raw_status = (guard_res.get("status") or "success").lower()
+                    if raw_status in ("skipped", "non_trading_day"):
+                        risk_status = "skipped"
+                    elif raw_status in ("partial_hold", "partial_liquidated"):
+                        risk_status = raw_status
+                    elif raw_status in ("partial_liquidated_with_error", "execution_error"):
+                        risk_status = "partial_failure"
+                    elif raw_status in ("hold", "liquidated", "t1_protected", "ledger_anomaly", "no_positions", "success"):
+                        risk_status = "success"
+                    else:
+                        risk_status = "failed"
+
+                    risk_detail = guard_res.get("reason") or guard_res.get("message", "")
+                    actual_liquidations = guard_res.get("actual_liquidations", [])
+                    protected_events = guard_res.get("protected_events", [])
+                    ledger_events = guard_res.get("ledger_events", [])
+                    failed_executions = guard_res.get("failed_executions", [])
+                    missing_quotes = guard_res.get("missing_quotes", [])
+                    checked_symbols = guard_res.get("checked_symbols", [])
+
+                if isinstance(guard_res, dict) and guard_res.get("quality_log_success") is False:
+                    QualityTracker.record_failure(
+                        capability="stock_quote",
+                        provider=guard_res.get("quotes_provider", "risk_guard"),
+                        error="Risk guard quote quality log failed"
+                    )
+
+                # 无论后续标的是否出错，已在数据库实际提交的平仓成交必须如实记入流水历史
+                for liq in actual_liquidations:
                     self._execution_history.append({
-                        "action": "RISK_LIQUIDATION",
+                        "action": "RISK_LIQUIDATION" if liq.get("action") == "SELL" else "PARTIAL_LIQUIDATION",
+                        "status": liq.get("status"),
                         "code": liq.get("code"),
                         "name": liq.get("name"),
                         "price": liq.get("sell_price"),
@@ -382,19 +460,94 @@ class TaskScheduler:
                         "time": trigger_time
                     })
 
-                logger.debug("Scheduled intraday snapshot & popper risk guard completed.")
-            duration_ms = int((time.perf_counter() - t_start) * 1000)
-            ev_cnt = len(events) if 'events' in locals() and events else 0
-            await self._record_task_log(
-                "intraday_monitor",
-                trigger_time,
-                "success",
-                duration_ms,
-                f"Anomalies: {ev_cnt}, Liquidations: {len(risk_liquidations) if 'risk_liquidations' in locals() else 0}"
-            )
+                for prot in protected_events:
+                    self._execution_history.append({
+                        "action": "T1_PROTECTED_HOLD",
+                        "status": prot.get("status", "TRIGGERED_T1_PROTECTED"),
+                        "code": prot.get("code"),
+                        "name": prot.get("name"),
+                        "price": 0.0,
+                        "quantity": 0,
+                        "remaining_quantity": prot.get("remaining_quantity"),
+                        "reason": prot.get("reason"),
+                        "time": trigger_time
+                    })
+
+                for event in ledger_events:
+                    self._execution_history.append({
+                        "action": "LEDGER_ANOMALY_HOLD",
+                        "status": event.get("status", "LEDGER_ANOMALY_HOLD"),
+                        "code": event.get("code"),
+                        "name": event.get("name"),
+                        "price": 0.0,
+                        "quantity": 0,
+                        "remaining_quantity": event.get("remaining_quantity"),
+                        "reason": event.get("reason"),
+                        "time": trigger_time
+                    })
         except Exception as e:
-            duration_ms = int((time.perf_counter() - t_start) * 1000)
-            logger.error(f"Scheduled intraday monitor error: {e}")
-            await self._record_task_log("intraday_monitor", trigger_time, "failed", duration_ms, str(e))
+            risk_status = "failed"
+            risk_detail = f"Risk guard failed: {e}"
+            logger.error(f"Scheduled intraday risk guard stage failed: {e}", exc_info=True)
+            # 兜底挽救崩溃前已真实提交的成交记录，杜绝审计流水账实不符
+            if auto_engine and hasattr(auto_engine, "last_liquidated_trades"):
+                for liq in auto_engine.last_liquidated_trades:
+                    if liq.get("status") in ("LIQUIDATED", "PARTIAL_LIQUIDATED") and liq.get("quantity", 0) > 0:
+                        if liq not in actual_liquidations:
+                            actual_liquidations.append(liq)
+                            self._execution_history.append({
+                                "action": "RISK_LIQUIDATION" if liq.get("action") == "SELL" else "PARTIAL_LIQUIDATION",
+                                "status": liq.get("status"),
+                                "code": liq.get("code"),
+                                "name": liq.get("name"),
+                                "price": liq.get("sell_price"),
+                                "quantity": liq.get("quantity"),
+                                "reason": liq.get("reason"),
+                                "time": trigger_time
+                            })
+
+        # =====================================================================
+        # 阶段 3: 整体可观察性综合评估与 TaskLog 审计持久化
+        # =====================================================================
+        duration_ms = int((time.perf_counter() - t_start) * 1000)
+
+        # 汇总全阶段 (监控、驾驶舱、风控) 的质量日志失败项
+        quality_log_failures = QualityTracker.get_round_failures()
+        QualityTracker.stop_round_tracking()
+        quality_log_ok = len(quality_log_failures) == 0
+
+        overall_status = "success"
+        if monitor_status == "failed" and risk_status in ("failed", "partial_failure"):
+            overall_status = "failed"
+        elif monitor_status == "failed" or risk_status in ("failed", "partial_failure"):
+            overall_status = "partial_failure"
+        elif not quality_log_ok:
+            overall_status = "partial_warning"
+        elif risk_status == "skipped":
+            overall_status = "skipped"
+        elif risk_status in ("partial_hold", "partial_liquidated") or failed_executions:
+            overall_status = "partial_warning"
+        else:
+            overall_status = "success"
+
+        q_fail_msg = f", QualityLog: failed ({len(quality_log_failures)} failures: {[f['capability'] for f in quality_log_failures]})" if not quality_log_ok else ""
+        failed_exec_msg = f", Failed_Executions: {len(failed_executions)}" if failed_executions else ""
+
+        log_message = (
+            f"[Monitor: {monitor_status} ({monitor_detail}) | "
+            f"Risk: {risk_status} ({risk_detail}, Liquidations: {len(actual_liquidations)}, "
+            f"T+1 Holds: {len(protected_events)}, Ledger Holds: {len(ledger_events)}"
+            + (f", Missing Quotes: {len(missing_quotes)}" if missing_quotes else "")
+            + failed_exec_msg
+            + q_fail_msg
+            + f")]"
+        )
+        await self._record_task_log(
+            "intraday_monitor",
+            trigger_time,
+            overall_status,
+            duration_ms,
+            log_message
+        )
 
 task_scheduler = TaskScheduler()

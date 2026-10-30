@@ -9,6 +9,7 @@ from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
 from .capabilities import DataQuality, DataResult, Freshness, ProviderErrorCode, ProviderResponse
 from .circuit_breaker import CircuitBreaker, CircuitState
 from .health import HealthTracker
+from .quote_validator import validate_quote_batch
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,15 @@ class ProviderRegistry:
         self._health_trackers: Dict[str, HealthTracker] = {}
         self._audit_logs: List[FailoverAuditEvent] = []
         self._lock = asyncio.Lock()
+
+    def reset(self):
+        """重置所有断路器状态与审计日志（常用于单元测试清理）"""
+        for cb in self._circuit_breakers.values():
+            cb.state = CircuitState.CLOSED
+            cb.consecutive_failures = 0
+            cb.current_cooldown = cb.base_cooldown_seconds
+            cb.opened_at = None
+        self._audit_logs.clear()
 
     def get_circuit_breaker(self, provider_name: str) -> CircuitBreaker:
         name = provider_name.lower()
@@ -168,16 +178,77 @@ class ProviderRegistry:
             is_timeout = False
             is_malformed = False
 
+            call_kwargs = dict(kwargs)
+            validate_freshness = call_kwargs.pop("validate_freshness", True)
+            reference_now = call_kwargs.pop("reference_now", None)
+
             try:
                 hard_timeout_sec = max(1.0, timeout_ms / 1000.0)
                 result: DataResult = await asyncio.wait_for(
-                    method(*args, **kwargs),
+                    method(*args, **call_kwargs),
                     timeout=hard_timeout_sec,
                 )
                 duration_ms = int((time.perf_counter() - t_start) * 1000)
 
                 # 校验返回值质量
-                if result and result.quality not in (DataQuality.INVALID, DataQuality.UNAVAILABLE, DataQuality.FAILED) and result.data is not None:
+                if result and result.data is not None:
+                    # 保留上游提供方物理产出的原始质量，严防被随后的 fallback 降级统一改写所遮蔽
+                    raw_quality = getattr(result, "original_quality", None) or result.quality
+                    result.original_quality = raw_quality
+
+                    # 针对行情报价类能力，要求物理返回质量必须确证合格为 FULL 或 PARTIAL (原生 DEGRADED 拒绝准入)
+                    # 且强制执行 Asia/Shanghai 当日与 0 <= now - quote_time <= 300s 严格时态校验
+                    if capability in ("stock_quote", "index_quote"):
+                        # 检查原始质量：如果原生为 DEGRADED/INVALID/UNAVAILABLE/FAILED，不可作为合格行情
+                        if raw_quality not in (DataQuality.FULL, DataQuality.PARTIAL):
+                            is_malformed = True
+                            last_error = f"ORIGINAL_QUALITY_INADEQUATE: Provider '{provider_name}' returned raw quality {raw_quality}"
+                            logger.warning(
+                                f"Provider '{provider_name}' raw quality for '{capability}' is {raw_quality} (not FULL/PARTIAL). "
+                                f"Triggering failover to next provider..."
+                            )
+                            await cb.record_failure(last_error)
+                            ht.record_sample(is_success=False, latency_ms=duration_ms, is_malformed=True)
+                            if i < len(providers) - 1:
+                                self.record_failover_event(
+                                    capability=capability,
+                                    original_provider=provider_name,
+                                    target_provider=providers[i + 1][0],
+                                    reason=last_error,
+                                    latency_ms=duration_ms,
+                                )
+                            continue
+
+                        if validate_freshness:
+                            is_fresh, freshness_err = validate_quote_batch(result.data, now=reference_now)
+                            if not is_fresh:
+                                is_malformed = True
+                                last_error = f"QUOTE_FRESHNESS_FAIL: {freshness_err}"
+                                logger.warning(
+                                    f"Provider '{provider_name}' failed quote freshness for '{capability}': {freshness_err}. "
+                                    f"Triggering failover to backup provider..."
+                                )
+                                await cb.record_failure(last_error)
+                                ht.record_sample(is_success=False, latency_ms=duration_ms, is_malformed=True)
+
+                                if i < len(providers) - 1:
+                                    self.record_failover_event(
+                                        capability=capability,
+                                        original_provider=provider_name,
+                                        target_provider=providers[i + 1][0],
+                                        reason=last_error,
+                                        latency_ms=duration_ms,
+                                    )
+                                continue
+                    else:
+                        # 非行情通用能力保持原有的基本质量校验
+                        if result.quality in (DataQuality.INVALID, DataQuality.UNAVAILABLE, DataQuality.FAILED):
+                            is_malformed = True
+                            last_error = result.error_message or f"Invalid quality {result.quality}"
+                            await cb.record_failure(last_error)
+                            ht.record_sample(is_success=False, latency_ms=duration_ms, is_malformed=True)
+                            continue
+
                     # 硬成功：合闸并清零失败计数
                     await cb.record_success()
                     ht.record_sample(is_success=True, latency_ms=duration_ms)

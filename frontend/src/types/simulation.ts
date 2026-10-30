@@ -15,6 +15,7 @@ export interface SimPosition {
   code: string;
   name: string;
   quantity: number;
+  available_quantity?: number;
   avg_cost: number;
   total_cost: number;
   current_price: number;

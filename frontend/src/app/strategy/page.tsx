@@ -174,14 +174,12 @@ export default function StrategyPage() {
     setIsSimulating(true);
     try {
       const p = Number(cand.current_price) > 0 ? Number(cand.current_price) : 10.0;
-      const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
       await api.executeSimTrade({
         code: cand.code,
         name: cand.name,
         direction: 'buy',
         price: p,
         quantity: 1000,
-        trade_time: nowStr,
         decision_summary: `[${currentStrategy?.name || '经典策略'}] ${cand.status_tag || ''} (评分 ${cand.score}) · 策略联动模拟建仓`,
       });
       setSimNotice(`已成功将【${cand.name} (${cand.code})】以 ${p.toFixed(2)} 元加入模拟交易沙盒！`);

@@ -119,6 +119,58 @@ class TdxDirectClient:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+    def get_market_date(self) -> Optional[str]:
+        """
+        从通达信主站查询市场最新基准交易日 (基于上证指数最新日K线，杜绝伪造系统当前日期)
+        """
+        now = time.time()
+        if hasattr(self, "_cached_market_date"):
+            ts, cached_date = self._cached_market_date
+            if now - ts < 60.0 and cached_date:
+                return cached_date
+
+        if not self.connect_best_server():
+            return None
+        try:
+            bars = self.api.get_index_bars(
+                category=TDXParams.KLINE_TYPE_DAILY,
+                market=TDXParams.MARKET_SH,
+                code="000001",
+                start=0,
+                count=1
+            )
+            if bars:
+                dt_str = bars[-1].get("datetime")
+                if dt_str and len(dt_str) >= 10:
+                    trade_date = dt_str[:10]
+                    self._cached_market_date = (now, trade_date)
+                    return trade_date
+        except Exception as e:
+            pass
+        return None
+
+    def get_stock_trade_date(self, market: int, code: str) -> Optional[str]:
+        """
+        从通达信主站查询单个标的自身的最权威交易日 (基于该个股自身最新日K线，绝不借用大盘指数日期)
+        """
+        if not self.connect_best_server():
+            return None
+        try:
+            bars = self.api.get_security_bars(
+                category=TDXParams.KLINE_TYPE_DAILY,
+                market=market,
+                code=code,
+                start=0,
+                count=1
+            )
+            if bars:
+                dt_str = bars[-1].get("datetime")
+                if dt_str and len(dt_str) >= 10:
+                    return dt_str[:10]
+        except Exception:
+            pass
+        return None
+
     def get_quote(self, code: str) -> Optional[Dict[str, Any]]:
         """获取单只个股实时五档快照"""
         market, clean_code = parse_code_market(code)
@@ -138,22 +190,41 @@ class TdxDirectClient:
         results = []
         for q in raw_quotes:
             code = q.get("code")
+            mkt = q.get("market")
             price = q.get("price", 0.0)
             last_close = q.get("last_close", 0.0)
             pct_chg = round(((price - last_close) / last_close) * 100, 2) if last_close else 0.0
 
+            server_time = q.get("servertime")
+            # 严格安全边界 (SSOT 来源确权防线):
+            # 报价必须提供属于其快照自身的完整可信日期 (如上游原生 date/trade_date)。
+            # 绝对严禁借用上证指数日期或独立的个股日K线日期！
+            # 因为日K线与报价是两次独立网络请求，若日K已更新至今日而报价滞留，借用日K日期会使陈旧报价通过新鲜度检查导致误平仓。
+            # 无法证明日期属于该条报价自身时，权威标记为 None，交由提供方标记为 UNAVAILABLE 并由风控刚性阻断。
+            quote_date = q.get("date") or q.get("trade_date")
+
+            clean_time = server_time[:8] if (server_time and len(server_time) >= 8) else (q.get("time") or server_time)
             results.append({
                 "code": code,
-                "market": q.get("market"),
+                "symbol": code,
+                "market": mkt,
                 "price": price,
                 "last_close": last_close,
+                "prev_close": last_close,
                 "pct_chg": pct_chg,
+                "pct_change": pct_chg,
                 "open": q.get("open"),
                 "high": q.get("high"),
                 "low": q.get("low"),
                 "vol": q.get("vol"),             # 手数
+                "volume": q.get("vol"),
                 "amount": q.get("amount"),       # 元
                 "amount_yi": round(q.get("amount", 0) / 1e8, 2),
+                "amount_wan": round(q.get("amount", 0) / 10000.0, 2),
+                "servertime": server_time,
+                "date": quote_date,
+                "trade_date": quote_date,
+                "time": clean_time,
                 "bid1": q.get("bid1"), "bid_vol1": q.get("bid_vol1"),
                 "bid2": q.get("bid2"), "bid_vol2": q.get("bid_vol2"),
                 "bid3": q.get("bid3"), "bid_vol3": q.get("bid_vol3"),

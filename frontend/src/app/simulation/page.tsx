@@ -122,7 +122,6 @@ export default function SimulationPage() {
     try {
       const p = Number(cand.current_price) > 0 ? Number(cand.current_price) : 10.0;
       const q = 1000;
-      const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
       await api.executeSimTrade({
         code: cand.code,
@@ -130,7 +129,6 @@ export default function SimulationPage() {
         direction: 'buy',
         price: p,
         quantity: q,
-        trade_time: nowStr,
         decision_summary: `[${stratName}] ${cand.status_tag || ''} (评分 ${cand.score || '--'}) · 策略联动模拟建仓`,
       });
 
@@ -151,7 +149,6 @@ export default function SimulationPage() {
     setIsSubmitting(true);
     try {
       const p = Number(pos.current_price) > 0 ? Number(pos.current_price) : Number(pos.avg_cost);
-      const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
       await api.executeSimTrade({
         code: pos.code,
@@ -159,7 +156,6 @@ export default function SimulationPage() {
         direction: 'sell',
         price: p,
         quantity: pos.quantity,
-        trade_time: nowStr,
         decision_summary: `模拟盘手动止盈止损平仓 (原成本 ${pos.avg_cost.toFixed(2)})`,
       });
 
@@ -182,14 +178,12 @@ export default function SimulationPage() {
 
     setIsSubmitting(true);
     try {
-      const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
       await api.executeSimTrade({
         code: orderCode.trim(),
         name: orderName.trim() || undefined,
         direction: orderDirection,
         price: Number(orderPrice),
         quantity: Number(orderQuantity),
-        trade_time: nowStr,
         decision_summary: orderReason,
       });
 

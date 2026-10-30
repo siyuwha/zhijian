@@ -54,7 +54,6 @@ async def test_simulation_trading_physical_isolation():
             "direction": "buy",
             "price": 10.50,
             "quantity": 1000,
-            "trade_time": "2026-10-20 10:00:00",
             "decision_summary": "[弱转强抢筹] 策略联动模拟建仓"
         }
         r_sim_buy = await client.post("/api/v1/simulation/trades", json=sim_buy_payload)

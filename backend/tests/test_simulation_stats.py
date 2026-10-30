@@ -45,7 +45,7 @@ async def db_session():
 async def test_stats_no_trades(db_session: AsyncSession):
     """场景1a: 无交易，无平仓，胜率及盈亏比为 null"""
     mock_data = MockDataService()
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     stats = await service.get_stats()
     assert stats.total_trades == 0
@@ -62,7 +62,7 @@ async def test_stats_no_trades(db_session: AsyncSession):
 async def test_stats_only_buy(db_session: AsyncSession):
     """场景1b: 只有买入，无平仓，胜率及盈亏比为 null"""
     mock_data = MockDataService({"000001": 10.5})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     await service.execute_trade(
         SimTradeCreate(code="000001", direction="buy", price=10.0, quantity=100)
@@ -83,7 +83,7 @@ async def test_stats_only_buy(db_session: AsyncSession):
 async def test_stats_single_loss(db_session: AsyncSession):
     """场景2: 单笔亏损：10 元买 100 股，9 元卖 100 股，已实现 -100 元，胜率 0%，亏损 1 笔，盈亏比 null"""
     mock_data = MockDataService({"000001": 9.0})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     await service.execute_trade(
         SimTradeCreate(code="000001", direction="buy", price=10.0, quantity=100)
@@ -107,7 +107,7 @@ async def test_stats_single_loss(db_session: AsyncSession):
 async def test_stats_single_win(db_session: AsyncSession):
     """场景3: 单笔盈利：10 元买 100 股，12 元卖 100 股，盈利 1 笔、胜率 100%，盈亏比仍 null"""
     mock_data = MockDataService({"000001": 12.0})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     await service.execute_trade(
         SimTradeCreate(code="000001", direction="buy", price=10.0, quantity=100)
@@ -131,7 +131,7 @@ async def test_stats_single_win(db_session: AsyncSession):
 async def test_stats_breakeven(db_session: AsyncSession):
     """场景4: 保本卖出：平仓 1 笔、盈利/亏损均 0、胜率 0%，盈亏比 null"""
     mock_data = MockDataService({"000001": 10.0})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     await service.execute_trade(
         SimTradeCreate(code="000001", direction="buy", price=10.0, quantity=100)
@@ -155,7 +155,7 @@ async def test_stats_breakeven(db_session: AsyncSession):
 async def test_stats_win_and_loss(db_session: AsyncSession):
     """场景5: 同时有盈利、亏损：按实际各笔盈亏计算胜率及平均盈亏比"""
     mock_data = MockDataService({"000001": 10.0, "000002": 10.0})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     # 标的1: 买 100@10.0，卖 100@13.0 -> 盈利 +300.0
     await service.execute_trade(
@@ -189,7 +189,7 @@ async def test_stats_win_and_loss(db_session: AsyncSession):
 async def test_stats_rebuys_and_partial_sells(db_session: AsyncSession):
     """场景6: 加仓、部分卖出、卖清重买：成本和已实现盈亏正确，原有成本不串入新仓"""
     mock_data = MockDataService({"000001": 35.0})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     # 1. 买入 100 股 @ 10 元 (成本 10.0)
     await service.execute_trade(
@@ -234,7 +234,7 @@ async def test_stats_rebuys_and_partial_sells(db_session: AsyncSession):
 async def test_stats_over_200_trades(db_session: AsyncSession):
     """场景7: 超过 200 条流水：早期买入成本和早期平仓计入全量统计，不截断为 200 条"""
     mock_data = MockDataService({"600000": 10.0})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     # 循环执行 120 轮买卖，共 240 笔流水（远超 200 条）
     # 前 60 轮: 买 100@10.0, 卖 100@11.0 -> 盈利 +100.0 (共 60 笔盈利)
@@ -270,7 +270,7 @@ async def test_stats_over_200_trades(db_session: AsyncSession):
 async def test_stats_multi_account_isolation(db_session: AsyncSession):
     """场景8: 多账户隔离：其他账户的成交不进入当前默认账户统计（直接通过夹具插入独立账户流水验证）"""
     mock_data = MockDataService()
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     # 默认账户执行正常交易: 买 100@10.0，卖 100@15.0 -> 盈利 +500.0
     await service.execute_trade(
@@ -325,7 +325,7 @@ async def test_stats_multi_account_isolation(db_session: AsyncSession):
 async def test_stats_orphan_sell_raises_409(db_session: AsyncSession):
     """场景9: 无成本卖出异常流水：返回 HTTP 409 拒绝统计，注明异常流水 ID 和原因"""
     mock_data = MockDataService()
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
     account = await service.get_or_create_default_account()
 
     # 直接向数据库插入一条没有先验买入成本的异常卖出流水
@@ -355,7 +355,7 @@ async def test_stats_orphan_sell_raises_409(db_session: AsyncSession):
 async def test_stats_oversell_raises_409(db_session: AsyncSession):
     """场景10: 超卖异常流水：买 100 股后历史流水出现卖出 200 股，返回 HTTP 409 拒绝统计，不截断卖出数量伪造盈利"""
     mock_data = MockDataService()
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
     account = await service.get_or_create_default_account()
 
     # 正常买入 100 股
@@ -390,7 +390,7 @@ async def test_stats_oversell_raises_409(db_session: AsyncSession):
 async def test_stats_partial_sell_then_add_position_three_decimal_rounding(db_session: AsyncSession):
     """场景11: 部分卖出再加仓（三位均价舍入），断言统计已实现盈亏等于 execute_trade 记入的 account.total_pnl"""
     mock_data = MockDataService({"000001": 13.0})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     # 1. 建仓买入 1000 股 @ 10.0 元
     await service.execute_trade(
@@ -428,7 +428,7 @@ async def test_stats_partial_sell_then_add_position_three_decimal_rounding(db_se
 async def test_stats_backdated_trade_time_respects_id_sequence(db_session: AsyncSession):
     """场景12: 补录时间早于买入但 id 顺序合法的流水，按 id 升序重建成本，断言统计已实现盈亏等于 account.total_pnl"""
     mock_data = MockDataService({"600519": 105.0})
-    service = SimulationService(session=db_session, data_service=mock_data)
+    service = SimulationService(session=db_session, data_service=mock_data, enforce_t1=False)
 
     # 流水 1: 买入，记录 trade_time 为 2026-10-28 10:00:00
     await service.execute_trade(

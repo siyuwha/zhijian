@@ -73,6 +73,7 @@ class RequestBudget:
         self._requests: Dict[str, collections.deque] = collections.defaultdict(collections.deque)
         self._custom_budgets: Dict[str, int] = {
             "sina": 60,
+            "tencent": 60,
             "eastmoney": 60,
             "baostock": 30,
             "cls": 30,

@@ -10,10 +10,12 @@ from ..capabilities import (
     DataQuality,
     DataResult,
     DataStatus,
+    Freshness,
     StockTrendsCapability,
     StockQuoteCapability,
     ConceptBlocksCapability,
 )
+from ...core.calendar import calendar
 from .base import BaseProvider
 
 logger = logging.getLogger(__name__)
@@ -35,7 +37,7 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability, Con
     3. 原生支持无头 Linux Docker 与 Windows 环境。
     """
 
-    def __init__(self):
+    def __init__(self, client: Optional[Any] = None):
         super().__init__(
             name="tdx_direct",
             implementation_status="已接入",
@@ -44,7 +46,7 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability, Con
             semantic_verified="已验证",
             production_eligible="准入",
         )
-        self._client: Optional[Any] = None
+        self._client = client
 
     async def is_available(self) -> bool:
         """检查通达信直连是否可用"""
@@ -334,19 +336,43 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability, Con
         """获取个股批量五档实时快照"""
         client = self._get_client()
         if not client:
-            return DataResult(data=[], quality=DataQuality.UNAVAILABLE, provider=self.name)
+            return DataResult(data=[], quality=DataQuality.UNAVAILABLE, freshness=Freshness.UNAVAILABLE, provider=self.name)
 
         loop = asyncio.get_event_loop()
         try:
             quotes = await loop.run_in_executor(None, lambda: client.get_quotes(codes))
+            now = datetime.now()
+            is_trading = calendar.is_trading_day(now.date())
+
+            # 严格核查返回行情的日期和时间信息
+            # 如果不是交易日，或者行情项缺失真实日期和时间，或日期非当日，绝对不得标为 REALTIME
+            all_have_datetime = bool(quotes) and all(
+                (q.get("date") or q.get("trade_date")) and (q.get("time") or q.get("servertime"))
+                for q in quotes
+            )
+            today_str = now.date().isoformat()
+            all_are_today = bool(quotes) and all(
+                (q.get("date") or q.get("trade_date")) == today_str
+                for q in quotes
+            )
+            if not is_trading:
+                freshness = Freshness.STALE
+            elif not all_have_datetime:
+                freshness = Freshness.UNAVAILABLE
+            elif not all_are_today:
+                freshness = Freshness.STALE
+            else:
+                freshness = Freshness.REALTIME
+
             return DataResult(
                 data=quotes,
                 quality=DataQuality.FULL if quotes else DataQuality.UNAVAILABLE,
-                status=DataStatus.AVAILABLE if quotes else DataStatus.EMPTY,
+                freshness=freshness,
+                status=DataStatus.AVAILABLE if (quotes and freshness == Freshness.REALTIME) else (DataStatus.STALE if freshness == Freshness.STALE else DataStatus.EMPTY),
                 provider=self.name,
             )
         except Exception as e:
-            return DataResult(data=[], quality=DataQuality.FAILED, provider=self.name, error_message=str(e))
+            return DataResult(data=[], quality=DataQuality.FAILED, freshness=Freshness.UNAVAILABLE, provider=self.name, error_message=str(e))
 
     async def get_concept_blocks(self, code: str) -> DataResult:
         """获取标的归属的三维板块映射集 (TDX 直连备用降级通道)"""

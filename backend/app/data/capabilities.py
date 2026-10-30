@@ -183,8 +183,12 @@ class DataResult:
     observation_id: str = ""
     status: Optional[DataStatus] = None
     missing_codes: Optional[List[str]] = None
+    quality_log_success: Optional[bool] = None
+    original_quality: Optional[DataQuality] = None
 
     def __post_init__(self):
+        if self.original_quality is None:
+            self.original_quality = self.quality
         if self.status is None:
             if self.error_code == ProviderErrorCode.TIMEOUT:
                 self.status = DataStatus.TIMEOUT
