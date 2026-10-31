@@ -487,6 +487,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   const [limitUpData, setLimitUpData] = useState<EnrichedLimitUpPoolData | null>(null);
   const [yesterdayLimitUpData, setYesterdayLimitUpData] = useState<EnrichedLimitUpPoolData | null>(null);
   const [sectors, setSectors] = useState<SectorFlowItem[]>([]);
+  const [sectorsQualityInfo, setSectorsQualityInfo] = useState<{
+    quality?: string;
+    freshness?: string;
+    status?: string;
+    source_timestamp?: string | null;
+    degradation_reason?: string | null;
+  } | null>(null);
   const [sectorType, setSectorType] = useState<'concept' | 'industry'>('concept');
   const [briefing, setBriefing] = useState<TacticalBriefingReport | null>(null);
   const [biddingVerdict, setBiddingVerdict] = useState<BiddingFalsificationVerdict | null>(null);
@@ -526,6 +533,32 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
   // 核心个股分时涨跌幅走势对比样本股状态 (最少 0 支，上限 6 支)
   const [stockComparisonList, setStockComparisonList] = useState<StockComparisonItem[]>([]);
   const [stockTrendsMap, setStockTrendsMap] = useState<Record<string, StockTrendData>>({});
+  // G4 局部质量降级状态追踪
+  const [stockTrendsQualityInfo, setStockTrendsQualityInfo] = useState<{
+    quality?: string;
+    freshness?: string;
+    status?: string;
+    error_code?: string;
+    source_timestamp?: string;
+    degradation_reason?: string;
+  } | null>(null);
+  const [trendsRetryTrigger, setTrendsRetryTrigger] = useState(0);
+  const fetchSeqRef = useRef<number>(0);
+
+  const formatSourceTime = (ts?: string) => {
+    if (!ts) return '--:--';
+    try {
+      const d = new Date(ts);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+      if (ts.includes('T')) return ts.split('T')[1].slice(0, 5);
+      if (ts.includes(' ')) return ts.split(' ')[1].slice(0, 5);
+      return ts.slice(0, 5);
+    } catch {
+      return ts;
+    }
+  };
   const currentFetchDateRef = useRef<string>(selectedDate);
   const [isAddStockOpen, setIsAddStockOpen] = useState<boolean>(false);
   const [stockHoverX, setStockHoverX] = useState<number>(timeProgress.currentX);
@@ -923,39 +956,137 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     setStockTrendsMap({});
   }, [selectedDate]);
 
-  // 动态自动拉取入选样本股真实分钟分时走势 (透传交易日期)
+  // 动态自动拉取入选样本股真实分钟分时走势 (透传交易日期与批次质量信封处理，支持防乱序与失败重试)
   useEffect(() => {
     const codes = stockComparisonList.map((s) => s.code).filter(Boolean);
     if (codes.length === 0) return;
-    const missingCodes = codes.filter((c) => !stockTrendsMap[c]);
+    // 允许对尚未具有有效真实分时的标的进行探测/恢复请求
+    const missingCodes = codes.filter((c) => !stockTrendsMap[c] || stockTrendsMap[c]?.quality === 'UNAVAILABLE');
     if (missingCodes.length === 0) return;
 
     let isMounted = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const reqDate = selectedDate;
+    const seq = ++fetchSeqRef.current;
+
     api.getStockTrends(missingCodes, reqDate)
       .then((res: any) => {
-        if (!isMounted || currentFetchDateRef.current !== reqDate) return;
+        // A10 防线：若请求序列已被超车 (迟到响应) 或目标日期已改变，丢弃该响应
+        if (!isMounted || currentFetchDateRef.current !== reqDate || fetchSeqRef.current !== seq) return;
         const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
+        const envelopeQuality = res?.quality;
+        const envelopeFreshness = res?.freshness;
+        const envelopeStatus = res?.status;
+        const envelopeReason = res?.degradation_reason || res?.error_message;
+        const envelopeSourceTs = res?.source_timestamp;
+        const envelopeErrorCode = res?.error_code;
+
         if (data.length > 0) {
           const map: Record<string, StockTrendData> = {};
+          let hasUnavailable = false;
+          let hasRealTrends = false;
           data.forEach((item) => {
             if (item && item.code) {
               map[item.code] = item;
+              if (item.quality === 'UNAVAILABLE' || (item.trends && item.trends.length === 0)) hasUnavailable = true;
+              if (item.trends && item.trends.length > 0) hasRealTrends = true;
             }
           });
           setStockTrendsMap((prev) => ({ ...prev, ...map }));
+
+          // 依据顶级契约信封进行确定性判定 (A9 保守降级：未知枚举保守判定为 UNAVAILABLE)
+          if (envelopeQuality === 'UNAVAILABLE' || (!hasRealTrends && data.length > 0)) {
+            setStockTrendsQualityInfo({
+              quality: 'UNAVAILABLE',
+              freshness: envelopeFreshness || 'UNAVAILABLE',
+              status: envelopeStatus || 'EMPTY',
+              error_code: envelopeErrorCode,
+              source_timestamp: envelopeSourceTs,
+              degradation_reason: envelopeReason || '分时走势暂不可用',
+            });
+            // 失败标的自动触发重试恢复
+            retryTimer = setTimeout(() => {
+              if (isMounted) setTrendsRetryTrigger((t) => t + 1);
+            }, 8000);
+          } else if (envelopeFreshness === 'DELAYED') {
+            setStockTrendsQualityInfo({ quality: 'DEGRADED', freshness: 'DELAYED', status: envelopeStatus, source_timestamp: envelopeSourceTs, degradation_reason: '分时行情延迟' });
+          } else if (envelopeFreshness === 'STALE') {
+            setStockTrendsQualityInfo({
+              quality: 'DEGRADED',
+              freshness: 'STALE',
+              status: 'STALE',
+              error_code: envelopeErrorCode,
+              source_timestamp: envelopeSourceTs,
+              degradation_reason: envelopeReason || '使用旧分时快照',
+            });
+          } else if (envelopeQuality === 'DEGRADED') {
+            setStockTrendsQualityInfo({
+              quality: 'DEGRADED',
+              freshness: envelopeFreshness || 'REALTIME',
+              status: envelopeStatus || 'AVAILABLE',
+              error_code: envelopeErrorCode,
+              source_timestamp: envelopeSourceTs,
+              degradation_reason: envelopeReason || '通过备用源补全分时',
+            });
+          } else if (envelopeQuality === 'PARTIAL' || hasUnavailable) {
+            setStockTrendsQualityInfo({
+              quality: 'PARTIAL',
+              freshness: envelopeFreshness || 'REALTIME',
+              status: envelopeStatus || 'AVAILABLE',
+              error_code: envelopeErrorCode,
+              source_timestamp: envelopeSourceTs,
+              degradation_reason: envelopeReason || '部分代码分时暂不可用',
+            });
+            // 部分缺失标的自动触发重试恢复
+            retryTimer = setTimeout(() => {
+              if (isMounted) setTrendsRetryTrigger((t) => t + 1);
+            }, 8000);
+          } else if (envelopeQuality === 'FULL') {
+            setStockTrendsQualityInfo(null);
+          } else {
+            // A9: 未知枚举保守判定为 UNAVAILABLE
+            setStockTrendsQualityInfo({
+              quality: 'UNAVAILABLE',
+              freshness: 'UNAVAILABLE',
+              status: 'ERROR',
+              error_code: envelopeErrorCode,
+              source_timestamp: envelopeSourceTs,
+              degradation_reason: '未知质量状态，按不可用安全降级',
+            });
+          }
+        } else {
+          setStockTrendsQualityInfo({
+            quality: 'UNAVAILABLE',
+            freshness: 'UNAVAILABLE',
+            status: 'EMPTY',
+            error_code: envelopeErrorCode,
+            degradation_reason: envelopeReason || '无分时数据返回',
+          });
+          retryTimer = setTimeout(() => {
+            if (isMounted) setTrendsRetryTrigger((t) => t + 1);
+          }, 8000);
         }
       })
       .catch((err) => {
-        if (isMounted) {
+        if (isMounted && fetchSeqRef.current === seq) {
           console.warn('Failed to fetch stock trends:', err);
+          setStockTrendsQualityInfo({
+            quality: 'UNAVAILABLE',
+            freshness: 'UNAVAILABLE',
+            status: 'ERROR',
+            degradation_reason: '分时走势暂不可用',
+          });
+          retryTimer = setTimeout(() => {
+            if (isMounted) setTrendsRetryTrigger((t) => t + 1);
+          }, 8000);
         }
       });
 
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [selectedDate, stockComparisonList.map((s) => s.code).join(',')]);
+  }, [selectedDate, stockComparisonList.map((s) => s.code).join(','), trendsRetryTrigger]);
 
 
   // 题材战场资金自适应动态上下限与全域发散坐标计算
@@ -1585,20 +1716,8 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           });
         }
         if (targetCodes.size > 0) {
-          const reqDate = date;
-          api.getStockTrends(Array.from(targetCodes), reqDate).then((res: any) => {
-            if (currentFetchDateRef.current !== reqDate) return;
-            const data: StockTrendData[] = Array.isArray(res) ? res : (res?.data || []);
-            if (data.length > 0) {
-              const map: Record<string, StockTrendData> = {};
-              data.forEach((item) => {
-                if (item && item.code) map[item.code] = item;
-              });
-              setStockTrendsMap((prev) => ({ ...prev, ...map }));
-            }
-          }).catch((err) => {
-            console.warn('Failed to pre-fetch stock trends in instant fetchAllData:', err);
-          });
+          // 统一由受序列号与降级状态机保护的协调 Effect 处理，避免乱序超车与覆盖
+          setTrendsRetryTrigger((t) => t + 1);
         }
       } else {
         // 兼容降级多端点并发打捞
@@ -1650,12 +1769,28 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
       setIsSectorsLoading(true);
     }
     try {
-      const data = await api.getSectors(type, 12);
+      const res: any = await api.getSectors(type, 12);
+      const data = Array.isArray(res) ? res : (res?.data || []);
       if (Array.isArray(data)) {
         setSectors(data);
       }
+      if (res && typeof res === 'object' && !Array.isArray(res)) {
+        setSectorsQualityInfo({
+          quality: res.quality,
+          freshness: res.freshness,
+          status: res.status,
+          source_timestamp: res.source_timestamp,
+          degradation_reason: res.degradation_reason,
+        });
+      }
     } catch (err) {
       console.warn('Failed to fetch sector flows:', err);
+      setSectorsQualityInfo({
+        quality: 'UNAVAILABLE',
+        freshness: 'UNAVAILABLE',
+        status: 'EMPTY',
+        degradation_reason: '板块资金流物理源请求失败',
+      });
     } finally {
       if (!silent) {
         setIsSectorsLoading(false);
@@ -1889,15 +2024,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
     );
   }
 
-  // 成交额数据：优先从 snapshot 读取，若缺失则从分项读取真实值
+  // 成交额数据：优先从 snapshot 读取，按口径规范降级为空，绝不私自兜底重算累加指数
   const turnover = snapshot?.truth?.turnover;
-  const twoMarketsTotal = turnover?.two_markets_total_yi ?? (
-    (snapshot?.truth?.indices && snapshot.truth.indices.length >= 2)
-      ? Number((snapshot.truth.indices[0].amount_yi + snapshot.truth.indices[1].amount_yi).toFixed(1))
-      : 0
-  );
-  const shAmount = turnover?.sh_amount_yi ?? (snapshot?.truth?.indices?.[0]?.amount_yi ?? 0);
-  const szAmount = turnover?.sz_total_amount_yi ?? (snapshot?.truth?.indices?.[1]?.amount_yi ?? 0);
+  const twoMarketsTotal = turnover?.two_markets_total_yi ?? null;
+  const shAmount = turnover?.sh_amount_yi ?? null;
+  const szAmount = turnover?.sz_total_amount_yi ?? null;
 
   // 情绪上下界统计 (双源多层级容错计算：snapshot.truth.sentiment_bounds 与 limitUpData 智能融合)
   const bounds = snapshot?.truth?.sentiment_bounds;
@@ -2018,7 +2149,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
   // 全天时间衰减预估成交额 (亿元)
   const projectedVolumeYi = useMemo(() => {
-    if (twoMarketsTotal <= 0) return 0;
+    if (!twoMarketsTotal || twoMarketsTotal <= 0) return 0;
     const progress = Math.max(0.1, Math.min(1.0, timeProgress.progressRatio));
     return Math.round(twoMarketsTotal / progress);
   }, [twoMarketsTotal, timeProgress.progressRatio]);
@@ -2172,6 +2303,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
               fetchSectors(sectorType);
             }}
             disabled={isLoading}
+            data-testid="cockpit-refresh-btn"
             className="h-8 px-2.5 flex items-center gap-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs font-medium transition disabled:opacity-50 shrink-0"
             title="刷新全量事实与认知数据"
           >
@@ -2333,7 +2465,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                       <strong className="text-purple-300 font-semibold">【强弱定调与宏微观证据】</strong>{' '}
                       {cleanBriefing(
                         currentBriefingRecord?.strong_weak_judgment.replace(/【.*?】/, '') ||
-                          `宏观：两市累计实盘成交 ${twoMarketsTotal.toLocaleString()} 亿，涨停 ${limitUpCount} 家、跌停 ${limitDownCount} 家，动态炸板率 ${(brokenLimitRatio * 100).toFixed(1)}%。微观：领涨板块【${topSectorName}】主力资金处于聚拢态势，市场空间标杆【${activeLeader}】维持高位辨识度。`
+                          `宏观：${twoMarketsTotal != null ? `两市累计实盘成交 ${twoMarketsTotal.toLocaleString()} 亿` : '两市成交额口径待核准'}，涨停 ${limitUpCount} 家、跌停 ${limitDownCount} 家，动态炸板率 ${(brokenLimitRatio * 100).toFixed(1)}%。微观：领涨板块【${topSectorName}】主力资金处于聚拢态势，市场空间标杆【${activeLeader}】维持高位辨识度。`
                       )}
                     </p>
                     <p>
@@ -2373,7 +2505,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <div className="flex justify-between items-center bg-white/[0.02] p-2 rounded-lg">
                     <span className="text-slate-400 text-xs">时间衰减全天预估:</span>
                     <span className="font-bold text-cyan-300 text-xs">
-                      {currentBriefingRecord?.quantitative_indicators?.projected_volume || (twoMarketsTotal > 0 ? `${(projectedVolumeYi / 10000).toFixed(2)} 万亿` : '--')}
+                      {twoMarketsTotal != null && twoMarketsTotal > 0 ? (currentBriefingRecord?.quantitative_indicators?.projected_volume || `${(projectedVolumeYi / 10000).toFixed(2)} 万亿`) : '-- (待核准)'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center bg-white/[0.02] p-2 rounded-lg">
@@ -2436,7 +2568,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 </span>
               </div>
               <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
-                {currentBriefingRecord?.quantitative_indicators?.projected_volume ? `全天预估 ${currentBriefingRecord.quantitative_indicators.projected_volume}` : '实盘动态采集'}
+                {twoMarketsTotal != null && twoMarketsTotal > 0 && currentBriefingRecord?.quantitative_indicators?.projected_volume ? `全天预估 ${currentBriefingRecord.quantitative_indicators.projected_volume}` : (twoMarketsTotal != null ? '实盘动态采集' : '口径待核准')}
               </span>
             </div>
 
@@ -2519,17 +2651,21 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
             <div className="grid grid-cols-2 gap-2.5 text-sm font-mono my-1">
               <div className="bg-white/[0.02] border border-white/5 p-2.5 rounded-xl">
                 <div className="text-sm text-slate-400">当前实盘累计成交</div>
-                <div className="text-lg font-black text-white mt-0.5">{twoMarketsTotal.toLocaleString()} 亿</div>
-                <div className="text-xs text-slate-400 mt-0.5">沪 {shAmount.toLocaleString()}亿 · 深 {szAmount.toLocaleString()}亿</div>
+                <div className="text-lg font-black text-white mt-0.5">
+                  {twoMarketsTotal != null ? `${twoMarketsTotal.toLocaleString()} 亿` : '-- 亿 (口径待核准)'}
+                </div>
+                <div className="text-xs text-slate-400 mt-0.5">
+                  {shAmount != null && szAmount != null
+                    ? `沪 ${shAmount.toLocaleString()}亿 · 深 ${szAmount.toLocaleString()}亿`
+                    : (shAmount != null ? `沪 ${shAmount.toLocaleString()}亿` : (szAmount != null ? `深 ${szAmount.toLocaleString()}亿` : '--'))}
+                </div>
               </div>
               <div className="bg-cyan-950/20 border border-cyan-500/20 p-2.5 rounded-xl">
                 <div className="text-sm text-cyan-300">时间衰减全天预估总量</div>
                 <div className="text-lg font-black text-cyan-400 mt-0.5">
-                  {projectedVolumeYi > 0 ? `${(projectedVolumeYi / 10000).toFixed(2)} 万亿` : '1.98 万亿'}
-                </div>
+                  {twoMarketsTotal != null && twoMarketsTotal > 0 && projectedVolumeYi > 0 ? `${(projectedVolumeYi / 10000).toFixed(2)} 万亿` : (twoMarketsTotal != null ? '--' : '-- 万亿 (待核准)')}</div>
                 <div className="text-xs text-rose-400 mt-0.5">
-                  {currentBriefingRecord?.quantitative_indicators?.projected_volume ? `内参预估: ${currentBriefingRecord.quantitative_indicators.projected_volume}` : '全天动态投影预估'}
-                </div>
+                  {twoMarketsTotal != null && twoMarketsTotal > 0 && currentBriefingRecord?.quantitative_indicators?.projected_volume ? `内参预估: ${currentBriefingRecord.quantitative_indicators.projected_volume}` : (twoMarketsTotal != null ? '全天动态投影预估' : '量能口径待核准')}</div>
               </div>
             </div>
 
@@ -2713,6 +2849,25 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
                     横向全幅 · 09:30~15:00 标准轴 · 盘中动态更新
                   </span>
+                  {stockTrendsQualityInfo?.quality === 'UNAVAILABLE' ? (
+                    <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="stock-trends-unavailable-badge">
+                      分时走势暂不可用
+                    </span>
+                  ) : stockTrendsQualityInfo?.freshness === 'DELAYED' ? (
+                    <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="stock-trends-delayed-badge">
+                      分时行情延迟
+                    </span>
+                  ) : stockTrendsQualityInfo?.freshness === 'STALE' ? (
+                    <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="stock-trends-stale-badge">
+                      {stockTrendsQualityInfo?.source_timestamp
+                        ? `使用缓存，更新于 ${formatSourceTime(stockTrendsQualityInfo?.source_timestamp)}`
+                        : '使用缓存 (来源时点未知)'}
+                    </span>
+                  ) : stockTrendsQualityInfo?.quality === 'PARTIAL' ? (
+                    <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="stock-trends-partial-badge">
+                      部分标的分时暂不可用
+                    </span>
+                  ) : null}
                 </div>
                 <p className="text-sm text-slate-400 mt-0.5 font-mono">
                   基准自动锁定前日最高板与次高板 · 开盘根据连板梯队动态更新当日最强涨停 · 直观透视昨日核心今日表现与新涨停的涨跌共振/抽血博弈 ({stockComparisonList.length}/6 支)
@@ -2879,13 +3034,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 <div className="text-slate-500 text-xs text-center py-6">
                   昨日无连板最高板/次高板核心标的，当前样本股为 0 只
                 </div>
-              ) : !stockComparisonList.some((s) => s.pathD && s.pathD.trim() !== '') ? (
-                <div className="text-slate-500 text-xs text-center py-6 flex flex-col items-center gap-1.5 z-10">
+              ) : stockTrendsQualityInfo?.quality === 'UNAVAILABLE' || !stockComparisonList.some((s) => s.pathD && s.pathD.trim() !== '') ? (
+                <div className="text-slate-500 text-xs text-center py-6 flex flex-col items-center gap-1.5 z-10" data-testid="stock-trends-empty-state">
                   <span className="text-slate-400 font-medium">该日期暂无真实分时</span>
                   <span className="text-[11px] text-slate-500 font-mono">（无物理真实分时数据或非交易时段）</span>
                 </div>
               ) : (
-                <svg className="w-full h-full z-10 overflow-visible" viewBox="0 0 1000 140" preserveAspectRatio="none">
+                <svg className="w-full h-full z-10 overflow-visible" viewBox="0 0 1000 140" preserveAspectRatio="none" data-testid="stock-curve-svg">
                   <defs>
                     <filter id="stockGlow" x="-20%" y="-20%" width="140%" height="140%">
                       <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#ffffff" floodOpacity="0.7"/>
@@ -3176,6 +3331,142 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <span className="text-sm font-mono text-purple-300 bg-purple-500/10 border border-purple-500/25 px-2.5 py-0.5 rounded-full">
                     09:30~15:00 全天 X 轴发散
                   </span>
+                  {(() => {
+                    const isSectorUnavailable =
+                      topSectorsTrend?.status === 'UNAVAILABLE' ||
+                      topSectorsTrend?.quality === 'UNAVAILABLE' ||
+                      (!topSectorsTrend && (sectorsQualityInfo?.status === 'EMPTY' || sectorsQualityInfo?.quality === 'UNAVAILABLE'));
+
+                    const validFreshnessValues = ['REALTIME', 'DELAYED', 'STALE', 'EOD_COMPENSATED', 'EXPIRED'];
+                    const isSectorFreshnessUnknown =
+                      !isSectorUnavailable &&
+                      (topSectorsTrend?.freshness === 'UNAVAILABLE' ||
+                        (topSectorsTrend?.freshness && !validFreshnessValues.includes(topSectorsTrend.freshness)) ||
+                        topSectorsTrend?.sector_freshness === 'UNAVAILABLE' ||
+                        (topSectorsTrend?.sector_freshness && !validFreshnessValues.includes(topSectorsTrend.sector_freshness)) ||
+                        topSectorsTrend?.trends_freshness === 'UNAVAILABLE' ||
+                        (topSectorsTrend?.trends_freshness && !validFreshnessValues.includes(topSectorsTrend.trends_freshness)) ||
+                        Boolean(topSectorsTrend?.degradation_reason && topSectorsTrend.degradation_reason.includes('时效未知')) ||
+                        (!topSectorsTrend && (sectorsQualityInfo?.freshness === 'UNAVAILABLE' || (sectorsQualityInfo?.freshness && !validFreshnessValues.includes(sectorsQualityInfo.freshness)))));
+
+                    const isSectorStale =
+                      !isSectorUnavailable &&
+                      (topSectorsTrend?.status === 'STALE' ||
+                        topSectorsTrend?.freshness === 'STALE' ||
+                        topSectorsTrend?.sector_freshness === 'STALE' ||
+                        topSectorsTrend?.trends_freshness === 'STALE' ||
+                        (!topSectorsTrend && (sectorsQualityInfo?.status === 'STALE' || sectorsQualityInfo?.freshness === 'STALE')));
+
+                    const isSectorDelayed =
+                      !isSectorUnavailable &&
+                      (topSectorsTrend?.freshness === 'DELAYED' ||
+                        topSectorsTrend?.sector_freshness === 'DELAYED' ||
+                        topSectorsTrend?.trends_freshness === 'DELAYED' ||
+                        (!topSectorsTrend && sectorsQualityInfo?.freshness === 'DELAYED'));
+
+                    const getSectorFreshnessUnknownLabel = () => {
+                      let unknownPrefix = '时效未知';
+                      if (topSectorsTrend) {
+                        const secUnknown =
+                          topSectorsTrend.sector_freshness === 'UNAVAILABLE' ||
+                          (topSectorsTrend.sector_freshness && !validFreshnessValues.includes(topSectorsTrend.sector_freshness));
+                        const trendsUnknown =
+                          topSectorsTrend.trends_freshness === 'UNAVAILABLE' ||
+                          (topSectorsTrend.trends_freshness && !validFreshnessValues.includes(topSectorsTrend.trends_freshness));
+                        if (secUnknown && trendsUnknown) {
+                          unknownPrefix = '板块排行与分时时效未知';
+                        } else if (secUnknown) {
+                          unknownPrefix = '板块排行时效未知';
+                        } else if (trendsUnknown) {
+                          unknownPrefix = '板块分时时效未知';
+                        }
+                      } else if (sectorsQualityInfo) {
+                        unknownPrefix = '板块排行时效未知';
+                      }
+
+                      const reason =
+                        topSectorsTrend?.degradation_reason || (!topSectorsTrend ? sectorsQualityInfo?.degradation_reason : null);
+
+                      if (reason) {
+                        if (reason.includes('时效未知')) {
+                          return reason;
+                        }
+                        // 确保未知时效提示始终明确，同时保留其他降级原因
+                        return `${unknownPrefix} (${reason})`;
+                      }
+
+                      return unknownPrefix;
+                    };
+
+                    const getSectorStaleLabel = () => {
+                      if (topSectorsTrend?.source_timestamp) {
+                        return `使用缓存，更新于 ${formatSourceTime(topSectorsTrend.source_timestamp)}`;
+                      }
+                      if (topSectorsTrend?.sector_freshness === 'STALE' && topSectorsTrend?.trends_freshness !== 'STALE') {
+                        return topSectorsTrend?.sector_source_timestamp
+                          ? `排行使用缓存，更新于 ${formatSourceTime(topSectorsTrend.sector_source_timestamp)}`
+                          : '排行使用缓存 (来源时点未知)';
+                      }
+                      if (topSectorsTrend?.trends_freshness === 'STALE' && topSectorsTrend?.sector_freshness !== 'STALE') {
+                        return topSectorsTrend?.trends_source_timestamp
+                          ? `分时使用缓存，更新于 ${formatSourceTime(topSectorsTrend.trends_source_timestamp)}`
+                          : '分时使用缓存 (来源时点未知)';
+                      }
+                      if (!topSectorsTrend && sectorsQualityInfo?.source_timestamp) {
+                        return `使用缓存，更新于 ${formatSourceTime(sectorsQualityInfo.source_timestamp)}`;
+                      }
+                      return '使用缓存 (来源时点未知)';
+                    };
+
+                    const getSectorDelayedLabel = () => {
+                      if (topSectorsTrend) {
+                        if (topSectorsTrend.sector_freshness === 'DELAYED' && topSectorsTrend.trends_freshness === 'DELAYED') {
+                          return '板块行情延迟';
+                        }
+                        if (topSectorsTrend.sector_freshness === 'DELAYED') {
+                          return '板块排行行情延迟';
+                        }
+                        if (topSectorsTrend.trends_freshness === 'DELAYED') {
+                          return '板块分时行情延迟';
+                        }
+                        return '板块行情延迟';
+                      }
+                      return '板块行情延迟';
+                    };
+
+                    if (isSectorUnavailable) {
+                      return (
+                        <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="sector-unavailable-badge">
+                          板块资金流暂不可用
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <>
+                        {isSectorFreshnessUnknown && (
+                          <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="sector-freshness-unknown-badge">
+                            {getSectorFreshnessUnknownLabel()}
+                          </span>
+                        )}
+                        {isSectorStale && (
+                          <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="sector-stale-badge">
+                            {getSectorStaleLabel()}
+                          </span>
+                        )}
+                        {isSectorDelayed && (
+                          <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="sector-delayed-badge">
+                            {getSectorDelayedLabel()}
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
+                  {topSectorsTrend?.is_estimated && (
+                    <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full" data-testid="sector-estimated-badge">
+                      资金流为算法拟合估算 (非逐笔实测)
+                    </span>
+                  )}
                   <span className="text-sm font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-2.5 py-0.5 rounded-full hidden sm:inline-block">
                     {sectorScaleBounds.hasNegative
                       ? `自适应量程: [-${sectorScaleBounds.lowerBound.toFixed(1)} ~ +${sectorScaleBounds.upperBound.toFixed(1)} 亿 · 存量博弈]`
@@ -3183,7 +3474,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   </span>
                 </div>
                 <p className="text-sm text-slate-400 mt-0.5 font-mono">
-                  从 09:30 零轴起点发散至当前时点 · 动态自适应量程拉开强弱张力 · 鼠标 Hover 精确查看各分钟净流入数值
+                  从 09:30 零轴起点发散至当前时点 · 基于分时量能与涨幅动态拟合资金流趋势 (算法估算) · 鼠标 Hover 精确查看各分钟净流入数值
                 </p>
               </div>
             </div>
@@ -3196,6 +3487,11 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   {sec.name} ({sec.net >= 0 ? `+${sec.net.toFixed(1)}` : sec.net.toFixed(1)}亿)
                 </span>
               ))}
+              {topSectorsTrend?.is_estimated && (
+                <span className="text-[11px] text-amber-400/80 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" data-testid="sector-estimated-legend">
+                  拟合估算
+                </span>
+              )}
               {marketIndexData && (
                 <span className="flex items-center gap-1.5 text-slate-300 bg-white/[0.04] px-2.5 py-0.5 rounded border border-white/10">
                   <span className="w-3.5 h-0 border-t-2 border-dashed border-slate-300"></span>
@@ -3208,6 +3504,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
           {/* 全幅题材分时资金曲线图 */}
           <div
             ref={sectorChartContainerRef}
+            data-testid="sector-chart-container"
             onMouseMove={(e) => {
               if (!sectorChartContainerRef.current) return;
               const rect = sectorChartContainerRef.current.getBoundingClientRect();
@@ -3267,7 +3564,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                 }}
               >
                 <div className="flex items-center justify-between border-b border-white/10 pb-1 text-purple-300 font-bold">
-                  <span>{getHoverTimeLabel(sectorHoverX)} 主力资金净流 (实盘)</span>
+                  <span>{getHoverTimeLabel(sectorHoverX)} 主力资金净流 {topSectorsTrend?.is_estimated === true ? "(算法估算)" : (topSectorsTrend?.is_estimated === false ? "(逐笔实测)" : "(时态未知)")}</span>
                   <span className="text-[10px] text-slate-400">Top 5 采样</span>
                 </div>
                 {marketIndexData && (
@@ -3327,7 +3624,13 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
 
             {/* 曲线图主体区域 */}
             <div className="relative w-full flex-1 min-h-[140px]">
-              <svg className="w-full h-full z-10 overflow-visible" viewBox="0 0 1000 140" preserveAspectRatio="none">
+              {topSectorsTrend?.status === 'UNAVAILABLE' || dynamicSectorCurves.length === 0 ? (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 py-8 border border-white/5 rounded-lg bg-black/20" data-testid="sector-empty-state">
+                  <span className="text-slate-400 font-medium">暂无有效走势数据 (已安全降级)</span>
+                  <span className="text-[11px] text-slate-500 font-mono">（板块数据源暂不可用，已安全降级）</span>
+                </div>
+              ) : (
+                <svg className="w-full h-full z-10 overflow-visible" viewBox="0 0 1000 140" preserveAspectRatio="none" data-testid="sector-curve-svg">
                 <defs>
                   <filter id="sectorGlow" x="-20%" y="-20%" width="140%" height="140%">
                     <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#ffffff" floodOpacity="0.7"/>
@@ -3395,6 +3698,7 @@ export const AuroraCockpitView: React.FC<AuroraCockpitViewProps> = ({
                   <line x1={sectorHoverX} y1="0" x2={sectorHoverX} y2="140" stroke="#8B5CF6" strokeWidth="1.2" strokeDasharray="3,3" opacity="0.9" />
                 )}
               </svg>
+              )}
             </div>
 
             {/* X 轴时间刻度标尺 */}

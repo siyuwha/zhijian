@@ -80,11 +80,19 @@ class DeterministicBriefingFallbackEngine:
             falsification_summary = "核心龙头竞价承接力不足且出现大面积封单溃退"
 
         # 3. 模板化组装符合 250~350 字操盘手内参文风的正文
-        part1 = (
-            f"【大势定调】沪深两市真实总成交额为 {total_turnover:.2f} 亿元"
-            f"（沪市 {sh_turnover:.2f} 亿元，深市含创业板 {sz_turnover:.2f} 亿元）。"
-            f"全市场微观状态标定为【{state_label}】（判定置信度 {confidence_pct}%）。"
-        )
+        if total_turnover is not None:
+            sh_str = f"{sh_turnover:.2f} 亿元" if sh_turnover is not None else "-- 亿元"
+            sz_str = f"{sz_turnover:.2f} 亿元" if sz_turnover is not None else "-- 亿元"
+            part1 = (
+                f"【大势定调】沪深两市真实总成交额为 {total_turnover:.2f} 亿元"
+                f"（沪市 {sh_str}，深市含创业板 {sz_str}）。"
+                f"全市场微观状态标定为【{state_label}】（判定置信度 {confidence_pct}%）。"
+            )
+        else:
+            part1 = (
+                f"【大势定调】沪深两市总成交额口径待核准（正式总额保守置空）。"
+                f"全市场微观状态标定为【{state_label}】（判定置信度 {confidence_pct}%）。"
+            )
         part2 = (
             f"【主线与梯队】核心做多战场呈现结构分化：{ml1_text}{ml2_text}。"
             f"全市场最高连板高度标杆为 {max_height}B【{space_leader_name}】。"

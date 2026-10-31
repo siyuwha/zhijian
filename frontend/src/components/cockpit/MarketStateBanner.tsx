@@ -118,23 +118,43 @@ export const MarketStateBanner: React.FC<MarketStateBannerProps> = ({
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               问 2 · 沪深两市真实总成交
             </span>
-            <span className="text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 px-1.5 py-0.5 rounded">
-              防重算冻结口径
+            <span className={`text-xs px-1.5 py-0.5 rounded border ${
+              turnover?.two_markets_quality === 'FULL'
+                ? 'text-emerald-400 bg-emerald-950/40 border-emerald-800/50'
+                : turnover?.two_markets_quality === 'DEGRADED'
+                ? 'text-amber-400 bg-amber-950/40 border-amber-800/50'
+                : 'text-slate-400 bg-slate-900 border-slate-700'
+            }`}>
+              {turnover?.two_markets_quality === 'FULL'
+                ? '防重算冻结口径'
+                : turnover?.two_markets_quality === 'DEGRADED'
+                ? '口径待核准'
+                : '数据降级'}
             </span>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-100 font-mono tracking-tight">
-              {(turnover.two_markets_total_yi / 10000).toFixed(2)}
+              {turnover?.two_markets_total_yi != null
+                ? (turnover.two_markets_total_yi / 10000).toFixed(2)
+                : '--'}
             </span>
             <span className="text-sm text-slate-400 font-medium">万亿元</span>
             <span className="text-sm text-slate-400 font-mono">
-              ({turnover.two_markets_total_yi.toLocaleString()} 亿)
+              {turnover?.two_markets_total_yi != null
+                ? `(${turnover.two_markets_total_yi.toLocaleString()} 亿)`
+                : '(口径待核准)'}
             </span>
           </div>
           <div className="text-xs text-slate-400 mt-1 flex items-center justify-between border-t border-slate-800/60 pt-1">
-            <span>沪: {turnover.sh_amount_yi.toFixed(0)} 亿 | 深(含创): {turnover.sz_total_amount_yi.toFixed(0)} 亿</span>
+            <span>
+              {turnover?.sh_amount_yi != null && turnover?.sz_total_amount_yi != null
+                ? `沪: ${turnover.sh_amount_yi.toFixed(0)} 亿 | 深(含创): ${turnover.sz_total_amount_yi.toFixed(0)} 亿`
+                : (turnover?.sh_amount_yi != null ? `沪: ${turnover.sh_amount_yi.toFixed(0)} 亿` : '--')}
+            </span>
             <span className="text-slate-400 font-mono">
-              创占比 {(turnover.chinext_ratio_in_sz * 100).toFixed(1)}% (切片)
+              {turnover?.chinext_ratio_in_sz != null
+                ? `创占比 ${(turnover.chinext_ratio_in_sz * 100).toFixed(1)}% (切片)`
+                : '创占比: --'}
             </span>
           </div>
         </div>

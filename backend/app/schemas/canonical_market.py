@@ -77,15 +77,18 @@ class CanonicalTurnoverBreakdown(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     trade_date: str
-    sh_amount_yi: float = Field(..., ge=0, description="上交所总成交额 (亿元)")
-    sz_total_amount_yi: float = Field(..., ge=0, description="深交所总成交额 (亿元，已含主板与创业板！)")
-    chinext_slice_amount_yi: float = Field(..., ge=0, description="创业板成交额 (深市内部结构切片，仅作占比分析，严禁相加！)")
-    chinext_ratio_in_sz: float = Field(..., ge=0, le=1.0, description="创业板占深市总成交比例")
-    bse_amount_yi: Optional[float] = Field(0.0, ge=0, description="北交所成交额 (亿元)")
+    sh_amount_yi: Optional[float] = Field(None, ge=0, description="上交所总成交额 (亿元)")
+    sz_total_amount_yi: Optional[float] = Field(None, ge=0, description="深交所总成交额 (亿元，已含主板与创业板！)")
+    chinext_slice_amount_yi: Optional[float] = Field(None, ge=0, description="创业板成交额 (深市内部结构切片，仅作占比分析，严禁相加！)")
+    chinext_ratio_in_sz: Optional[float] = Field(None, ge=0, le=1.0, description="创业板占深市总成交比例")
+    bse_amount_yi: Optional[float] = Field(None, ge=0, description="北交所成交额 (亿元)")
     
     # 真实全市场成交额 = 沪市 + 深市(含创) + 北证
-    two_markets_total_yi: float = Field(..., ge=0, description="沪深两市真实总成交额 = sh + sz (绝不额外加 chinext)")
-    all_markets_total_yi: float = Field(..., ge=0, description="全市场真实总成交额 = sh + sz + bse")
+    two_markets_total_yi: Optional[float] = Field(None, ge=0, description="沪深两市真实总成交额 = sh + sz (绝不额外加 chinext)")
+    all_markets_total_yi: Optional[float] = Field(None, ge=0, description="全市场真实总成交额 = sh + sz + bse")
+    two_markets_quality: DataQualityGrade = Field(default=DataQualityGrade.DEGRADED, description="两市总额质量等级")
+    all_markets_quality: DataQualityGrade = Field(default=DataQualityGrade.PARTIAL, description="全市场总额质量等级")
+    degradation_reason: Optional[str] = Field(None, description="成交额口径降级或未核准原因说明")
     
     envelope: ProvenanceEnvelope
 
@@ -395,7 +398,7 @@ class IndexVector(BaseModel):
     """指数与流动性量化特征向量 I"""
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    total_turnover_yi: float = Field(..., description="沪深两市真实总成交额(亿元)")
+    total_turnover_yi: Optional[float] = Field(None, description="沪深两市真实总成交额(亿元)")
     turnover_change_ratio: Optional[float] = Field(None, description="较前一交易日成交额环比变动率")
     dispersion_pct: float = Field(..., description="各大指数极差离散度 (max - min) %")
     star_divergence_pct: float = Field(..., description="科创50与主板指数背离差值 %")

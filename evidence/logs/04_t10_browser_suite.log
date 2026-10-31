@@ -1,0 +1,95 @@
+﻿=== COMMAND: node frontend/scripts/verify_cockpit_browser.mjs ===
+EXIT CODE: 0
+=== OUTPUT ===
+Unconditionally re-compiling cockpit_real_bundle.js from source...
+Building real browser test bundles using local esbuild (v0.28.2)...
+[1/3] Building cockpit_real_bundle.js from integration source...
+  -> dist/cockpit_real_bundle.js built successfully.
+[2/3] Building banner_bundle.js from integration source...
+  -> dist/banner_bundle.js built successfully.
+[3/3] Building aurora_bundle.js from integration source...
+  -> dist/aurora_bundle.js built successfully.
+All real browser test bundles successfully built from integration workspace source.
+=== 鍚姩鐪熷疄鏃犲ご Chrome 娴忚鍣ㄦ墽琛岀湡瀹?React 19 缁勪欢 (AuroraCockpitView) 楠屾敹 ===
+
+--- 鍦烘櫙 1: 鐪熷疄閫愮瑪瀹炴祴妯″紡 (FULL, is_estimated=False) ---
+鉁?[PASS] Scene 1: 鐪熷疄 React 缁勪欢鎴愬姛鎸傝浇棰樻潗鎴樺満鏍囬
+鉁?[PASS] Scene 1: 鐪熷疄 DOM 鎴愬姛娓叉煋鏉垮潡鍒嗘椂璧勯噾鏇茬嚎 SVG
+鉁?[PASS] Scene 1: 鐪熷疄 DOM 鎴愬姛娓叉煋鏍稿績涓偂鍒嗘椂璧板娍瀵规瘮鏇茬嚎 SVG
+鉁?[PASS] Scene 1: 瀹炴祴妯″紡涓嬬湡瀹?DOM 涓ョ鏄剧ず绠楁硶浼扮畻鏍囩
+鉁?[PASS] Scene 1: 姝ｅ父瀹炴祴妯″紡涓嬫棤涓嶅彲鐢ㄩ檷绾ц绀?鉁?[PASS] Scene 1: 鎮仠娴獥姝ｇ‘鍛堢幇 '(閫愮瑪瀹炴祴)' 鐪熷疄鏃舵€佹爣绛?
+--- 鍦烘櫙 2: 绠楁硶鎷熷悎浼扮畻妯″紡 (FULL, is_estimated=True) ---
+鉁?[PASS] Scene 2: 鐪熷疄 DOM 鎸傝浇绠楁硶浼扮畻娴嬭瘯鏍囪瘑
+鉁?[PASS] Scene 2: 鐪熷疄 DOM 鏄庣‘娓叉煋绠楁硶鎷熷悎浼扮畻璀︾ず寰界珷
+鉁?[PASS] Scene 2: 鐪熷疄鍥句緥鍖哄煙娓叉煋 '鎷熷悎浼扮畻' 寰界珷
+鉁?[PASS] Scene 2: 鍓爣棰樻槑纭爣娉ㄧ畻娉曚及绠楀彛寰?鉁?[PASS] Scene 2: 鎮仠娴獥姝ｇ‘鍛堢幇 '(绠楁硶浼扮畻)' 鏍囩
+
+--- 鍦烘櫙 3: 蹇収缂撳瓨瀹瑰繊鏈熸ā寮?(DEGRADED, freshness=STALE) ---
+鉁?[PASS] Scene 3: 鐪熷疄 DOM 鎴愬姛鎸傝浇缂撳瓨闄嶇骇寰界珷
+鉁?[PASS] Scene 3: 鐪熷疄 DOM 绮惧噯鍛堢幇鏁版嵁婧愭埅姝㈡椂鐐?10:15
+鉁?[PASS] Scene 3: 瀹瑰繊鏈熺紦瀛樻ā寮忎笉璇垽涓轰笉鍙敤鏁呴殰
+
+--- 鍦烘櫙 4: 鐗╃悊婧愭晠闅滀笉鍙敤闄嶇骇妯″紡 (UNAVAILABLE, status=EMPTY) ---
+鉁?[PASS] Scene 4: 鐪熷疄 DOM 鎴愬姛鎸傝浇涓嶅彲鐢ㄨ绀哄窘绔?鉁?[PASS] Scene 4: 鐪熷疄 DOM 鍛堢幇鏉垮潡璧勯噾娴佹殏涓嶅彲鐢ㄩ檷绾ф枃妗?鉁?[PASS] Scene 4: 鐪熷疄 DOM 鎸傝浇鏉垮潡瀹夊叏闄嶇骇鍗犱綅鑺傜偣
+鉁?[PASS] Scene 4: 鏇茬嚎鍖哄煙鍛堢幇瀹夊叏闄嶇骇鍗犱綅鏂囨锛屼弗绂佹覆鏌撹櫄鍋囧垎鏃?鉁?[PASS] Scene 4: 涓嶅彲鐢ㄦā寮忎笅褰诲簳鏉滅粷娓叉煋铏氬亣鍒嗘椂鏇茬嚎 SVG
+
+--- 鍦烘櫙 5: 鐪熷疄 8 绉掑畾鏃堕噸璇曞姩鎬佹仮澶嶆ā寮?(UNAVAILABLE -> 8s retry -> FULL) ---
+鉁?[PASS] Scene 5.1: 鏁呴殰鏈熻姹傝鏁颁弗鏍间负 1 娆?(鍒濇鏁呴殰璇锋眰)
+鉁?[PASS] Scene 5.1: 鍒濇璇锋眰鏁呴殰鍚庣湡瀹?DOM 鍛堢幇鍒嗘椂涓嶅彲鐢ㄨ绀?鉁?[PASS] Scene 5.1: 鍒濇璇锋眰鏁呴殰鍚庣湡瀹?DOM 娓叉煋涓嶅彲鐢ㄦ枃妗?鉁?[PASS] Scene 5.1: 鏁呴殰鏈熺湡瀹?DOM 鍛堢幇绌烘€佸崰浣?鉁?[PASS] Scene 5.2: 8绉掑畾鏃跺櫒瑙﹀彂閲嶈瘯鍚庤姹傝鏁颁弗鏍奸€掑涓?2 娆?(閲嶈瘯璇锋眰鍙戝嚭)
+鉁?[PASS] Scene 5.2: 8绉掗噸璇曟仮澶嶅悗涓嶅彲鐢ㄨ绀哄窘绔犲凡浠庣湡瀹?DOM 涓畬鍏ㄥ嵏杞界Щ闄?鉁?[PASS] Scene 5.2: 8绉掗噸璇曟仮澶嶅悗鐪熷疄 DOM 鍔ㄦ€佹寕杞芥仮澶嶅悗鐨勫垎鏃惰蛋鍔挎洸绾?SVG
+鉁?[PASS] Scene 5.2: 鎭㈠鍚庣┖鎬佸崰浣嶅凡瀹屽叏鍗歌浇绉婚櫎
+
+--- 鍦烘櫙 6: 鐪熷疄缁勪欢 A10 閫嗗簭鏃跺簭闃茬嚎 (杈冩柊鎴愬姛鍏堝埌锛岃緝鏃уけ璐ヨ繜鍒? ---
+鉁?[PASS] Scene 6: 閫嗗簭闃茬嚎鍦烘櫙涓嬬粍浠跺叡鍙戣捣 2 娆＄湡瀹炶姹?(鍒濆鏃ユ湡璇锋眰涓庡垏鏃ヨ姹?
+鉁?[PASS] Scene 6: 鏃ц姹?(Req 1, 2026-10-30) 鎴愬姛琚嫤鎴苟寤惰繜淇濇寔
+鉁?[PASS] Scene 6: 鏂拌姹?(Req 2, 2026-10-31) 绔嬪嵆鎴愬姛浜や粯骞舵寕杞?鉁?[PASS] Scene 6: 鏃ц姹傚湪杈冩柊璇锋眰浜や粯鍚庤繜鍒拌繑鍥炲け璐ュ搷搴?鉁?[PASS] Scene 6: 杈冩柊璇锋眰鎴愬姛娓叉煋鐨勭湡瀹炲垎鏃惰蛋鍔?SVG 鏇茬嚎涓ユ牸淇濇寔鍦?DOM 涓?鉁?[PASS] Scene 6: 杩熷埌鐨勬棫澶辫触鍝嶅簲琚姹傚簭鍙蜂笌浜ゆ槗鏃ラ槻绾夸涪寮冿紝缁濇湭璇Е鍙戜笉鍙敤闄嶇骇璀︾ず
+鉁?[PASS] Scene 6: 鐪熷疄 DOM 鏉滅粷琚繜鍒板け璐ユ敼鍐欎负绌烘€佸崰浣?
+--- 鍦烘櫙 7: 鐪熷疄寤惰繜鏃舵€佹ā寮?(DEGRADED, freshness=DELAYED) ---
+鉁?[PASS] Scene 7: 鐪熷疄 DOM 鎴愬姛鎸傝浇鍒嗘椂琛屾儏寤惰繜寰界珷
+鉁?[PASS] Scene 7: 鐪熷疄 DOM 鏄庣‘娓叉煋 '鍒嗘椂琛屾儏寤惰繜' 璀︾ず鏂囨
+鉁?[PASS] Scene 7: 鐪熷疄 DOM 鎴愬姛鎸傝浇鏉垮潡琛屾儏寤惰繜寰界珷
+鉁?[PASS] Scene 7: 鐪熷疄 DOM 鏄庣‘娓叉煋 '鏉垮潡琛屾儏寤惰繜' 璀︾ず鏂囨
+鉁?[PASS] Scene 7: 寤惰繜琛屾儏涓嬬湡瀹?DOM 姝ｅ父娓叉煋涓偂鍒嗘椂璧板娍 SVG 鏇茬嚎
+鉁?[PASS] Scene 7: 寤惰繜琛屾儏涓嬬湡瀹?DOM 姝ｅ父娓叉煋鏉垮潡鍒嗘椂璧勯噾鏇茬嚎 SVG
+鉁?[PASS] Scene 7: 寤惰繜琛屾儏缁濅笉璇姤涓哄垎鏃朵笉鍙敤鏁呴殰
+鉁?[PASS] Scene 7: 寤惰繜琛屾儏缁濅笉璇姤涓烘澘鍧椾笉鍙敤鏁呴殰
+鉁?[PASS] Scene 7: 寤惰繜琛屾儏涓嶆贩娣嗚鎶ヤ负缂撳瓨蹇収
+
+--- 鍦烘櫙 8: 鐙珛楠岃瘉 /market/sectors 璐ㄩ噺閾句笌缁勪欢娑堣垂 (market/sectors 鐙珛 DELAYED) ---
+鉁?[PASS] Scene 8: Canonical 寮傚父鏃讹紝market/sectors DELAYED 璐ㄩ噺椹卞姩鐪熷疄 DOM 鎸傝浇鏉垮潡寤惰繜寰界珷
+鉁?[PASS] Scene 8: 鐪熷疄 DOM 鏄庣‘娓叉煋 '鏉垮潡琛屾儏寤惰繜' 璀︾ず鏂囨
+鉁?[PASS] Scene 8: 闄嶇骇娑堣垂 market/sectors 鏃剁湡瀹?DOM 姝ｅ父娓叉煋鏉垮潡鍒嗘椂璧勯噾鏇茬嚎 SVG
+鉁?[PASS] Scene 8: 寤惰繜鐘舵€佷笉璇姤涓轰笉鍙敤鏁呴殰
+
+--- 鍦烘櫙 9: 鍙屾椂鎬佸苟瀛樹笌鍗曚晶鏃堕棿闃插啋鍏呴槻绾?(鎺掕 STALE + 鍒嗘椂 DELAYED 骞跺瓨) ---
+鉁?[PASS] Scene 9: 鐪熷疄 DOM 鎴愬姛鎸傝浇缂撳瓨闄嶇骇寰界珷 (STALE 涓嶈 DELAYED 闅愯棌)
+鉁?[PASS] Scene 9: 鍗曚晶鎴鏃堕棿鏄庣‘鏍囨敞涓?'鎺掕浣跨敤缂撳瓨'锛屾潨缁濆啋鍏呮暣浣撴埅姝?鉁?[PASS] Scene 9: 鐪熷疄 DOM 鍚屾椂鎸傝浇鏉垮潡鍒嗘椂寤惰繜寰界珷 (鍙屾椂鎬佸苟瀛樺睍绀?
+鉁?[PASS] Scene 9: 鐪熷疄 DOM 鏄庣‘娓叉煋 '鏉垮潡鍒嗘椂琛屾儏寤惰繜' 璀︾ず鏂囨
+
+--- 鍦烘櫙 9.2: 鍙嶅悜鍙屾椂鎬佸苟瀛樺満鏅?(鎺掕 DELAYED + 鍒嗘椂 STALE 骞跺瓨) ---
+鉁?[PASS] Scene 9.2: 鐪熷疄 DOM 鎴愬姛鎸傝浇缂撳瓨闄嶇骇寰界珷 (STALE 涓嶈 DELAYED 闅愯棌)
+鉁?[PASS] Scene 9.2: 鍗曚晶鎴鏃堕棿鏄庣‘鏍囨敞涓?'鍒嗘椂浣跨敤缂撳瓨'锛屾潨缁濆啋鍏呮暣浣撴埅姝?鉁?[PASS] Scene 9.2: 鐪熷疄 DOM 鍚屾椂鎸傝浇鏉垮潡鎺掕寤惰繜寰界珷 (鍙屾椂鎬佸苟瀛樺睍绀?
+鉁?[PASS] Scene 9.2: 鐪熷疄 DOM 鏄庣‘娓叉煋 '鏉垮潡鎺掕琛屾儏寤惰繜' 璀︾ず鏂囨
+鉁?[PASS] Scene 9.2: 鍙嶅悜鍙屾椂鎬佷笅鐪熷疄 DOM 姝ｅ父娓叉煋鏉垮潡鍒嗘椂璧勯噾鏇茬嚎 SVG
+鉁?[PASS] Scene 9.2: 鍙嶅悜鍙屾椂鎬佷笅鐪熷疄 DOM 姝ｅ父娓叉煋涓偂鍒嗘椂璧板娍 SVG 鏇茬嚎
+鉁?[PASS] Scene 9.2: 鍙嶅悜鍙屾椂鎬佺粷涓嶈鎶ヤ负鏉垮潡涓嶅彲鐢ㄦ晠闅?
+--- 鍦烘櫙 10: 鏃舵晥鏈煡闄嶇骇涓庢仮澶嶆ā寮?(freshness=UNAVAILABLE -> 鏃舵晥鏈煡鎻愮ず -> 鎭㈠鍚庢彁绀烘秷澶? ---
+鉁?[PASS] Scene 10.1: 鏃舵晥鏈煡妯″紡涓嬬湡瀹?DOM 鎸傝浇鏃舵晥鏈煡闄嶇骇寰界珷
+鉁?[PASS] Scene 10.1: 鐪熷疄 DOM 鏄庣‘娓叉煋 '鏃舵晥鏈煡' 鎴栫瓑涔夐闄╄绀烘枃妗?鉁?[PASS] Scene 10.1: 鏃舵晥鏈煡浣?status=AVAILABLE 鏃舵甯告覆鏌撳垎鏃惰祫閲戞洸绾?SVG
+鉁?[PASS] Scene 10.1: 鏃舵晥鏈煡闄嶇骇涓嶈鎶ヤ负鏉垮潡鏆備笉鍙敤鏁呴殰
+鉁?[PASS] Scene 10.2: 鎭㈠姝ｅ父鍝嶅簲鍚庣湡瀹?DOM 鎴愬姛鍗歌浇绉婚櫎鏃舵晥鏈煡寰界珷
+鉁?[PASS] Scene 10.2: 鎭㈠姝ｅ父鍝嶅簲鍚?'鏃舵晥鏈煡' 璀︾ず鏂囨褰诲簳娑堝け
+鉁?[PASS] Scene 10.2: 鎭㈠鍚庢甯告覆鏌撳垎鏃惰祫閲戞洸绾?SVG
+
+--- 鍦烘櫙 11: 鏃舵晥鏈煡闃叉帺鐩栦笌鎭㈠妯″紡 (鎺掕 UNAVAILABLE + 鍒嗘椂缂哄け锛岄槻鏃舵晥鏈煡琚叾浠栧師鍥犳帺鐩? ---
+鉁?[PASS] Scene 11.1: 鐪熷疄 DOM 鎴愬姛鎸傝浇鏃舵晥鏈煡闄嶇骇寰界珷
+鉁?[PASS] Scene 11.1: 鏃舵晥鏈煡璀︾ず鏂囨鏄庣‘鍛堢幇锛岀粷鏈鍏朵粬闄嶇骇鍘熷洜鎺╃洊
+鉁?[PASS] Scene 11.1: 鍚屾椂瀹屾暣淇濈暀骞跺憟鐜板叿浣撻檷绾у師鍥?(鏉垮潡鍒嗘椂璧板娍缂哄け锛屼粎鎻愪緵闈欐€佹帓琛?
+鉁?[PASS] Scene 11.1: 鏃舵晥鏈煡涓斿垎鏃剁己澶变笉璇姤涓烘澘鍧楁殏涓嶅彲鐢ㄦ晠闅?鉁?[PASS] Scene 11.2: 鎭㈠姝ｅ父鍝嶅簲鍚庣湡瀹?DOM 鎴愬姛鍗歌浇绉婚櫎鏃舵晥鏈煡寰界珷
+鉁?[PASS] Scene 11.2: 鎭㈠姝ｅ父鍝嶅簲鍚?'鏃舵晥鏈煡' 璀︾ず鏂囨褰诲簳娑堝け
+鉁?[PASS] Scene 11.2: 鎭㈠姝ｅ父鍝嶅簲鍚庡垎鏃剁己澶遍檷绾ф枃妗堝交搴曟秷澶?鉁?[PASS] Scene 11.2: 鎭㈠鍚庢甯告覆鏌撳垎鏃惰祫閲戞洸绾?SVG
+
+========================================
+鏃犲ご Chrome 娴忚鍣ㄧ湡瀹炵粍浠堕獙鏀剁粨鏋? 73/73 椤规柇瑷€閫氳繃!
+========================================
+

@@ -124,6 +124,7 @@ class TopSectorTrendItem(BaseModel):
     core_rear_relative_strength: Optional[float] = Field(None, description="核心与后排相对剪刀差 CRRS (%)")
     rear_negative_ratio: Optional[float] = Field(None, description="后排股票负收益比例 RNR (0.0~1.0)")
     sector_broken_ratio: Optional[float] = Field(None, description="板块炸板率 BLR (0.0~1.0)")
+    is_real: Optional[bool] = Field(True, description="是否由真实分时行情生成，缺失时为 False")
 
 
 class TopSectorsTrendResponse(BaseModel):
@@ -135,3 +136,15 @@ class TopSectorsTrendResponse(BaseModel):
     sectors: List[TopSectorTrendItem] = Field(..., description="Top 5 题材列表")
     seesaw_analysis: Optional[Dict[str, Any]] = Field(None, description="主力资金跷跷板吸血效应全局雷达")
     market_index_trend: Optional[Dict[str, Any]] = Field(None, description="大盘基准指数分时走势(如上证指数)")
+    quality: Optional[str] = Field("FULL", description="综合数据质量等级")
+    sector_quality: Optional[str] = Field(None, description="板块排行元数据质量等级")
+    sector_freshness: Optional[str] = Field(None, description="板块排行时效")
+    sector_source_timestamp: Optional[str] = Field(None, description="板块排行真实数据源截止时间点")
+    trends_quality: Optional[str] = Field(None, description="分时走势数据质量等级")
+    trends_freshness: Optional[str] = Field(None, description="分时走势时效")
+    trends_source_timestamp: Optional[str] = Field(None, description="分时走势真实数据源截止时间点")
+    is_estimated: Optional[bool] = Field(None, description="资金流分时走势是否由模型估算拟合")
+    freshness: Optional[str] = Field("REALTIME", description="新鲜度时态")
+    status: Optional[str] = Field("AVAILABLE", description="数据可用性状态")
+    degradation_reason: Optional[str] = Field(None, description="降级原因描述")
+    source_timestamp: Optional[str] = Field(None, description="真实数据源截止时间点")

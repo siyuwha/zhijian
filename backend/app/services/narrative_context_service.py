@@ -117,11 +117,11 @@ class NarrativeContextExtractor:
         # =========================================================================
         to = truth.turnover
         fact_turnover = NarrativeTurnoverFact(
-            total_turnover_yi=round(to.two_markets_total_yi, 2),
-            sh_amount_yi=round(to.sh_amount_yi, 2),
-            sz_total_amount_yi=round(to.sz_total_amount_yi, 2),
-            chinext_slice_yi=round(to.chinext_slice_amount_yi, 2),
-            chinext_ratio_in_sz=round(to.chinext_ratio_in_sz, 4),
+            total_turnover_yi=round(to.two_markets_total_yi, 2) if to.two_markets_total_yi is not None else None,
+            sh_amount_yi=round(to.sh_amount_yi, 2) if to.sh_amount_yi is not None else None,
+            sz_total_amount_yi=round(to.sz_total_amount_yi, 2) if to.sz_total_amount_yi is not None else None,
+            chinext_slice_yi=round(to.chinext_slice_amount_yi, 2) if to.chinext_slice_amount_yi is not None else None,
+            chinext_ratio_in_sz=round(to.chinext_ratio_in_sz, 4) if to.chinext_ratio_in_sz is not None else None,
         )
 
         sb = truth.sentiment_bounds
@@ -275,7 +275,7 @@ class NarrativeContextExtractor:
         # 4. 构建 SPEECH BOUNDARY CONTRACT (叙事发言边界契约)
         # =========================================================================
         required_anchors = [
-            f"EVID:TURNOVER:{to.two_markets_total_yi:.2f}YI",
+            f"EVID:TURNOVER:{to.two_markets_total_yi:.2f}YI" if to.two_markets_total_yi is not None else "EVID:TURNOVER:UNAVAILABLE",
             f"EVID:BROKEN_RATIO:{sb.broken_limit_ratio:.2%}",
             f"EVID:LIMIT_DOWN:{sb.limit_down_count}",
             f"EVID:MAX_HEIGHT:{sb.max_ladder_height}B",

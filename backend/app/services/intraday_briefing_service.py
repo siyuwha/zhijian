@@ -30,6 +30,7 @@ from backend.app.services.canonical_market_service import CanonicalMarketService
 from backend.app.services.canonical_intraday_service import CanonicalIntradayService
 from backend.app.services.auction_falsification_service import AuctionFalsificationService
 from backend.app.data.service import DataService
+from backend.app.data.capabilities import DataQuality, Freshness, DataStatus
 
 logger = logging.getLogger(__name__)
 
@@ -559,15 +560,73 @@ class IntradayBriefingService:
             logger.debug(f"Could not preload limit up pool: {e}")
 
         meta: List[Dict[str, Any]] = []
+        sec_quality = DataQuality.UNAVAILABLE
+        sec_freshness = Freshness.UNAVAILABLE
+        sec_status = DataStatus.EMPTY
+        sec_source_timestamp: Optional[datetime] = None
 
         # 1. 尝试从实时数据源拉取前 60 大概念与行业题材排名 (扩大采样范围，确保真实热闹主线不遗漏)
         try:
             sec_res = await self.data_service.get_sector_ranking("concept", limit=60)
             raw_sectors = sec_res.data if (sec_res and sec_res.data) else []
+            if sec_res:
+                if sec_res.quality:
+                    sec_quality = sec_res.quality
+                if getattr(sec_res, "freshness", None):
+                    sec_freshness = sec_res.freshness
+                if getattr(sec_res, "status", None):
+                    sec_status = sec_res.status
+                if getattr(sec_res, "source_timestamp", None):
+                    sec_source_timestamp = sec_res.source_timestamp
+
             if not raw_sectors or len(raw_sectors) < 5:
                 ind_res = await self.data_service.get_sector_ranking("industry", limit=60)
                 if ind_res and ind_res.data:
                     raw_sectors = (raw_sectors or []) + ind_res.data
+                    if sec_quality in (DataQuality.UNAVAILABLE, DataQuality.INVALID) or not (sec_res and sec_res.data):
+                        if ind_res.quality:
+                            sec_quality = ind_res.quality
+                        if getattr(ind_res, "freshness", None):
+                            sec_freshness = ind_res.freshness
+                        if getattr(ind_res, "status", None):
+                            sec_status = ind_res.status
+                        if getattr(ind_res, "source_timestamp", None):
+                            sec_source_timestamp = ind_res.source_timestamp
+                    else:
+                        # 概念与行业排行共同参与：保守合成质量、时效与截止时间
+                        if ind_res.quality in (DataQuality.DEGRADED, DataQuality.PARTIAL, DataQuality.UNAVAILABLE, DataQuality.INVALID):
+                            sec_quality = DataQuality.DEGRADED
+                        elif ind_res.quality not in (DataQuality.FULL, DataQuality.PARTIAL):
+                            sec_quality = DataQuality.DEGRADED
+
+                        ind_fresh = getattr(ind_res, "freshness", Freshness.UNAVAILABLE)
+                        # 保守时态等级：EXPIRED > STALE > DELAYED > EOD_COMPENSATED > REALTIME
+                        # 若任一方为 UNAVAILABLE 或未知，绝不合成为 REALTIME
+                        if ind_fresh in (Freshness.UNAVAILABLE, None) or sec_freshness in (Freshness.UNAVAILABLE, None):
+                            sec_freshness = Freshness.UNAVAILABLE
+                            sec_quality = DataQuality.DEGRADED
+                        elif Freshness.EXPIRED in (sec_freshness, ind_fresh):
+                            sec_freshness = Freshness.EXPIRED
+                            sec_status = DataStatus.STALE
+                        elif Freshness.STALE in (sec_freshness, ind_fresh):
+                            sec_freshness = Freshness.STALE
+                            sec_status = DataStatus.STALE
+                        elif Freshness.DELAYED in (sec_freshness, ind_fresh):
+                            sec_freshness = Freshness.DELAYED
+                        elif Freshness.EOD_COMPENSATED in (sec_freshness, ind_fresh):
+                            sec_freshness = Freshness.EOD_COMPENSATED
+                        elif sec_freshness == Freshness.REALTIME and ind_fresh == Freshness.REALTIME:
+                            sec_freshness = Freshness.REALTIME
+                        else:
+                            sec_freshness = Freshness.UNAVAILABLE
+                            sec_quality = DataQuality.DEGRADED
+
+                        # 来源时间：若均存在取最旧者，任一缺失保持未知 (None)
+                        ind_src_ts = getattr(ind_res, "source_timestamp", None)
+                        if sec_source_timestamp and ind_src_ts:
+                            sec_source_timestamp = min(sec_source_timestamp, ind_src_ts)
+                        else:
+                            sec_source_timestamp = None
 
             if raw_sectors:
                 # 对候选板块进行实战综合主线热度打分 (Mainline Heat Composite Score)
@@ -800,6 +859,10 @@ class IntradayBriefingService:
 
         # 2. 如果实时拉取异常，尝试从快照认知主线提取
         if not meta:
+            sec_quality = DataQuality.DEGRADED
+            sec_freshness = Freshness.STALE
+            sec_status = DataStatus.STALE
+            sec_source_timestamp = None
             try:
                 snap = await self.market_service.get_canonical_snapshot(date_str)
                 if snap and snap.cognition and snap.cognition.mainlines:
@@ -875,6 +938,7 @@ class IntradayBriefingService:
 
         # 尝试拉取真实的板块分时分钟走势 (优先拉取领涨核心龙头真实分钟走势进行波形联动)
         real_trends_map: Dict[str, List[Dict[str, Any]]] = {}
+        trends_res: Optional[DataResult] = None
         try:
             sector_codes = []
             code_alias_map = {}
@@ -956,7 +1020,8 @@ class IntradayBriefingService:
                 or real_trends_map.get(sec_name)
                 or (real_trends_map.get(str(leader_code_val).strip()) if leader_code_val else None)
             )
-            if raw_pts and len(raw_pts) > 5:
+            item_is_real = False
+            if raw_pts and len(raw_pts) >= 5:
                 # 采用物理真实分时分钟序列进行动态资金累计拟合 (确保 09:30 从 0 轴发散，杜绝水平常数)
                 total_amt = max(1.0, float(raw_pts[-1].get("amount") or 1.0))
                 trends: List[SectorTrendPoint] = []
@@ -971,8 +1036,12 @@ class IntradayBriefingService:
                     combined_ratio = max(0.0, min(1.0, progress_weight + momentum_jitter)) if pt_idx > 0 else 0.0
                     net_inflow = round(m["net_inflow"] * combined_ratio, 2)
                     trends.append(SectorTrendPoint(time=t_str, net_inflow_yi=net_inflow, pct_change=pct))
+                # 资金流分钟曲线为公式拟合估算，非直接逐笔资金流，必须准确标示 is_real=False 避免误导
+                item_is_real = False
             else:
-                trends = self._generate_minute_trends(m["curve_type"], m["net_inflow"], m["pct"])
+                # 真实分时缺失时严禁伪造分钟曲线，返回空序列
+                trends = []
+                item_is_real = False
 
             lu_cnt = m.get("limit_up_count", 0)
             max_h = m.get("max_height", 0)
@@ -1036,6 +1105,7 @@ class IntradayBriefingService:
                 seesaw_ratio=global_seesaw_ratio,
                 seesaw_role=seesaw_role,
                 trends=trends,
+                is_real=item_is_real,
                 is_solitary_monopoly=is_solitary,
                 monopoly_turnover_ratio=monopoly_ratio,
                 core_rear_relative_strength=crrs,
@@ -1051,12 +1121,126 @@ class IntradayBriefingService:
         except Exception as e:
             logger.debug(f"Failed to fetch market index trend for briefing: {e}")
 
+        trends_quality_obj = trends_res.quality if trends_res else DataQuality.UNAVAILABLE
+        trends_quality_str = getattr(trends_quality_obj, "value", str(trends_quality_obj))
+        trends_freshness = getattr(trends_res, "freshness", Freshness.UNAVAILABLE) if trends_res else Freshness.UNAVAILABLE
+        trends_freshness_str = getattr(trends_freshness, "value", str(trends_freshness))
+        trends_status = getattr(trends_res, "status", DataStatus.EMPTY) if trends_res else DataStatus.EMPTY
+        trends_source_ts = getattr(trends_res, "source_timestamp", None) if trends_res else None
+
+        sec_quality_str = getattr(sec_quality, "value", str(sec_quality))
+        sec_freshness_str = getattr(sec_freshness, "value", str(sec_freshness))
+        sec_ts_str = sec_source_timestamp.isoformat() if sec_source_timestamp else None
+        trends_ts_str = trends_source_ts.isoformat() if trends_source_ts else None
+
+        # 综合质量独立合成：若板块排行不可用，整体直接 UNAVAILABLE；若分时走势缺失，降级为 DEGRADED；严禁分时掩盖板块排行故障
+        if sec_quality_str in ("UNAVAILABLE", "INVALID", "FAILED") or not meta:
+            resp_quality = "UNAVAILABLE"
+            resp_freshness = "UNAVAILABLE"
+            resp_status = "EMPTY"
+            resp_reason = "板块排行数据不可用"
+            resp_ts = None
+        elif trends_quality_str in ("UNAVAILABLE", "INVALID", "FAILED") or not any(s.trends for s in sectors):
+            resp_quality = "DEGRADED"
+            resp_freshness = sec_freshness_str
+            resp_status = getattr(sec_status, "value", str(sec_status)) if sec_status else "AVAILABLE"
+            resp_reason = "板块分时走势缺失，仅提供静态排行"
+            resp_ts = sec_ts_str
+        else:
+            # 综合时态等级合成 (EXPIRED -> STALE -> DELAYED -> EOD_COMPENSATED -> REALTIME)
+            valid_freshnesses = {Freshness.REALTIME, Freshness.DELAYED, Freshness.STALE, Freshness.EOD_COMPENSATED, Freshness.EXPIRED}
+            sec_fresh_valid = sec_freshness in valid_freshnesses
+            trends_fresh_valid = trends_freshness in valid_freshnesses
+
+            if not sec_fresh_valid or not trends_fresh_valid:
+                # 任一方时态未知或 UNAVAILABLE，绝不能合成为 REALTIME 或 FULL
+                resp_freshness = "UNAVAILABLE"
+                resp_quality = "DEGRADED"
+                resp_status = "AVAILABLE"
+                if not sec_fresh_valid and not trends_fresh_valid:
+                    resp_reason = "板块排行与分时走势时效均未知或不可用"
+                elif not sec_fresh_valid:
+                    resp_reason = "板块排行时效未知或不可用"
+                else:
+                    resp_reason = "分时走势时效未知或不可用"
+            elif Freshness.EXPIRED in (sec_freshness, trends_freshness):
+                resp_freshness = "EXPIRED"
+                resp_status = "STALE"
+            elif Freshness.STALE in (sec_freshness, trends_freshness):
+                resp_freshness = "STALE"
+                resp_status = "STALE"
+            elif Freshness.DELAYED in (sec_freshness, trends_freshness):
+                resp_freshness = "DELAYED"
+                resp_status = "AVAILABLE"
+            elif Freshness.EOD_COMPENSATED in (sec_freshness, trends_freshness):
+                resp_freshness = "EOD_COMPENSATED"
+                resp_status = "AVAILABLE"
+            elif sec_freshness == Freshness.REALTIME and trends_freshness == Freshness.REALTIME:
+                resp_freshness = "REALTIME"
+                resp_status = "AVAILABLE"
+            else:
+                resp_freshness = "UNAVAILABLE"
+                resp_status = "EMPTY"
+
+            # 综合数据质量等级 (仅在双方时效均已知有效且为 REALTIME，且双方 quality 均为 FULL 时才评定为 FULL)
+            if resp_freshness in ("EXPIRED", "STALE", "DELAYED", "UNAVAILABLE") or sec_quality_str in ("DEGRADED", "UNAVAILABLE", "INVALID") or trends_quality_str in ("DEGRADED", "UNAVAILABLE", "INVALID"):
+                resp_quality = "DEGRADED"
+            elif sec_quality_str == "PARTIAL" or trends_quality_str == "PARTIAL":
+                resp_quality = "PARTIAL"
+            elif sec_quality_str == "FULL" and trends_quality_str == "FULL" and resp_freshness == "REALTIME":
+                resp_quality = "FULL"
+            else:
+                resp_quality = "DEGRADED"
+
+            # 降级原因精准归因 (若上述未设定原因)
+            if resp_freshness != "UNAVAILABLE":
+                if sec_freshness == Freshness.STALE and trends_freshness == Freshness.STALE:
+                    resp_reason = "板块排行与分时走势均使用缓存快照"
+                elif sec_freshness == Freshness.STALE and trends_freshness == Freshness.DELAYED:
+                    resp_reason = "板块排行使用缓存快照，分时行情延迟"
+                elif sec_freshness == Freshness.DELAYED and trends_freshness == Freshness.STALE:
+                    resp_reason = "板块排行行情延迟，分时使用缓存快照"
+                elif sec_freshness == Freshness.STALE:
+                    resp_reason = "板块排行使用历史缓存快照"
+                elif trends_freshness == Freshness.STALE:
+                    resp_reason = "板块分时使用历史缓存快照"
+                elif sec_freshness == Freshness.DELAYED and trends_freshness == Freshness.DELAYED:
+                    resp_reason = "板块排行与分时行情均延迟"
+                elif sec_freshness == Freshness.DELAYED:
+                    resp_reason = "板块排行行情延迟"
+                elif trends_freshness == Freshness.DELAYED:
+                    resp_reason = "板块分时行情延迟"
+                elif resp_quality == "PARTIAL":
+                    resp_reason = "部分标的分时或板块排行数据缺失"
+                elif resp_quality == "DEGRADED":
+                    resp_reason = "部分数据来自备用源或降级模式"
+                else:
+                    resp_reason = None
+
+            # 截止时间点合成：实际参与方均有来源时间时取较早截止点，任一方缺失时保持未知 (None)
+            if sec_source_timestamp and trends_source_ts:
+                resp_ts = min(sec_source_timestamp, trends_source_ts).isoformat()
+            else:
+                resp_ts = None
+
         response = TopSectorsTrendResponse(
             trade_date=date_str,
             snapshot_time="10:15:00",
             sectors=sectors,
             seesaw_analysis=seesaw_analysis_payload,
             market_index_trend=market_index_payload,
+            quality=resp_quality,
+            sector_quality=sec_quality_str,
+            sector_freshness=sec_freshness_str,
+            sector_source_timestamp=sec_ts_str,
+            trends_quality=trends_quality_str,
+            trends_freshness=trends_freshness_str,
+            trends_source_timestamp=trends_ts_str,
+            is_estimated=True,
+            freshness=resp_freshness,
+            status=resp_status,
+            degradation_reason=resp_reason,
+            source_timestamp=resp_ts,
         )
 
         if not is_today:

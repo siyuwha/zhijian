@@ -29,11 +29,11 @@ class NarrativeTurnoverFact(BaseModel):
     """L0/L1 成交额事实 (防重算冻结口径)"""
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    total_turnover_yi: float = Field(..., description="沪深两市真实总成交额(亿元)")
-    sh_amount_yi: float = Field(..., description="沪市成交额(亿元)")
-    sz_total_amount_yi: float = Field(..., description="深市成交额(亿元，已含创业板)")
-    chinext_slice_yi: float = Field(..., description="创业板成交额(亿元，结构切片)")
-    chinext_ratio_in_sz: float = Field(..., description="创业板占深市比例")
+    total_turnover_yi: Optional[float] = Field(None, description="沪深两市真实总成交额(亿元)")
+    sh_amount_yi: Optional[float] = Field(None, description="沪市成交额(亿元)")
+    sz_total_amount_yi: Optional[float] = Field(None, description="深市成交额(亿元，已含创业板)")
+    chinext_slice_yi: Optional[float] = Field(None, description="创业板成交额(亿元，结构切片)")
+    chinext_ratio_in_sz: Optional[float] = Field(None, description="创业板占深市比例")
     accounting_rule: str = Field(
         "深市成交额在统计范畴内已包含创业板，沪深两市总成交额 = SH + SZ，严禁将创业板再次累加！",
         description="防重算刚性会计核算准则"

@@ -159,6 +159,8 @@ class ProviderResponse:
             quality=self.quality,
             provider=self.provider,
             timestamp=self.received_timestamp,
+            source_timestamp=self.source_timestamp,
+            received_timestamp=self.received_timestamp,
             error_message=self.error_message,
             fallback_used=self.fallback_used,
             freshness=self.freshness,
@@ -185,10 +187,17 @@ class DataResult:
     missing_codes: Optional[List[str]] = None
     quality_log_success: Optional[bool] = None
     original_quality: Optional[DataQuality] = None
+    trade_date: Optional[str] = None
+    source_timestamp: Optional[datetime] = None
+    received_timestamp: datetime = field(default_factory=datetime.now)
+    degradation_reason: Optional[str] = None
 
     def __post_init__(self):
         if self.original_quality is None:
             self.original_quality = self.quality
+        # source_timestamp 严格反映源端时间，不明时必须保留 None，坚决不以接收时间/请求时间冒充
+        if self.degradation_reason is None and self.error_message:
+            self.degradation_reason = self.error_message
         if self.status is None:
             if self.error_code == ProviderErrorCode.TIMEOUT:
                 self.status = DataStatus.TIMEOUT
@@ -213,8 +222,8 @@ class DataResult:
             quality=self.quality,
             freshness=self.freshness,
             latency_ms=self.latency_ms,
-            source_timestamp=self.timestamp,
-            received_timestamp=self.timestamp,
+            source_timestamp=self.source_timestamp,
+            received_timestamp=self.received_timestamp or self.timestamp,
             validity=self.quality not in (DataQuality.INVALID, DataQuality.UNAVAILABLE),
             error_code=self.error_code,
             error_message=self.error_message,

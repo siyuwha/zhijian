@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.market import MarketDailySnapshot
+from .turnover_engine import calculate_turnover_caliber, TurnoverSourceStatus
 from ..models.report import DailyReview
 from ..schemas.canonical_market import (
     CanonicalMarketSnapshot,
@@ -248,6 +249,129 @@ class CanonicalSecurityMasterRegistry:
 class CanonicalMarketService:
     """标准市场真相与认知聚合构建服务 (只读、幂等、防篡改)"""
 
+    def _sanitize_loaded_snapshot_turnover(self, snap: CanonicalMarketSnapshot) -> CanonicalMarketSnapshot:
+        """
+        T09-01 门禁过滤：历史预置黄金快照中若含有未核准口径产生的两市或全市场成交额，
+        强制置空正式总额为 None，评级降为 DEGRADED / PARTIAL，并完全重算指纹与认知层状态，
+        确保快照事实、派生认知假说与防篡改指纹 100% 严密闭环。
+        """
+        if not snap or not snap.truth or not snap.truth.turnover:
+            return snap
+
+        t = snap.truth.turnover
+        needs_sanitizing = (
+            t.two_markets_quality == DataQualityGrade.FULL
+            or t.two_markets_total_yi is not None
+            or t.all_markets_quality == DataQualityGrade.FULL
+            or t.all_markets_total_yi is not None
+        )
+        if not needs_sanitizing:
+            return snap
+
+        reason = "历史黄金快照数据源口径待核准，正式总额强制置空为 None"
+        new_reason = f"{t.degradation_reason}; {reason}" if t.degradation_reason else reason
+        new_env = None
+        if t.envelope:
+            new_env = t.envelope.model_copy(update={
+                "quality": DataQualityGrade.DEGRADED,
+                "is_degraded": True,
+                "degradation_reason": new_reason,
+            })
+        new_t = t.model_copy(update={
+            "two_markets_total_yi": None,
+            "all_markets_total_yi": None,
+            "two_markets_quality": DataQualityGrade.DEGRADED,
+            "all_markets_quality": DataQualityGrade.PARTIAL,
+            "degradation_reason": new_reason,
+            "envelope": new_env,
+        })
+
+        # 1. 重构 truth 事实层并重算 JCS SHA-256 指纹
+        breadth_status_val = (
+            snap.truth.cross_section_breadth_status.value
+            if hasattr(snap.truth.cross_section_breadth_status, "value")
+            else str(snap.truth.cross_section_breadth_status)
+        )
+        truth_dict_for_hash = {
+            "schema_version": snap.truth.schema_version,
+            "producer": snap.truth.producer,
+            "trade_date": snap.truth.trade_date,
+            "generated_at": snap.truth.generated_at,
+            "indices": [i.model_dump() for i in snap.truth.indices],
+            "turnover": new_t.model_dump(),
+            "sentiment_bounds": snap.truth.sentiment_bounds.model_dump(),
+            "regulatory_anomalies": [a.model_dump() for a in snap.truth.regulatory_anomalies],
+            "ladder_tree": [l.model_dump() for l in snap.truth.ladder_tree],
+            "cross_section_breadth_status": breadth_status_val,
+            "cross_section_breadth_detail": snap.truth.cross_section_breadth_detail,
+        }
+        new_truth_fingerprint = hash_jcs(truth_dict_for_hash)
+        new_truth = snap.truth.model_copy(update={
+            "turnover": new_t,
+            "truth_fingerprint": new_truth_fingerprint,
+        })
+
+        # 2. 重新校准认知层 (Cognition) 并重算认知指纹，彻底淘汰基于旧成交额的放量结论
+        new_cognition = snap.cognition
+        if snap.cognition:
+            state_features = self.state_calibrator.extract_feature_vector(new_truth)
+            top_grp = new_truth.ladder_tree[0] if new_truth.ladder_tree else None
+            if top_grp and top_grp.stocks:
+                space_leader_txt = f"最高{top_grp.height}B{top_grp.stocks[0].name}"
+            else:
+                space_leader_txt = "无连板梯队（数据缺失）"
+
+            core_mainlines = [
+                m.sector_name for m in snap.cognition.mainlines if m.structural_role in ("CORE_MAINLINE", "BRANCH_ROTATION")
+            ]
+
+            calibrated_state = self.state_calibrator.calibrate(
+                features=state_features,
+                prior_state=None,
+                core_mainlines=core_mainlines,
+                space_leader_desc=space_leader_txt,
+            )
+
+            market_narrative = self.state_calibrator.render_deterministic_summary(
+                state=calibrated_state,
+                features=state_features,
+                core_mainlines=core_mainlines,
+                space_leader_desc=space_leader_txt,
+            )
+
+            cognition_dict_for_hash = {
+                "schema_version": snap.cognition.schema_version,
+                "producer": snap.cognition.producer,
+                "trade_date": snap.trade_date,
+                "generated_at": snap.cognition.generated_at,
+                "mainlines": [m.model_dump() for m in snap.cognition.mainlines],
+                "lineage_accounting": snap.cognition.lineage_accounting.model_dump(),
+                "market_state_summary": market_narrative,
+                "market_state_calibration": calibrated_state.model_dump(),
+            }
+            new_cognition_fingerprint = hash_jcs(cognition_dict_for_hash)
+            new_cognition = snap.cognition.model_copy(update={
+                "market_state_summary": market_narrative,
+                "market_state_calibration": calibrated_state,
+                "cognition_fingerprint": new_cognition_fingerprint,
+            })
+
+        # 3. 重新打包统一信封指纹
+        envelope_dict_for_hash = {
+            "snapshot_version": snap.snapshot_version,
+            "trade_date": snap.trade_date,
+            "generated_at": snap.generated_at,
+            "truth_fingerprint": new_truth_fingerprint,
+            "cognition_fingerprint": new_cognition.cognition_fingerprint if new_cognition else None,
+        }
+        new_envelope_fingerprint = hash_jcs(envelope_dict_for_hash)
+
+        return snap.model_copy(update={
+            "truth": new_truth,
+            "cognition": new_cognition,
+            "envelope_fingerprint": new_envelope_fingerprint,
+        })
+
     def __init__(self, session: Optional[AsyncSession] = None):
         self.session = session
         self.entity_registry = CanonicalSecurityMasterRegistry()
@@ -286,90 +410,37 @@ class CanonicalMarketService:
         # 7. 真实主题/概念
         return SemanticType.CONCEPT
 
-    async def get_canonical_snapshot(self, date_str: str) -> Optional[CanonicalMarketSnapshot]:
+    def build_market_truth_snapshot(
+        self,
+        date_str: str,
+        snap_dict: Any,
+        lu_dict: Any = None,
+        anom_list: Any = None,
+        observed_time: Optional[str] = None,
+        cross_breadth_grade: DataQualityGrade = DataQualityGrade.FULL,
+        cross_breadth_detail: Optional[Dict[str, Any]] = None,
+    ) -> MarketTruthSnapshot:
         """
-        根据日期从现有物理存储构建标准市场快照 (Truth + Cognition 严密分层装配)
+        L0/L1 客观事实层与 L2 派生层标准事实快照组装器 (GATE-2D0-01 ~ GATE-2D0-08)
+        T09-01 成交额标准口径核算与保守降级门禁唯一实施入口
         """
-        if not self.session:
-            raise RuntimeError("Database session is required to fetch canonical market snapshot")
+        if observed_time is None:
+            observed_time = f"{date_str}T15:05:00.000+08:00"
 
-        # 1. 查询当日物理快照与复盘记录
-        snap_stmt = select(MarketDailySnapshot).where(
-            MarketDailySnapshot.date == date_str,
-            MarketDailySnapshot.snapshot_type == "EOD_CLOSE",
-        )
-        snapshot = (await self.session.execute(snap_stmt)).scalars().first()
+        indices_raw = snap_dict if isinstance(snap_dict, list) else (snap_dict.get("indices", []) if isinstance(snap_dict, dict) else [])
+        lu_dict = lu_dict or {}
+        anom_list = anom_list or []
 
-        if not snapshot:
-            # 尝试查找任意类型的当日快照 (如 AUCTION_0925 或盘中快照)
-            any_stmt = (
-                select(MarketDailySnapshot)
-                .where(MarketDailySnapshot.date == date_str)
-                .order_by(MarketDailySnapshot.created_at.desc())
-                .limit(1)
-            )
-            snapshot = (await self.session.execute(any_stmt)).scalars().first()
-
-        rev_stmt = select(DailyReview).where(DailyReview.date == date_str)
-        review = (await self.session.execute(rev_stmt)).scalars().first()
-
-        if not snapshot:
-            from pathlib import Path
-            date_compact = date_str.replace("-", "")
-            for candidate_name in [
-                f"golden_canonical_snapshot_{date_compact}.json",
-                f"golden_canonical_snapshot_{date_str}.json",
-            ]:
-                golden_path = Path("baseline_evidence") / candidate_name
-                if golden_path.exists():
-                    try:
-                        with open(golden_path, "r", encoding="utf-8") as gf:
-                            return CanonicalMarketSnapshot.model_validate(json.load(gf))
-                    except Exception as ge:
-                        logger.warning(f"Failed to load golden fixture {golden_path}: {ge}")
-
-            # 动态现场按需合成 (无论今日盘中还是最近有效交易日，若无预存快照均通过底层数据网关即时保真合成)
-            synthesized = await self._synthesize_intraday_snapshot(date_str)
-            if synthesized:
-                return synthesized
-
-            logger.warning(f"No EOD_CLOSE MarketDailySnapshot found for {date_str} and synthesis failed")
-            return None
-
-        # 提取底层 JSON 数据
-        snap_dict = snapshot.indices_snapshot if isinstance(snapshot.indices_snapshot, dict) else json.loads(snapshot.indices_snapshot or "{}")
-        lu_dict = snapshot.limit_up_snapshot if isinstance(snapshot.limit_up_snapshot, dict) else json.loads(snapshot.limit_up_snapshot or "{}")
-        mss_dict = snapshot.market_state_snapshot if isinstance(snapshot.market_state_snapshot, dict) else json.loads(snapshot.market_state_snapshot or "{}")
-        source_status_dict = snapshot.source_status if isinstance(snapshot.source_status, dict) else json.loads(snapshot.source_status or "{}")
-
-        # =========================================================================
-        # 第一部分：构建 MarketTruthSnapshot (L0/L1 FACT + L2 DERIVED)
-        # =========================================================================
-
-        # 1.1 L1 指数行情 (GATE-2D0-03)
-        indices_raw = snap_dict if isinstance(snap_dict, list) else snap_dict.get("indices", [])
+        # 1.1 L1 指数行情
         canonical_indices: List[CanonicalIndexQuote] = []
-        observed_time = f"{date_str}T15:05:00.000+08:00"
-
-        sh_amount = 0.0
-        sz_total_amount = 0.0
-        chinext_slice_amount = 0.0
-
         for idx in indices_raw:
-            sym = str(idx.get("symbol", ""))
+            sym = str(idx.get("symbol", "") or idx.get("code", ""))
             name = str(idx.get("name", ""))
             current = float(idx.get("current_price") or idx.get("price") or 0.0)
             pre_close = float(idx.get("pre_close") or current)
             pct = float(idx.get("pct_change") or 0.0)
             chg = float(idx.get("change_val") or idx.get("change") or (current - pre_close))
             amt = float(idx.get("amount_yi") or (float(idx.get("amount_wan") or 0.0) / 10000.0) or 0.0)
-
-            if sym == "sh000001":
-                sh_amount = amt
-            elif sym == "sz399001":
-                sz_total_amount = amt
-            elif sym == "sz399006":
-                chinext_slice_amount = amt
 
             env = ProvenanceEnvelope(
                 source=TruthSource.SINA_HQ_STREAM,
@@ -392,27 +463,75 @@ class CanonicalMarketService:
                 )
             )
 
-        # 1.2 L1 成交额口径防重算 (GATE-2D0-02)
-        two_markets_total = round(sh_amount + sz_total_amount, 2)
-        all_markets_total = two_markets_total
-        chinext_ratio = round(chinext_slice_amount / sz_total_amount, 4) if sz_total_amount > 0 else 0.0
+        # 1.2 L1 成交额口径防重算与质量门禁 (GATE-2D0-02 & T09-01)
+        # 逐源核准独立门禁：严禁单一标志无差别核准多个市场
+        def _get_market_status(market_key: str) -> TurnoverSourceStatus:
+            if isinstance(snap_dict, dict):
+                val = snap_dict.get(market_key)
+                if val in (TurnoverSourceStatus.VERIFIED, "VERIFIED"):
+                    return TurnoverSourceStatus.VERIFIED
+            return TurnoverSourceStatus.PENDING_VERIFICATION
+
+        sh_status = _get_market_status("sh_source_status")
+        sz_status = _get_market_status("sz_source_status")
+        bse_status = _get_market_status("bse_source_status")
+        is_archive_input = snap_dict.get("is_archive_confirmed", False) if isinstance(snap_dict, dict) else False
+
+        sh_idx = next((idx for idx in indices_raw if "000001" in str(idx.get("symbol", "") or idx.get("code", ""))), None)
+        sz_idx = next((idx for idx in indices_raw if "399001" in str(idx.get("symbol", "") or idx.get("code", ""))), None)
+        cy_idx = next((idx for idx in indices_raw if "399006" in str(idx.get("symbol", "") or idx.get("code", ""))), None)
+        bse_idx = next((idx for idx in indices_raw if "899050" in str(idx.get("symbol", "") or idx.get("code", ""))), None)
+
+        # 严禁虚构默认时间 (如 15:00:00) 或目标日期，必须透传原始报文时间戳
+        sh_date = (sh_idx.get("date") or sh_idx.get("trade_date")) if sh_idx else None
+        sh_time = sh_idx.get("time") if sh_idx else None
+        sz_date = (sz_idx.get("date") or sz_idx.get("trade_date")) if sz_idx else None
+        sz_time = sz_idx.get("time") if sz_idx else None
+        bse_date = (bse_idx.get("date") or bse_idx.get("trade_date")) if bse_idx else None
+        bse_time = bse_idx.get("time") if bse_idx else None
+
+        turnover_res = calculate_turnover_caliber(
+            target_date=date_str,
+            sh_amount=sh_idx.get("amount_yi") if (sh_idx and sh_idx.get("amount_yi") is not None) else (sh_idx.get("amount_wan") if sh_idx else None),
+            sh_date=sh_date,
+            sh_time=sh_time,
+            sh_unit="yi" if (sh_idx and sh_idx.get("amount_yi") is not None) else "wan",
+            sz_amount=sz_idx.get("amount_yi") if (sz_idx and sz_idx.get("amount_yi") is not None) else (sz_idx.get("amount_wan") if sz_idx else None),
+            sz_date=sz_date,
+            sz_time=sz_time,
+            sz_unit="yi" if (sz_idx and sz_idx.get("amount_yi") is not None) else "wan",
+            chinext_amount=cy_idx.get("amount_yi") if (cy_idx and cy_idx.get("amount_yi") is not None) else (cy_idx.get("amount_wan") if cy_idx else None),
+            chinext_unit="yi" if (cy_idx and cy_idx.get("amount_yi") is not None) else "wan",
+            bse_amount=bse_idx.get("amount_yi") if (bse_idx and bse_idx.get("amount_yi") is not None) else (bse_idx.get("amount_wan") if bse_idx else None),
+                bse_date=bse_idx.get("date") if bse_idx else None,
+                bse_time=bse_idx.get("time") if bse_idx else None,
+                bse_unit="yi" if (bse_idx and bse_idx.get("amount_yi") is not None) else "wan",
+            sh_status=sh_status,
+            sz_status=sz_status,
+            bse_status=bse_status,
+            is_archive_confirmed=is_archive_input,
+        )
 
         turnover_envelope = ProvenanceEnvelope(
             source=TruthSource.INTERNAL_CANONICAL_AGGREGATE,
             observed_time=observed_time,
-            quality=DataQualityGrade.FULL,
-            is_degraded=False,
+            quality=turnover_res.two_markets_quality,
+            is_degraded=turnover_res.is_degraded,
+            degradation_reason="; ".join(turnover_res.degradation_reasons) if turnover_res.degradation_reasons else None,
         )
 
         canonical_turnover = CanonicalTurnoverBreakdown(
             trade_date=date_str,
-            sh_amount_yi=sh_amount,
-            sz_total_amount_yi=sz_total_amount,
-            chinext_slice_amount_yi=chinext_slice_amount,
-            chinext_ratio_in_sz=chinext_ratio,
-            bse_amount_yi=0.0,
-            two_markets_total_yi=two_markets_total,
-            all_markets_total_yi=all_markets_total,
+            sh_amount_yi=turnover_res.sh_amount_yi,
+            sz_total_amount_yi=turnover_res.sz_total_amount_yi,
+            chinext_slice_amount_yi=turnover_res.chinext_slice_amount_yi,
+            chinext_ratio_in_sz=turnover_res.chinext_ratio_in_sz,
+            bse_amount_yi=turnover_res.bse_amount_yi,
+            two_markets_total_yi=turnover_res.two_markets_total_yi,
+            all_markets_total_yi=turnover_res.all_markets_total_yi,
+            two_markets_quality=turnover_res.two_markets_quality,
+            all_markets_quality=turnover_res.all_markets_quality,
+            degradation_reason="; ".join(turnover_res.degradation_reasons) if turnover_res.degradation_reasons else None,
             envelope=turnover_envelope,
         )
 
@@ -452,9 +571,8 @@ class CanonicalMarketService:
         )
 
         # 1.4 L1 交易所严重异常波动监管事实 (GATE-2D0-08)
-        anom_facts_raw = mss_dict.get("anomaly_facts", [])
         canonical_anomalies: List[RegulatoryAnomalyItem] = []
-        for af in anom_facts_raw:
+        for af in anom_list:
             canonical_anomalies.append(
                 RegulatoryAnomalyItem(
                     symbol=str(af.get("symbol") or ""),
@@ -493,7 +611,6 @@ class CanonicalMarketService:
             c = str(it.get("code") or it.get("symbol") or "").replace("s_", "")[-6:]
             n = str(it.get("name") or "")
             ex = infer_exchange(c)
-            # L0/L1 Entity Master 刚性注册 (Invariant A, Invariant B)
             identity = self.entity_registry.register(code=c, name=n, exchange=ex)
 
             lbc = int(it.get("lbc") or it.get("height") or 1)
@@ -507,50 +624,36 @@ class CanonicalMarketService:
 
             parsed_lu_stocks.append(
                 LimitUpStockItem(
-                    code=identity.stock_code,
-                    name=identity.canonical_name,
+                    code=c,
+                    name=n,
                     security_id=identity.security_id,
                     board_type=infer_board_type(c),
                     continuous_board_count=lbc,
                     limit_up_type=lu_type,
                     first_limit_time=fbt_str,
+                    last_limit_time=None,
                     reason_type=reason,
+                    order_amount_wan=float(it.get("order_amount") or 0.0) if it.get("order_amount") else None,
                 )
             )
 
-        groups_by_height: Dict[int, List[LimitUpStockItem]] = {}
+        ladder_map: Dict[int, List[LimitUpStockItem]] = {}
         for s in parsed_lu_stocks:
-            groups_by_height.setdefault(s.continuous_board_count, []).append(s)
+            ladder_map.setdefault(s.continuous_board_count, []).append(s)
 
-        sorted_heights = sorted(groups_by_height.keys(), reverse=True)
         canonical_ladder: List[LadderGroup] = []
-        for h in sorted_heights:
-            stocks_in_h = groups_by_height[h]
+        for h in sorted(ladder_map.keys(), reverse=True):
+            stocks_at_h = ladder_map[h]
+            stocks_at_h.sort(key=lambda x: x.code)
             canonical_ladder.append(
                 LadderGroup(
                     height=h,
-                    stocks_count=len(stocks_in_h),
-                    stocks=stocks_in_h,
+                    stocks_count=len(stocks_at_h),
+                    stocks=stocks_at_h,
                     is_space_leader=(h == max_height and max_height > 1),
                 )
             )
 
-        # 1.6 L1 全市场横截面广度状态 (GATE-2D0-06, 07)
-        breadth_status_raw = source_status_dict.get("breadth", "UNKNOWN")
-        is_breadth_unavailable = (
-            "EMPTY" in breadth_status_raw or 
-            "UNAVAILABLE" in breadth_status_raw or 
-            "ERROR" in breadth_status_raw
-        )
-        cross_breadth_grade = DataQualityGrade.UNAVAILABLE if is_breadth_unavailable else DataQualityGrade.FULL
-        cross_breadth_detail = None
-        if is_breadth_unavailable:
-            cross_breadth_detail = {
-                "message": "东财上游 push2 全市场广度接口通信故障 (HTTP 502)",
-                "heuristic_warning": "横截面缺失，但微观涨停池 (43:13) 与炸板率 (42.67%) 显示盘面处于极高分歧期",
-            }
-
-        # 1.7 封装 MarketTruthSnapshot 并计算 JCS SHA-256
         truth_dict_for_hash = {
             "schema_version": "2D.0-TRUTH-V1",
             "producer": "CANONICAL_MARKET_SERVICE",
@@ -566,7 +669,7 @@ class CanonicalMarketService:
         }
         truth_fingerprint = hash_jcs(truth_dict_for_hash)
 
-        truth_snapshot = MarketTruthSnapshot(
+        return MarketTruthSnapshot(
             schema_version="2D.0-TRUTH-V1",
             producer="CANONICAL_MARKET_SERVICE",
             trade_date=date_str,
@@ -587,6 +690,92 @@ class CanonicalMarketService:
             truth_fingerprint=truth_fingerprint,
         )
 
+
+    async def get_canonical_snapshot(self, date_str: str) -> Optional[CanonicalMarketSnapshot]:
+        """
+        根据日期从现有物理存储构建标准市场快照 (Truth + Cognition 严密分层装配)
+        """
+        if not self.session:
+            raise RuntimeError("Database session is required to fetch canonical market snapshot")
+
+        # 1. 查询当日物理快照与复盘记录
+        snap_stmt = select(MarketDailySnapshot).where(
+            MarketDailySnapshot.date == date_str,
+            MarketDailySnapshot.snapshot_type == "EOD_CLOSE",
+        )
+        snapshot = (await self.session.execute(snap_stmt)).scalars().first()
+
+        if not snapshot:
+            # 尝试查找任意类型的当日快照 (如 AUCTION_0925 或盘中快照)
+            any_stmt = (
+                select(MarketDailySnapshot)
+                .where(MarketDailySnapshot.date == date_str)
+                .order_by(MarketDailySnapshot.created_at.desc())
+                .limit(1)
+            )
+            snapshot = (await self.session.execute(any_stmt)).scalars().first()
+
+        rev_stmt = select(DailyReview).where(DailyReview.date == date_str)
+        review = (await self.session.execute(rev_stmt)).scalars().first()
+
+        if not snapshot:
+            from pathlib import Path
+            date_compact = date_str.replace("-", "")
+            for candidate_name in [
+                f"golden_canonical_snapshot_{date_compact}.json",
+                f"golden_canonical_snapshot_{date_str}.json",
+            ]:
+                golden_path = Path("baseline_evidence") / candidate_name
+                if golden_path.exists():
+                    try:
+                        with open(golden_path, "r", encoding="utf-8") as gf:
+                            return self._sanitize_loaded_snapshot_turnover(CanonicalMarketSnapshot.model_validate(json.load(gf)))
+                    except Exception as ge:
+                        logger.warning(f"Failed to load golden fixture {golden_path}: {ge}")
+
+            # 动态现场按需合成 (无论今日盘中还是最近有效交易日，若无预存快照均通过底层数据网关即时保真合成)
+            synthesized = await self._synthesize_intraday_snapshot(date_str)
+            if synthesized:
+                return synthesized
+
+            logger.warning(f"No EOD_CLOSE MarketDailySnapshot found for {date_str} and synthesis failed")
+            return None
+
+        # 提取底层 JSON 数据
+        snap_dict = snapshot.indices_snapshot if isinstance(snapshot.indices_snapshot, dict) else json.loads(snapshot.indices_snapshot or "{}")
+        lu_dict = snapshot.limit_up_snapshot if isinstance(snapshot.limit_up_snapshot, dict) else json.loads(snapshot.limit_up_snapshot or "{}")
+        mss_dict = snapshot.market_state_snapshot if isinstance(snapshot.market_state_snapshot, dict) else json.loads(snapshot.market_state_snapshot or "{}")
+        source_status_dict = snapshot.source_status if isinstance(snapshot.source_status, dict) else json.loads(snapshot.source_status or "{}")
+
+        # 1.6 L1 全市场横截面广度状态 (GATE-2D0-06, 07)
+        breadth_status_raw = source_status_dict.get("breadth", "UNKNOWN")
+        is_breadth_unavailable = (
+            "EMPTY" in breadth_status_raw or
+            "UNAVAILABLE" in breadth_status_raw or
+            "ERROR" in breadth_status_raw
+        )
+        cross_breadth_grade = DataQualityGrade.UNAVAILABLE if is_breadth_unavailable else DataQualityGrade.FULL
+        cross_breadth_detail = None
+        if is_breadth_unavailable:
+            cross_breadth_detail = {
+                "message": "东财上游 push2 全市场广度接口通信故障 (HTTP 502)",
+                "heuristic_warning": "横截面缺失，但微观涨停池 (43:13) 与炸板率 (42.67%) 显示盘面处于极高分歧期",
+            }
+
+        # 调用单一可信构建方法生成 MarketTruthSnapshot (SSOT)
+        observed_time = f"{date_str}T15:05:00.000+08:00"
+        anom_facts_raw = mss_dict.get("anomaly_facts", [])
+        truth_snapshot = self.build_market_truth_snapshot(
+            date_str=date_str,
+            snap_dict=snap_dict,
+            lu_dict=lu_dict,
+            anom_list=anom_facts_raw,
+            observed_time=observed_time,
+            cross_breadth_grade=cross_breadth_grade,
+            cross_breadth_detail=cross_breadth_detail,
+        )
+        canonical_anomalies = truth_snapshot.regulatory_anomalies
+
         # =========================================================================
         # 第二部分：构建 CognitionSnapshot (L3 COGNITION, Mainline Eligibility Contract)
         # =========================================================================
@@ -606,7 +795,7 @@ class CanonicalMarketService:
                 if golden_path.exists():
                     try:
                         with open(golden_path, "r", encoding="utf-8") as gf:
-                            return CanonicalMarketSnapshot.model_validate(json.load(gf))
+                            return self._sanitize_loaded_snapshot_turnover(CanonicalMarketSnapshot.model_validate(json.load(gf)))
                     except Exception as ge:
                         logger.warning(f"Failed to load golden fixture {golden_path}: {ge}")
 
@@ -618,6 +807,9 @@ class CanonicalMarketService:
             if sym and bcode:
                 stock_to_sectors.setdefault(sym, []).append(bcode)
 
+        parsed_lu_stocks: List[LimitUpStockItem] = [
+            s for g in truth_snapshot.ladder_tree for s in g.stocks
+        ]
         sector_lu_map: Dict[str, List[LimitUpStockItem]] = {}
         for g in sector_gates_raw:
             code = g.get("sector_code")
@@ -725,7 +917,7 @@ class CanonicalMarketService:
                     union = len(cand_codes.union(acc_codes))
                     jaccard = overlap / union if union > 0 else 0
                     overlap_ratio = overlap / len(cand_codes) if len(cand_codes) > 0 else 0
-                    
+
                     # 若与已选板块高度重合且非前沿保护题材，聚类折叠
                     if (jaccard >= 0.6 or (overlap_ratio >= 0.8 and len(cand_codes) <= len(acc_codes))) and not cand["is_thematic_frontier"]:
                         is_dup = True
@@ -785,7 +977,7 @@ class CanonicalMarketService:
         for rank_idx, cand in enumerate(selected_candidates[:5], start=1):
             lu_stocks = cand["lu_stocks"]
             sec_name = cand["sector_name"]
-            
+
             # 找到领军龙头 (优先选择尚未被更高阶主线占用的同梯队标杆，提升证据独立性)
             max_h = max((s.continuous_board_count for s in lu_stocks), default=1)
             top_tier_stocks = [s for s in lu_stocks if s.continuous_board_count == max_h]
@@ -1004,10 +1196,11 @@ class CanonicalMarketService:
 
         # 2.5 市场状态有限状态机确定性校准 (Phase 2D.2)
         state_features = self.state_calibrator.extract_feature_vector(truth_snapshot)
-        space_leader_txt = "最高8B新华传媒"
         top_grp = truth_snapshot.ladder_tree[0] if truth_snapshot.ladder_tree else None
         if top_grp and top_grp.stocks:
             space_leader_txt = f"最高{top_grp.height}B{top_grp.stocks[0].name}"
+        else:
+            space_leader_txt = "无连板梯队（数据缺失）"
 
         core_mainlines = [
             m.sector_name for m in top_candidates if m.structural_role in ("CORE_MAINLINE", "BRANCH_ROTATION")
@@ -1070,7 +1263,7 @@ class CanonicalMarketService:
             "snapshot_version": "2D.0-CANONICAL-V2",
             "trade_date": date_str,
             "generated_at": observed_time,
-            "truth_fingerprint": truth_fingerprint,
+            "truth_fingerprint": truth_snapshot.truth_fingerprint,
             "cognition_fingerprint": cognition_fingerprint,
         }
         envelope_fingerprint = hash_jcs(envelope_dict_for_hash)
@@ -1157,26 +1350,52 @@ class CanonicalMarketService:
                     )
                 )
 
-            two_markets_total = round(sh_amount + sz_total_amount, 2)
-            all_markets_total = two_markets_total
-            chinext_ratio = round(chinext_slice_amount / sz_total_amount, 4) if sz_total_amount > 0 else 0.0
+            # T09-01 实时合成标准口径与保守降级门禁
+            sh_idx = next((idx for idx in indices_raw if "000001" in str(idx.get("symbol") or idx.get("code") or "")), None)
+            sz_idx = next((idx for idx in indices_raw if "399001" in str(idx.get("symbol") or idx.get("code") or "")), None)
+            cy_idx = next((idx for idx in indices_raw if "399006" in str(idx.get("symbol") or idx.get("code") or "")), None)
+            bse_idx = next((idx for idx in indices_raw if "899050" in str(idx.get("symbol") or idx.get("code") or "")), None)
+
+            turnover_res = calculate_turnover_caliber(
+                target_date=date_str,
+                sh_amount=sh_idx.get("amount_yi") if (sh_idx and sh_idx.get("amount_yi") is not None) else (sh_idx.get("amount_wan") if sh_idx else None),
+                sh_date=sh_idx.get("date") if sh_idx else None,
+                sh_time=sh_idx.get("time") if sh_idx else None,
+                sh_unit="yi" if (sh_idx and sh_idx.get("amount_yi") is not None) else "wan",
+                sz_amount=sz_idx.get("amount_yi") if (sz_idx and sz_idx.get("amount_yi") is not None) else (sz_idx.get("amount_wan") if sz_idx else None),
+                sz_date=sz_idx.get("date") if sz_idx else None,
+                sz_time=sz_idx.get("time") if sz_idx else None,
+                sz_unit="yi" if (sz_idx and sz_idx.get("amount_yi") is not None) else "wan",
+                chinext_amount=cy_idx.get("amount_yi") if (cy_idx and cy_idx.get("amount_yi") is not None) else (cy_idx.get("amount_wan") if cy_idx else None),
+                chinext_unit="yi" if (cy_idx and cy_idx.get("amount_yi") is not None) else "wan",
+                bse_amount=bse_idx.get("amount_yi") if (bse_idx and bse_idx.get("amount_yi") is not None) else (bse_idx.get("amount_wan") if bse_idx else None),
+                bse_unit="yi" if (bse_idx and bse_idx.get("amount_yi") is not None) else "wan",
+                sh_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+                sz_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+                bse_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+                is_archive_confirmed=False,
+            )
 
             turnover_envelope = ProvenanceEnvelope(
                 source=TruthSource.INTERNAL_CANONICAL_AGGREGATE,
                 observed_time=observed_time,
-                quality=DataQualityGrade.FULL,
-                is_degraded=False,
+                quality=turnover_res.two_markets_quality,
+                is_degraded=turnover_res.is_degraded,
+                degradation_reason="; ".join(turnover_res.degradation_reasons) if turnover_res.degradation_reasons else None,
             )
 
             canonical_turnover = CanonicalTurnoverBreakdown(
                 trade_date=date_str,
-                sh_amount_yi=sh_amount,
-                sz_total_amount_yi=sz_total_amount,
-                chinext_slice_amount_yi=chinext_slice_amount,
-                chinext_ratio_in_sz=chinext_ratio,
-                bse_amount_yi=0.0,
-                two_markets_total_yi=two_markets_total,
-                all_markets_total_yi=all_markets_total,
+                sh_amount_yi=turnover_res.sh_amount_yi,
+                sz_total_amount_yi=turnover_res.sz_total_amount_yi,
+                chinext_slice_amount_yi=turnover_res.chinext_slice_amount_yi,
+                chinext_ratio_in_sz=turnover_res.chinext_ratio_in_sz,
+                bse_amount_yi=turnover_res.bse_amount_yi,
+                two_markets_total_yi=turnover_res.two_markets_total_yi,
+                all_markets_total_yi=turnover_res.all_markets_total_yi,
+                two_markets_quality=turnover_res.two_markets_quality,
+                all_markets_quality=turnover_res.all_markets_quality,
+                degradation_reason="; ".join(turnover_res.degradation_reasons) if turnover_res.degradation_reasons else None,
                 envelope=turnover_envelope,
             )
 
@@ -1325,10 +1544,11 @@ class CanonicalMarketService:
             )
 
             # 5. 认知快照 (动态校准)
-            space_leader_txt = f"最高连板 {max_height}B"
             if canonical_ladder and canonical_ladder[0].stocks:
                 l_stk = canonical_ladder[0].stocks[0]
                 space_leader_txt = f"{l_stk.name} ({l_stk.code}) {l_stk.continuous_board_count}B"
+            else:
+                space_leader_txt = "无连板梯队（数据缺失）"
 
             # 5. 动态聚类生成今日真实认知主线 (COGNITION Mainlines)
             sector_groups: Dict[str, List[LimitUpStockItem]] = {}
@@ -1395,10 +1615,11 @@ class CanonicalMarketService:
             core_mainline_names = [m.sector_name for m in synthetic_mainlines[:2]]
 
             # 6. 认知快照 (动态校准)
-            space_leader_txt = f"最高连板 {max_height}B"
             if canonical_ladder and canonical_ladder[0].stocks:
                 l_stk = canonical_ladder[0].stocks[0]
                 space_leader_txt = f"{l_stk.name} ({l_stk.code}) {l_stk.continuous_board_count}B"
+            else:
+                space_leader_txt = "无连板梯队（数据缺失）"
 
             state_features = self.state_calibrator.extract_feature_vector(truth_snapshot)
 
@@ -1466,7 +1687,7 @@ class CanonicalMarketService:
                 "snapshot_version": "2D.0-CANONICAL-V2",
                 "trade_date": date_str,
                 "generated_at": observed_time,
-                "truth_fingerprint": truth_fingerprint,
+                "truth_fingerprint": truth_snapshot.truth_fingerprint,
                 "cognition_fingerprint": cognition_fingerprint,
             }
             envelope_fingerprint = hash_jcs(envelope_dict_for_hash)

@@ -46,9 +46,13 @@ class MarketStateCalibrator:
         从 MarketTruthSnapshot 客观物理事实中纯量化抽取四维向量 X = (I, S, R, M)
         """
         # 1. 向量 I: 指数与流动性
-        total_turnover = round(truth.turnover.two_markets_total_yi, 2)
+        total_turnover = (
+            round(truth.turnover.two_markets_total_yi, 2)
+            if truth.turnover.two_markets_total_yi is not None
+            else None
+        )
         turnover_change_ratio = None
-        if prior_truth and prior_truth.turnover.two_markets_total_yi > 0:
+        if total_turnover is not None and prior_truth and prior_truth.turnover.two_markets_total_yi is not None and prior_truth.turnover.two_markets_total_yi > 0:
             prior_tot = prior_truth.turnover.two_markets_total_yi
             turnover_change_ratio = round((total_turnover - prior_tot) / prior_tot, 4)
 
@@ -263,17 +267,22 @@ class MarketStateCalibrator:
 
         # 空间板文字
         ldr_str = space_leader_desc or f"最高{vec_s.max_ladder_height}B"
+        turnover_desc = (
+            f"{vec_i.total_turnover_yi / 10000:.2f} 万亿"
+            if vec_i.total_turnover_yi is not None
+            else "-- 万亿（口径待核准）"
+        )
 
         if p == MarketStateEnum.HIGH_DIVERGENCE_TOPPING:
             star_desc = "科创50重挫-4.82%" if abs(vec_i.star_divergence_pct) > 1.0 else f"指数极差{vec_i.dispersion_pct:.2f}%"
             return (
-                f"指数高位剧烈分化 ({star_desc})，两市真实成交额维持 {vec_i.total_turnover_yi / 10000:.2f} 万亿高位；"
+                f"指数高位剧烈分化 ({star_desc})，两市真实成交额维持 {turnover_desc} 高位；"
                 f"短线极端博弈 ({ldr_str}/连板10家)，但炸板率高达 {vec_r.broken_limit_ratio:.2%} 且跌停{vec_s.limit_down_count}家，"
                 f"做多主线聚焦于{mainlines_str}，跟风标的面临时冲高回落大面风险。"
             )
         elif p == MarketStateEnum.EXPANSION_ACCELERATION:
             return (
-                f"指数放量共振突破，两市真实成交额达 {vec_i.total_turnover_yi / 10000:.2f} 万亿；"
+                f"指数放量共振突破，两市真实成交额达 {turnover_desc}；"
                 f"短线主升加速 ({ldr_str})，涨停共振 {vec_s.limit_up_count} 家，炸板率仅 {vec_r.broken_limit_ratio:.1%}，"
                 f"做多主线{mainlines_str}梯队健康扩散，市场呈现极强做多合力。"
             )

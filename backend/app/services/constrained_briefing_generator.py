@@ -80,10 +80,26 @@ class BriefingPromptBuilder:
             )
         mainline_summary = "\n".join(ml_lines)
 
+        total_str = (
+            f"{fact.turnover.total_turnover_yi:.2f} 亿元"
+            if fact.turnover.total_turnover_yi is not None
+            else "-- 亿元（口径待核准）"
+        )
+        sh_str = (
+            f"{fact.turnover.sh_amount_yi:.2f} 亿"
+            if fact.turnover.sh_amount_yi is not None
+            else "-- 亿"
+        )
+        sz_str = (
+            f"{fact.turnover.sz_total_amount_yi:.2f} 亿"
+            if fact.turnover.sz_total_amount_yi is not None
+            else "-- 亿"
+        )
+
         return f"""【业务日期】：{contract.trade_date}
 
 【L0/L1 事实层 (FACT)】：
-- 沪深真实总成交额：{fact.turnover.total_turnover_yi:.2f} 亿元（沪市 {fact.turnover.sh_amount_yi:.2f} 亿，深市含创业板 {fact.turnover.sz_total_amount_yi:.2f} 亿）
+- 沪深真实总成交额：{total_str}（沪市 {sh_str}，深市含创业板 {sz_str}）
 - 空间最高连板高度：{fact.ladder.max_height}B（空间标杆：【{fact.ladder.space_leader.canonical_name}】）
 - 涨跌停微观统计：真实有效涨停 {fact.sentiment_counts.limit_up_count} 家，收盘跌停 {fact.sentiment_counts.limit_down_count} 家
 - 商业数据商异动规则撮合标的：{fact.regulatory.total_anomaly_count} 家
@@ -316,6 +332,17 @@ class ConstrainedBriefingGenerator:
         total_to = fact.turnover.total_turnover_yi
         sh_to = fact.turnover.sh_amount_yi
         sz_to = fact.turnover.sz_total_amount_yi
+
+        turnover_intro = (
+            f"两市总成交额达 {total_to:.2f} 亿元（沪市 {sh_to:.2f} 亿，深市含创业板 {sz_to:.2f} 亿）"
+            if total_to is not None
+            else "两市总成交额口径待核准（正式总额保守置空）"
+        )
+        turnover_intro_std = (
+            f"沪深两市真实总成交额为 {total_to:.2f} 亿元（沪市 {sh_to:.2f} 亿，深市含创业板 {sz_to:.2f} 亿）"
+            if total_to is not None
+            else "沪深两市总成交额口径待核准（正式总额保守置空）"
+        )
         state_label = cog.market_state.state_display_name
         confidence_pct = int(cog.market_state.state_confidence * 100)
         max_h = fact.ladder.max_height
@@ -338,7 +365,7 @@ class ConstrainedBriefingGenerator:
         if cog.market_state.primary_state == MarketStateEnum.HIGH_DIVERGENCE_TOPPING:
             # 高位剧烈分化期文风：强调高位兑现、炸板与防守
             p1 = (
-                f"【大势定调】两市总成交额达 {total_to:.2f} 亿元（沪市 {sh_to:.2f} 亿，深市含创业板 {sz_to:.2f} 亿）。"
+                f"【大势定调】{turnover_intro}。"
                 f"盘面处于典型的【{state_label}】（置信度 {confidence_pct}%），资金高位兑现加剧。"
             )
             p2 = (
@@ -356,7 +383,7 @@ class ConstrainedBriefingGenerator:
         elif cog.market_state.primary_state == MarketStateEnum.EXPANSION_ACCELERATION:
             # 主升共振期文风：强调赚钱效应、梯队完整与流动性充足
             p1 = (
-                f"【大势定调】两市总成交额达 {total_to:.2f} 亿元（沪市 {sh_to:.2f} 亿，深市含创业板 {sz_to:.2f} 亿）。"
+                f"【大势定调】{turnover_intro}。"
                 f"盘面处于强劲的【{state_label}】（置信度 {confidence_pct}%），多头动能全面迸发。"
             )
             p2 = (
@@ -374,7 +401,7 @@ class ConstrainedBriefingGenerator:
         else:
             # 其他状态下的标准稳健文风
             p1 = (
-                f"【大势定调】沪深两市真实总成交额为 {total_to:.2f} 亿元（沪市 {sh_to:.2f} 亿，深市含创业板 {sz_to:.2f} 亿）。"
+                f"【大势定调】{turnover_intro_std}。"
                 f"市场当前状态标定为【{state_label}】（判定置信度 {confidence_pct}%）。"
             )
             p2 = (

@@ -127,7 +127,8 @@ class CanonicalAuctionService:
 
         bound_snap_fp = prev_snapshot.envelope_fingerprint
         bound_trace_id = f"TRACE-{prev_date}-TO-{trade_date}-AUCTION"
-        prev_total_turnover = Decimal(str(prev_snapshot.truth.turnover.two_markets_total_yi))
+        prev_raw = prev_snapshot.truth.turnover.two_markets_total_yi
+        prev_total_turnover = Decimal(str(prev_raw)) if prev_raw is not None else None
 
         # 提取前日空间标杆与核心主线龙头
         space_leader_code = None
@@ -199,7 +200,11 @@ class CanonicalAuctionService:
         sh_amt_yi = canonical_round_decimal(sh_amt_wan / Decimal("10000.0"), 2)
         sz_amt_yi = canonical_round_decimal(sz_amt_wan / Decimal("10000.0"), 2)
         total_auc_yi = canonical_round_decimal(sh_amt_yi + sz_amt_yi, 2)
-        ratio_pct = canonical_round_decimal((total_auc_yi / prev_total_turnover) * Decimal("100.0"), 2)
+        ratio_pct = (
+            canonical_round_decimal((total_auc_yi / prev_total_turnover) * Decimal("100.0"), 2)
+            if (prev_total_turnover is not None and prev_total_turnover > Decimal("0.00"))
+            else None
+        )
 
         indices_model_list: List[CanonicalAuctionIndexQuote] = []
         for idx in auction_raw_indices:
@@ -301,8 +306,8 @@ class CanonicalAuctionService:
             "sh_auction_turnover_yi": str(sh_amt_yi),
             "sz_auction_turnover_yi": str(sz_amt_yi),
             "total_auction_turnover_yi": str(total_auc_yi),
-            "prev_total_turnover_yi": str(prev_total_turnover),
-            "auction_turnover_ratio_pct": str(ratio_pct),
+            "prev_total_turnover_yi": str(prev_total_turnover) if prev_total_turnover is not None else None,
+            "auction_turnover_ratio_pct": str(ratio_pct) if ratio_pct is not None else None,
             "leader_quotes": [
                 {
                     "code": q.code,

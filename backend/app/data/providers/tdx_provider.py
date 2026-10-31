@@ -281,33 +281,18 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability, Con
             fetched_codes = {self._normalize_code(item.get("code")) for item in items if isinstance(item, dict)}
             missing_codes = [code for code in requested_codes if code not in fetched_codes]
 
-            # TDX has no BK-sector protocol. Fill only missing rows from the
-            # registered secondary source while preserving successful TDX rows.
-            backup_provider_name = None
-            if items and missing_codes:
-                from .eastmoney import EastmoneyProvider
+            # Tag item-level provider & quality metadata strictly reflecting TDX physical source
+            for item in items:
+                if isinstance(item, dict):
+                    item["provider"] = self.name
+                    item["quality"] = DataQuality.FULL.value if hasattr(DataQuality.FULL, "value") else "FULL"
+                    item["fallback_used"] = False
 
-                try:
-                    backup = await EastmoneyProvider().get_stock_trends(missing_codes, trade_date=trade_date)
-                    backup_items = [item for item in (backup.data or []) if isinstance(item, dict)]
-                    existing = {self._normalize_code(item.get("code")) for item in items}
-                    backup_added = False
-                    for item in backup_items:
-                        normalized = self._normalize_code(item.get("code"))
-                        if normalized in missing_codes and normalized not in existing:
-                            items.append(item)
-                            existing.add(normalized)
-                            backup_added = True
-                    backup_provider_name = backup.provider if backup_added else None
-                except Exception as backup_error:
-                    logger.warning("Eastmoney stock-trend fallback failed: %s", backup_error)
-
-            fetched_codes = {self._normalize_code(item.get("code")) for item in items if isinstance(item, dict)}
-            missing_codes = [code for code in requested_codes if code not in fetched_codes]
             if not items:
                 return DataResult(
                     data=[],
                     quality=DataQuality.UNAVAILABLE,
+                    freshness=Freshness.UNAVAILABLE,
                     status=DataStatus.EMPTY,
                     provider=self.name,
                     missing_codes=missing_codes,
@@ -316,9 +301,10 @@ class TdxProvider(BaseProvider, StockTrendsCapability, StockQuoteCapability, Con
             return DataResult(
                 data=items,
                 quality=quality,
+                freshness=Freshness.REALTIME,
                 status=DataStatus.AVAILABLE,
-                provider=f"{self.name}+{backup_provider_name}" if backup_provider_name else self.name,
-                fallback_used=bool(backup_provider_name),
+                provider=self.name,
+                fallback_used=False,
                 missing_codes=missing_codes,
             )
         except Exception as e:

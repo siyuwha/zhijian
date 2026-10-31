@@ -73,7 +73,7 @@ class EastmoneyProvider(
             production_eligible="准入",
         )
         # 标的板块归属 24 小时进程内高速缓存 (个股概念与行业映射在交易日内恒定，规避重复高频 I/O)
-        self._concept_blocks_cache: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
+        self._concept_blocks_cache: Dict[str, Tuple[float, str, List[Dict[str, Any]]]] = {}
 
     async def is_available(self) -> bool:
         return True
@@ -96,6 +96,22 @@ class EastmoneyProvider(
             return data, DataStatus.AVAILABLE, None
         except Exception as e:
             return None, DataStatus.ERROR, f"JSON decode error: {e}"
+
+    @staticmethod
+    def _classify_http_or_parse_error(resp: Optional[httpx.Response], err_msg: Optional[str]) -> ProviderErrorCode:
+        if resp is None:
+            return ProviderErrorCode.CONNECTION_ERROR
+        if resp.status_code == 429:
+            return ProviderErrorCode.RATE_LIMITED
+        if resp.status_code == 403:
+            return ProviderErrorCode.WAF_BLOCKED
+        if resp.status_code >= 400:
+            return ProviderErrorCode.HTTP_ERROR
+        if err_msg and ('json' in err_msg.lower() or 'decode' in err_msg.lower()):
+            return ProviderErrorCode.MALFORMED_PARSE
+        if err_msg and 'empty' in err_msg.lower():
+            return ProviderErrorCode.EMPTY_PAYLOAD
+        return ProviderErrorCode.NONE
 
     async def get_market_breadth(self) -> DataResult:
         """
@@ -173,19 +189,21 @@ class EastmoneyProvider(
 
             if status == DataStatus.EMPTY:
                 return DataResult(
-                    data=None,
+                    data=[],
                     quality=DataQuality.UNAVAILABLE,
                     status=DataStatus.EMPTY,
                     error_code=ProviderErrorCode.EMPTY_PAYLOAD,
                     provider=self.name,
-                    error_message=err_msg
+                    error_message=err_msg or "Eastmoney returned empty payload"
                 )
             if status == DataStatus.ERROR or res_data is None:
+                err_code = self._classify_http_or_parse_error(resp, err_msg)
+                quality = DataQuality.INVALID if err_code == ProviderErrorCode.MALFORMED_PARSE else DataQuality.UNAVAILABLE
                 return DataResult(
                     data=None,
-                    quality=DataQuality.INVALID,
+                    quality=quality,
                     status=DataStatus.ERROR,
-                    error_code=ProviderErrorCode.MALFORMED_PARSE,
+                    error_code=err_code,
                     provider=self.name,
                     error_message=err_msg
                 )
@@ -409,19 +427,21 @@ class EastmoneyProvider(
 
             if status == DataStatus.EMPTY:
                 return DataResult(
-                    data=None,
+                    data=[],
                     quality=DataQuality.UNAVAILABLE,
                     status=DataStatus.EMPTY,
                     error_code=ProviderErrorCode.EMPTY_PAYLOAD,
                     provider=self.name,
-                    error_message=err_msg
+                    error_message=err_msg or "Eastmoney returned empty payload"
                 )
             if status == DataStatus.ERROR or res_data is None:
+                err_code = self._classify_http_or_parse_error(resp, err_msg)
+                quality = DataQuality.INVALID if err_code == ProviderErrorCode.MALFORMED_PARSE else DataQuality.UNAVAILABLE
                 return DataResult(
                     data=None,
-                    quality=DataQuality.INVALID,
+                    quality=quality,
                     status=DataStatus.ERROR,
-                    error_code=ProviderErrorCode.MALFORMED_PARSE,
+                    error_code=err_code,
                     provider=self.name,
                     error_message=err_msg
                 )
@@ -459,8 +479,9 @@ class EastmoneyProvider(
             if not sectors:
                 return DataResult(
                     data=[],
-                    quality=DataQuality.PARTIAL,
+                    quality=DataQuality.UNAVAILABLE,
                     status=DataStatus.EMPTY,
+                    error_code=ProviderErrorCode.EMPTY_PAYLOAD,
                     provider=self.name,
                     error_message="Eastmoney returned 0 sectors"
                 )
@@ -480,6 +501,16 @@ class EastmoneyProvider(
                 error_code=ProviderErrorCode.TIMEOUT,
                 provider=self.name,
                 error_message=f"Eastmoney timeout (>8s): {te}"
+            )
+        except (httpx.ConnectError, httpx.NetworkError) as ne:
+            logger.warning(f"Eastmoney get_top_sectors connection error: {ne}")
+            return DataResult(
+                data=None,
+                quality=DataQuality.UNAVAILABLE,
+                status=DataStatus.ERROR,
+                error_code=ProviderErrorCode.CONNECTION_ERROR,
+                provider=self.name,
+                error_message=f"Eastmoney connection error: {ne}"
             )
         except Exception as e:
             logger.error(f"Eastmoney get_top_sectors failed: {e}")
@@ -564,19 +595,21 @@ class EastmoneyProvider(
 
             if status == DataStatus.EMPTY:
                 return DataResult(
-                    data=None,
+                    data=[],
                     quality=DataQuality.UNAVAILABLE,
                     status=DataStatus.EMPTY,
                     error_code=ProviderErrorCode.EMPTY_PAYLOAD,
                     provider=self.name,
-                    error_message=err_msg
+                    error_message=err_msg or "Eastmoney returned empty payload"
                 )
             if status == DataStatus.ERROR or res_data is None:
+                err_code = self._classify_http_or_parse_error(resp, err_msg)
+                quality = DataQuality.INVALID if err_code == ProviderErrorCode.MALFORMED_PARSE else DataQuality.UNAVAILABLE
                 return DataResult(
                     data=None,
-                    quality=DataQuality.INVALID,
+                    quality=quality,
                     status=DataStatus.ERROR,
-                    error_code=ProviderErrorCode.MALFORMED_PARSE,
+                    error_code=err_code,
                     provider=self.name,
                     error_message=err_msg
                 )
@@ -882,23 +915,10 @@ class EastmoneyProvider(
         else:
             market_id = "1" if clean_code.startswith(("6", "9", "5")) else "0"
 
-        # 0. 优先命中 24 小时进程内高速缓存 (个股概念与行业映射在交易日内恒定，规避重复高频 I/O)
-        now_ts = time.time()
-        cached = self._concept_blocks_cache.get(clean_code)
-        if cached:
-            ts, cached_facts = cached
-            if now_ts - ts < 86400 and cached_facts:
-                return DataResult(
-                    data=cached_facts,
-                    quality=DataQuality.FULL,
-                    status=DataStatus.AVAILABLE,
-                    provider=self.name,
-                )
-
         secid = f"{market_id}.{clean_code}"
         target_urls = [
-            "https://push2delay.eastmoney.com/api/qt/slist/get",
             "https://push2.eastmoney.com/api/qt/slist/get",
+            "https://push2delay.eastmoney.com/api/qt/slist/get",
         ]
 
         raw_json = None
@@ -925,36 +945,22 @@ class EastmoneyProvider(
                 if status == DataStatus.AVAILABLE and raw_json is not None:
                     break
                 if attempt == 1:
-                    if clean_code in self._concept_blocks_cache:
-                        return DataResult(
-                            data=self._concept_blocks_cache[clean_code][1],
-                            quality=DataQuality.DEGRADED,
-                            status=DataStatus.AVAILABLE,
-                            provider=self.name,
-                            fallback_used=True,
-                            error_message="Served from process memory cache after network error",
-                        )
+                    err_code = self._classify_http_or_parse_error(resp, err_msg)
+                    quality = DataQuality.INVALID if err_code == ProviderErrorCode.MALFORMED_PARSE else DataQuality.UNAVAILABLE
                     return DataResult(
                         data=[],
-                        quality=DataQuality.UNAVAILABLE,
+                        quality=quality,
                         status=status,
-                        error_code=ProviderErrorCode.EMPTY_PAYLOAD if status == DataStatus.EMPTY else ProviderErrorCode.HTTP_ERROR,
+                        error_code=err_code,
                         provider=self.name,
                         error_message=err_msg,
+                        source_timestamp=None,
+                        trade_date=None,
                     )
                 await asyncio.sleep(0.2)
-            except (httpx.TimeoutException, httpx.NetworkError) as e:
+            except httpx.TimeoutException as e:
                 if attempt == 1:
                     logger.warning(f"Eastmoney get_concept_blocks timeout for '{code}': {e}")
-                    if clean_code in self._concept_blocks_cache:
-                        return DataResult(
-                            data=self._concept_blocks_cache[clean_code][1],
-                            quality=DataQuality.DEGRADED,
-                            status=DataStatus.AVAILABLE,
-                            provider=self.name,
-                            fallback_used=True,
-                            error_message="Served from process memory cache after timeout",
-                        )
                     return DataResult(
                         data=[],
                         quality=DataQuality.UNAVAILABLE,
@@ -962,19 +968,26 @@ class EastmoneyProvider(
                         error_code=ProviderErrorCode.TIMEOUT,
                         provider=self.name,
                         error_message=f"Eastmoney concept blocks timeout: {e}",
+                        source_timestamp=None,
+                        trade_date=None,
+                    )
+                await asyncio.sleep(0.3)
+            except (httpx.ConnectError, httpx.NetworkError) as e:
+                if attempt == 1:
+                    logger.warning(f"Eastmoney get_concept_blocks connection error for '{code}': {e}")
+                    return DataResult(
+                        data=[],
+                        quality=DataQuality.UNAVAILABLE,
+                        status=DataStatus.ERROR,
+                        error_code=ProviderErrorCode.CONNECTION_ERROR,
+                        provider=self.name,
+                        error_message=f"Eastmoney concept blocks connection error: {e}",
+                        source_timestamp=None,
+                        trade_date=None,
                     )
                 await asyncio.sleep(0.3)
             except Exception as e:
                 logger.warning(f"Eastmoney get_concept_blocks failed for '{code}': {e}")
-                if clean_code in self._concept_blocks_cache:
-                    return DataResult(
-                        data=self._concept_blocks_cache[clean_code][1],
-                        quality=DataQuality.DEGRADED,
-                        status=DataStatus.AVAILABLE,
-                        provider=self.name,
-                        fallback_used=True,
-                        error_message=f"Served from process memory cache: {e}",
-                    )
                 return DataResult(
                     data=[],
                     quality=DataQuality.FAILED,
@@ -982,6 +995,8 @@ class EastmoneyProvider(
                     error_code=ProviderErrorCode.CONNECTION_ERROR,
                     provider=self.name,
                     error_message=str(e),
+                    source_timestamp=None,
+                    trade_date=None,
                 )
 
         if not raw_json:
@@ -992,6 +1007,8 @@ class EastmoneyProvider(
                 error_code=ProviderErrorCode.EMPTY_PAYLOAD,
                 provider=self.name,
                 error_message="Empty raw json after retries",
+                source_timestamp=None,
+                trade_date=None,
             )
 
         data_obj = raw_json.get("data") or {}
@@ -1030,14 +1047,14 @@ class EastmoneyProvider(
             )
             facts.append(fact.to_dict())
 
-        if facts:
-            self._concept_blocks_cache[clean_code] = (time.time(), facts)
-
         return DataResult(
             data=facts,
             quality=DataQuality.FULL if facts else DataQuality.FULL,
+            freshness=Freshness.REALTIME,
             status=DataStatus.AVAILABLE if facts else DataStatus.EMPTY,
             provider=self.name,
+            source_timestamp=None,
+            trade_date=None,
         )
 
     async def get_stock_trends(self, codes: list[str], trade_date: Optional[str] = None) -> DataResult:
@@ -1066,27 +1083,28 @@ class EastmoneyProvider(
             elif clean_code.upper().startswith("BK"):
                 secid = f"90.{clean_code.upper()}"
                 pure_code = clean_code.upper()
-            elif clean_code.startswith(("60", "68", "900")):
-                secid = f"1.{clean_code}"
-                pure_code = clean_code
             else:
-                secid = f"0.{clean_code}"
+                market_id = "1" if clean_code.startswith(("6", "9", "5")) else "0"
+                secid = f"{market_id}.{clean_code}"
                 pure_code = clean_code
 
-            url = "https://push2delay.eastmoney.com/api/qt/stock/trends2/get"
+            url = "https://push2.eastmoney.com/api/qt/stock/trends2/get"
             params = {
                 "secid": secid,
                 "fields1": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
                 "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
                 "iscr": "0",
+                "iscca": "0",
             }
+            if trade_date:
+                ndays = self._calculate_ndays_for_date(trade_date)
+                params["ndays"] = str(ndays)
 
             try:
                 resp = await client.get(url, params=params, headers=self.HEADERS)
                 if resp.status_code != 200:
                     return None
-                data_json = resp.json() or {}
-                data = data_json.get("data")
+                data = resp.json().get("data")
                 if not data:
                     return None
 
@@ -1094,14 +1112,8 @@ class EastmoneyProvider(
                 raw_trends = data.get("trends") or []
                 name = str(data.get("name") or pure_code)
 
-                # 严格校验整组分钟记录的交易日期。只检查第一条记录会让接口
-                # 返回的跨日混合序列穿透，进而把另一交易日的走势画进当前曲线。
-                row_dates: List[Optional[str]] = []
-                for row in raw_trends:
-                    timestamp = str(row).split(",", 1)[0].strip() if row is not None else ""
-                    date_part = timestamp.split(" ", 1)[0].replace("-", "").strip()
-                    row_dates.append(date_part if len(date_part) == 8 and date_part.isdigit() else None)
-
+                # 严格校验整组分钟记录的交易日期。
+                # 无论是历史指定还是盘中实时，整组记录中每一行都必须具备可解析的时间戳，且日期必须完全一致等于目标交易日。
                 target_d: Optional[str] = None
                 if trade_date:
                     target_text = str(trade_date).strip()
@@ -1114,28 +1126,45 @@ class EastmoneyProvider(
                     if target_d is None:
                         logger.info("Eastmoney trend date is invalid: %s", trade_date)
                         return None
-
-                    # 显式历史日期要求每一条记录都带可验证的日期，且必须全部命中请求日。
-                    if not raw_trends or any(row_date != target_d for row_date in row_dates):
-                        logger.info(
-                            "Eastmoney trend date mismatch: requested %s, got %s",
-                            target_d,
-                            sorted({row_date for row_date in row_dates if row_date}),
-                        )
-                        return None
                 else:
-                    # 即使未指定日期，也不能接受跨交易日的混合分钟序列。
-                    observed_dates = {row_date for row_date in row_dates if row_date}
-                    if len(observed_dates) > 1:
-                        logger.info("Eastmoney trend contains mixed dates: %s", sorted(observed_dates))
-                        return None
+                    target_d = datetime.now().strftime("%Y%m%d")
+
+                if not raw_trends:
+                    return None
+
+                row_dates: List[Optional[str]] = []
+                parsed_row_dts: List[Optional[datetime]] = []
+                for row in raw_trends:
+                    timestamp = str(row).split(",", 1)[0].strip() if row is not None else ""
+                    row_dt: Optional[datetime] = None
+                    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y%m%d %H:%M:%S", "%Y%m%d %H:%M"):
+                        try:
+                            row_dt = datetime.strptime(timestamp, fmt)
+                            break
+                        except ValueError:
+                            pass
+                    if row_dt is not None:
+                        parsed_row_dts.append(row_dt)
+                        row_dates.append(row_dt.strftime("%Y%m%d"))
+                    else:
+                        parsed_row_dts.append(None)
+                        row_dates.append(None)
+
+                # 必须所有行均具备合法日期且全部精准匹配目标日期，拒绝昨日或无日期数据
+                if any(rd != target_d for rd in row_dates):
+                    logger.info(
+                        "Eastmoney trend date mismatch: requested %s, got %s",
+                        target_d,
+                        sorted({rd for rd in row_dates if rd}),
+                    )
+                    return None
 
                 trend_points: List[Dict[str, Any]] = []
-                for row in raw_trends:
+                for idx, row in enumerate(raw_trends):
                     parts = row.split(",")
                     if len(parts) >= 8:
-                        t_full = parts[0].strip()
-                        t_hhmm = t_full.split(" ")[-1] if " " in t_full else t_full
+                        row_dt = parsed_row_dts[idx]
+                        t_hhmm = row_dt.strftime("%H:%M") if row_dt else parts[0].strip().split(" ")[-1]
                         c_price = float(parts[2])
                         pct = round((c_price - pre_price) / pre_price * 100.0, 2) if pre_price > 0 else 0.0
                         trend_points.append({
@@ -1147,12 +1176,18 @@ class EastmoneyProvider(
                             "amount": float(parts[6]),
                         })
 
+                valid_dts = [dt for dt in parsed_row_dts if dt is not None]
+                last_src_ts = valid_dts[-1] if valid_dts else None
+                formatted_trade_date = f"{target_d[:4]}-{target_d[4:6]}-{target_d[6:]}"
+
                 return {
                     "code": pure_code,
                     "name": name,
                     "pre_close": pre_price,
                     "trends": trend_points,
                     "is_real": True,
+                    "source_timestamp": last_src_ts,
+                    "trade_date": formatted_trade_date,
                 }
             except Exception as e:
                 logger.warning(f"Failed to fetch stock trend for {code_str}: {e}")
@@ -1171,11 +1206,21 @@ class EastmoneyProvider(
         except Exception as e:
             logger.error(f"Eastmoney get_stock_trends batch failed: {e}")
 
-        # 严格真实性准则：缺数绝不能调用 _synthesize_stock_minute_trend 冒充真实分时！
-        # 统计缺失代码清单，原样标记
         clean_input_codes = [str(c).strip().split(".")[-1] for c in codes if str(c).strip()]
         fetched_codes = {r.get("code") for r in results if isinstance(r, dict)}
         missing_codes = [c for c in clean_input_codes if c not in fetched_codes]
+
+        valid_src_timestamps = [
+            r["source_timestamp"] for r in results
+            if isinstance(r, dict) and isinstance(r.get("source_timestamp"), datetime)
+        ]
+        valid_trade_dates = [
+            r["trade_date"] for r in results
+            if isinstance(r, dict) and r.get("trade_date")
+        ]
+
+        batch_src_ts = min(valid_src_timestamps) if valid_src_timestamps else None
+        batch_trade_date = valid_trade_dates[0] if valid_trade_dates else None
 
         return DataResult(
             data=results,
@@ -1183,6 +1228,8 @@ class EastmoneyProvider(
             status=DataStatus.AVAILABLE if results else DataStatus.EMPTY,
             provider=self.name,
             missing_codes=missing_codes,
+            source_timestamp=batch_src_ts,
+            trade_date=batch_trade_date,
         )
 
     def _synthesize_stock_minute_trend(self, code_str: str) -> Dict[str, Any]:
@@ -1192,7 +1239,7 @@ class EastmoneyProvider(
         """
         import math
         clean_code = str(code_str).strip().split(".")[-1]
-        
+
         # 常见标的特征微观映射 (如当日特异性龙头)
         KNOWN_PROFILES = {
             "002696": {"name": "百洋股份", "pre": 10.73, "pct": -9.97, "profile": "floor"},

@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from ..core.calendar import calendar
+from .turnover_engine import calculate_turnover_caliber, TurnoverSourceStatus
 from ..data.service import DataService
 from ..cognition.market_state import market_state_computer
 from ..cognition.interfaces import CognitionInput
@@ -264,18 +265,31 @@ class DailyReviewService:
         if prev_review and prev_review.market_overview:
             try:
                 prev_indices = json.loads(prev_review.market_overview)
-                # 严谨计算前日沪深两市去重总成交额 (仅累加上证 000001 与深证 399001，避免创业板/科创板重复叠加)
-                p_amt = 0.0
-                for idx in prev_indices:
-                    code = str(idx.get("code") or idx.get("symbol") or "")
-                    if "000001" in code or "399001" in code:
-                        p_amt += float(idx.get("amount_wan", 0)) / 10000.0
-                if p_amt > 0:
-                    prev_total_amount = p_amt
+                sh_idx = next((idx for idx in prev_indices if "000001" in str(idx.get("code") or idx.get("symbol") or "")), None)
+                sz_idx = next((idx for idx in prev_indices if "399001" in str(idx.get("code") or idx.get("symbol") or "")), None)
+                if sh_idx and sz_idx:
+                    # 严谨接入 turnover_engine 双边完整性与历史归档门禁核算，杜绝单侧缺失直接赋值
+                    prev_turn_res = calculate_turnover_caliber(
+                        target_date=prev_review.date,
+                        sh_amount=sh_idx.get("amount_wan"),
+                        sh_date=sh_idx.get("date"),
+                        sh_time=sh_idx.get("time"),
+                        sh_unit="wan",
+                        sh_volume=sh_idx.get("volume"),
+                        sz_amount=sz_idx.get("amount_wan"),
+                        sz_date=sz_idx.get("date"),
+                        sz_time=sz_idx.get("time"),
+                        sz_unit="wan",
+                        sz_volume=sz_idx.get("volume"),
+                        sh_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+                        sz_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+                        is_archive_confirmed=False,
+                    )
+                    prev_total_amount = prev_turn_res.two_markets_total_yi
                 else:
-                    prev_total_amount = sum(float(idx.get("amount_wan", 0)) for idx in prev_indices[:2]) / 10000.0
+                    prev_total_amount = None
             except Exception:
-                pass
+                prev_total_amount = None
         if prev_review and prev_review.limit_up_analysis:
             try:
                 prev_lu = json.loads(prev_review.limit_up_analysis)
@@ -378,41 +392,66 @@ class DailyReviewService:
         sz_pct = None
         cyb_close = None
         cyb_pct = None
-        for idx in index_data:
-            code = str(idx.get("code") or idx.get("symbol") or "")
-            name = str(idx.get("name") or "")
-            amt_wan = float(idx.get("amount_wan") or 0.0)
-            if "000001" in code or "399001" in code:
-                current_sh_sz_amount_yi += (amt_wan / 10000.0)
-            if "000001" in code or "上证" in name:
-                sh_close = float(idx.get("price") if idx.get("price") is not None else (idx.get("close") or 0.0))
-                sh_pct = float(idx.get("pct_change") or 0.0)
-            elif "399001" in code or "深证" in name:
-                sz_close = float(idx.get("price") if idx.get("price") is not None else (idx.get("close") or 0.0))
-                sz_pct = float(idx.get("pct_change") or 0.0)
-            elif "399006" in code or "创业板" in name:
-                cyb_close = float(idx.get("price") if idx.get("price") is not None else (idx.get("close") or 0.0))
-                cyb_pct = float(idx.get("pct_change") or 0.0)
 
-        if current_sh_sz_amount_yi <= 0:
-            current_sh_sz_amount_yi = sum(float(idx.get("amount", 0.0)) for idx in index_data) / 1e8
+        sh_idx = next((idx for idx in index_data if "000001" in str(idx.get("code") or idx.get("symbol") or "")), None)
+        sz_idx = next((idx for idx in index_data if "399001" in str(idx.get("code") or idx.get("symbol") or "")), None)
+        cy_idx = next((idx for idx in index_data if "399006" in str(idx.get("code") or idx.get("symbol") or "")), None)
+        star_idx = next((idx for idx in index_data if "000688" in str(idx.get("code") or idx.get("symbol") or "")), None)
 
-        turnover_str = f"{current_sh_sz_amount_yi / 10000.0:.2f} 万亿元" if current_sh_sz_amount_yi >= 10000 else f"{current_sh_sz_amount_yi:.0f} 亿元"
-        if prev_total_amount and prev_total_amount > 0:
-            delta_yi = current_sh_sz_amount_yi - prev_total_amount
-            delta_pct = (delta_yi / prev_total_amount) * 100.0
-            sign = "+" if delta_yi >= 0 else ""
-            delta_amount_str = f"{sign}{delta_yi:.0f} 亿元"
-            delta_pct_str = f"{sign}{delta_pct:.2f}%"
+        if sh_idx:
+            sh_close = float(sh_idx.get("price") if sh_idx.get("price") is not None else (sh_idx.get("close") or 0.0))
+            sh_pct = float(sh_idx.get("pct_change") or 0.0)
+        if sz_idx:
+            sz_close = float(sz_idx.get("price") if sz_idx.get("price") is not None else (sz_idx.get("close") or 0.0))
+            sz_pct = float(sz_idx.get("pct_change") or 0.0)
+        if cy_idx:
+            cyb_close = float(cy_idx.get("price") if cy_idx.get("price") is not None else (cy_idx.get("close") or 0.0))
+            cyb_pct = float(cy_idx.get("pct_change") or 0.0)
+
+        # T09-01 标准口径治理：严格去除指数重复相加，应用 PENDING_VERIFICATION 门禁
+        turnover_res = calculate_turnover_caliber(
+            target_date=today,
+            sh_amount=sh_idx.get("amount_wan") if sh_idx else None,
+            sh_date=sh_idx.get("date") if sh_idx else None,
+            sh_time=sh_idx.get("time") if sh_idx else None,
+            sh_unit="wan",
+            sz_amount=sz_idx.get("amount_wan") if sz_idx else None,
+            sz_date=sz_idx.get("date") if sz_idx else None,
+            sz_time=sz_idx.get("time") if sz_idx else None,
+            sz_unit="wan",
+            chinext_amount=cy_idx.get("amount_wan") if cy_idx else None,
+            chinext_unit="wan",
+            sh_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+            sz_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+        )
+
+        current_sh_sz_amount_yi = turnover_res.two_markets_total_yi
+
+        if current_sh_sz_amount_yi is not None and current_sh_sz_amount_yi > 0:
+            turnover_str = f"{current_sh_sz_amount_yi / 10000.0:.2f} 万亿元" if current_sh_sz_amount_yi >= 10000 else f"{current_sh_sz_amount_yi:.0f} 亿元"
+            if prev_total_amount and prev_total_amount > 0:
+                delta_yi = current_sh_sz_amount_yi - prev_total_amount
+                delta_pct = (delta_yi / prev_total_amount) * 100.0
+                sign = "+" if delta_yi >= 0 else ""
+                delta_amount_str = f"{sign}{delta_yi:.0f} 亿元"
+                delta_pct_str = f"{sign}{delta_pct:.2f}%"
+            else:
+                delta_amount_str = "--"
+                delta_pct_str = "--"
         else:
+            turnover_str = "-- 亿元（待核准）"
             delta_amount_str = "--"
             delta_pct_str = "--"
 
         turnover_facts = {
             "total_amount": turnover_str,
-            "total_amount_yi": round(current_sh_sz_amount_yi, 2),
+            "total_amount_yi": current_sh_sz_amount_yi,
+            "sh_amount_yi": turnover_res.sh_amount_yi,
+            "sz_amount_yi": turnover_res.sz_total_amount_yi,
             "shrinkage_amount": delta_amount_str,
             "shrinkage_pct": delta_pct_str,
+            "quality": turnover_res.two_markets_quality.value if hasattr(turnover_res.two_markets_quality, "value") else str(turnover_res.two_markets_quality),
+            "reason": "; ".join(turnover_res.degradation_reasons),
         }
 
         # 整理真实假说审判 (Audit Delta)

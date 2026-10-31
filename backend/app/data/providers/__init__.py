@@ -56,9 +56,8 @@ def init_providers():
     # 交易所严重异常波动监管异动事实 (Wave 1: em_price_anomaly)
     registry.register("price_anomaly", "eastmoney", east, is_primary=True)
 
-    # 个股概念与行业板块归属 (Wave 1: eastmoney_concept_blocks)
+    # 个股概念与行业板块归属 (Wave 1: eastmoney_concept_blocks, 单源东财，TDX行业映射不作为概念替代)
     registry.register("concept_blocks", "eastmoney", east, is_primary=True)
-    registry.register("concept_blocks", "tdx_direct", tdx, is_primary=False)
 
     # 板块排行与主力资金流 (Sector & Money Flow)
     registry.register("sector", "eastmoney", east, is_primary=True)
@@ -68,4 +67,3 @@ def init_providers():
     registry.register("stock_trends", "eastmoney", east, is_primary=False)
 
 init_providers()
-

@@ -6,12 +6,20 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
 
-from .capabilities import DataQuality, DataResult, Freshness, ProviderErrorCode, ProviderResponse
+from .capabilities import DataQuality, DataResult, Freshness, ProviderErrorCode, ProviderResponse, DataStatus
 from .circuit_breaker import CircuitBreaker, CircuitState
 from .health import HealthTracker
 from .quote_validator import validate_quote_batch
 
 logger = logging.getLogger(__name__)
+
+CAPABILITY_STALE_TOLERANCES: Dict[str, float] = {
+    "stock_quote": 300.0,
+    "index_quote": 300.0,
+    "stock_trends": 300.0,
+    "sector": 600.0,
+    "concept_blocks": 86400.0,
+}
 
 @dataclass(frozen=True)
 class FailoverAuditEvent:
@@ -151,6 +159,7 @@ class ProviderRegistry:
             )
 
         last_error = None
+        last_error_code = ProviderErrorCode.NONE
         for i, (provider_name, provider) in enumerate(providers):
             method = getattr(provider, func_name, None)
             if not method:
@@ -181,6 +190,7 @@ class ProviderRegistry:
             call_kwargs = dict(kwargs)
             validate_freshness = call_kwargs.pop("validate_freshness", True)
             reference_now = call_kwargs.pop("reference_now", None)
+            stale_tolerance_sec = call_kwargs.pop("stale_tolerance_sec", 300.0)
 
             try:
                 hard_timeout_sec = max(1.0, timeout_ms / 1000.0)
@@ -244,6 +254,8 @@ class ProviderRegistry:
                         # 非行情通用能力保持原有的基本质量校验
                         if result.quality in (DataQuality.INVALID, DataQuality.UNAVAILABLE, DataQuality.FAILED):
                             is_malformed = True
+                            if getattr(result, "error_code", None) and result.error_code != ProviderErrorCode.NONE:
+                                last_error_code = result.error_code
                             last_error = result.error_message or f"Invalid quality {result.quality}"
                             await cb.record_failure(last_error)
                             ht.record_sample(is_success=False, latency_ms=duration_ms, is_malformed=True)
@@ -270,6 +282,7 @@ class ProviderRegistry:
                     )
             except asyncio.TimeoutError:
                 is_timeout = True
+                last_error_code = ProviderErrorCode.TIMEOUT
                 duration_ms = int((time.perf_counter() - t_start) * 1000)
                 last_error = f"Physical request timeout (>{hard_timeout_sec}s)"
                 await cb.record_failure("TIMEOUT")
@@ -277,6 +290,12 @@ class ProviderRegistry:
             except Exception as e:
                 duration_ms = int((time.perf_counter() - t_start) * 1000)
                 last_error = str(e)
+                if "timeout" in last_error.lower():
+                    last_error_code = ProviderErrorCode.TIMEOUT
+                elif any(k in last_error.lower() for k in ("connect", "network", "refused", "closed")):
+                    last_error_code = ProviderErrorCode.CONNECTION_ERROR
+                else:
+                    last_error_code = ProviderErrorCode.CONNECTION_ERROR
                 await cb.record_failure(f"EXCEPTION: {last_error}")
                 ht.record_sample(is_success=False, latency_ms=duration_ms)
 
@@ -294,24 +313,92 @@ class ProviderRegistry:
         logger.error(
             f"All registered providers failed for capability '{capability}'. Last error: {last_error}"
         )
+        is_cache_valid = False
+        cache_src_ts = None
         if last_good_cache is not None and last_good_cache.data is not None:
+            is_cache_valid = True
+            raw_now = kwargs.get("reference_now") or datetime.now()
+            # 统一时区属性为 naive 格式，彻底消除 offset-naive 与 offset-aware 的减法异常
+            now_dt = raw_now.astimezone().replace(tzinfo=None) if raw_now.tzinfo is not None else raw_now
+            today_str = now_dt.strftime("%Y-%m-%d")
+            stale_tolerance = kwargs.get("stale_tolerance_sec") or CAPABILITY_STALE_TOLERANCES.get(capability, 600.0)
+            target_trade_date = call_kwargs.get("trade_date")
+            cached_trade_date = getattr(last_good_cache, "trade_date", None)
+            raw_src_ts = getattr(last_good_cache, "source_timestamp", None)
+            cache_src_ts = raw_src_ts.astimezone().replace(tzinfo=None) if (raw_src_ts and raw_src_ts.tzinfo is not None) else raw_src_ts
+
+            # 针对 T10-01 治理能力 (sector, concept_blocks, stock_trends) 执行严格统一时态与日期门禁
+            if capability in ("sector", "concept_blocks", "stock_trends"):
+                # 1. Trade date validation (未知日期缓存坚决拒用)
+                if target_trade_date:
+                    if not cached_trade_date or str(cached_trade_date) != str(target_trade_date):
+                        is_cache_valid = False
+                else:
+                    if not cached_trade_date or str(cached_trade_date) != today_str:
+                        is_cache_valid = False
+
+                # 2. Source timestamp validation (未知来源时点坚决拒用，严禁回退接收时间)
+                if cache_src_ts is None:
+                    is_cache_valid = False
+                else:
+                    if (cache_src_ts - now_dt).total_seconds() > 60:
+                        is_cache_valid = False
+                    if not target_trade_date and cache_src_ts.date() != now_dt.date():
+                        is_cache_valid = False
+                    if (now_dt - cache_src_ts).total_seconds() > stale_tolerance:
+                        is_cache_valid = False
+            else:
+                # 针对非 T10 既有能力 (如 stock_quote, index_quote 等行情快照与基类能力)
+                # 统一执行时态边界门禁 (无论是否传入 reference_now，均严格统一校验时效、跨日与未来防漂移)
+                raw_eff = cache_src_ts or getattr(last_good_cache, "timestamp", None)
+                eff_ts = raw_eff.astimezone().replace(tzinfo=None) if (raw_eff and raw_eff.tzinfo is not None) else raw_eff
+                if eff_ts is None:
+                    is_cache_valid = False
+                else:
+                    # 1. 未来时间防漂移 (>60s)
+                    if (eff_ts - now_dt).total_seconds() > 60:
+                        is_cache_valid = False
+                    # 2. 跨日午夜门禁 (实时行情禁止复用非当日缓存)
+                    if not target_trade_date and eff_ts.date() != now_dt.date():
+                        is_cache_valid = False
+                    # 3. 容忍期时效 (严格超过 stale_tolerance，绝无额外无依据放宽)
+                    if (now_dt - eff_ts).total_seconds() > stale_tolerance:
+                        is_cache_valid = False
+
+                # 显式日期一致性校验
+                if target_trade_date and cached_trade_date and str(cached_trade_date) != str(target_trade_date):
+                    is_cache_valid = False
+
+        if is_cache_valid and last_good_cache is not None:
             logger.warning(f"Serving STALE cache snapshot for capability '{capability}'")
             return DataResult(
                 data=last_good_cache.data,
                 quality=DataQuality.DEGRADED,
                 freshness=Freshness.STALE,
+                status=DataStatus.STALE,
                 provider=last_good_cache.provider,
+                source_timestamp=last_good_cache.source_timestamp,
+                timestamp=datetime.now(),
+                trade_date=getattr(last_good_cache, "trade_date", None),
                 error_message=f"All providers failed. Served from STALE snapshot. Last error: {last_error}",
+                degradation_reason=f"Served from STALE snapshot. Last error: {last_error}",
                 fallback_used=True,
+                missing_codes=getattr(last_good_cache, "missing_codes", None),
             )
         else:
             logger.error(f"No valid cache available for capability '{capability}'. Returning UNAVAILABLE.")
+            final_err_code = last_error_code if last_error_code != ProviderErrorCode.NONE else (
+                ProviderErrorCode.TIMEOUT if is_timeout else ProviderErrorCode.CONNECTION_ERROR
+            )
             return DataResult(
                 data=None,
                 quality=DataQuality.UNAVAILABLE,
                 freshness=Freshness.UNAVAILABLE,
+                status=DataStatus.ERROR if last_error else DataStatus.EMPTY,
                 provider="all_failed",
+                error_code=final_err_code,
                 error_message=f"All providers failed and no cache available. Last error: {last_error}",
+                degradation_reason=f"All providers failed and no cache available. Last error: {last_error}",
                 fallback_used=True,
             )
 

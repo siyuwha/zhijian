@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.calendar import calendar
 from ..data.service import DataService
+from .turnover_engine import calculate_turnover_caliber, TurnoverSourceStatus
 from ..models.market import IntradayMarketSnapshot, IntradayAnomalyEvent
 from ..models.report import DailyReview, PremarketBriefing, AuctionReport
 
@@ -327,23 +328,58 @@ class MonitorService:
         sz_price = None
         sz_pct = None
         cy_pct = None
-        total_amount_wan = 0.0
+        sh_q = next((q for q in index_data if "sh000001" in q.get("code", "")), None)
+        sz_q = next((q for q in index_data if "sz399001" in q.get("code", "")), None)
+        cy_q = next((q for q in index_data if "sz399006" in q.get("code", "")), None)
+        star_q = next((q for q in index_data if "sh000688" in q.get("code", "")), None)
 
-        for q in index_data:
-            c = q.get("code", "")
-            amt = float(q.get("amount_wan") or 0.0)
-            total_amount_wan += amt
-            if "sh000001" in c:
-                sh_price = q.get("price")
-                sh_pct = q.get("pct_change")
-            elif "sz399001" in c:
-                sz_price = q.get("price")
-                sz_pct = q.get("pct_change")
-            elif "sz399006" in c:
-                cy_pct = q.get("pct_change")
+        if sh_q:
+            sh_price = sh_q.get("price")
+            sh_pct = sh_q.get("pct_change")
+        if sz_q:
+            sz_price = sz_q.get("price")
+            sz_pct = sz_q.get("pct_change")
+        if cy_q:
+            cy_pct = cy_q.get("pct_change")
 
-        # 两市成交额 (亿元)
-        total_amount_yi = round(total_amount_wan / 10000.0, 1) if total_amount_wan > 0 else None
+        # T09-01 标准口径治理：禁止循环累加 4 个指数！
+        # 候选来源保持 PENDING_VERIFICATION 门禁，透传真实时间戳，正式两市总额保守置空 (None)
+        turnover_res = calculate_turnover_caliber(
+            target_date=date_str,
+            sh_amount=sh_q.get("amount_wan") if sh_q else None,
+            sh_date=sh_q.get("date") if sh_q else None,
+            sh_time=sh_q.get("time") if sh_q else None,
+            sh_volume=sh_q.get("volume") if sh_q else None,
+            sh_unit="wan",
+            sz_amount=sz_q.get("amount_wan") if sz_q else None,
+            sz_date=sz_q.get("date") if sz_q else None,
+            sz_time=sz_q.get("time") if sz_q else None,
+            sz_volume=sz_q.get("volume") if sz_q else None,
+            sz_unit="wan",
+            chinext_amount=cy_q.get("amount_wan") if cy_q else None,
+            chinext_unit="wan",
+            now_dt=now_dt,
+            sh_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+            sz_status=TurnoverSourceStatus.PENDING_VERIFICATION,
+        )
+
+        total_amount_yi = turnover_res.two_markets_total_yi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         # 2. 全市场广度 (来自 Eastmoney)
         breadth_res = await self.data_service.get_market_breadth()
@@ -379,6 +415,11 @@ class MonitorService:
             "sz_pct": sz_pct,
             "cy_pct": cy_pct,
             "total_amount_yi": total_amount_yi,
+            "sh_amount_yi": turnover_res.sh_amount_yi,
+            "sz_amount_yi": turnover_res.sz_total_amount_yi,
+            "cy_slice_amount_yi": turnover_res.chinext_slice_amount_yi,
+            "turnover_quality": turnover_res.two_markets_quality.value if hasattr(turnover_res.two_markets_quality, "value") else str(turnover_res.two_markets_quality),
+            "turnover_reason": "; ".join(turnover_res.degradation_reasons),
             "volume_proj_yi": volume_proj_yi,
             "is_proj_estimated": is_proj_estimated,
             "up_count": up_count,

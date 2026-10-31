@@ -1,0 +1,39 @@
+﻿=== COMMAND: python -m pytest backend/tests/test_sector_and_trends_quality_governance.py -v -p no:logging ===
+EXIT CODE: 0
+=== OUTPUT ===
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\siyuw\AppData\Local\Programs\Python\Python312\python.exe
+cachedir: .pytest_cache
+rootdir: D:\项目库\AI认知复盘交易系统\scratch\codex_t09_t10_integration
+configfile: pytest.ini
+plugins: anyio-4.15.1, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 25 items
+
+backend/tests/test_sector_and_trends_quality_governance.py::test_a1_eastmoney_concept_fails_tdx_industry_not_substituted PASSED [  4%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[timeout-TIMEOUT-UNAVAILABLE] PASSED [  8%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[connection-CONNECTION_ERROR-UNAVAILABLE] PASSED [ 12%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[403-WAF_BLOCKED-UNAVAILABLE] PASSED [ 16%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[429-RATE_LIMITED-UNAVAILABLE] PASSED [ 20%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[parse-MALFORMED_PARSE-INVALID] PASSED [ 24%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a3_stock_trends_primary_fails_secondary_succeeds PASSED [ 28%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a4_stock_trends_dual_fail_structured_empty_unavailable PASSED [ 32%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a5_stock_trends_partial_one_valid_one_failed PASSED [ 36%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a6_cache_tolerance_stale_and_expired PASSED [ 40%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a7_cross_date_cache_strict_isolation PASSED [ 44%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a11_budget_exhausted_validates_cache_age PASSED [ 48%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a12_top_sectors_trend_schema_extra_forbid PASSED [ 52%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a8_macro_full_sector_degraded_trends_unavailable_coexistence PASSED [ 56%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a9_unknown_quality_enum_conservative_handling PASSED [ 60%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a10_sequence_token_and_recovery_defense PASSED [ 64%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a13_cache_temporal_midnight_and_null_ts_gates PASSED [ 68%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a14_mixed_primary_realtime_backup_stale_and_timestamp_retention PASSED [ 72%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a15_non_t10_cache_with_reference_now_strict_gates PASSED [ 76%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_invalid_primary_trend_freshness_rejected[UNKNOWN] PASSED [ 80%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_invalid_primary_trend_freshness_rejected[EXPIRED] PASSED [ 84%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_invalid_primary_trend_freshness_rejected[UNAVAILABLE] PASSED [ 88%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a16_backup_delayed_never_promoted_to_realtime_and_expired_rejected PASSED [ 92%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a17_registry_strict_stale_tolerance_exact_boundary PASSED [ 96%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a18_intraday_top_sectors_ranking_and_trends_freshness_synthesis PASSED [100%]
+
+============================= 25 passed in 42.56s =============================

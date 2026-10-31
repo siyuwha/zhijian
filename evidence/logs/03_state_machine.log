@@ -1,0 +1,19 @@
+﻿=== COMMAND: node frontend/scripts/test_cockpit_quality_governance.mjs ===
+EXIT CODE: 0
+=== OUTPUT ===
+--- Starting Frontend Cockpit Quality Governance Verification ---
+[PASS] Test 1: Positive Control (FULL quality -> no badge)
+[PASS] Test 2: Fault Degradation (UNAVAILABLE -> auto-retry scheduled)
+[PASS] Test 3: STALE Snapshot (DEGRADED + STALE badge with real timestamp)
+[PASS] Test 4: Recovery (Failed codes successfully recover upon retry)
+[PASS] Test 5: Out-of-Order / Late Response Defense (A10 sequence token)
+[PASS] Test 6: Unknown Enum Conservative Fallback (A9 defense)
+[PASS] Test 7: Sector API Envelope Handling (P1.3 fix verified)
+[PASS] Test 8: DELAYED Freshness Handling (delayed market data)
+[PASS] Test 9: Canonical Sector & Trends Freshness Synthesis (P1 fix verified)
+[PASS] Test 10: Dual STALE & DELAYED Badge Coexistence & Single-sided Timestamp Safety (P1.2/P2.3 verified)
+[PASS] Test 11: Market Sectors Standalone Fallback Quality Governance (P2.4 verified)
+[PASS] Test 12: Unknown Freshness Degradation & Reason Presentation (Round 9 P1 verified)
+[PASS] Test 13: Unknown Freshness Masking Defense & Recovery (Round 10 P1 verified)
+[PASS] Test 14: Reverse Dual DELAYED & STALE Badge Coexistence & Single-sided Timestamp Safety (P2 verified)
+--- All 14 Frontend Quality Governance Tests PASSED ---

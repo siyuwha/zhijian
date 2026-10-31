@@ -1,0 +1,18 @@
+﻿=== COMMAND: git diff --check ===
+EXIT CODE: 0
+=== OUTPUT ===
+warning: in the working copy of 'backend/app/api/v1/market.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/data/capabilities.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/data/providers/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/schemas/canonical_market.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/schemas/intraday_briefing.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/briefing_fallback_engine.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/briefing_safety_guard.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/canonical_auction_service.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/canonical_intraday_service.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/canonical_market_service.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/constrained_briefing_generator.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/daily_review.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/market_state_calibrator.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/monitor.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/components/cockpit/MarketStateBanner.tsx', LF will be replaced by CRLF the next time Git touches it

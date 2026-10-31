@@ -74,10 +74,11 @@ async def test_data_service_cache_isolation_by_date():
     # 测试真实的 _execute_pipeline 缓存键隔离
     DataService._CACHE.clear()
     with patch("backend.app.data.registry.registry.execute_with_fallback", new_callable=AsyncMock) as mock_reg:
-        mock_reg.return_value = DataResult(
-            data=[{"code": "002696", "trends": []}],
+        mock_reg.side_effect = lambda cap, meth, codes, trade_date=None, **kw: DataResult(
+            data=[{"code": codes[0], "trends": [{"time": "09:30", "price": 10.0}], "is_real": True, "trade_date": trade_date}],
             quality=DataQuality.FULL,
             provider="mock",
+            trade_date=trade_date,
         )
         with patch.object(service._budget, "acquire", new_callable=AsyncMock, return_value=True):
             with patch.object(service._rate_limiter, "acquire", new_callable=AsyncMock, return_value=True):
@@ -243,7 +244,8 @@ async def test_tdx_provider_preserves_real_prices_above_twenty_two_percent():
 
 
 @pytest.mark.asyncio
-async def test_tdx_provider_fills_mixed_bk_codes_from_eastmoney():
+async def test_tdx_provider_returns_partial_for_unsupported_codes():
+    """验证 TdxProvider 严禁直接内部硬编码调用 EastmoneyProvider，仅返回自身物理产物与 missing_codes"""
     provider = TdxProvider()
     mock_client = MagicMock()
     mock_client.connect_best_server.return_value = True
@@ -253,22 +255,52 @@ async def test_tdx_provider_fills_mixed_bk_codes_from_eastmoney():
     mock_client.get_minute_trend.return_value = [
         {"price": 10.2, "vol": 100, "trade_date": datetime.now().date().isoformat()}
     ]
-    backup = MagicMock()
-    backup.get_stock_trends = AsyncMock(return_value=DataResult(
-        data=[{"code": "BK0480", "name": "概念板块", "pre_close": 100.0,
-               "trends": [{"time": "09:30", "price": 101.0, "pct_change": 1.0}], "is_real": True}],
+
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        result = await provider.get_stock_trends(["002696", "BK0480"])
+
+    assert result.quality == DataQuality.PARTIAL
+    assert result.provider == "tdx_direct"
+    assert result.fallback_used is False
+    assert len(result.data) == 1
+    assert result.data[0]["code"] == "002696"
+    assert result.data[0]["provider"] == "tdx_direct"
+    assert result.missing_codes == ["BK0480"]
+
+
+@pytest.mark.asyncio
+async def test_data_service_completes_missing_codes_via_unified_governance():
+    """验证 DataService 在主源 TDX 部分缺失时，由统一治理管线调度备用源东财受控补全"""
+    service = DataService(session=None)
+
+    tdx_res = DataResult(
+        data=[{"code": "002696", "name": "百洋股份", "pre_close": 10.0, "trends": [{"time": "09:30", "price": 10.2}], "is_real": True, "provider": "tdx_direct", "quality": "FULL", "fallback_used": False}],
+        quality=DataQuality.PARTIAL,
+        provider="tdx_direct",
+        missing_codes=["BK0480"],
+    )
+    east_res = DataResult(
+        data=[{"code": "BK0480", "name": "概念板块", "pre_close": 100.0, "trends": [{"time": "09:30", "price": 101.0}], "is_real": True}],
         quality=DataQuality.FULL,
         provider="eastmoney",
         missing_codes=[],
-    ))
+    )
 
-    with patch.object(provider, "_get_client", return_value=mock_client):
-        with patch("backend.app.data.providers.eastmoney.EastmoneyProvider", return_value=backup):
-            result = await provider.get_stock_trends(["002696", "BK0480"])
+    with patch.object(service, "_execute_pipeline", new_callable=AsyncMock, return_value=tdx_res):
+        with patch.object(service, "_execute_provider_direct", new_callable=AsyncMock, return_value=east_res) as mock_direct:
+            res = await service.get_stock_trends(["002696", "BK0480"])
 
-    assert result.quality == DataQuality.FULL
-    assert {item["code"] for item in result.data} == {"002696", "BK0480"}
-    backup.get_stock_trends.assert_awaited_once_with(["BK0480"], trade_date=None)
+    mock_direct.assert_awaited_once()
+    assert res.quality == DataQuality.DEGRADED
+    assert res.fallback_used is True
+    assert "tdx_direct" in res.provider and "eastmoney" in res.provider
+    assert len(res.data) == 2
+    codes = {item["code"] for item in res.data}
+    assert codes == {"002696", "BK0480"}
+    item_map = {item["code"]: item for item in res.data}
+    assert item_map["002696"]["provider"] == "tdx_direct"
+    assert item_map["BK0480"]["provider"] == "eastmoney"
+    assert item_map["BK0480"]["fallback_used"] is True
 
 
 @pytest.mark.asyncio

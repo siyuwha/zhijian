@@ -99,9 +99,9 @@ class CanonicalAuctionSnapshot(BaseModel):
     total_auction_turnover_yi: Decimal = Field(
         ..., ge=0, description="沪深两市竞价总额 (亿元，严格 sh + sz，严禁重复累加创业板)"
     )
-    prev_total_turnover_yi: Decimal = Field(..., gt=0, description="前日沪深真实总成交额 (亿元)")
-    auction_turnover_ratio_pct: Decimal = Field(
-        ..., ge=0, description="两市竞价总额占前日全天比值 (%)"
+    prev_total_turnover_yi: Optional[Decimal] = Field(None, ge=0, description="前日沪深真实总成交额 (亿元)")
+    auction_turnover_ratio_pct: Optional[Decimal] = Field(
+        None, ge=0, description="两市竞价总额占前日全天比值 (%)"
     )
 
     # 重点观测标的竞价阵列 (空间标杆 + Top 3 主线领军)

@@ -19,7 +19,11 @@ const BACKEND_HOST = process.env.NEXT_PUBLIC_API_URL ||
   (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8000` : 'http://localhost:8000');
 const BASE_URL = `${BACKEND_HOST}/api/v1`;
 
-async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function fetchAPI<T>(
+  endpoint: string,
+  options?: RequestInit,
+  preserveEnvelope: boolean = false
+): Promise<T> {
   const url = endpoint.startsWith('http') 
     ? endpoint 
     : endpoint.startsWith('/health')
@@ -66,7 +70,10 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
     if (data.code !== 200 && data.status !== 'ok') {
       throw new Error(data.message || 'Unknown API Error');
     }
-    return data.data !== undefined ? data.data : data;
+    if (preserveEnvelope) {
+      return data as T;
+    }
+    return (data.data !== undefined ? data.data : data) as T;
   }
 
   return data as T;
@@ -86,10 +93,18 @@ export const api = {
     if (tradeDate) {
       params.set('trade_date', tradeDate);
     }
-    return fetchAPI<import('@/types/canonical').StockTrendData[]>(`/market/stock-trends?${params.toString()}`);
+    return fetchAPI<import('@/types/canonical').StockTrendsResponse>(
+      `/market/stock-trends?${params.toString()}`,
+      undefined,
+      true
+    );
   },
   getSectors: (sectorType: 'industry' | 'concept' = 'industry', limit: number = 15) =>
-    fetchAPI<SectorFlowItem[]>(`/market/sectors?sector_type=${sectorType}&limit=${limit}`),
+    fetchAPI<import('@/types/canonical').SectorFlowResponse>(
+      `/market/sectors?sector_type=${sectorType}&limit=${limit}`,
+      undefined,
+      true
+    ),
   getDailyReviews: (limit?: number, offset?: number) =>
     fetchAPI<{ items: DailyReviewSummaryItem[]; total: number }>(
       `/reports/daily-review?limit=${limit ?? 30}&offset=${offset ?? 0}`

@@ -1,0 +1,4 @@
+﻿=== COMMAND: node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend/tsconfig.json ===
+EXIT CODE: 0
+=== OUTPUT ===
+

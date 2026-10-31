@@ -96,12 +96,12 @@ class CanonicalIntradaySnapshot(BaseModel):
     total_accumulated_turnover_yi: Decimal = Field(
         ..., ge=0, description="沪深两市累计成交总额 (亿元，严格 sh + sz)"
     )
-    prev_total_turnover_yi: Decimal = Field(..., gt=0, description="前一交易日两市真实全天总成交 (亿元)")
+    prev_total_turnover_yi: Optional[Decimal] = Field(None, ge=0, description="前一交易日两市真实全天总成交 (亿元)")
     projected_turnover_yi: Decimal = Field(
         ..., ge=0, description="基于交易分钟时间衰减模型预估的全天成交总额 (亿元)"
     )
-    turnover_pace_ratio_pct: Decimal = Field(
-        ..., ge=0, description="预估全天成交与前日全天成交比率 (%)，100% 为平量"
+    turnover_pace_ratio_pct: Optional[Decimal] = Field(
+        None, ge=0, description="预估全天成交与前日全天成交比率 (%)，100% 为平量"
     )
 
     # 宽基与核心观测标的

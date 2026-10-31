@@ -1,0 +1,49 @@
+﻿=== COMMAND: node frontend/scripts/t09_run_browser_suite.js ===
+EXIT CODE: 0
+=== OUTPUT ===
+================================================================
+T09-01 ISOLATED REAL BROWSER HARNESS (HEADLESS CHROME + REACT 19)
+================================================================
+Unconditionally rebuilding all real browser bundles from current integration source...
+Building real browser test bundles using local esbuild (v0.28.2)...
+[1/3] Building cockpit_real_bundle.js from integration source...
+  -> dist/cockpit_real_bundle.js built successfully.
+[2/3] Building banner_bundle.js from integration source...
+  -> dist/banner_bundle.js built successfully.
+[3/3] Building aurora_bundle.js from integration source...
+  -> dist/aurora_bundle.js built successfully.
+All real browser test bundles successfully built from integration workspace source.
+
+[Suite 1] MarketStateBanner Client Mount & Degradation Verification
+37720 bytes written to file D:\椤圭洰搴揬AI璁ょ煡澶嶇洏浜ゆ槗绯荤粺\scratch\codex_t09_t10_integration\evidence\screenshots\market_state_banner_null.png
+  [PASS] Mounted in real browser without uncaught exceptions
+  [PASS] DOM contains client mount marker (#mount-marker == CLIENT_MOUNT_DONE)
+  [PASS] Turnover displays "-- 涓囦嚎鍏?(鍙ｅ緞寰呮牳鍑?"
+  [PASS] Badge displays "鍙ｅ緞寰呮牳鍑?
+  [PASS] Shanghai sub-turnover displays "娌? 6000 浜?
+  [PASS] Missing Shenzhen is safely suppressed (NOT displayed as 0)
+
+[Suite 2] AuroraCockpitView - Case Null (Degradation & Anti-Leak Experiment)
+113756 bytes written to file D:\椤圭洰搴揬AI璁ょ煡澶嶇洏浜ゆ槗绯荤粺\scratch\codex_t09_t10_integration\evidence\screenshots\aurora_cockpit_turnover_null.png
+  [PASS] Mounted in real browser without uncaught exceptions
+  [PASS] Async data cycle completed (#mount-marker == AURORA_CLIENT_MOUNT_DONE)
+  [PASS] Timeline stage data confirmed loaded ("鏀剁洏鎬昏瘎" & "缃俊搴?92%")
+  [PASS] Formal turnover displays "-- 浜?(鍙ｅ緞寰呮牳鍑?"
+  [PASS] Shanghai sub-turnover displays "娌?6,000浜?
+  [PASS] Missing Shenzhen is safely suppressed (NOT displayed as 0)
+  [PASS] Historical briefing prediction ("2.50涓囦嚎") is strictly BLOCKED from leaking into DOM
+  [PASS] Fallback prediction displays "-- 涓囦嚎 (寰呮牳鍑?"
+  [PASS] Prediction description badge displays "閲忚兘鍙ｅ緞寰呮牳鍑?
+
+[Suite 3] AuroraCockpitView - Case Valid (Positive Control: Turnover 18,500 Yi)
+113612 bytes written to file D:\椤圭洰搴揬AI璁ょ煡澶嶇洏浜ゆ槗绯荤粺\scratch\codex_t09_t10_integration\evidence\screenshots\aurora_cockpit_turnover_valid.png
+  [PASS] Mounted in real browser without uncaught exceptions
+  [PASS] Async data cycle completed (#mount-marker == AURORA_CLIENT_MOUNT_DONE)
+  [PASS] Timeline stage data confirmed loaded ("鏀剁洏鎬昏瘎" & "缃俊搴?92%")
+  [PASS] Formal turnover displays valid amount "18,500 浜?
+  [PASS] Positive control SUCCESS: Briefing prediction "2.50涓囦嚎" is displayed when turnover is valid
+
+================================================================
+ALL BROWSER DOM ASSERTIONS PASSED (20/20 checks passed)
+Screenshots saved to: D:\椤圭洰搴揬AI璁ょ煡澶嶇洏浜ゆ槗绯荤粺\scratch\codex_t09_t10_integration\evidence\screenshots
+================================================================

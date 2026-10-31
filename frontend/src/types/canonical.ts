@@ -41,13 +41,16 @@ export interface CanonicalIndexQuote {
 
 export interface CanonicalTurnoverBreakdown {
   trade_date: string;
-  sh_amount_yi: number;
-  sz_total_amount_yi: number;
-  chinext_slice_amount_yi: number;
-  chinext_ratio_in_sz: number;
-  bse_amount_yi: number;
-  two_markets_total_yi: number;
-  all_markets_total_yi: number;
+  sh_amount_yi?: number | null;
+  sz_total_amount_yi?: number | null;
+  chinext_slice_amount_yi?: number | null;
+  chinext_ratio_in_sz?: number | null;
+  bse_amount_yi?: number | null;
+  two_markets_total_yi?: number | null;
+  all_markets_total_yi?: number | null;
+  two_markets_quality?: string;
+  all_markets_quality?: string;
+  degradation_reason?: string | null;
   envelope: ProvenanceEnvelope;
 }
 
@@ -280,7 +283,7 @@ export type MarketStateEnum =
   | 'LOW_REBOUND';
 
 export interface IndexVector {
-  total_turnover_yi: number;
+  total_turnover_yi?: number | null;
   turnover_change_ratio?: number | null;
   dispersion_pct: number;
   star_divergence_pct: number;
@@ -588,6 +591,18 @@ export interface TopSectorsTrendResponse {
     description: string;
   };
   market_index_trend?: MarketIndexTrend;
+  quality?: string;
+  sector_quality?: string;
+  sector_freshness?: string;
+  sector_source_timestamp?: string;
+  trends_quality?: string;
+  trends_freshness?: string;
+  trends_source_timestamp?: string;
+  is_estimated?: boolean;
+  freshness?: string;
+  status?: string;
+  degradation_reason?: string;
+  source_timestamp?: string;
 }
 
 export interface StockMinutePoint {
@@ -604,6 +619,15 @@ export interface StockTrendData {
   name: string;
   pre_close: number;
   trends: StockMinutePoint[];
+  quality?: string;
+  freshness?: string;
+  status?: string;
+  is_real?: boolean;
+  trade_date?: string;
+  provider?: string;
+  fallback_used?: boolean;
+  error_message?: string;
+  degradation_reason?: string;
 }
 
 export interface StockTrendsResponse {
@@ -611,6 +635,30 @@ export interface StockTrendsResponse {
   data: StockTrendData[];
   quality: string;
   provider: string;
+  freshness?: string;
+  status?: string;
+  error_code?: string;
+  trade_date?: string;
+  received_timestamp?: string;
+  fallback_used?: boolean;
+  degradation_reason?: string;
+  source_timestamp?: string;
+  missing_codes?: string[];
+}
+
+export interface SectorFlowResponse {
+  code: number;
+  data: SectorFlowItem[];
+  quality: string;
+  provider: string;
+  freshness?: string;
+  status?: string;
+  error_code?: string;
+  trade_date?: string;
+  received_timestamp?: string;
+  fallback_used?: boolean;
+  degradation_reason?: string;
+  source_timestamp?: string;
 }
 
 

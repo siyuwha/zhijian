@@ -83,8 +83,8 @@ def calculate_intraday_stage(time_str: str) -> Tuple[IntradayStageEnum, int]:
 def calculate_projected_turnover(
     total_accumulated_yi: Decimal,
     elapsed_minutes: int,
-    prev_total_yi: Decimal,
-) -> Tuple[Decimal, Decimal]:
+    prev_total_yi: Optional[Decimal],
+) -> Tuple[Decimal, Optional[Decimal]]:
     """
     基于交易分钟数时间衰减模型计算全天预估成交额 (亿元) 及量能 Pace 比率 (%)
     
@@ -95,14 +95,14 @@ def calculate_projected_turnover(
     - 尾盘后 30 分钟 (14:30-15:00): 占全天约 14% (累计达 100%)
     """
     if elapsed_minutes <= 0 or total_accumulated_yi <= Decimal("0.00"):
-        return Decimal("0.00"), Decimal("0.00")
+        return Decimal("0.00"), Decimal("0.00") if (prev_total_yi and prev_total_yi > Decimal("0.00")) else None
 
     if elapsed_minutes >= 240:
         proj = canonical_round_decimal(total_accumulated_yi, 2)
         pace = (
             canonical_round_decimal((proj / prev_total_yi) * Decimal("100.0"), 2)
-            if prev_total_yi > Decimal("0.00")
-            else Decimal("0.00")
+            if (prev_total_yi is not None and prev_total_yi > Decimal("0.00"))
+            else None
         )
         return proj, pace
 
@@ -122,8 +122,8 @@ def calculate_projected_turnover(
     proj = canonical_round_decimal(total_accumulated_yi / p, 2)
     pace = (
         canonical_round_decimal((proj / prev_total_yi) * Decimal("100.0"), 2)
-        if prev_total_yi > Decimal("0.00")
-        else Decimal("0.00")
+        if (prev_total_yi is not None and prev_total_yi > Decimal("0.00"))
+        else None
     )
     return proj, pace
 
@@ -235,7 +235,8 @@ class CanonicalIntradayService:
 
         bound_snap_fp = prev_snapshot.envelope_fingerprint
         bound_trace_id = f"TRACE-{prev_date}-TO-{trade_date}-INTRADAY"
-        prev_total_turnover = Decimal(str(prev_snapshot.truth.turnover.two_markets_total_yi))
+        raw_prev_to = prev_snapshot.truth.turnover.two_markets_total_yi
+        prev_total_turnover = Decimal(str(raw_prev_to)) if raw_prev_to is not None else None
 
         # 提取前日空间标杆与核心主线龙头
         space_leader_code = None
@@ -430,9 +431,9 @@ class CanonicalIntradayService:
             "sh_accumulated_turnover_yi": str(sh_amt_yi),
             "sz_accumulated_turnover_yi": str(sz_amt_yi),
             "total_accumulated_turnover_yi": str(total_amt_yi),
-            "prev_total_turnover_yi": str(prev_total_turnover),
+            "prev_total_turnover_yi": str(prev_total_turnover) if prev_total_turnover is not None else None,
             "projected_turnover_yi": str(projected_yi),
-            "turnover_pace_ratio_pct": str(pace_ratio),
+            "turnover_pace_ratio_pct": str(pace_ratio) if pace_ratio is not None else None,
             "indices": [
                 {
                     "symbol": i.symbol,

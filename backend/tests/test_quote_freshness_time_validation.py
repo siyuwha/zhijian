@@ -481,6 +481,7 @@ async def test_all_providers_fail_enters_degraded_stale_or_unavailable():
         data=[{"code": "600000", "price": 9.98}],
         quality=DataQuality.FULL,
         provider="cached_primary",
+        timestamp=simulated_now,
     )
     res_cached = await reg.execute_with_fallback(
         "stock_quote",

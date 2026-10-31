@@ -1,0 +1,6 @@
+﻿=== COMMAND: Get-FileHash data/trading.db SHA256 ===
+EXIT CODE: 0
+=== OUTPUT ===
+Algorithm       Hash                                                                   Path                            
+---------       ----                                                                   ----                            
+SHA256          7D4DCE08F34B01716757B094F74B1F242BCCEA5B114F10B10F8C2C95E0CC2AE2       D:\项目库\AI认知复盘交易系统\data\tradin...

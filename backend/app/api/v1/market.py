@@ -42,7 +42,24 @@ async def get_sectors(
 ):
     service = DataService(db)
     res = await service.get_sector_ranking(sector_type=sector_type)
-    return {"code": 200, "data": res.data, "quality": res.quality.value, "provider": res.provider}
+    src_ts = getattr(res, "source_timestamp", None)
+    recv_ts = getattr(res, "received_timestamp", None) or getattr(res, "timestamp", None)
+    err_code = getattr(res, "error_code", None)
+    err_code_val = err_code.value if hasattr(err_code, "value") else (str(err_code) if err_code else None)
+    return {
+        "code": 200,
+        "data": res.data if res.data is not None else [],
+        "quality": res.quality.value if hasattr(res, "quality") and hasattr(res.quality, "value") else str(getattr(res, "quality", "UNKNOWN")),
+        "freshness": getattr(res.freshness, "value", str(getattr(res, "freshness", "REALTIME"))),
+        "status": getattr(res.status, "value", str(getattr(res, "status", "AVAILABLE"))),
+        "error_code": err_code_val,
+        "trade_date": getattr(res, "trade_date", None),
+        "provider": res.provider,
+        "fallback_used": getattr(res, "fallback_used", False),
+        "degradation_reason": getattr(res, "degradation_reason", None) or getattr(res, "error_message", None),
+        "source_timestamp": src_ts.isoformat() if hasattr(src_ts, "isoformat") else (str(src_ts) if src_ts else None),
+        "received_timestamp": recv_ts.isoformat() if hasattr(recv_ts, "isoformat") else (str(recv_ts) if recv_ts else None),
+    }
 
 @router.get("/stock-trends")
 async def get_stock_trends(
@@ -55,11 +72,23 @@ async def get_stock_trends(
     code_list = [c.strip() for c in codes.split(",") if c.strip()]
     service = DataService(db)
     res = await service.get_stock_trends(code_list, trade_date=actual_date)
+    src_ts = getattr(res, "source_timestamp", None)
+    recv_ts = getattr(res, "received_timestamp", None) or getattr(res, "timestamp", None)
+    err_code = getattr(res, "error_code", None)
+    err_code_val = err_code.value if hasattr(err_code, "value") else (str(err_code) if err_code else None)
     resp = {
         "code": 200,
         "data": res.data if res.data is not None else [],
         "quality": res.quality.value if hasattr(res, "quality") and hasattr(res.quality, "value") else str(getattr(res, "quality", "UNKNOWN")),
+        "freshness": getattr(res.freshness, "value", str(getattr(res, "freshness", "REALTIME"))),
+        "status": getattr(res.status, "value", str(getattr(res, "status", "AVAILABLE"))),
+        "error_code": err_code_val,
+        "trade_date": getattr(res, "trade_date", None) or actual_date,
         "provider": res.provider,
+        "fallback_used": getattr(res, "fallback_used", False),
+        "degradation_reason": getattr(res, "degradation_reason", None) or getattr(res, "error_message", None),
+        "source_timestamp": src_ts.isoformat() if hasattr(src_ts, "isoformat") else (str(src_ts) if src_ts else None),
+        "received_timestamp": recv_ts.isoformat() if hasattr(recv_ts, "isoformat") else (str(recv_ts) if recv_ts else None),
     }
     if getattr(res, "missing_codes", None) is not None:
         resp["missing_codes"] = res.missing_codes

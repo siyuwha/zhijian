@@ -270,6 +270,13 @@ class BriefingSafetyGuard:
 
                 raw_num_str = m.group(1)
                 unit = m.group(2)
+
+                if true_turnover is None:
+                    violations.append(
+                        f"NumericalFidelityViolation: Total turnover is unverified/null, but text claimed '{raw_num_str} {unit}'"
+                    )
+                    continue
+
                 is_valid = False
 
                 if "万亿" in unit:
@@ -305,6 +312,11 @@ class BriefingSafetyGuard:
             for m in re.finditer(pat, text):
                 raw_num_str = m.group(1)
                 unit = m.group(2)
+                if true_sh is None:
+                    violations.append(
+                        f"NumericalFidelityViolation: SH turnover is unverified/null, but text claimed '{raw_num_str} {unit}'"
+                    )
+                    continue
                 is_valid = False
                 if "万亿" in unit:
                     norm_val = Decimal(raw_num_str) * Decimal('10000')
@@ -331,6 +343,11 @@ class BriefingSafetyGuard:
             for m in re.finditer(pat, text):
                 raw_num_str = m.group(1)
                 unit = m.group(2)
+                if true_sz is None:
+                    violations.append(
+                        f"NumericalFidelityViolation: SZ turnover is unverified/null, but text claimed '{raw_num_str} {unit}'"
+                    )
+                    continue
                 is_valid = False
                 if "万亿" in unit:
                     norm_val = Decimal(raw_num_str) * Decimal('10000')

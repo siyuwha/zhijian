@@ -1,0 +1,167 @@
+﻿=== COMMAND: python -m pytest full regression suite (133 tests) ===
+EXIT CODE: 0
+=== OUTPUT ===
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\siyuw\AppData\Local\Programs\Python\Python312\python.exe
+cachedir: .pytest_cache
+rootdir: D:\项目库\AI认知复盘交易系统\scratch\codex_t09_t10_integration
+configfile: pytest.ini
+plugins: anyio-4.15.1, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 133 items
+
+backend/tests/test_market_turnover_caliber.py::test_scenario_01_work_sample_arithmetic PASSED [  0%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_02_pending_verification_gate PASSED [  1%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_03_bse_missing_or_pending PASSED [  2%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_04_missing_or_invalid_numeric[None] PASSED [  3%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_04_missing_or_invalid_numeric[nan] PASSED [  3%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_04_missing_or_invalid_numeric[inf] PASSED [  4%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_04_missing_or_invalid_numeric[-100.0] PASSED [  5%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_05_both_sides_stale_together PASSED [  6%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_06_post_market_without_archive_evidence PASSED [  6%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_07_historical_without_archive_evidence PASSED [  7%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_08_verified_final_archive PASSED [  8%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_09_call_auction_phase PASSED [  9%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_10_utc_and_future_timestamp_rejected PASSED [  9%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_11_premarket_unverified_zero_rejected PASSED [ 10%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_12_premarket_verified_zero_allowed PASSED [ 11%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_13_bse_independent_validation PASSED [ 12%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_14_lossless_unit_conversion PASSED [ 12%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_15_date_mismatch_rejected PASSED [ 13%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_16_canonical_market_service_entry PASSED [ 14%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_16_downstream_market_state_calibrator PASSED [ 15%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_16_downstream_narrative_context PASSED [ 15%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_16_downstream_projected_turnover_pace PASSED [ 16%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_16_monitor_macro_snapshot_entry PASSED [ 17%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_16_daily_review_turnover_entry PASSED [ 18%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_17_non_trading_day_calendar PASSED [ 18%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_18_call_auction_guards PASSED [ 19%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_19_midday_intermission PASSED [ 20%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_20_unverified_zero_rejected_across_phases PASSED [ 21%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_21_missing_quote_time_rejected PASSED [ 21%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_22_daily_review_prev_total_bilateral_check PASSED [ 22%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_23_briefing_pipeline_null_turnover_safe PASSED [ 23%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_24_calendar_uncovered_year_fail_closed PASSED [ 24%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_25_bse_independent_archive_and_zero_guard PASSED [ 24%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_26_golden_snapshot_via_canonical_market_service_entry PASSED [ 25%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_27_canonical_market_service_db_hit_full_pipeline PASSED [ 26%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_28_golden_snapshot_path_2_missing_sector_gates PASSED [ 27%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_29_all_markets_turnover_bypass_guard PASSED [ 27%]
+backend/tests/test_market_turnover_caliber.py::test_scenario_30_empty_ladder_tree_missing_state_guard PASSED [ 28%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a1_eastmoney_concept_fails_tdx_industry_not_substituted PASSED [ 29%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[timeout-TIMEOUT-UNAVAILABLE] PASSED [ 30%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[connection-CONNECTION_ERROR-UNAVAILABLE] PASSED [ 30%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[403-WAF_BLOCKED-UNAVAILABLE] PASSED [ 31%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[429-RATE_LIMITED-UNAVAILABLE] PASSED [ 32%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a2_sector_failure_classification[parse-MALFORMED_PARSE-INVALID] PASSED [ 33%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a3_stock_trends_primary_fails_secondary_succeeds PASSED [ 33%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a4_stock_trends_dual_fail_structured_empty_unavailable PASSED [ 34%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a5_stock_trends_partial_one_valid_one_failed PASSED [ 35%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a6_cache_tolerance_stale_and_expired PASSED [ 36%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a7_cross_date_cache_strict_isolation PASSED [ 36%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a11_budget_exhausted_validates_cache_age PASSED [ 37%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a12_top_sectors_trend_schema_extra_forbid PASSED [ 38%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a8_macro_full_sector_degraded_trends_unavailable_coexistence PASSED [ 39%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a9_unknown_quality_enum_conservative_handling PASSED [ 39%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a10_sequence_token_and_recovery_defense PASSED [ 40%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a13_cache_temporal_midnight_and_null_ts_gates PASSED [ 41%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a14_mixed_primary_realtime_backup_stale_and_timestamp_retention PASSED [ 42%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a15_non_t10_cache_with_reference_now_strict_gates PASSED [ 42%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_invalid_primary_trend_freshness_rejected[UNKNOWN] PASSED [ 43%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_invalid_primary_trend_freshness_rejected[EXPIRED] PASSED [ 44%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_invalid_primary_trend_freshness_rejected[UNAVAILABLE] PASSED [ 45%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a16_backup_delayed_never_promoted_to_realtime_and_expired_rejected PASSED [ 45%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a17_registry_strict_stale_tolerance_exact_boundary PASSED [ 46%]
+backend/tests/test_sector_and_trends_quality_governance.py::test_a18_intraday_top_sectors_ranking_and_trends_freshness_synthesis PASSED [ 47%]
+backend/tests/test_stock_trends_realism.py::test_api_date_passthrough_and_alias PASSED [ 48%]
+backend/tests/test_stock_trends_realism.py::test_data_service_cache_isolation_by_date PASSED [ 48%]
+backend/tests/test_stock_trends_realism.py::test_tdx_client_explicit_history_no_fallback PASSED [ 49%]
+backend/tests/test_stock_trends_realism.py::test_tdx_provider_history_no_quote_contamination PASSED [ 50%]
+backend/tests/test_stock_trends_realism.py::test_tdx_provider_missing_reliable_previous_close_marks_stock_unavailable PASSED [ 51%]
+backend/tests/test_stock_trends_realism.py::test_tdx_provider_current_date_missing_quote_baseline_does_not_use_first_minute PASSED [ 51%]
+backend/tests/test_stock_trends_realism.py::test_tdx_provider_preserves_real_prices_above_twenty_two_percent PASSED [ 52%]
+backend/tests/test_stock_trends_realism.py::test_tdx_provider_returns_partial_for_unsupported_codes PASSED [ 53%]
+backend/tests/test_stock_trends_realism.py::test_data_service_completes_missing_codes_via_unified_governance PASSED [ 54%]
+backend/tests/test_stock_trends_realism.py::test_eastmoney_no_synthesis_on_missing_and_date_check PASSED [ 54%]
+backend/tests/test_quote_freshness_time_validation.py::test_quote_timestamp_parser_shanghai_timezone PASSED [ 55%]
+backend/tests/test_quote_freshness_time_validation.py::test_validate_quote_shanghai_today_rule PASSED [ 56%]
+backend/tests/test_quote_freshness_time_validation.py::test_validate_quote_freshness_boundary_conditions PASSED [ 57%]
+backend/tests/test_quote_freshness_time_validation.py::test_validate_quote_batch PASSED [ 57%]
+backend/tests/test_quote_freshness_time_validation.py::test_tdx_dateless_quote_rejected_and_fails_over PASSED [ 58%]
+backend/tests/test_quote_freshness_time_validation.py::test_tencent_provider_quote_parsing_and_contract PASSED [ 59%]
+backend/tests/test_quote_freshness_time_validation.py::test_tencent_provider_index_quotes_contract PASSED [ 60%]
+backend/tests/test_quote_freshness_time_validation.py::test_failover_from_sina_to_tencent_backup PASSED [ 60%]
+backend/tests/test_quote_freshness_time_validation.py::test_cache_hit_revalidates_freshness_and_evicts_stale PASSED [ 61%]
+backend/tests/test_quote_freshness_time_validation.py::test_all_providers_fail_enters_degraded_stale_or_unavailable PASSED [ 62%]
+backend/tests/test_quote_freshness_time_validation.py::test_tencent_symbol_format_and_bse_mapping PASSED [ 63%]
+backend/tests/test_quote_freshness_time_validation.py::test_tencent_per_symbol_error_isolation_stock PASSED [ 63%]
+backend/tests/test_quote_freshness_time_validation.py::test_tencent_per_symbol_error_isolation_index PASSED [ 64%]
+backend/tests/test_quote_freshness_time_validation.py::test_e2e_real_tencent_failover_triggers_stop_loss_in_ledger PASSED [ 65%]
+backend/tests/test_quote_freshness_time_validation.py::test_dual_source_failure_zero_trade_strict_guarantee PASSED [ 66%]
+backend/tests/test_quote_freshness_time_validation.py::test_partial_quotes_missing_isolated_and_zero_unwarranted_sell PASSED [ 66%]
+backend/tests/test_quote_freshness_time_validation.py::test_circuit_breaker_probe_and_primary_recovery PASSED [ 67%]
+backend/tests/test_quote_freshness_time_validation.py::test_quote_date_only_and_timezone_offset_handling PASSED [ 68%]
+backend/tests/test_quote_freshness_time_validation.py::test_tencent_provider_admission_metadata PASSED [ 69%]
+backend/tests/test_quote_freshness_time_validation.py::test_native_degraded_fallback_quote_rejected_by_risk_engine PASSED [ 69%]
+backend/tests/test_quote_freshness_time_validation.py::test_native_full_fallback_quote_accepted_for_stop_loss PASSED [ 70%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_quality_log_unique_constraint_recovery PASSED [ 71%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_quality_log_business_transaction_isolation PASSED [ 72%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_snapshot_persistence_failure_risk_still_executed PASSED [ 72%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_stale_or_degraded_quotes_rejected_risk_skipped_ledger_unchanged PASSED [ 73%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_yesterday_quotes_with_realtime_label_rejected_by_date_check PASSED [ 74%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_invalid_quotes_and_quality_failure_via_real_db_conflict PASSED [ 75%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_monitor_stage_quality_log_failure_reported_in_scheduler PASSED [ 75%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_first_symbol_liquidated_second_symbol_error_preserves_events PASSED [ 76%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_partial_holdings_missing_quotes_diagnostic PASSED [ 77%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_concurrent_quality_log_writes PASSED [ 78%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_normal_pipeline_regression PASSED [ 78%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_isolated_sandbox_provenance PASSED [ 79%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_quote_missing_date_or_time_rejected_no_trade PASSED [ 80%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_quote_same_day_stale_and_future_time_rejected_no_trade PASSED [ 81%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_quality_tracker_concurrent_context_isolation PASSED [ 81%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_trade_execution_failure_rolls_back_session_and_subsequent_symbol_succeeds PASSED [ 82%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_real_pytdx_quote_structure_missing_date_safely_blocked PASSED [ 83%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_real_pytdx_with_tdx_server_market_date_succeeds PASSED [ 84%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_cross_context_singleflight_follower_propagates_quality_log_failure PASSED [ 84%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_cross_context_cache_hit_propagates_quality_log_failure PASSED [ 85%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_quality_log_success_distinguishes_true_false_none PASSED [ 86%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_adversarial_stale_stock_with_fresh_index_blocked PASSED [ 87%]
+backend/tests/test_quality_log_and_risk_isolation.py::test_scheduler_quality_log_failure_with_risk_skipped_yields_partial_warning PASSED [ 87%]
+backend/tests/test_stock_trends_contract.py::test_stock_trends_api_contract PASSED [ 88%]
+backend/tests/test_p2_resilience.py::test_p2_01_primary_normal PASSED    [ 89%]
+backend/tests/test_p2_resilience.py::test_p2_02_timeout_fallback PASSED  [ 90%]
+backend/tests/test_p2_resilience.py::test_p2_03_malformed_defense PASSED [ 90%]
+backend/tests/test_p2_resilience.py::test_p2_04_staleness_detection PASSED [ 91%]
+backend/tests/test_p2_resilience.py::test_p2_05_circuit_trip_open PASSED [ 92%]
+backend/tests/test_p2_resilience.py::test_p2_06_half_open_probe_pass PASSED [ 93%]
+backend/tests/test_p2_resilience.py::test_p2_07_half_open_probe_fail PASSED [ 93%]
+backend/tests/test_p2_resilience.py::test_p2_08_all_providers_fail PASSED [ 94%]
+backend/tests/test_p2_resilience.py::test_p2_09_ttl_cache_verify PASSED  [ 95%]
+backend/tests/test_p2_resilience.py::test_p2_10_request_coalescing PASSED [ 96%]
+backend/tests/test_p2_resilience.py::test_p2_11_rate_limit_budget PASSED [ 96%]
+backend/tests/test_p2_resilience.py::test_p2_12_eod_semantics_guard PASSED [ 97%]
+backend/tests/test_p2_resilience.py::test_p2_13_audit_log_integrity PASSED [ 98%]
+backend/tests/test_p2_resilience.py::test_p2_14_news_pipeline_idempotent PASSED [ 99%]
+backend/tests/test_p2_resilience.py::test_p2_15_truth_ledger_immutability PASSED [100%]
+
+============================== warnings summary ===============================
+backend/tests/test_market_turnover_caliber.py::test_scenario_22_daily_review_prev_total_bilateral_check
+  D:\项目库\AI认知复盘交易系统\scratch\codex_t09_t10_integration\backend\app\services\daily_review.py:334: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.session.add(cog_record)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+backend/tests/test_market_turnover_caliber.py::test_scenario_22_daily_review_prev_total_bilateral_check
+  D:\项目库\AI认知复盘交易系统\scratch\codex_t09_t10_integration\backend\app\services\daily_review.py:385: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.session.add(daily_snapshot)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+backend/tests/test_market_turnover_caliber.py::test_scenario_22_daily_review_prev_total_bilateral_check
+  D:\项目库\AI认知复盘交易系统\scratch\codex_t09_t10_integration\backend\app\services\daily_review.py:591: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.session.add(review_record)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 133 passed, 3 warnings in 128.08s (0:02:08) =================
